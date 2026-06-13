@@ -1,0 +1,10 @@
+# fortnum oracle table
+# function: scalar roots (bisection / Newton)
+# backend: mpmath.findroot (dps=50)
+# columns: index,a,b,root
+# has_derivative: 0
+0,1.0,2.0,1.414213562373095048802
+1,0.5,1.0,0.7390851332151606416553
+2,1.0,2.0,1.521379706804567569604
+3,0.0,2.0,1.098612288668109691395
+4,0.5,1.5,1.0
