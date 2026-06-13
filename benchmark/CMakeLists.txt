@@ -28,3 +28,11 @@ add_executable(bench_main
     fortnum_benchmark.f90
     bench_main.f90
 )
+
+# Derivative-overhead benchmark (#39). Seeded with a placeholder kernel; #40
+# adds real JVP/VJP/grad/HVP entries as the derivative products land.
+add_executable(bench_ad_overheads
+    ${FORTNUM_CORE_DIR}/fortnum_version.f90
+    fortnum_benchmark.f90
+    bench_ad_overheads.f90
+)
