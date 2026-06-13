@@ -32,6 +32,7 @@ module fortnum_integrate
     public :: integrate_workspace_t, integrate_epstab_t, integrate_result_t
     public :: integrate_qag, integrate_qags, integrate
     public :: integrate_qagp, integrate_qagiu
+    public :: integrate_qag_jvp
 
     abstract interface
         function integrate_integrand_t(x, ctx) result(fx)
@@ -435,6 +436,90 @@ contains
                            status, key=key, ctx=ctx)
         value = result%value
     end subroutine integrate
+
+    ! ------------------------------------------------------------------
+    ! integrate_qag_jvp: forward-mode product for the trace_rule policy
+    ! (ad.md sections 1, 4). The primal froze an accepted subdivision into
+    ! `result`; the integral is then the fixed weighted sum of GK panel values
+    !   I(p) = sum_panels  integral_{sub_a..sub_b}  f(x, p) dx.
+    ! Differentiating at that frozen subdivision and pushing d/dp inside each
+    ! panel integral gives
+    !   dI/dp = sum_panels  integral_{sub_a..sub_b}  (df/dp)(x) dx,
+    ! i.e. re-evaluate the SAME per-panel GK rule (same key, same frozen nodes)
+    ! on the tangent integrand df/dp. dfdp is the directional derivative of the
+    ! integrand along the parameter direction; for a vector parameter the caller
+    ! supplies the contraction (df/dp).v as dfdp and gets the scalar dI/dp.v.
+    !
+    ! Active argument: dfdp (the integrand tangent). Inactive: the frozen trace
+    ! (sub_a/sub_b/key/nsub) and the status side channel (ad.md section 3).
+    !
+    ! Status: the derivative is meaningful only on the trace the primal accepted.
+    ! If the recorded primal status is not FORTNUM_OK (e.g. the bad-integrand
+    ! code-3 path, where a perturbation would move or collapse a panel boundary),
+    ! the frozen subdivision is not a valid linearization point and this reports
+    ! the same non-smooth/failure status without computing a product. This reuses
+    ! the existing status path (set_driver_status); no new code class.
+    !
+    ! VJP/grad: I(p) is scalar, so the reverse product is the same scalar
+    ! sensitivity. integrate_qag_grad would equal integrate_qag_jvp with the
+    ! identity tangent on the active parameter, and a VJP with a scalar seed u
+    ! is u*dI/dp. Both are one scalar quadrature over the frozen trace, so a
+    ! separate reverse entry adds no information over the forward product for a
+    ! scalar output; the forward routine is the single derivative surface. An
+    ! HVP needs the integrand's second parameter derivative d2f/dp2 on the frozen
+    ! trace (same quadrature, second-order tangent); it is deferred until a
+    ! second-order integrand-tangent contract exists (ad.md section 6, additive).
+    ! ------------------------------------------------------------------
+    subroutine integrate_qag_jvp(dfdp, result, di_dp, status, ctx)
+        procedure(integrate_integrand_t)        :: dfdp
+        type(integrate_result_t),  intent(in)    :: result
+        real(dp),                  intent(out)   :: di_dp
+        type(fortnum_status_t),    intent(out)   :: status
+        class(*), intent(in), optional :: ctx
+
+        real(dp) :: panel_r, panel_e, panel_resabs, panel_resasc
+        integer  :: i, key_loc
+
+        di_dp = 0.0_dp
+
+        ! A perturbation that would change the accepted subdivision shows up as
+        ! a non-OK recorded primal status; the frozen-trace derivative is then
+        ! not well-posed. Propagate that verdict and stop (reuse status path).
+        if (result%status%code /= FORTNUM_OK) then
+            status = result%status
+            return
+        end if
+        if (.not. allocated(result%sub_a) .or. result%nsub < 1) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                            "integrate_qag_jvp: empty frozen subdivision trace")
+            return
+        end if
+
+        call status_set(status, FORTNUM_OK, "")
+        key_loc = result%key
+
+        ! Re-walk the frozen panels and apply the same GK rule to the tangent.
+        ! gk_apply%result is the per-panel integral estimate; summing it over
+        ! the recorded subdivision is the frozen-trace derivative of I.
+        do i = 1, result%nsub
+            call gk_apply(tangent_f, key_loc, result%sub_a(i), &
+                          result%sub_b(i), panel_r, panel_e, &
+                          panel_resabs, panel_resasc)
+            di_dp = di_dp + panel_r
+        end do
+
+    contains
+
+        ! Host-associated tangent wrapper: bridges the caller's df/dp and its
+        ! optional ctx to the kernel's ctx-free integrand. Lives on this call
+        ! stack; no module state, matching the primal panel_f pattern.
+        function tangent_f(x) result(fx)
+            real(dp), intent(in) :: x
+            real(dp) :: fx
+            fx = dfdp(x, ctx)
+        end function tangent_f
+
+    end subroutine integrate_qag_jvp
 
     ! ==================================================================
     ! Shared globally adaptive driver. panel_f is the ctx-free integrand

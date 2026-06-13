@@ -31,6 +31,7 @@ module fortnum_fft
     private
 
     public :: fft_r2c, fft_c2c, fortnum_fft_plan_t, fft_plan_init
+    public :: fft_c2c_jvp, fft_c2c_vjp, fft_r2c_jvp, fft_r2c_vjp
 
     real(dp), parameter :: pi = 3.141592653589793238462643383279502884_dp
     real(dp), parameter :: sin60 = 0.866025403784438646763723170752936183_dp
@@ -119,6 +120,88 @@ contains
         call c2c_forward(plan, z)
         if (sign == 1) z = conjg(z)
     end subroutine fft_c2c
+
+    ! --- derivative products (ad.md sec 2, sec 4: transparent/linear) ---------
+    !
+    ! The DFT is C-linear: c = F z with F(k,j) = exp(sign * 2 pi i j k / n).
+    ! Hence J = F and the forward product (JVP) is the transform itself applied
+    ! to the tangent. The reverse product (VJP) is the real-adjoint of z -> F z
+    ! under the real inner product <a,b> = Re(sum conjg(a) b) on C^n ~ R^2n: it
+    ! is multiplication by F^H, the conjugate-transpose. For F(k,j) above,
+    ! F^H(j,k) = conjg(F(k,j)) = exp(-sign * 2 pi i j k / n), i.e. fft_c2c with
+    ! the opposite sign. The dot-product identity u.(Jv)=v.(J^T u) then holds to
+    ! machine precision because both sides equal Re(u^H F v).
+    !
+    ! Active argument: z (the tangent / cotangent). Inactive: sign, all sizes
+    ! (ad.md sec 3). HVP is deferred: the map is linear, so the Hessian is zero
+    ! and fft_*_hvp would carry no information.
+
+    subroutine fft_c2c_jvp(dz, sign)
+        ! Forward product J(z) dz for the in-place complex DFT. J = F is the
+        ! transform, so the JVP is fft_c2c applied to the tangent dz.
+        complex(dp), intent(inout) :: dz(:)
+        integer, intent(in) :: sign
+        call fft_c2c(dz, sign)
+    end subroutine fft_c2c_jvp
+
+    subroutine fft_c2c_vjp(u, sign)
+        ! Reverse product J(z)^H u = F^H u. F^H is the conjugate-transpose, the
+        ! transform with the opposite sign (conjugate kernel, unnormalized).
+        complex(dp), intent(inout) :: u(:)
+        integer, intent(in) :: sign
+        call fft_c2c(u, -sign)
+    end subroutine fft_c2c_vjp
+
+    subroutine fft_r2c_jvp(dx, dc, plan)
+        ! Forward product for the real-to-complex DFT. The map x -> c is
+        ! R-linear with the same coefficients as the primal, so the JVP is
+        ! fft_r2c applied to the tangent dx.
+        real(dp), intent(in) :: dx(:)
+        complex(dp), intent(out) :: dc(:)
+        type(fortnum_fft_plan_t), intent(in), optional :: plan
+        if (present(plan)) then
+            call fft_r2c(dx, dc, plan)
+        else
+            call fft_r2c(dx, dc)
+        end if
+    end subroutine fft_r2c_jvp
+
+    subroutine fft_r2c_vjp(u, xbar, plan)
+        ! Reverse product for the real-to-complex DFT. The primal is the real
+        ! map (R x)(k) = sum_j x(j) exp(-2 pi i j k / n), k = 0..n/2, with x
+        ! real. Under <p,q>_R on the complex output and the ordinary real inner
+        ! product on x, the adjoint is xbar(j) = Re( sum_k conjg(R(k,j)) u(k) ),
+        ! i.e. xbar(j) = Re( sum_{k=0}^{n/2} exp(+2 pi i j k / n) u(k) ).
+        ! Computed by Hermitian-extending u to a full length-n spectrum and
+        ! taking one length-n inverse-direction transform; the real part is the
+        ! adjoint. xbar is sized n = size(x); u is sized n/2+1.
+        complex(dp), intent(in) :: u(:)
+        real(dp), intent(out) :: xbar(:)
+        type(fortnum_fft_plan_t), intent(in), optional :: plan
+        complex(dp), allocatable :: full(:)
+        integer :: n, nh, k
+
+        n = size(xbar)
+        if (n < 1) error stop "fft_r2c_vjp: empty output"
+        if (size(u) /= n/2 + 1) error stop "fft_r2c_vjp: size(u) /= n/2 + 1"
+        if (present(plan)) then
+            if (plan%n /= n) error stop &
+                "fft_r2c_vjp: plan built for different length"
+        end if
+
+        ! xbar(j) = Re( sum_{k=0}^{n/2} exp(+i 2 pi j k / n) u(k) ). Build the
+        ! length-n vector g(k)=u(k) for k=0..n/2, g(k)=0 otherwise, then apply
+        ! the sign=+1 (conjugate-kernel) transform; Re of the result is xbar.
+        allocate (full(n))
+        full = (0.0_dp, 0.0_dp)
+        do k = 0, n/2
+            full(k + 1) = u(k + 1)
+        end do
+        call fft_c2c(full, 1)
+        do k = 1, n
+            xbar(k) = real(full(k), dp)
+        end do
+    end subroutine fft_r2c_vjp
 
     ! --- private implementation below ----------------------------------------
 

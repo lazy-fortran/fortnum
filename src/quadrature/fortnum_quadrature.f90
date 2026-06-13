@@ -2,15 +2,19 @@ module fortnum_quadrature
     ! Fixed-rule Gauss quadrature: node/weight generation and interval-mapped
     ! integration helpers.
     !
-    ! DERIVATIVE POLICY (ad.md §1, §4): transparent.
-    !   Fixed-rule quadrature evaluates a fixed weighted sum
-    !     I = sum_i w_i * f(x_i)
-    !   where x_i and w_i are inactive parameters (integers n, a, b are also
-    !   inactive per ad.md §3). Integrand values f(x_i) are the active inputs.
-    !   Enzyme differentiates the weighted sum directly; no handwritten JVP/VJP.
-    !   Active: integrand values supplied by the caller.
-    !   Inactive: n, a, b (and all output nodes/weights when used as rule
-    !             parameters in a calling context).
+    ! DERIVATIVE POLICY (ad.md §1, §4): transparent w.r.t. integrand values.
+    !   Fixed-rule quadrature evaluates I = sum_i w_i * f(x_i).  The map
+    !   f -> I is linear with Jacobian J = w^T (a 1 x n row vector).
+    !   Active: integrand values f(x_i) supplied by the caller.
+    !   Inactive: n, a, b, nodes x_i, weights w_i (rule parameters).
+    !
+    !   Derivative products (ad.md §2):
+    !     gauss_legendre_jvp  -- forward:  dI  = sum_i w_i v_i   (scalar result)
+    !     gauss_legendre_vjp  -- reverse:  df_i = u * w_i         (u scalar costate)
+    !     gauss_legendre_grad -- gradient: dI/df_i = w_i (u = 1 case of vjp)
+    !
+    !   HVP: deferred; I is linear in f so the Hessian is zero -- HVP would
+    !   return zero and carries no information.  Not implemented.
     !
     ! Algorithms: Golub-Welsch (1969) via Newton iteration on Legendre recurrence.
     !   G. H. Golub, J. H. Welsch, Math. Comp. 23 (1969) 221-230.
@@ -22,6 +26,9 @@ module fortnum_quadrature
 
     public :: gauss_legendre
     public :: gauss_legendre_ab
+    public :: gauss_legendre_jvp
+    public :: gauss_legendre_vjp
+    public :: gauss_legendre_grad
 
 contains
 
@@ -102,5 +109,40 @@ contains
         x = midpoint + half_length*x
         w = half_length*w
     end subroutine gauss_legendre_ab
+
+    ! Forward product for the linear map f -> I = sum_i w_i f_i.
+    ! Active inputs: f (sampled integrand values at the rule nodes), tangent v.
+    ! Active output: jv = dI/df . v = sum_i w_i v_i  (scalar; returned in jv(1)).
+    ! Inactive: w (the rule weights, produced by gauss_legendre or gauss_legendre_ab).
+    ! w and v must have the same length n; jv must have size >= 1.
+    pure subroutine gauss_legendre_jvp(w, v, jv)
+        real(dp), intent(in)  :: w(:)   ! quadrature weights (inactive rule parameter)
+        real(dp), intent(in)  :: v(:)   ! tangent for integrand values, size n
+        real(dp), intent(out) :: jv(1)  ! forward product dI, scalar
+        jv(1) = dot_product(w, v)
+    end subroutine gauss_legendre_jvp
+
+    ! Reverse product for the linear map f -> I = sum_i w_i f_i.
+    ! Active inputs: f (sampled integrand values, inactive here -- only w needed),
+    !   u (scalar output costate, size 1).
+    ! Active output: jtu = (dI/df)^T u, i.e. jtu_i = u(1) * w_i.
+    ! Inactive: w (rule weights).
+    pure subroutine gauss_legendre_vjp(w, u, jtu)
+        real(dp), intent(in)  :: w(:)   ! quadrature weights (inactive rule parameter)
+        real(dp), intent(in)  :: u(1)   ! output costate (scalar), size 1
+        real(dp), intent(out) :: jtu(:) ! reverse product, size n
+        jtu = u(1) * w
+    end subroutine gauss_legendre_vjp
+
+    ! Gradient of I = sum_i w_i f_i w.r.t. the integrand sample values f_i.
+    ! dI/df_i = w_i; this is the u = 1 case of gauss_legendre_vjp and exposes
+    ! the weights directly as the gradient vector.
+    ! Inactive: n (determined from size(w)); w (rule weights, already computed).
+    ! Output: grad(n) receives the weight vector w.
+    pure subroutine gauss_legendre_grad(w, grad)
+        real(dp), intent(in)  :: w(:)    ! quadrature weights (inactive rule parameter)
+        real(dp), intent(out) :: grad(:) ! dI/df_i = w_i, size n
+        grad = w
+    end subroutine gauss_legendre_grad
 
 end module fortnum_quadrature

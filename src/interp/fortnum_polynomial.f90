@@ -38,6 +38,10 @@ module fortnum_polynomial
 
     public :: lagrange_weights
     public :: lagrange_deriv_weights
+    public :: lagrange_weights_jvp   ! d p(x)/d x  . v_x   (x active)
+    public :: lagrange_weights_vjp   ! (d p(x)/d x)^T . u   (x active)
+    public :: lagrange_fval_jvp      ! d p(x)/d f  . v_f   (f values active)
+    public :: lagrange_fval_vjp      ! (d p(x)/d f)^T . u  (f values active)
 
 contains
 
@@ -106,5 +110,81 @@ contains
             dcoef(i) = sum(tmp)
         end do
     end subroutine lagrange_deriv_weights
+
+
+    ! JVP of p(x) = sum_i f(i)*coef_i(x) with respect to the evaluation
+    ! point x.  Policy: analytic_rule (ad.md §4).
+    !
+    ! Active: x (scalar). Inactive: f (nodal values), xp (support), n.
+    ! Valid only inside a fixed cell; crossing a cell boundary is non-smooth
+    ! (ad.md §4 interp note) and the caller must hold the cell index fixed.
+    !
+    ! jv = (d p / d x) * vx = [sum_i f(i) * dcoef(i)] * vx
+    !
+    ! Deferred: HVP (d^2 p / dx^2 would need second-order weights; out of
+    ! scope for the current sweep).
+    pure subroutine lagrange_weights_jvp(n, x, xp, f, vx, jv)
+        integer,  intent(in)  :: n
+        real(dp), intent(in)  :: x
+        real(dp), intent(in)  :: xp(n)
+        real(dp), intent(in)  :: f(n)    ! nodal values (inactive in this map)
+        real(dp), intent(in)  :: vx      ! tangent for x
+        real(dp), intent(out) :: jv      ! d p(x)/d x * vx
+        real(dp) :: dcoef(n)
+        call lagrange_deriv_weights(n, x, xp, dcoef)
+        jv = dot_product(f, dcoef) * vx
+    end subroutine lagrange_weights_jvp
+
+
+    ! VJP of p(x) w.r.t. x.  Scalar output -> VJP collapses to the gradient
+    ! times the output cotangent u.
+    !
+    ! jtu = u * (d p / d x) = u * [sum_i f(i) * dcoef(i)]
+    pure subroutine lagrange_weights_vjp(n, x, xp, f, u, jtu)
+        integer,  intent(in)  :: n
+        real(dp), intent(in)  :: x
+        real(dp), intent(in)  :: xp(n)
+        real(dp), intent(in)  :: f(n)
+        real(dp), intent(in)  :: u       ! output cotangent
+        real(dp), intent(out) :: jtu     ! input cotangent for x
+        real(dp) :: dcoef(n)
+        call lagrange_deriv_weights(n, x, xp, dcoef)
+        jtu = u * dot_product(f, dcoef)
+    end subroutine lagrange_weights_vjp
+
+
+    ! JVP of p(x) w.r.t. the nodal values f(1:n).  Policy: transparent
+    ! (p is linear in f; value weights coef are the Jacobian row).
+    !
+    ! Active: f(1:n). Inactive: x, xp, n.
+    ! Smooth everywhere (the linear dependence on f has no branch).
+    !
+    ! jv = J_f p . vf = sum_i coef(i) * vf(i)
+    pure subroutine lagrange_fval_jvp(n, x, xp, vf, jv)
+        integer,  intent(in)  :: n
+        real(dp), intent(in)  :: x
+        real(dp), intent(in)  :: xp(n)
+        real(dp), intent(in)  :: vf(n)  ! tangent for f values
+        real(dp), intent(out) :: jv     ! scalar tangent for p(x)
+        real(dp) :: coef(n)
+        call lagrange_weights(n, x, xp, coef)
+        jv = dot_product(coef, vf)
+    end subroutine lagrange_fval_jvp
+
+
+    ! VJP of p(x) w.r.t. f(1:n).  J_f p = coef^T (1 x n), so
+    ! (J_f p)^T u = coef * u  (scalar u times the weight vector).
+    !
+    ! jtu(i) = coef(i) * u
+    pure subroutine lagrange_fval_vjp(n, x, xp, u, jtu)
+        integer,  intent(in)  :: n
+        real(dp), intent(in)  :: x
+        real(dp), intent(in)  :: xp(n)
+        real(dp), intent(in)  :: u       ! output cotangent (scalar)
+        real(dp), intent(out) :: jtu(n)  ! input cotangents for f(1:n)
+        real(dp) :: coef(n)
+        call lagrange_weights(n, x, xp, coef)
+        jtu = coef * u
+    end subroutine lagrange_fval_vjp
 
 end module fortnum_polynomial
