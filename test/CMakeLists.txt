@@ -201,3 +201,6 @@ add_test(NAME module_visibility_audit
     COMMAND python3 ${CMAKE_SOURCE_DIR}/scripts/audit_modules.py
         --src ${CMAKE_SOURCE_DIR}/src
         --api ${CMAKE_SOURCE_DIR}/docs/api.md)
+
+# --- M6 AD harness + optional Enzyme path ---
+add_subdirectory(ad)
