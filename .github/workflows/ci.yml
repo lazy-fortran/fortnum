@@ -1,0 +1,131 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Primal (non-derivative) build and test with gfortran. Required.
+  gfortran:
+    name: gfortran ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake \
+            gfortran \
+            ninja-build
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DFORTNUM_BUILD_TESTING=ON
+
+      - name: Build
+        run: cmake --build build -j
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  # Reference "oracle" table generation against an independent implementation
+  # (NumPy/SciPy). Non-required: stays green until the generator from #4 lands,
+  # then runs it once to refresh the checked-in reference tables.
+  oracle:
+    name: oracle reference tables
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install numpy scipy
+
+      - name: Generate oracle tables
+        run: |
+          set -euo pipefail
+          # The generator is introduced by #4. Until then, skip cleanly so this
+          # job is informational only. Search the conventional locations.
+          gen=""
+          for cand in \
+            tools/oracle/generate.py \
+            tools/generate_oracle.py \
+            test/oracle/generate.py \
+            scripts/generate_oracle.py; do
+            if [ -f "$cand" ]; then
+              gen="$cand"
+              break
+            fi
+          done
+          if [ -z "$gen" ]; then
+            echo "No oracle generator found yet (issue #4); skipping."
+            exit 0
+          fi
+          echo "Running oracle generator: $gen"
+          python "$gen"
+
+  # Optional Flang + Enzyme derivative (reverse-mode autodiff) build. Disabled.
+  # Issue #38 fills this in. It is gated on FORTNUM_ENABLE_ENZYME and currently
+  # never runs (the `if` is always false), so the stub can be completed without
+  # restructuring the workflow.
+  #
+  # enzyme:
+  #   name: flang + enzyme (derivative)
+  #   runs-on: ubuntu-latest
+  #   # Flip the gate in #38: e.g. drive it from a repository variable
+  #   #   if: ${{ vars.FORTNUM_ENABLE_ENZYME == 'ON' }}
+  #   if: ${{ false }}
+  #   continue-on-error: true
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Install LLVM/Flang and Enzyme
+  #       run: |
+  #         # #38: install a flang-new that matches the Enzyme plugin ABI,
+  #         # plus the Enzyme shared library / pass plugin.
+  #         echo "TODO(#38): provision flang + enzyme toolchain"
+  #
+  #     - name: Configure (Enzyme enabled)
+  #       run: |
+  #         cmake -S . -B build -G Ninja \
+  #           -DCMAKE_BUILD_TYPE=Debug \
+  #           -DCMAKE_Fortran_COMPILER=flang-new \
+  #           -DFORTNUM_BUILD_TESTING=ON \
+  #           -DFORTNUM_ENABLE_ENZYME=ON \
+  #           -DFORTNUM_ENZYME_REQUIRED=ON
+  #
+  #     - name: Build
+  #       run: cmake --build build -j
+  #
+  #     - name: Test
+  #       run: ctest --test-dir build --output-on-failure

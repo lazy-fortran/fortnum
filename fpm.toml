@@ -1,0 +1,17 @@
+name = "fortnum"
+version = "0.1.0"
+description = "Primal-first, derivative-ready clean-room Fortran numerical library"
+author = "Christopher Albert"
+maintainer = "albert@tugraz.at"
+license = "MIT"
+copyright = "Copyright 2025, lazy-fortran"
+
+[dev-dependencies]
+test-drive = { git = "https://github.com/fortran-lang/test-drive.git" }
+
+[build]
+auto-tests = true
+
+[fortran]
+implicit-typing = false
+source-form = "free"
