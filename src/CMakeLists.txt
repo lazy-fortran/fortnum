@@ -5,6 +5,8 @@ add_library(fortnum STATIC)
 
 target_sources(fortnum PRIVATE
     # module sources (alphabetical, one per line; append here)
+    ad/fortnum_active_vector.f90
+    ad/fortnum_ad_interfaces.f90
     fft/fortnum_fft.f90
     fortnum_kinds.f90
     fortnum_status.f90

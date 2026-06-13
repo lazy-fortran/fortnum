@@ -33,3 +33,8 @@ add_subdirectory(src)
 if(FORTNUM_BUILD_TESTING)
     add_subdirectory(test)
 endif()
+
+option(FORTNUM_BUILD_EXAMPLES "Build downstream API examples" ${FORTNUM_IS_STANDALONE})
+if(FORTNUM_BUILD_EXAMPLES)
+    add_subdirectory(examples)
+endif()

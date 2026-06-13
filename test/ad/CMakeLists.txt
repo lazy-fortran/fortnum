@@ -59,6 +59,11 @@ add_executable(test_interp_ad test_interp_ad.f90)
 target_link_libraries(test_interp_ad PRIVATE fortnum_ad_test_utils)
 add_test(NAME ad_interp COMMAND test_interp_ad)
 
+# --- #41 optimizer-facing API ---
+add_executable(test_optimizer_api test_optimizer_api.f90)
+target_link_libraries(test_optimizer_api PRIVATE fortnum_ad_test_utils)
+add_test(NAME ad_optimizer_api COMMAND test_optimizer_api)
+
 # --- #38 Enzyme smoke tests (compiler-AD path; skipped when unavailable) ---
 if(FORTNUM_ENABLE_ENZYME)
     include(FortnumAddEnzymeTest)
