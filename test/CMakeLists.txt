@@ -143,3 +143,27 @@ add_test(NAME fortnum_interp COMMAND test_fortnum_interp)
 add_executable(test_fortnum_rng rng/test_fortnum_rng.f90)
 target_link_libraries(test_fortnum_rng PRIVATE fortnum)
 add_test(NAME fortnum_rng COMMAND test_fortnum_rng)
+
+# --- M4 adaptive integration (QAG/QAGS) ---
+add_executable(test_fortnum_integrate quadrature/test_fortnum_integrate.f90)
+target_link_libraries(test_fortnum_integrate PRIVATE fortnum)
+add_test(NAME fortnum_integrate COMMAND test_fortnum_integrate)
+
+add_executable(test_fortnum_integrate_oracle oracle/test_fortnum_integrate_oracle.f90)
+target_link_libraries(test_fortnum_integrate_oracle PRIVATE fortnum)
+add_test(NAME fortnum_integrate_oracle
+    COMMAND test_fortnum_integrate_oracle
+        ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/integrate_qag_smooth.csv
+        ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/integrate_qags_singular.csv)
+
+# --- M4 singular / infinite-interval (QAGP/QAGIU) ---
+add_executable(test_fortnum_integrate_singular quadrature/test_fortnum_integrate_singular.f90)
+target_link_libraries(test_fortnum_integrate_singular PRIVATE fortnum)
+add_test(NAME fortnum_integrate_singular COMMAND test_fortnum_integrate_singular)
+
+add_executable(test_fortnum_integrate_singular_oracle oracle/test_fortnum_integrate_singular_oracle.f90)
+target_link_libraries(test_fortnum_integrate_singular_oracle PRIVATE fortnum)
+add_test(NAME fortnum_integrate_singular_oracle
+    COMMAND test_fortnum_integrate_singular_oracle
+        ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/integrate_qagp_singular.csv
+        ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/integrate_qagiu_infinite.csv)
