@@ -22,7 +22,11 @@ module fortnum_integrate_gk
     implicit none
     private
 
-    public :: integrate_gk, gk_integrand_t
+    ! gk_apply is the single-panel GK pair; the global adaptive driver in
+    ! fortnum_integrate reuses it per subinterval instead of re-deriving the
+    ! rule or recursing through integrate_gk's own adaptation (ADR integrate.md
+    ! section 1).
+    public :: integrate_gk, gk_integrand_t, gk_apply
 
     abstract interface
         function gk_integrand_t(x) result(fx)

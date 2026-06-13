@@ -15,6 +15,7 @@ target_sources(fortnum PRIVATE
     ode/fortnum_ode_cash_karp.f90
     ode/fortnum_ode_events.f90
     ode/fortnum_ode_wrapper.f90
+    quadrature/fortnum_integrate.f90
     quadrature/fortnum_integrate_gk.f90
     quadrature/fortnum_quadrature.f90
     rng/fortnum_rng.f90
