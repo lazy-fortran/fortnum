@@ -108,3 +108,38 @@ target_link_libraries(test_fortnum_ode_oracle PRIVATE fortnum)
 add_test(NAME fortnum_ode_oracle
     COMMAND test_fortnum_ode_oracle
         ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data)
+
+# --- M3 roots ---
+add_executable(test_fortnum_roots roots/test_fortnum_roots.f90)
+target_link_libraries(test_fortnum_roots PRIVATE fortnum)
+add_test(NAME fortnum_roots COMMAND test_fortnum_roots)
+
+add_executable(test_fortnum_roots_oracle oracle/test_fortnum_roots_oracle.f90)
+target_link_libraries(test_fortnum_roots_oracle PRIVATE fortnum)
+add_test(NAME fortnum_roots_oracle
+    COMMAND test_fortnum_roots_oracle
+        ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/roots.csv)
+
+add_executable(test_fortnum_roots_brent roots/test_fortnum_roots_brent.f90)
+target_link_libraries(test_fortnum_roots_brent PRIVATE fortnum)
+add_test(NAME fortnum_roots_brent COMMAND test_fortnum_roots_brent)
+
+add_executable(test_fortnum_roots_brent_oracle oracle/test_fortnum_roots_brent_oracle.f90)
+target_link_libraries(test_fortnum_roots_brent_oracle PRIVATE fortnum)
+add_test(NAME fortnum_roots_brent_oracle
+    COMMAND test_fortnum_roots_brent_oracle
+        ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/roots_brent.csv)
+
+# --- M3 interp ---
+add_executable(test_fortnum_polynomial interp/test_fortnum_polynomial.f90)
+target_link_libraries(test_fortnum_polynomial PRIVATE fortnum)
+add_test(NAME fortnum_polynomial COMMAND test_fortnum_polynomial)
+
+add_executable(test_fortnum_interp interp/test_fortnum_interp.f90)
+target_link_libraries(test_fortnum_interp PRIVATE fortnum)
+add_test(NAME fortnum_interp COMMAND test_fortnum_interp)
+
+# --- M3 rng ---
+add_executable(test_fortnum_rng rng/test_fortnum_rng.f90)
+target_link_libraries(test_fortnum_rng PRIVATE fortnum)
+add_test(NAME fortnum_rng COMMAND test_fortnum_rng)
