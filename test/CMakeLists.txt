@@ -89,3 +89,22 @@ target_link_libraries(test_fortnum_fft_oracle PRIVATE fortnum)
 add_test(NAME fortnum_fft_oracle
     COMMAND test_fortnum_fft_oracle
         ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/fft_c2c.csv)
+
+# --- M2 ode ---
+add_executable(test_fortnum_ode_cash_karp ode/test_fortnum_ode_cash_karp.f90)
+target_link_libraries(test_fortnum_ode_cash_karp PRIVATE fortnum)
+add_test(NAME fortnum_ode_cash_karp COMMAND test_fortnum_ode_cash_karp)
+
+add_executable(test_fortnum_ode_events ode/test_fortnum_ode_events.f90)
+target_link_libraries(test_fortnum_ode_events PRIVATE fortnum)
+add_test(NAME fortnum_ode_events COMMAND test_fortnum_ode_events)
+
+add_executable(test_fortnum_ode_wrapper ode/test_fortnum_ode_wrapper.f90)
+target_link_libraries(test_fortnum_ode_wrapper PRIVATE fortnum)
+add_test(NAME fortnum_ode_wrapper COMMAND test_fortnum_ode_wrapper)
+
+add_executable(test_fortnum_ode_oracle oracle/test_fortnum_ode_oracle.f90)
+target_link_libraries(test_fortnum_ode_oracle PRIVATE fortnum)
+add_test(NAME fortnum_ode_oracle
+    COMMAND test_fortnum_ode_oracle
+        ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data)
