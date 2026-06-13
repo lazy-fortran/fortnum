@@ -2,6 +2,9 @@
 # executable, link fortnum, register with add_test. Downstream agents append
 # one block per new test below.
 
+# OpenMP is required only by the M5 concurrency tests (thread-safety checks).
+find_package(OpenMP REQUIRED COMPONENTS Fortran)
+
 add_executable(test_fortnum_smoke test_fortnum_smoke.f90)
 target_link_libraries(test_fortnum_smoke PRIVATE fortnum)
 add_test(NAME fortnum_smoke COMMAND test_fortnum_smoke)
@@ -167,3 +170,34 @@ add_test(NAME fortnum_integrate_singular_oracle
     COMMAND test_fortnum_integrate_singular_oracle
         ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/integrate_qagp_singular.csv
         ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/integrate_qagiu_infinite.csv)
+
+# --- M5.1 OpenMP concurrency tests ---
+add_executable(test_concurrency_special concurrency/test_concurrency_special.f90)
+target_link_libraries(test_concurrency_special PRIVATE fortnum OpenMP::OpenMP_Fortran)
+add_test(NAME concurrency_special COMMAND test_concurrency_special)
+
+add_executable(test_concurrency_fft concurrency/test_concurrency_fft.f90)
+target_link_libraries(test_concurrency_fft PRIVATE fortnum OpenMP::OpenMP_Fortran)
+add_test(NAME concurrency_fft COMMAND test_concurrency_fft)
+
+add_executable(test_concurrency_integrate concurrency/test_concurrency_integrate.f90)
+target_link_libraries(test_concurrency_integrate PRIVATE fortnum OpenMP::OpenMP_Fortran)
+add_test(NAME concurrency_integrate COMMAND test_concurrency_integrate)
+
+add_executable(test_concurrency_ode concurrency/test_concurrency_ode.f90)
+target_link_libraries(test_concurrency_ode PRIVATE fortnum OpenMP::OpenMP_Fortran)
+add_test(NAME concurrency_ode COMMAND test_concurrency_ode)
+
+add_executable(test_concurrency_roots_interp concurrency/test_concurrency_roots_interp.f90)
+target_link_libraries(test_concurrency_roots_interp PRIVATE fortnum OpenMP::OpenMP_Fortran)
+add_test(NAME concurrency_roots_interp COMMAND test_concurrency_roots_interp)
+
+add_executable(test_concurrency_rng concurrency/test_concurrency_rng.f90)
+target_link_libraries(test_concurrency_rng PRIVATE fortnum OpenMP::OpenMP_Fortran)
+add_test(NAME concurrency_rng COMMAND test_concurrency_rng)
+
+# --- M5.4 module visibility audit ---
+add_test(NAME module_visibility_audit
+    COMMAND python3 ${CMAKE_SOURCE_DIR}/scripts/audit_modules.py
+        --src ${CMAKE_SOURCE_DIR}/src
+        --api ${CMAKE_SOURCE_DIR}/docs/api.md)

@@ -1,0 +1,26 @@
+{
+  "benchmarks": [
+    {
+      "name": "version_string_len",
+      "reps": 50000000,
+      "ns_per_call": 3.357163,
+      "backend": "primal",
+      "deriv_ns_per_call": null,
+      "jvp_primal": null,
+      "vjp_primal": null,
+      "grad_primal": null,
+      "hvp_primal": null
+    },
+    {
+      "name": "arith_kernel_fma",
+      "reps": 50000000,
+      "ns_per_call": 3.359572,
+      "backend": "primal",
+      "deriv_ns_per_call": null,
+      "jvp_primal": null,
+      "vjp_primal": null,
+      "grad_primal": null,
+      "hvp_primal": null
+    }
+  ]
+}

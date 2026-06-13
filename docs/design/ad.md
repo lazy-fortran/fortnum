@@ -97,7 +97,7 @@ reason.
 | `integrate` | `trace_rule`     | Adaptive integration picks subdivisions from the integrand; differentiate at the frozen subdivision the primal chose. |
 | `ode`       | `trace_rule`     | Adaptive step control makes step sizes data-dependent; record the accepted step schedule and differentiate the frozen trace. |
 | `roots`     | `implicit_rule`  | The root satisfies `f(x, p) = 0`; the implicit function theorem gives the derivative without differentiating the iteration. |
-| `interp`    | `transparent` (some `analytic_rule`) | Polynomial and spline evaluation is straight-line and `transparent`; a spline whose coefficients come from a solve uses `implicit_rule` or a hand-coded `analytic_rule` for the coefficient sensitivity. |
+| `interp`    | `transparent` (some `analytic_rule`; `grid_search` is `primal_only`) | Polynomial and spline evaluation is straight-line and `transparent`; a spline whose coefficients come from a solve uses `implicit_rule` or a hand-coded `analytic_rule` for the coefficient sensitivity. `grid_search` returns an integer cell index: it is `primal_only` because the index is inactive control flow (ad.md §3). Smooth derivatives of the interpolant are valid only inside a fixed cell; crossing a cell boundary is a non-smooth event and the caller must hold the index fixed when differentiating with respect to the evaluation point. |
 | `rng`       | `primal_only`    | A pseudorandom draw is not a differentiable function of its seed; gradients of estimators built on draws live in the caller, not here. |
 
 ## 5. How module docs reference this contract

@@ -93,6 +93,52 @@ jobs:
           echo "Running oracle generator: $gen"
           python "$gen"
 
+  # Benchmark regression gate. Builds the standalone benchmark, runs it in
+  # JSON mode, and compares against benchmark/baseline.json. A primal
+  # regression beyond the factor fails the job. Derivative-overhead checks
+  # are informational (non-blocking) until runner timing noise is
+  # characterized; see benchmark/README.md and gate.py --gate-derivative.
+  # GitHub-hosted runners are noisy, so the factor is generous (4x): the gate
+  # catches order-of-magnitude regressions, not micro-noise.
+  benchmark:
+    name: benchmark regression gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake \
+            gfortran \
+            ninja-build
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Configure benchmark
+        run: |
+          cmake -S benchmark -B build-bench -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build benchmark
+        run: cmake --build build-bench -j
+
+      - name: Run benchmark
+        run: ./build-bench/bin/bench_main --json | tee bench-run.json
+
+      - name: Gate against baseline
+        run: |
+          python3 benchmark/gate.py \
+            --baseline benchmark/baseline.json \
+            --run bench-run.json \
+            --factor 4.0
+
   # Optional Flang + Enzyme derivative (reverse-mode autodiff) build. Disabled.
   # Issue #38 fills this in. It is gated on FORTNUM_ENABLE_ENZYME and currently
   # never runs (the `if` is always false), so the stub can be completed without

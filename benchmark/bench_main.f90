@@ -5,10 +5,21 @@ program bench_main
 
     type(bench_registry_t) :: registry
     integer(int64)         :: reps
+    logical                :: as_json
+    integer                :: iarg
+    character(64)          :: arg
 
     ! Repetition count sized so even a sub-nanosecond kernel runs long enough
     ! for system_clock resolution to give a stable ns/call figure.
     reps = 50000000_int64
+
+    ! --json switches to machine-readable output for gate.py; default stays
+    ! the human table.
+    as_json = .false.
+    do iarg = 1, command_argument_count()
+        call get_command_argument(iarg, arg)
+        if (trim(arg) == "--json") as_json = .true.
+    end do
 
     ! Seed cases.  Both run today; they bound the harness overhead itself.
     call registry%add("version_string_len", kernel_version_len)
@@ -19,7 +30,7 @@ program bench_main
     !   call registry%add("rosenbrock", primal_rosenbrock, deriv=vjp_rosenbrock)
     ! The run() table then fills the "deriv ns" and "ratio" columns.
 
-    call registry%run(reps)
+    call registry%run(reps, as_json=as_json)
 
 contains
 

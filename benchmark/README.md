@@ -54,3 +54,43 @@ call registry%add("rosenbrock", primal_rosenbrock, deriv=vjp_rosenbrock)
 
 The result type and the report table already carry the derivative
 columns, so M6 adds autodiff kernels without changing the harness.
+
+## Regression gate
+
+`bench_main --json` emits a machine-readable run that `gate.py` compares
+against `baseline.json`. A primal benchmark slower than `baseline * factor`
+(default 2.0) fails the gate with a nonzero exit. CI runs it on every push.
+
+```bash
+./build-bench/bin/bench_main --json | python3 benchmark/gate.py
+# or against a saved run, with a custom factor:
+python3 benchmark/gate.py --run run.json --factor 1.5
+```
+
+The JSON schema is one object per benchmark under `benchmarks`:
+`name`, `reps`, `ns_per_call`, a `backend` tag
+(`analytic | implicit | trace | generated | primal`), and the
+derivative-product fields `deriv_ns_per_call`, `jvp_primal`, `vjp_primal`,
+`grad_primal`, `hvp_primal`. The derivative fields are `null` until M6
+supplies autodiff kernels; the schema reserves them now so the baseline
+format does not change when they arrive.
+
+Derivative-overhead ratios are checked but non-blocking by default (runner
+noise on those ratios is not yet characterized). Pass `--gate-derivative`
+to make them fail the gate once a noise budget is set.
+
+### Refresh the baseline
+
+Regenerate after an intended performance change, on a quiet machine, in a
+Release build:
+
+```bash
+cmake -S benchmark -B build-bench -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build-bench -j
+./build-bench/bin/bench_main --json > benchmark/baseline.json
+```
+
+Commit the new `baseline.json` with the change that motivated it. The same
+command refreshes derivative timings: once `bench_main` registers JVP/VJP
+kernels, their `deriv_ns_per_call` and `*_primal` ratios populate
+automatically in the regenerated baseline.
