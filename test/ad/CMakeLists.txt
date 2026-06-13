@@ -29,6 +29,36 @@ add_executable(test_enzyme_vs_analytic test_enzyme_vs_analytic.f90)
 target_link_libraries(test_enzyme_vs_analytic PRIVATE fortnum_ad_test_utils)
 add_test(NAME ad_enzyme_vs_analytic COMMAND test_enzyme_vs_analytic)
 
+# --- #40 module derivative sweep: analytic JVP/VJP/grad, verified by the
+#     harness (finite difference + dot-product adjoint identity) ---
+add_executable(test_special_ad test_special_ad.f90)
+target_link_libraries(test_special_ad PRIVATE fortnum_ad_test_utils)
+add_test(NAME ad_special COMMAND test_special_ad)
+
+add_executable(test_fft_ad test_fft_ad.f90)
+target_link_libraries(test_fft_ad PRIVATE fortnum_ad_test_utils)
+add_test(NAME ad_fft COMMAND test_fft_ad)
+
+add_executable(test_quadrature_ad test_quadrature_ad.f90)
+target_link_libraries(test_quadrature_ad PRIVATE fortnum_ad_test_utils)
+add_test(NAME ad_quadrature COMMAND test_quadrature_ad)
+
+add_executable(test_integrate_ad test_integrate_ad.f90)
+target_link_libraries(test_integrate_ad PRIVATE fortnum_ad_test_utils)
+add_test(NAME ad_integrate COMMAND test_integrate_ad)
+
+add_executable(test_ode_ad test_ode_ad.f90)
+target_link_libraries(test_ode_ad PRIVATE fortnum_ad_test_utils)
+add_test(NAME ad_ode COMMAND test_ode_ad)
+
+add_executable(test_roots_ad test_roots_ad.f90)
+target_link_libraries(test_roots_ad PRIVATE fortnum_ad_test_utils)
+add_test(NAME ad_roots COMMAND test_roots_ad)
+
+add_executable(test_interp_ad test_interp_ad.f90)
+target_link_libraries(test_interp_ad PRIVATE fortnum_ad_test_utils)
+add_test(NAME ad_interp COMMAND test_interp_ad)
+
 # --- #38 Enzyme smoke tests (compiler-AD path; skipped when unavailable) ---
 if(FORTNUM_ENABLE_ENZYME)
     include(FortnumAddEnzymeTest)

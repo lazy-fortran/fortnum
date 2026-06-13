@@ -29,6 +29,13 @@ module fortnum_special_bessel
     private
 
     public :: bessel_in, bessel_in_array, bessel_kn
+    ! analytic_rule derivatives (ad.md §2):
+    !   bessel_in_jvp: d/dx I_n(x) * v = (I_{n-1}(x)+I_{n+1}(x))/2 * v  (DLMF 10.29.2)
+    !   bessel_kn_jvp: d/dx K_n(x) * v = -(K_{n-1}(x)+K_{n+1}(x))/2 * v (DLMF 10.29.4)
+    ! Active argument: x. Inactive: n (integer order selector, ad.md §3).
+    ! HVP not provided (second-order recurrences involve more orders; deferred).
+    public :: bessel_in_jvp
+    public :: bessel_kn_jvp
 
     ! --- I_n parameters ---
     real(dp), parameter :: series_x_max    = 2.0_dp
@@ -202,6 +209,28 @@ contains
             kn = k_curr
         end if
     end function bessel_kn
+
+    ! Forward product for I_n w.r.t. x (n inactive).
+    ! dI_n/dx = (I_{n-1}(x) + I_{n+1}(x)) / 2  (DLMF 10.29.2).
+    ! Uses I_{-1} = I_1 (symmetry) so n=0 is handled correctly.
+    pure subroutine bessel_in_jvp(n, x, v, jv)
+        integer,  intent(in)  :: n    ! inactive order
+        real(dp), intent(in)  :: x    ! active argument
+        real(dp), intent(in)  :: v    ! tangent
+        real(dp), intent(out) :: jv   ! directional derivative
+        jv = 0.5_dp*(bessel_in(n - 1, x) + bessel_in(n + 1, x)) * v
+    end subroutine bessel_in_jvp
+
+    ! Forward product for K_n w.r.t. x (n inactive).
+    ! dK_n/dx = -(K_{n-1}(x) + K_{n+1}(x)) / 2  (DLMF 10.29.4).
+    ! Uses K_{-1} = K_1 (symmetry) so n=0 is handled correctly.
+    pure subroutine bessel_kn_jvp(n, x, v, jv)
+        integer,  intent(in)  :: n    ! inactive order
+        real(dp), intent(in)  :: x    ! active argument (must be > 0)
+        real(dp), intent(in)  :: v    ! tangent
+        real(dp), intent(out) :: jv   ! directional derivative
+        jv = -0.5_dp*(bessel_kn(n - 1, x) + bessel_kn(n + 1, x)) * v
+    end subroutine bessel_kn_jvp
 
     ! ------------------------------------------------------------------ I_n internals
 

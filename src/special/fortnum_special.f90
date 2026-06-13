@@ -15,12 +15,17 @@ module fortnum_special
     use fortnum_special_bessel, only: &
         bessel_in, &
         bessel_in_array, &
-        bessel_kn
+        bessel_kn, &
+        bessel_in_jvp, &
+        bessel_kn_jvp
     use fortnum_special_dawson, only: &
-        dawson
+        dawson, &
+        dawson_jvp, &
+        dawson_grad
     use fortnum_special_gamma, only: &
         gamma_lower, &
-        gamma_reg_p
+        gamma_reg_p, &
+        gamma_lower_jvp
 
     implicit none
     private
@@ -29,11 +34,13 @@ module fortnum_special
     ! Derivative policy: analytic_rule (ad.md §1, §4).
     ! Active argument: x only (n is inactive order selector).
     public :: bessel_in, bessel_in_array, bessel_kn
+    public :: bessel_in_jvp, bessel_kn_jvp
 
     ! Dawson integral F(x) = exp(-x^2) * integral_0^x exp(t^2) dt
     ! Derivative policy: analytic_rule; F'(x) = 1 - 2*x*F(x).
     ! Active argument: x.
     public :: dawson
+    public :: dawson_jvp, dawson_grad
 
     ! Incomplete gamma functions
     ! Derivative policy: analytic_rule.
@@ -41,5 +48,7 @@ module fortnum_special
     ! gamma_lower(a,x) = P(a,x)*Gamma(a), unnormalized lower incomplete.
     ! gamma_reg_p(a,x) = gamma_lower(a,x)/Gamma(a), regularized form.
     public :: gamma_lower, gamma_reg_p
+    ! d/dx only; d/da deferred (requires digamma, see gamma_lower module header).
+    public :: gamma_lower_jvp
 
 end module fortnum_special

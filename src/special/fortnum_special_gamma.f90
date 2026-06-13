@@ -27,6 +27,13 @@ module fortnum_special_gamma
 
     public :: gamma_lower
     public :: gamma_reg_p
+    ! analytic_rule derivatives (ad.md §2):
+    !   gamma_lower_jvp: d/dx gamma_lower(a,x) * v = x^{a-1} e^{-x} * v
+    !                    (DLMF 8.8.1; a fixed, x active).
+    !   d/da: deferred. Requires d/da log_gamma (digamma) and a series for
+    !         d/da P(a,x); no trivial closed form. Documented in the module
+    !         header and reserved as gamma_lower_jvp_da for a future issue.
+    public :: gamma_lower_jvp
 
 contains
 
@@ -70,6 +77,21 @@ contains
             p = 1.0_dp - gamma_reg_q_contfrac(a, x)
         end if
     end function gamma_reg_p
+
+    ! Forward product w.r.t. x (a inactive): jv = x^{a-1} e^{-x} * v.
+    ! x(1) = x (integration limit), v(1) = direction, jv(1) = product.
+    ! a is passed as x(2) (inactive, read-only; harness interface uses x(:)).
+    ! Convention: x array = [x_val, a_val] so the harness can vary x(1).
+    subroutine gamma_lower_jvp(x, v, jv)
+        real(dp), intent(in)  :: x(:)   ! x(1)=limit, x(2)=shape a
+        real(dp), intent(in)  :: v(:)
+        real(dp), intent(out) :: jv(:)
+        real(dp) :: xv, av
+        xv = x(1)
+        av = x(2)
+        ! d/dx gamma_lower(a,x) = x^{a-1} exp(-x)  (DLMF 8.8.1)
+        jv(1) = xv**(av - 1.0_dp) * exp(-xv) * v(1)
+    end subroutine gamma_lower_jvp
 
     ! Series expansion of P(a,x) (DLMF 8.11.4).
     ! Converges for all x but is most efficient for x < a+1.

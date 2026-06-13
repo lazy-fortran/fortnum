@@ -32,6 +32,7 @@ module fortnum_roots
 
     public :: root_fn_t, root_fn_df_t
     public :: root_bisect, root_newton, root_brent
+    public :: root_jvp, root_vjp, root_grad
 
     ! Function whose root is sought: y = f(x).
     abstract interface
@@ -418,5 +419,105 @@ contains
         call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
             "root_brent: maximum iterations reached without convergence")
     end subroutine root_brent
+
+    ! Implicit-rule derivatives for a scalar root x*(p) of f(x, p) = 0.
+    !
+    ! IFT: dx*/dp = -f_p / f_x, where f_x = df/dx and f_p = df/dp at the root.
+    !
+    ! Active arguments: x_star (converged root), f_x (df/dx at root),
+    !   f_p (df/dp at root, scalar for root_grad; vector for root_jvp/root_vjp).
+    ! Inactive: status, tolerance, solver internals.
+    !
+    ! Near-multiple-root guard: |f_x| < deriv_floor signals FORTNUM_DOMAIN_ERROR.
+    ! The derivative is not reliable near a multiple root (IFT breaks down).
+    !
+    ! HVP: deferred. Second derivatives of x*(p) require d^2f/dp^2, d^2f/dxdp,
+    ! and d^2f/dx^2; these are not part of the current caller-supplied interface.
+    ! HVP can be added in a follow-up issue when the second-partials callback
+    ! pattern is settled.
+
+    ! root_jvp: forward-mode product dx* = -(f_p . tp) / f_x.
+    !   f_x  : df/dx at the converged root (scalar).
+    !   f_p  : df/dp_i at the root, one value per parameter component (vector).
+    !   tp   : tangent vector in parameter space (same size as f_p).
+    !   dx   : output tangent in root space (scalar).
+    !   deriv_floor: |f_x| threshold below which status -> FORTNUM_DOMAIN_ERROR.
+    pure subroutine root_jvp(f_x, f_p, tp, dx, status, deriv_floor)
+        real(dp),               intent(in)  :: f_x
+        real(dp),               intent(in)  :: f_p(:)
+        real(dp),               intent(in)  :: tp(:)
+        real(dp),               intent(out) :: dx
+        type(fortnum_status_t), intent(out) :: status
+        real(dp), intent(in), optional      :: deriv_floor
+
+        real(dp) :: dfloor
+
+        dfloor = 1.0e-14_dp
+        if (present(deriv_floor)) dfloor = deriv_floor
+
+        if (abs(f_x) < dfloor) then
+            dx = 0.0_dp
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "root_jvp: |f_x| near zero; near-multiple root, derivative unreliable")
+            return
+        end if
+
+        dx = -dot_product(f_p, tp) / f_x
+        call status_set(status, FORTNUM_OK, "")
+    end subroutine root_jvp
+
+    ! root_vjp: reverse-mode product jtu_i = -(f_p_i / f_x) * u.
+    !   f_x  : df/dx at the converged root.
+    !   f_p  : df/dp_i at the root (vector, length n).
+    !   u    : adjoint on the root output (scalar; passed as real(dp)).
+    !   jtu  : adjoint on the parameter vector (length n).
+    pure subroutine root_vjp(f_x, f_p, u, jtu, status, deriv_floor)
+        real(dp),               intent(in)  :: f_x
+        real(dp),               intent(in)  :: f_p(:)
+        real(dp),               intent(in)  :: u
+        real(dp),               intent(out) :: jtu(:)
+        type(fortnum_status_t), intent(out) :: status
+        real(dp), intent(in), optional      :: deriv_floor
+
+        real(dp) :: dfloor
+
+        dfloor = 1.0e-14_dp
+        if (present(deriv_floor)) dfloor = deriv_floor
+
+        if (abs(f_x) < dfloor) then
+            jtu = 0.0_dp
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "root_vjp: |f_x| near zero; near-multiple root, derivative unreliable")
+            return
+        end if
+
+        jtu = -(f_p / f_x) * u
+        call status_set(status, FORTNUM_OK, "")
+    end subroutine root_vjp
+
+    ! root_grad: scalar-p case: dx*/dp = -f_p / f_x.
+    !   Convenience wrapper for the 1-D parameter case.
+    pure subroutine root_grad(f_x, f_p, dxdp, status, deriv_floor)
+        real(dp),               intent(in)  :: f_x
+        real(dp),               intent(in)  :: f_p
+        real(dp),               intent(out) :: dxdp
+        type(fortnum_status_t), intent(out) :: status
+        real(dp), intent(in), optional      :: deriv_floor
+
+        real(dp) :: dfloor
+
+        dfloor = 1.0e-14_dp
+        if (present(deriv_floor)) dfloor = deriv_floor
+
+        if (abs(f_x) < dfloor) then
+            dxdp = 0.0_dp
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "root_grad: |f_x| near zero; near-multiple root, derivative unreliable")
+            return
+        end if
+
+        dxdp = -f_p / f_x
+        call status_set(status, FORTNUM_OK, "")
+    end subroutine root_grad
 
 end module fortnum_roots

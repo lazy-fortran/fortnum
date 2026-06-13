@@ -21,6 +21,12 @@ module fortnum_special_dawson
     private
 
     public :: dawson
+    ! analytic_rule derivatives (ad.md §2):
+    !   dawson_jvp: forward product F'(x) * v = (1 - 2*x*F(x)) * v
+    !   dawson_grad: scalar gradient (same coefficient, d/dx applied to scalar)
+    ! Active argument: x. No HVP here (would require F'' = -2F - 2xF').
+    public :: dawson_jvp
+    public :: dawson_grad
 
     real(dp), parameter :: inv_sqrt_pi = 0.564189583547756287_dp
 
@@ -152,5 +158,24 @@ contains
         end do
         f = 0.5_dp/a*s
     end function dawson_asymptotic
+
+    ! Forward product: jv = F'(x) v, where F'(x) = 1 - 2*x*F(x).
+    ! x and v are length-1 arrays conforming to the harness interface.
+    subroutine dawson_jvp(x, v, jv)
+        real(dp), intent(in)  :: x(:)
+        real(dp), intent(in)  :: v(:)
+        real(dp), intent(out) :: jv(:)
+        jv(1) = (1.0_dp - 2.0_dp*x(1)*dawson(x(1))) * v(1)
+    end subroutine dawson_jvp
+
+    ! Scalar gradient: grad = dF/dx = 1 - 2*x*F(x).
+    ! Returns the gradient as a length-1 array so callers may use it uniformly.
+    subroutine dawson_grad(x, u, jtu)
+        real(dp), intent(in)  :: x(:)
+        real(dp), intent(in)  :: u(:)
+        real(dp), intent(out) :: jtu(:)
+        ! For scalar output the VJP and JVP coincide; u is the output cotangent.
+        jtu(1) = u(1) * (1.0_dp - 2.0_dp*x(1)*dawson(x(1)))
+    end subroutine dawson_grad
 
 end module fortnum_special_dawson

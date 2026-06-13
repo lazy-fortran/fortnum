@@ -4,9 +4,9 @@ Every routine listed here is thread-safe. State is explicit and caller-owned;
 no module-level mutable state exists anywhere in fortnum. Two threads that hold
 separate state objects never race.
 
-Derivative products (`foo_jvp`, `foo_vjp`, `foo_grad`, `foo_hvp`) are reserved
-for issue #40 and are not shipped. Each module section below names the reserved
-entry points so the primal signatures are final and #40 is additive.
+Derivative products (`foo_jvp`, `foo_vjp`, `foo_grad`, `foo_hvp`) shipped in
+issue #40 as additive routines: the primal signatures are unchanged. The
+[Derivative products](#derivative-products) section lists them per module.
 
 Derivative policy vocabulary follows `docs/design/ad.md §1`:
 `transparent`, `analytic_rule`, `implicit_rule`, `trace_rule`, `primal_only`.
@@ -331,7 +331,7 @@ type inside the integrand. `ctx` is `intent(in)`.
 |------|---------|
 | `integrate_workspace_t` | QUADPACK alist/blist/rlist/elist work stack. Caller-owned; reuse across calls. |
 | `integrate_epstab_t`    | Wynn epsilon table for QAGS/QAGP/QAGIU. Default-initialized value is a valid empty table. |
-| `integrate_result_t`    | Value, error, status, and the frozen accepted subdivision (trace_rule schedule). |
+| `integrate_result_t`    | Result value with its error estimate, status, plus the frozen accepted subdivision (trace_rule schedule). |
 
 ### `integrate_qag(f, a, b, epsabs, epsrel, workspace, result, status [, key, limit, ctx])`
 
@@ -817,3 +817,104 @@ subroutine oracle_check(table, f, atol, rtol, status)
 Check `f` against every row: `|got - expected| <= atol + rtol*|expected|`. On
 the first failure writes a report to `error_unit`; continues to scan all rows.
 Sets `FORTNUM_CONVERGENCE_ERROR` if any row fails.
+
+---
+
+## Derivative products
+
+Additive routines from issue #40. Primal signatures are unchanged. Each is
+verified against central finite difference and, where both directions exist,
+the adjoint identity `uᵀ(Jv) = vᵀ(Jᵀu)`. Active and inactive arguments follow
+`docs/design/ad.md §3`: integer orders, node counts, tolerances, step counts,
+and seeds are inactive.
+
+### fortnum_special (`analytic_rule`)
+
+```fortran
+subroutine dawson_jvp(x, v, jv)        ! F'(x)v, F'(x) = 1 - 2 x F(x)
+subroutine dawson_grad(x, u, jtu)      ! scalar adjoint u F'(x)
+subroutine gamma_lower_jvp(x, v, jv)   ! d/dx gamma_lower(a,x) = x^(a-1) e^(-x); a inactive
+subroutine bessel_in_jvp(n, x, v, jv)  ! dI_n/dx = (I_{n-1}+I_{n+1})/2  (DLMF 10.29.2)
+subroutine bessel_kn_jvp(n, x, v, jv)  ! dK_n/dx = -(K_{n-1}+K_{n+1})/2 (DLMF 10.29.4)
+```
+
+Derivative of `gamma_lower` with respect to the shape `a` is deferred (digamma
+series). HVP is deferred for all three: no scalar loss context in the module.
+
+### fortnum_fft (`transparent`, linear)
+
+```fortran
+subroutine fft_c2c_jvp(dz, sign)       ! Jv = forward DFT of the tangent
+subroutine fft_c2c_vjp(u, sign)        ! Jᵀu, real-adjoint under <a,b> = Re(sum conjg(a) b)
+subroutine fft_r2c_jvp(dx, dc, plan)
+subroutine fft_r2c_vjp(u, xbar, plan)
+```
+
+The DFT is C-linear: the Hessian is zero, so HVP carries no information and is
+omitted. No `grad`: the transforms are vector-valued.
+
+### fortnum_quadrature (`transparent` in integrand values)
+
+```fortran
+subroutine gauss_legendre_jvp(w, v, jv)   ! dI = sum_i w_i v_i for tangent integrand values
+subroutine gauss_legendre_vjp(w, u, jtu)  ! jtu_i = u w_i
+subroutine gauss_legendre_grad(w, grad)   ! dI/df_i = w_i (the weight vector)
+```
+
+The map `f -> I` is linear; HVP is zero and omitted. Nodes and order are
+inactive.
+
+### fortnum_integrate (`trace_rule`)
+
+```fortran
+subroutine integrate_qag_jvp(dfdp, result, di_dp, status, ctx)
+```
+
+Differentiates at the frozen accepted subdivision the primal chose: `dI/dp` is
+the sum over accepted panels of the Gauss-Kronrod quadrature of `df/dp` at the
+frozen nodes. `status` reports non-smoothness when a perturbation would change
+the subdivision. The scalar output makes the reverse product equal the forward
+sensitivity, so no separate `vjp`/`grad` is shipped.
+
+### fortnum_ode (`trace_rule`)
+
+```fortran
+subroutine ode_var_rhs_t(t, y, s, dsdt, ctx)   ! abstract interface: variational/tangent RHS
+subroutine ode_integrate_jvp(problem, var_rhs, s0, solution, s1, status)      ! forward sensitivity
+subroutine ode_integrate_vjp(problem, var_rhs_adj, u, solution, jtu, status)  ! discrete adjoint
+```
+
+Both products re-run the Cash-Karp stepper over the recorded `solution%t` /
+`solution%h` schedule held fixed. The forward pass propagates primal and tangent
+in lockstep; the adjoint walks the same trace backward. HVP needs a
+caller-defined scalar loss on `y(t1)` and is deferred.
+
+### fortnum_roots (`implicit_rule`)
+
+```fortran
+subroutine root_jvp(f_x, f_p, tp, dx, status, deriv_floor)   ! dx* = -(f_p . tp)/f_x
+subroutine root_vjp(f_x, f_p, u, jtu, status, deriv_floor)   ! jtu_i = -(f_p_i/f_x) u
+subroutine root_grad(f_x, f_p, dxdp, status, deriv_floor)    ! dx*/dp = -f_p/f_x
+```
+
+The implicit function theorem gives the derivative from the converged root
+without differentiating the iteration. `status` reports unreliability when
+`|f_x|` is near zero (near-multiple root).
+
+### fortnum_polynomial / fortnum_interp (`transparent`, fixed cell)
+
+```fortran
+subroutine lagrange_weights_jvp(n, x, xp, f, vx, jv)   ! d p(x)/dx using derivative weights
+subroutine lagrange_weights_vjp(n, x, xp, f, u, jtu)
+subroutine lagrange_fval_jvp(n, x, xp, vf, jv)         ! d p(x)/df_i using value weights
+subroutine lagrange_fval_vjp(n, x, xp, u, jtu)
+```
+
+Derivatives are valid inside a fixed cell. Crossing a cell boundary is a
+non-smooth event; the caller holds the index fixed when differentiating with
+respect to the evaluation point.
+
+### fortnum_rng (`primal_only`)
+
+A pseudorandom draw is not a differentiable function of its seed. No derivative
+products.

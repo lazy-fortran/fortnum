@@ -8,9 +8,21 @@ module fortnum_ode
     !   schedule held fixed: the variational system rides the frozen trace
     !   (solution%t, solution%y, solution%h). The integrator records that mesh
     !   and owns no global state, so the #40 forward/reverse products attach
-    !   additively (reserved names ode_integrate_jvp, ode_integrate_vjp).
-    !   Active: y0, ctx parameters, the recorded trace. Inactive: rtol, atol,
-    !   h0, hmin, hmax, max_steps, event_direction, and the counts/err/status.
+    !   additively. ode_integrate_jvp integrates the variational equation
+    !   d/dt(dy/dp.v) = J_f(t,y)(dy/dp.v) + df/dp.vp over the frozen schedule;
+    !   ode_integrate_vjp is its discrete adjoint, the exact transpose walked
+    !   backward over the same trace (verified by the dot-product identity to
+    !   machine precision). Both take the caller-supplied variational RHS
+    !   (ode_var_rhs_t): the forward one applies J_f, the adjoint one applies
+    !   J_f^T. The Jacobian-w.r.t.-y action is supplied this way; the
+    !   PARAMETER-gradient quadrature df/dp^T lam (so the VJP returns the
+    !   parameter adjoint, not only the y0 adjoint) is the documented next step
+    !   and is not accumulated here. HVP is deferred: ode has no scalar primal
+    !   output, so a Hessian-vector product needs a caller-defined scalar loss
+    !   and a second tangent pass; left to the loss-aware layer.
+    !   Active: y0 (via the JVP seed s0), ctx parameters (via var_rhs), the
+    !   recorded trace. Inactive: rtol, atol, h0, hmin, hmax, max_steps,
+    !   event_direction, and the counts/err/status.
     !
     ! Method: Cash and Karp, ACM TOMS 16 (1990) 201-222 (stepper in
     !   fortnum_ode_cash_karp). PI controller and starting-step estimate:
@@ -24,8 +36,9 @@ module fortnum_ode
     implicit none
     private
 
-    public :: ode_rhs_t, ode_event_t
+    public :: ode_rhs_t, ode_event_t, ode_var_rhs_t
     public :: ode_integrate, ode_solve
+    public :: ode_integrate_jvp, ode_integrate_vjp
 
     integer, parameter, public :: ODE_EVENT_RISING  =  1
     integer, parameter, public :: ODE_EVENT_FALLING = -1
@@ -41,6 +54,25 @@ module fortnum_ode
     real(dp), parameter :: FAC_MAX  = 5.0_dp
     real(dp), parameter :: TRACE_GROWTH = 2.0_dp
 
+    ! Cash-Karp tableau constants for the augmented and adjoint steppers.
+    ! Must match fortnum_ode_cash_karp exactly; that module keeps them private.
+    real(dp), parameter :: CK_C2 = 0.2_dp,   CK_C3 = 0.3_dp
+    real(dp), parameter :: CK_C4 = 0.6_dp,   CK_C5 = 1.0_dp,  CK_C6 = 0.875_dp
+    real(dp), parameter :: CK_A21 = 0.2_dp
+    real(dp), parameter :: CK_A31 = 3.0_dp/40.0_dp,  CK_A32 = 9.0_dp/40.0_dp
+    real(dp), parameter :: CK_A41 = 0.3_dp,  CK_A42 = -0.9_dp, CK_A43 = 1.2_dp
+    real(dp), parameter :: CK_A51 = -11.0_dp/54.0_dp, CK_A52 = 2.5_dp
+    real(dp), parameter :: CK_A53 = -70.0_dp/27.0_dp, CK_A54 = 35.0_dp/27.0_dp
+    real(dp), parameter :: CK_A61 = 1631.0_dp/55296.0_dp
+    real(dp), parameter :: CK_A62 = 175.0_dp/512.0_dp
+    real(dp), parameter :: CK_A63 = 575.0_dp/13824.0_dp
+    real(dp), parameter :: CK_A64 = 44275.0_dp/110592.0_dp
+    real(dp), parameter :: CK_A65 = 253.0_dp/4096.0_dp
+    real(dp), parameter :: CK_B5_1 = 37.0_dp/378.0_dp
+    real(dp), parameter :: CK_B5_3 = 250.0_dp/621.0_dp
+    real(dp), parameter :: CK_B5_4 = 125.0_dp/594.0_dp
+    real(dp), parameter :: CK_B5_6 = 512.0_dp/1771.0_dp
+
     abstract interface
         subroutine ode_rhs_t(t, y, dydt, ctx)
             import :: dp
@@ -49,6 +81,24 @@ module fortnum_ode
             real(dp), intent(out) :: dydt(:)
             class(*), intent(in), optional :: ctx
         end subroutine ode_rhs_t
+    end interface
+
+    abstract interface
+        ! Variational (tangent) RHS for forward sensitivity (#40, trace_rule).
+        ! Returns the directional derivative of ode_rhs_t along the augmented
+        ! tangent: dsdt = J_f(t,y) s + df/dp . vp, where J_f is the RHS Jacobian
+        ! w.r.t. y and the df/dp.vp term carries the parameter-direction part of
+        ! the seed. The caller supplies the closed form (or its own AD) so the
+        ! tangent rides the same trace the primal recorded. y is the primal state
+        ! on the frozen trace; s is the current sensitivity dy/dp.v.
+        subroutine ode_var_rhs_t(t, y, s, dsdt, ctx)
+            import :: dp
+            real(dp), intent(in)  :: t
+            real(dp), intent(in)  :: y(:)
+            real(dp), intent(in)  :: s(:)
+            real(dp), intent(out) :: dsdt(:)
+            class(*), intent(in), optional :: ctx
+        end subroutine ode_var_rhs_t
     end interface
 
     abstract interface
@@ -262,6 +312,240 @@ contains
             allocate(y_out(size(y0), 0))
         end if
     end subroutine ode_solve
+
+    ! Forward sensitivity (JVP), trace_rule (ad.md sec 1, 4). Integrates the
+    ! variational equation d/dt(dy/dp.v) = J_f(t,y)(dy/dp.v) + df/dp.vp alongside
+    ! the primal over the FROZEN accepted-step schedule recorded in solution
+    ! (solution%t, solution%h). Returns s1 = dy(t1)/dp . v, the forward product
+    ! J(y0,p->y(t1)) applied to the perturbation direction encoded by the seed
+    ! s0 (the y0-part: s0 = dy0/dp.v) and by var_rhs (the parameter part).
+    !
+    ! Re-runs the primal stepper in lockstep with the tangent so the stage
+    ! states match what the primal saw; the step sizes are taken verbatim from
+    ! the recorded trace and never re-adapted. Caller must have called
+    ! ode_integrate first to fill solution. Active: y0 (via s0), parameters (via
+    ! var_rhs). Inactive: tolerances, step controls, status (ad.md sec 3).
+    subroutine ode_integrate_jvp(problem, var_rhs, s0, solution, s1, status)
+        type(ode_problem_t),    intent(in)  :: problem
+        procedure(ode_var_rhs_t)            :: var_rhs
+        real(dp),               intent(in)  :: s0(:)
+        type(ode_solution_t),   intent(in)  :: solution
+        real(dp), allocatable,  intent(out) :: s1(:)
+        type(fortnum_status_t), intent(out) :: status
+
+        integer  :: neq, i, nstep
+        real(dp) :: t, h
+        real(dp), allocatable :: y(:), s(:)
+
+        call status_set(status, FORTNUM_OK, "")
+        if (.not. associated(problem%rhs)) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_integrate_jvp: rhs not associated")
+            return
+        end if
+        if (.not. allocated(solution%t) .or. .not. allocated(solution%y)) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_integrate_jvp: empty trace (run ode_integrate first)")
+            return
+        end if
+
+        neq = size(solution%y, 1)
+        if (size(s0) /= neq) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_integrate_jvp: s0 size mismatch")
+            return
+        end if
+
+        allocate(s1(neq), y(neq), s(neq))
+        s = s0
+
+        nstep = solution%nsteps
+        do i = 1, nstep
+            t = solution%t(i)
+            h = solution%h(i)
+            y = solution%y(:, i)
+            call augmented_step(problem%rhs, var_rhs, t, y, s, h, neq)
+        end do
+
+        s1 = s
+    end subroutine ode_integrate_jvp
+
+    ! Reverse sensitivity (VJP) over the frozen trace. Discrete adjoint: the
+    ! forward product is the composition of per-step linear maps S = M_n...M_1,
+    ! so J^T u = M_1^T...M_n^T u, walking the recorded trace backward. Each
+    ! M_i^T is applied matrix-free by the variational RHS, transposed at the
+    ! stage level. Returns jtu = dy(t1)/dy0 ^T . u in the y0-input space.
+    !
+    ! var_rhs_adj(t,y,lam,out) must apply J_f(t,y)^T lam (the transpose of the
+    ! tangent RHS w.r.t. s). The parameter-gradient quadrature (df/dp^T lam) is
+    ! NOT accumulated here: this returns the y0-adjoint only. The parameter
+    ! adjoint is the documented next step (see header / report).
+    subroutine ode_integrate_vjp(problem, var_rhs_adj, u, solution, jtu, status)
+        type(ode_problem_t),    intent(in)  :: problem
+        procedure(ode_var_rhs_t)            :: var_rhs_adj
+        real(dp),               intent(in)  :: u(:)
+        type(ode_solution_t),   intent(in)  :: solution
+        real(dp), allocatable,  intent(out) :: jtu(:)
+        type(fortnum_status_t), intent(out) :: status
+
+        integer  :: neq, i, nstep
+        real(dp) :: t, h
+        real(dp), allocatable :: y(:), lam(:)
+
+        call status_set(status, FORTNUM_OK, "")
+        if (.not. associated(problem%rhs)) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_integrate_vjp: rhs not associated")
+            return
+        end if
+        if (.not. allocated(solution%t) .or. .not. allocated(solution%y)) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_integrate_vjp: empty trace (run ode_integrate first)")
+            return
+        end if
+
+        neq = size(solution%y, 1)
+        if (size(u) /= neq) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_integrate_vjp: u size mismatch")
+            return
+        end if
+
+        allocate(jtu(neq), y(neq), lam(neq))
+        lam = u
+
+        nstep = solution%nsteps
+        do i = nstep, 1, -1
+            t = solution%t(i)
+            h = solution%h(i)
+            y = solution%y(:, i)
+            call augmented_step_adj(problem%rhs, var_rhs_adj, t, y, lam, h, neq)
+        end do
+
+        jtu = lam
+    end subroutine ode_integrate_vjp
+
+    ! One Cash-Karp step on the augmented state (y, s): the primal stages drive
+    ! the tangent stages so they share the same internal states. h is taken from
+    ! the frozen trace (signed). On return s holds the propagated sensitivity;
+    ! y is advanced too but discarded by the caller (the trace already has it).
+    subroutine augmented_step(rhs, var_rhs, t, y, s, h, neq)
+        procedure(ode_rhs_t)     :: rhs
+        procedure(ode_var_rhs_t) :: var_rhs
+        real(dp), intent(in)     :: t
+        real(dp), intent(inout)  :: y(:)
+        real(dp), intent(inout)  :: s(:)
+        real(dp), intent(in)     :: h
+        integer,  intent(in)     :: neq
+
+        real(dp) :: yk1(neq), yk2(neq), yk3(neq), yk4(neq), yk5(neq), yk6(neq)
+        real(dp) :: sk1(neq), sk2(neq), sk3(neq), sk4(neq), sk5(neq), sk6(neq)
+        real(dp) :: yt(neq), st(neq)
+
+        call ck_stage(rhs, var_rhs, t, y, s, yk1, sk1)
+
+        yt = y + h * (CK_A21 * yk1)
+        st = s + h * (CK_A21 * sk1)
+        call ck_stage(rhs, var_rhs, t + CK_C2 * h, yt, st, yk2, sk2)
+
+        yt = y + h * (CK_A31 * yk1 + CK_A32 * yk2)
+        st = s + h * (CK_A31 * sk1 + CK_A32 * sk2)
+        call ck_stage(rhs, var_rhs, t + CK_C3 * h, yt, st, yk3, sk3)
+
+        yt = y + h * (CK_A41 * yk1 + CK_A42 * yk2 + CK_A43 * yk3)
+        st = s + h * (CK_A41 * sk1 + CK_A42 * sk2 + CK_A43 * sk3)
+        call ck_stage(rhs, var_rhs, t + CK_C4 * h, yt, st, yk4, sk4)
+
+        yt = y + h * (CK_A51 * yk1 + CK_A52 * yk2 + CK_A53 * yk3 + CK_A54 * yk4)
+        st = s + h * (CK_A51 * sk1 + CK_A52 * sk2 + CK_A53 * sk3 + CK_A54 * sk4)
+        call ck_stage(rhs, var_rhs, t + CK_C5 * h, yt, st, yk5, sk5)
+
+        yt = y + h * (CK_A61 * yk1 + CK_A62 * yk2 + CK_A63 * yk3 &
+                      + CK_A64 * yk4 + CK_A65 * yk5)
+        st = s + h * (CK_A61 * sk1 + CK_A62 * sk2 + CK_A63 * sk3 &
+                      + CK_A64 * sk4 + CK_A65 * sk5)
+        call ck_stage(rhs, var_rhs, t + CK_C6 * h, yt, st, yk6, sk6)
+
+        y = y + h * (CK_B5_1 * yk1 + CK_B5_3 * yk3 + CK_B5_4 * yk4 + CK_B5_6 * yk6)
+        s = s + h * (CK_B5_1 * sk1 + CK_B5_3 * sk3 + CK_B5_4 * sk4 + CK_B5_6 * sk6)
+    end subroutine augmented_step
+
+    ! Evaluate primal and tangent stage derivatives at (t, y, s).
+    subroutine ck_stage(rhs, var_rhs, t, y, s, ydot, sdot)
+        procedure(ode_rhs_t)     :: rhs
+        procedure(ode_var_rhs_t) :: var_rhs
+        real(dp), intent(in)  :: t, y(:), s(:)
+        real(dp), intent(out) :: ydot(:), sdot(:)
+        call rhs(t, y, ydot)
+        call var_rhs(t, y, s, sdot)
+    end subroutine ck_stage
+
+    ! Discrete-adjoint step: the transpose of augmented_step's linear s-map.
+    ! The forward s-update is s' = s + h sum b_i sk_i with sk_i a linear chain
+    ! in the earlier sk_j; the adjoint propagates lam through the transposed
+    ! chain. Implemented matrix-free: each stage's contribution to lam is
+    ! var_rhs_adj(t_i, y_i, .)^T applied to the accumulated stage adjoint.
+    subroutine augmented_step_adj(rhs, var_rhs_adj, t, y, lam, h, neq)
+        procedure(ode_rhs_t)     :: rhs
+        procedure(ode_var_rhs_t) :: var_rhs_adj
+        real(dp), intent(in)     :: t
+        real(dp), intent(in)     :: y(:)
+        real(dp), intent(inout)  :: lam(:)
+        real(dp), intent(in)     :: h
+        integer,  intent(in)     :: neq
+
+        real(dp) :: yk1(neq), yk2(neq), yk3(neq), yk4(neq), yk5(neq), yk6(neq)
+        real(dp) :: yt(neq)
+        real(dp) :: tn(6)
+        real(dp) :: yn(neq, 6)          ! primal stage states
+        real(dp) :: skbar(neq, 6)       ! cotangent of stage outputs sk_i
+        real(dp) :: inbar(neq)          ! cotangent of stage input in_i
+        real(dp) :: sbar(neq)
+        real(dp) :: a(6, 6), b(6)
+        integer  :: i, j
+
+        ! Recompute the primal stage STATES so the transposed Jacobian g_i^T is
+        ! evaluated at the same nodes the forward tangent used.
+        call rhs(t, y, yk1)
+        yn(:, 1) = y;  tn(1) = t
+        yt = y + h * (CK_A21 * yk1)
+        call rhs(t + CK_C2 * h, yt, yk2); yn(:, 2) = yt; tn(2) = t + CK_C2 * h
+        yt = y + h * (CK_A31 * yk1 + CK_A32 * yk2)
+        call rhs(t + CK_C3 * h, yt, yk3); yn(:, 3) = yt; tn(3) = t + CK_C3 * h
+        yt = y + h * (CK_A41 * yk1 + CK_A42 * yk2 + CK_A43 * yk3)
+        call rhs(t + CK_C4 * h, yt, yk4); yn(:, 4) = yt; tn(4) = t + CK_C4 * h
+        yt = y + h * (CK_A51 * yk1 + CK_A52 * yk2 + CK_A53 * yk3 + CK_A54 * yk4)
+        call rhs(t + CK_C5 * h, yt, yk5); yn(:, 5) = yt; tn(5) = t + CK_C5 * h
+        yt = y + h * (CK_A61 * yk1 + CK_A62 * yk2 + CK_A63 * yk3 &
+                      + CK_A64 * yk4 + CK_A65 * yk5)
+        call rhs(t + CK_C6 * h, yt, yk6); yn(:, 6) = yt; tn(6) = t + CK_C6 * h
+
+        ! Tableau coupling/weights as a matrix, zeros for unused entries.
+        a = 0.0_dp; b = 0.0_dp
+        a(2,1) = CK_A21
+        a(3,1) = CK_A31; a(3,2) = CK_A32
+        a(4,1) = CK_A41; a(4,2) = CK_A42; a(4,3) = CK_A43
+        a(5,1) = CK_A51; a(5,2) = CK_A52; a(5,3) = CK_A53; a(5,4) = CK_A54
+        a(6,1) = CK_A61; a(6,2) = CK_A62; a(6,3) = CK_A63; a(6,4) = CK_A64
+        a(6,5) = CK_A65
+        b(1) = CK_B5_1; b(3) = CK_B5_3; b(4) = CK_B5_4; b(6) = CK_B5_6
+
+        ! Forward s-map:  in_i = s + h sum_{j<i} a_ij sk_j,  sk_i = g_i in_i,
+        !                 s' = s + h sum_i b_i sk_i.
+        ! Reverse (sbar = cotangent of s, seeded by lam = cotangent of s'):
+        sbar = lam
+        do i = 1, 6
+            skbar(:, i) = h * b(i) * lam
+        end do
+        do i = 6, 1, -1
+            call var_rhs_adj(tn(i), yn(:, i), skbar(:, i), inbar)  ! g_i^T skbar_i
+            sbar = sbar + inbar
+            do j = 1, i - 1
+                skbar(:, j) = skbar(:, j) + h * a(i, j) * inbar
+            end do
+        end do
+        lam = sbar
+    end subroutine augmented_step_adj
 
     ! --- internals ---
 
