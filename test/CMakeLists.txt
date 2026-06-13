@@ -22,3 +22,70 @@ target_link_libraries(test_oracle_selftest PRIVATE fortnum)
 add_test(NAME oracle_selftest
     COMMAND test_oracle_selftest
         ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/gamma.csv)
+
+# --- M1 special functions ---
+add_executable(test_fortnum_special_bessel special/test_fortnum_special_bessel.f90)
+target_link_libraries(test_fortnum_special_bessel PRIVATE fortnum)
+add_test(NAME fortnum_special_bessel COMMAND test_fortnum_special_bessel)
+
+add_executable(test_fortnum_special_bessel_oracle oracle/test_fortnum_special_bessel_oracle.f90)
+target_link_libraries(test_fortnum_special_bessel_oracle PRIVATE fortnum)
+add_test(NAME fortnum_special_bessel_oracle
+    COMMAND test_fortnum_special_bessel_oracle
+        ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/bessel.csv)
+
+add_executable(test_fortnum_special_dawson special/test_fortnum_special_dawson.f90)
+target_link_libraries(test_fortnum_special_dawson PRIVATE fortnum)
+add_test(NAME fortnum_special_dawson COMMAND test_fortnum_special_dawson)
+
+add_executable(test_fortnum_special_dawson_oracle oracle/test_fortnum_special_dawson_oracle.f90)
+target_link_libraries(test_fortnum_special_dawson_oracle PRIVATE fortnum)
+add_test(NAME fortnum_special_dawson_oracle
+    COMMAND test_fortnum_special_dawson_oracle
+        ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/dawson.csv)
+
+add_executable(test_fortnum_special_gamma special/test_fortnum_special_gamma.f90)
+target_link_libraries(test_fortnum_special_gamma PRIVATE fortnum)
+add_test(NAME fortnum_special_gamma COMMAND test_fortnum_special_gamma)
+
+add_executable(test_fortnum_special_gamma_oracle oracle/test_fortnum_special_gamma_oracle.f90)
+target_link_libraries(test_fortnum_special_gamma_oracle PRIVATE fortnum)
+add_test(NAME fortnum_special_gamma_oracle
+    COMMAND test_fortnum_special_gamma_oracle
+        ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/lower_incomplete_gamma.csv)
+
+add_executable(test_fortnum_special_reexport special/test_fortnum_special_reexport.f90)
+target_link_libraries(test_fortnum_special_reexport PRIVATE fortnum)
+add_test(NAME fortnum_special_reexport COMMAND test_fortnum_special_reexport)
+
+# --- M1 quadrature ---
+add_executable(test_fortnum_integrate_gk quadrature/test_fortnum_integrate_gk.f90)
+target_link_libraries(test_fortnum_integrate_gk PRIVATE fortnum)
+add_test(NAME fortnum_integrate_gk COMMAND test_fortnum_integrate_gk)
+
+add_executable(test_fortnum_integrate_gk_oracle oracle/test_fortnum_integrate_gk_oracle.f90)
+target_link_libraries(test_fortnum_integrate_gk_oracle PRIVATE fortnum)
+add_test(NAME fortnum_integrate_gk_oracle
+    COMMAND test_fortnum_integrate_gk_oracle
+        ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/integrate_gk.csv)
+
+add_executable(test_fortnum_quadrature quadrature/test_fortnum_quadrature.f90)
+target_link_libraries(test_fortnum_quadrature PRIVATE fortnum)
+add_test(NAME fortnum_quadrature COMMAND test_fortnum_quadrature)
+
+add_executable(test_fortnum_quadrature_oracle oracle/test_fortnum_quadrature_oracle.f90)
+target_link_libraries(test_fortnum_quadrature_oracle PRIVATE fortnum)
+add_test(NAME fortnum_quadrature_oracle
+    COMMAND test_fortnum_quadrature_oracle
+        ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/gauss_legendre.csv)
+
+# --- M1 fft ---
+add_executable(test_fortnum_fft fft/test_fortnum_fft.f90)
+target_link_libraries(test_fortnum_fft PRIVATE fortnum)
+add_test(NAME fortnum_fft COMMAND test_fortnum_fft)
+
+add_executable(test_fortnum_fft_oracle oracle/test_fortnum_fft_oracle.f90)
+target_link_libraries(test_fortnum_fft_oracle PRIVATE fortnum)
+add_test(NAME fortnum_fft_oracle
+    COMMAND test_fortnum_fft_oracle
+        ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/fft_c2c.csv)

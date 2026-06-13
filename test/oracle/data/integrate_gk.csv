@@ -1,0 +1,11 @@
+# fortnum oracle table
+# function: integrate_gk
+# backend: scipy.integrate.quad + analytic
+# columns: case_id,a,b,expected_integral
+# has_derivative: 0
+0,0.0,1.0,1.718281828459045
+1,0.0,2.0,14.0
+2,0.0,3.141592653589793,2.0
+3,0.0,1.5707963267948966,1.0
+4,0.0,1.0,0.6666666666666666
+5,0.0,1.0,0.7468241328124271
