@@ -29,6 +29,7 @@ module fortnum_quadrature
     public :: gauss_legendre_jvp
     public :: gauss_legendre_vjp
     public :: gauss_legendre_grad
+    public :: gauss_gen_laguerre
 
 contains
 
@@ -144,5 +145,135 @@ contains
         real(dp), intent(out) :: grad(:) ! dI/df_i = w_i, size n
         grad = w
     end subroutine gauss_legendre_grad
+
+    ! Generalized Gauss-Laguerre nodes and weights for the weight
+    !   w(x) = x^alpha exp(-x) on [0, inf), alpha > -1.
+    ! The quadrature sum sum_i w(i)*f(x(i)) approximates
+    !   integral_0^inf x^alpha exp(-x) f(x) dx.
+    ! Golub-Welsch (1969): nodes are eigenvalues of the symmetric tridiagonal
+    ! Jacobi matrix with diagonal a_k = 2(k-1)+alpha+1 and off-diagonal
+    ! b_k = sqrt(k(k+alpha)) (DLMF 18.9 monic recurrence, symmetrized).  The
+    ! weights are mu0 * v_{1,j}^2 where v_{1,j} is the first component of the
+    ! j-th unit eigenvector and mu0 = Gamma(alpha+1) is the zeroth moment
+    ! (DLMF Table 18.3.1, DLMF 3.5.31-32).  The tridiagonal eigenproblem is
+    ! solved clean-room by implicit-shift QL (EISPACK imtql2 style) so fortnum
+    ! stays LAPACK-free, matching the gauss_legendre Newton path.
+    pure subroutine gauss_gen_laguerre(n, alpha, x, w)
+        integer,  intent(in)  :: n
+        real(dp), intent(in)  :: alpha
+        real(dp), intent(out) :: x(n), w(n)
+
+        real(dp) :: diag(n), offdiag(n), z(n)
+        real(dp) :: mu0
+        integer  :: k
+
+        if (alpha <= -1.0_dp) &
+            error stop "fortnum_quadrature: gen-laguerre requires alpha > -1"
+        if (n < 1) error stop "fortnum_quadrature: n must be >= 1"
+
+        mu0 = gamma(alpha + 1.0_dp)
+        do k = 1, n
+            diag(k) = real(2*(k - 1), dp) + alpha + 1.0_dp
+        end do
+        ! offdiag(k) is the subdiagonal entry below diag(k); offdiag(1) unused.
+        offdiag(1) = 0.0_dp
+        do k = 2, n
+            offdiag(k) = sqrt(real(k - 1, dp)*(real(k - 1, dp) + alpha))
+        end do
+        z = 0.0_dp
+        z(1) = 1.0_dp
+        call tridiag_ql_first(n, diag, offdiag, z)
+        x = diag
+        w = mu0*z*z
+    end subroutine gauss_gen_laguerre
+
+    ! Implicit-shift QL for a symmetric tridiagonal matrix, tracking only the
+    ! first row of the accumulated eigenvector matrix (EISPACK imtql2 reduced
+    ! to one row -- sufficient for Golub-Welsch weights).  On entry d holds the
+    ! diagonal, e the subdiagonal with e(1) unused, and z the first row of the
+    ! identity.  On exit d holds the ascending eigenvalues and z the matching
+    ! first eigenvector components.  Eigenvalues are sorted with their z.
+    pure subroutine tridiag_ql_first(n, d, e, z)
+        integer,  intent(in)    :: n
+        real(dp), intent(inout) :: d(n), e(n), z(n)
+
+        integer,  parameter :: max_iter = 64
+        integer  :: l, m, iter, i, k
+        real(dp) :: g, r, s, c, p, f, b, dd, ztmp
+
+        if (n == 1) return
+        ! Shift subdiagonal into e(1:n-1), e(n) = 0 (EISPACK convention).
+        do i = 2, n
+            e(i - 1) = e(i)
+        end do
+        e(n) = 0.0_dp
+
+        do l = 1, n
+            iter = 0
+            do
+                ! Find small subdiagonal element to split off a 1x1 block.
+                do m = l, n - 1
+                    dd = abs(d(m)) + abs(d(m + 1))
+                    if (abs(e(m)) <= epsilon(1.0_dp)*dd) exit
+                end do
+                if (m == l) exit
+                iter = iter + 1
+                if (iter > max_iter) error stop &
+                    "fortnum_quadrature: tridiagonal QL failed to converge"
+                ! Wilkinson shift.
+                g = (d(l + 1) - d(l))/(2.0_dp*e(l))
+                r = hypot(g, 1.0_dp)
+                g = d(m) - d(l) + e(l)/(g + sign(r, g))
+                s = 1.0_dp
+                c = 1.0_dp
+                p = 0.0_dp
+                do i = m - 1, l, -1
+                    f = s*e(i)
+                    b = c*e(i)
+                    r = hypot(f, g)
+                    e(i + 1) = r
+                    if (r == 0.0_dp) then
+                        d(i + 1) = d(i + 1) - p
+                        e(m) = 0.0_dp
+                        exit
+                    end if
+                    s = f/r
+                    c = g/r
+                    g = d(i + 1) - p
+                    r = (d(i) - g)*s + 2.0_dp*c*b
+                    p = s*r
+                    d(i + 1) = g + p
+                    g = c*r - b
+                    ! Accumulate the first eigenvector row only.
+                    f = z(i + 1)
+                    z(i + 1) = s*z(i) + c*f
+                    z(i)     = c*z(i) - s*f
+                end do
+                if (r == 0.0_dp .and. i >= l) cycle
+                d(l) = d(l) - p
+                e(l) = g
+                e(m) = 0.0_dp
+            end do
+        end do
+
+        ! Ascending sort of eigenvalues, carrying the first-row components.
+        do i = 1, n - 1
+            k = i
+            p = d(i)
+            do l = i + 1, n
+                if (d(l) < p) then
+                    k = l
+                    p = d(l)
+                end if
+            end do
+            if (k /= i) then
+                d(k) = d(i)
+                d(i) = p
+                ztmp = z(i)
+                z(i) = z(k)
+                z(k) = ztmp
+            end if
+        end do
+    end subroutine tridiag_ql_first
 
 end module fortnum_quadrature

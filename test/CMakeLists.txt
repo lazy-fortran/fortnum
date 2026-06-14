@@ -105,6 +105,12 @@ add_test(NAME fortnum_quadrature_oracle
     COMMAND test_fortnum_quadrature_oracle
         ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/gauss_legendre.csv)
 
+add_executable(test_fortnum_gen_laguerre_oracle oracle/test_fortnum_gen_laguerre_oracle.f90)
+target_link_libraries(test_fortnum_gen_laguerre_oracle PRIVATE fortnum)
+add_test(NAME fortnum_gen_laguerre_oracle
+    COMMAND test_fortnum_gen_laguerre_oracle
+        ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/gauss_gen_laguerre.csv)
+
 # --- M1 fft ---
 add_executable(test_fortnum_fft fft/test_fortnum_fft.f90)
 target_link_libraries(test_fortnum_fft PRIVATE fortnum)
