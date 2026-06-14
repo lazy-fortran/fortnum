@@ -33,7 +33,9 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             cmake \
             gfortran \
-            ninja-build
+            ninja-build \
+            liblapack-dev \
+            libblas-dev
 
       - name: Configure
         run: |
@@ -114,7 +116,9 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             cmake \
             gfortran \
-            ninja-build
+            ninja-build \
+            liblapack-dev \
+            libblas-dev
 
       - name: Set up Python
         uses: actions/setup-python@v5

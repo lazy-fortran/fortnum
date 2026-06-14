@@ -11,6 +11,9 @@ test-drive = { git = "https://github.com/fortran-lang/test-drive.git" }
 
 [build]
 auto-tests = true
+# roots/fortnum_roots_complex.f90 calls LAPACK ZGGEV; link LAPACK and its BLAS
+# so the fpm/fo build resolves it without relying on the default library path.
+link = ["lapack", "blas"]
 
 [fortran]
 implicit-typing = false
