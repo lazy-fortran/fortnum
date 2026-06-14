@@ -46,5 +46,9 @@ target_include_directories(fortnum PUBLIC ${CMAKE_Fortran_MODULE_DIRECTORY})
 # into the library so every consumer resolves the symbol.
 target_link_libraries(fortnum PUBLIC LAPACK::LAPACK)
 
-# Install the hand-written C ABI header so C/C++ consumers find it.
-install(FILES ${CMAKE_SOURCE_DIR}/include/fortnum.h DESTINATION include)
+# Install the hand-written C ABI header so C/C++ consumers find it. Guard on a
+# standalone build: as a FetchContent subproject CMAKE_SOURCE_DIR points at the
+# consumer, and the consumer's install tree should not carry fortnum's header.
+if(FORTNUM_IS_STANDALONE)
+    install(FILES ${PROJECT_SOURCE_DIR}/include/fortnum.h DESTINATION include)
+endif()
