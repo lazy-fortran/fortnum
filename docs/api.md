@@ -927,6 +927,77 @@ Ascending stable index permutation: `x(perm)` is sorted. `primal_only`.
 
 ---
 
+## fortnum_roots_complex
+
+Distinct zeros of an analytic function inside an axis-aligned complex rectangle,
+with multiplicities. Replaces the ZEAL ICON=3 region search that KIM's
+`wkb_dispersion` used to locate dispersion-relation roots.
+
+The count of zeros in the box (with multiplicity) is the winding number
+N = (1/2 pi i) oint_C f'/f dz. The power-sum moments
+s_p = (1/2 pi i) oint_C z^p f'/f dz are the Newton sums of the zeros; the
+distinct zeros are the generalized eigenvalues of the Hankel pencil built from
+the moments (Kravanja and Van Barel 2000), recovered with LAPACK ZGGEV and
+polished by complex Newton. Multiplicities solve the confluent Vandermonde
+system. When the box holds more than `m_max` zeros it is bisected and each half
+recursed, as ICON=3 does. The contour integrals run on the four edges with the
+package Gauss-Kronrod driver; f'/f uses a complex central difference, so no
+branch cut of f is crossed.
+
+Derivative policy: `implicit_rule` with `differentiate_through=false` (ad.md §4).
+A zero satisfies f(z*, p) = 0, so dz*/dp = -f_p/f'(z*) by the implicit function
+theorem, without differentiating the contour integral or the eigensolve. No
+consumer differentiates through the region search, so this module provides no
+JVP/VJP; the scalar implicit rule in `fortnum_roots` covers per-root
+sensitivity. Inactive: `m_max`, the tolerances, `max_refine`, status,
+multiplicities.
+
+### Abstract interface: `complex_root_fn_t`
+
+```fortran
+abstract interface
+    subroutine complex_root_fn_t(kr, fk, ctx)
+        complex(dp), intent(in)  :: kr
+        complex(dp), intent(out) :: fk
+        class(*),    intent(in), optional :: ctx
+    end subroutine complex_root_fn_t
+end interface
+```
+
+Analytic f whose zeros are sought. `ctx` forwards parameters; the finder never
+inspects it.
+
+### `complex_region_roots(f, ll, ur, roots, fvals, mult, nfound, status [, m_max, newtonz, newtonf, max_refine, ctx])`
+
+```fortran
+subroutine complex_region_roots(f, ll, ur, roots, fvals, mult, nfound, &
+        status, m_max, newtonz, newtonf, max_refine, ctx)
+    procedure(complex_root_fn_t)            :: f
+    complex(dp),             intent(in)     :: ll, ur
+    complex(dp), allocatable, intent(out)   :: roots(:), fvals(:)
+    integer,     allocatable, intent(out)   :: mult(:)
+    integer,                 intent(out)    :: nfound
+    type(fortnum_status_t),  intent(out)    :: status
+    integer,     intent(in), optional       :: m_max, max_refine
+    real(dp),    intent(in), optional       :: newtonz, newtonf
+    class(*),    intent(in), optional       :: ctx
+```
+
+Find the distinct zeros of `f` in the rectangle with corners `ll` (lower-left)
+and `ur` (upper-right). On return `roots(1:nfound)` are the distinct zeros,
+`fvals` is `f` at each, and `mult` their multiplicities; the multiplicities sum
+to the winding number. `m_max` (default 5) caps the zeros handled per subregion
+before bisection; `newtonz` (default 5e-8) and `newtonf` (default 1e-14) are the
+Newton stopping tolerances on `|dz|` and `|f|`; `max_refine` (default 60) bounds
+the Newton iterations. A degenerate box or `m_max < 1` reports
+`FORTNUM_DOMAIN_ERROR`; a zero or pole on the contour, a failed edge integral, a
+failed eigensolve, or unconverged Newton reports `FORTNUM_CONVERGENCE_ERROR`.
+
+This solver links LAPACK (ZGGEV) and its BLAS dependency. It is the only
+fortnum module with an external numerical dependency.
+
+---
+
 ## fortnum_rng
 
 Counter-based pseudorandom number generator (Threefry-2x64-20) with explicit

@@ -153,6 +153,38 @@ Derivative status:
 
 ---
 
+## Complex analytic-zero region search
+
+| KAMEL / KIM (ZEAL) | fortnum |
+|--------------------|---------|
+| ZEAL `ICON=3` region search for `WKB_dispersion_solver='ZEAL'` | `complex_region_roots(f, ll, ur, roots, fvals, mult, nfound, status, ...)` |
+| ZEAL winding-number zero count in a box | sum of returned `mult` |
+| ZEAL multiplicity output | `mult` |
+
+KIM's `wkb_dispersion` called ZEAL to find the dispersion-relation roots inside
+a box in the complex plane. `complex_region_roots` does the same job: the
+distinct zeros of an analytic `f` inside the rectangle `[ll, ur]`, their values,
+and their multiplicities.
+
+Interface differences:
+- The analytic function comes through the `complex_root_fn_t` abstract interface
+  with an optional `ctx`, not a ZEAL `FZRPFF` external. `f` returns the value
+  only; the finder forms `f'/f` by a complex central difference.
+- The box is two corners (`ll`, `ur`), not ZEAL's `LV`/`H` region record. Only
+  the rectangular region search is provided. ZEAL's file IO, NAG `IFAIL`
+  conventions, and partial-mode variants have no equivalent here.
+- Status is a `fortnum_status_t` argument. A zero or pole on the contour or a
+  failed subdivision reports `FORTNUM_CONVERGENCE_ERROR`; a degenerate box
+  reports `FORTNUM_DOMAIN_ERROR`.
+- This is the only fortnum module that links LAPACK: the moment pencil is solved
+  with ZGGEV. The build links LAPACK and its BLAS dependency.
+
+Derivative status (policy `implicit_rule`, `differentiate_through=false`):
+- Primal only and no reserved products. A zero satisfies `f(z*, p) = 0`, so
+  `dz*/dp = -f_p/f'(z*)`; no consumer differentiates through the region search.
+
+---
+
 ## Numerical integration
 
 | libneo backend / QUADPACK | fortnum |

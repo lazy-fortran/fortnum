@@ -40,6 +40,11 @@ set(CMAKE_Fortran_MODULE_DIRECTORY ${PROJECT_BINARY_DIR}/include)
 
 enable_testing()
 
+# The complex analytic-zero finder (fortnum_roots_complex) solves a small
+# generalized eigenproblem with LAPACK ZGGEV, so the library links LAPACK (and
+# its BLAS dependency). This is the only external numerical dependency.
+find_package(LAPACK REQUIRED)
+
 add_subdirectory(src)
 
 if(FORTNUM_BUILD_TESTING)
