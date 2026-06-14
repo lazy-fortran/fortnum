@@ -61,6 +61,96 @@ Derivative status (policy `analytic_rule`):
 - Issue #40: `gamma_lower_grad`, `gamma_reg_p_grad` using
   d/dx gamma(a,x) = x^{a-1} exp(-x).
 
+### Complex-argument Bessel functions
+
+| libneo / AMOS (via KiLCA/KAMEL) | fortnum |
+|---------------------------------|---------|
+| `zbesj` (J_n, complex z) | `bessel_j_complex(order, z, result, status)` |
+| `zbesi` (I_n, complex z, KODE scaling) | `bessel_i_complex(order, z, scaled, result, status)` |
+| `zbesi` sequence | `bessel_i_complex_array(order0, nseq, z, scaled, result, status)` |
+| `zbesk` (K_n, complex z, KODE scaling) | `bessel_k_complex(order, z, scaled, result, status)` |
+| `zbesk` sequence | `bessel_k_complex_array(order0, nseq, z, scaled, result, status)` |
+
+Clean-room from DLMF chapter 10; no AMOS source is used. The `scaled` logical
+replaces AMOS `KODE`: `.false.` is the unscaled value, `.true.` factors out
+e^{Re z} for I and e^{z} for K. Negative integer order is handled internally.
+Errors are a `fortnum_status_t` argument, not the AMOS `NZ`/`IERR` integers.
+
+Derivative status (policy `analytic_rule`): forward complex products
+`bessel_j_complex_jvp`, `bessel_i_complex_jvp`, `bessel_k_complex_jvp` ship now,
+using the order recurrences (DLMF 10.6.1, 10.29.2, 10.29.4).
+
+### Confluent hypergeometric 1F1 (Kummer M)
+
+| libneo / consumer | fortnum |
+|-------------------|---------|
+| MEPHIT `hyper1F1` (Kummer M, complex args) | `hyperg_1f1(a, b, z, result, status)` |
+| KAMEL KiLCA `hyper1F1` with a = 1 | `hyperg_1f1_a1(b, z, result, status)` |
+
+Clean-room from DLMF chapter 13. Replaces the multi-variant selectors of MEPHIT
+`src/hyper1F1.c` and KiLCA `math/hyper/hyper1F1.cpp` with one internal selector
+(Kummer transformation, Taylor series, large-z asymptotics) exposing the single
+converged value. `b` at or near a non-positive integer reports
+`FORTNUM_DOMAIN_ERROR`.
+
+Derivative status (policy `analytic_rule`): `hyperg_1f1_a1_jvp` /
+`hyperg_1f1_a1_vjp` ship now, using d/dz M = (a/b) M(a+1,b+1,z) (DLMF 13.3.15).
+
+### Error function (C ABI)
+
+| KAMEL / GSL | fortnum |
+|-------------|---------|
+| `gsl_sf_erf(x)` | `fortnum_erf(x)` |
+| `gsl_sf_erfc(x)` | `fortnum_erfc(x)` |
+
+Fortran callers should use the F2008 intrinsics `erf`/`erfc` directly. The
+`fortnum_erf`/`fortnum_erfc` wrappers exist to give the C ABI a callable symbol;
+they forward to the intrinsics with no reimplementation.
+
+Derivative status (policy `transparent`): `fortnum_erf_jvp`, `fortnum_erfc_jvp`,
+`fortnum_erf_grad`, `fortnum_erfc_grad` ship now.
+
+---
+
+## Series acceleration
+
+| libneo / GSL | fortnum |
+|--------------|---------|
+| `gsl_sum_levin_u_alloc` + `gsl_sum_levin_u_accel` | `levin_u_accel(terms, n, sum_accel, abserr, status)` |
+
+Clean-room Levin-u transform (Levin 1973; Weniger 1989; Fessler-Ford-Smith
+1983). The caller passes the recorded series terms `terms(1:n)`; the workspace
+the GSL `gsl_sum_levin_u_workspace` held is internal, so no alloc/free pair is
+needed. `sum_accel` and `abserr` replace the GSL out-parameters.
+
+Derivative status (policy `primal_only`): none. The accelerated value is a
+data-dependent nonlinear rational transform of the term sequence.
+
+---
+
+## Multidimensional root finding
+
+| libneo / GSL | fortnum |
+|--------------|---------|
+| `gsl_multiroot_fdfsolver_hybridj` (analytic Jacobian) | `multiroot_hybrid(fdf, n, x0, x, status, ...)` |
+| `gsl_multiroot_fdfsolver_hybridsj` (finite-diff Jacobian) | `multiroot_hybrids(fn, n, x0, x, status, ...)` |
+| `gsl_deriv_central` | `deriv_central(f, x, h, result, abserr, status, ctx)` |
+| index sort of a real array | `argsort(x, perm)` |
+
+Interface differences:
+- The residual and Jacobian come through abstract interfaces with an optional
+  `ctx`, not a `gsl_multiroot_function_fdf` struct: `multiroot_fdf_t` returns F
+  and the analytic Jacobian; `multiroot_fn_t` returns F only.
+- No iterator object and no alloc/free. One call drives the iteration to
+  convergence; `xtol`, `ftol`, `max_iter` are optional.
+- Termination is `|F|_inf <= ftol` or `|dx|_inf <= xtol*(|x|_inf + xtol)`.
+  A singular Jacobian reports `FORTNUM_DOMAIN_ERROR`.
+
+Derivative status:
+- Solvers: policy `implicit_rule`. Now primal only; reserved `multiroot_jvp`,
+  `multiroot_vjp`, `multiroot_grad`.
+- `deriv_central`, `argsort`: policy `primal_only`.
+
 ---
 
 ## Numerical integration
@@ -129,6 +219,7 @@ Derivative status (policy `transparent`):
 | libneo | fortnum |
 |--------|---------|
 | `odeint` (GSL `gsl_odeiv2_*` or custom) | `ode_integrate` / `ode_solve` |
+| `gsl_odeiv_step_rk8pd` (RK8(7), tight tolerances) | `ode_integrate_dop` / `ode_solve_dop` |
 
 Interface differences:
 - The RHS is an abstract interface: `subroutine rhs(t, y, dydt, ctx)` with
@@ -138,14 +229,58 @@ Interface differences:
   the recorded trace.
 - `ode_at` evaluates the solution at a specified set of output times, matching
   the common pattern of requesting output at prescribed points.
-- The method is Cash-Karp RK5(4) with PI step control. If libneo used a
+- The default method is Cash-Karp RK5(4) with PI step control. If libneo used a
   different order or tableau, check that the tolerances give the needed
   accuracy; the step controller uses the same `rtol` and `atol` parameters.
+- `ode_integrate_dop` / `ode_solve_dop` are the Prince-Dormand RK8(7)-13M
+  (DOP853) drop-ins for the very tight tolerances where the higher order pays
+  off. Same carriers and same `trace_rule` policy as the Cash-Karp path.
 
 Derivative status (policy `trace_rule`):
 - Now: primal only.
 - Issue #40: `ode_integrate_jvp`, `ode_integrate_vjp`. Sensitivities
   differentiate the frozen accepted-step mesh in `ode_solution_t`.
+
+---
+
+## B-spline basis
+
+| libneo / GSL / FGSL (NEO-2) | fortnum |
+|-----------------------------|---------|
+| `gsl_bspline_alloc` + `gsl_bspline_knots` | `bspline_init` + `bspline_set_knots` |
+| `gsl_bspline_eval` | `bspline_eval_basis(ws, x, values, status)` |
+| `gsl_bspline_deriv_eval` | `bspline_eval_deriv(ws, x, nderiv, dvalues, status)` |
+| span lookup | `bspline_span_index(ws, x)` |
+
+Clean-room Cox-de Boor recursion (de Boor 2001; Piegl & Tiller); no GSL source
+is used. The convention matches NEO-2 `gsl_bspline_routines_mod.f90`: order
+`k = degree + 1`, clamped end knots, `ncoef = nbreak + k - 2`. The workspace
+`bspline_workspace_t` is caller-owned, replacing the GSL workspace handle and
+its free call.
+
+Derivative status (policy `transparent` inside a fixed span): `bspline_eval_jvp`
+/ `bspline_eval_vjp` ship now; the span index is `primal_only`. The Taylor
+extrapolation above the last breakpoint (`collop_bspline_taylor`) stays in the
+NEO-2 consumer.
+
+---
+
+## C ABI for C/C++ consumers
+
+C and C++ callers (KAMEL/KiLCA, MEPHIT) link the static library and include the
+hand-written header `include/fortnum.h`, installed to `<prefix>/include`. The
+header declares the `bind(c)` entry points in `fortnum_capi` and
+`fortnum_capi_bspline`: scalar specials (`fortnum_bessel_in`, `fortnum_dawson`,
+`fortnum_gamma_lower`, `fortnum_erf`, `fortnum_erfc`), complex Bessel and 1F1
+(`fortnum_bessel_*_complex`, `fortnum_hyperg_1f1`), quadrature and adaptive
+integration (`fortnum_gauss_legendre*`, `fortnum_integrate_qag*`),
+`fortnum_levin_u_accel`, root finding (`fortnum_root_brent`,
+`fortnum_multiroot_hybrid`, `fortnum_deriv_central`, `fortnum_argsort`), the
+DOP853 ODE drivers (`fortnum_ode_integrate_dop`, `fortnum_ode_solve_dop`), and a
+B-spline handle API (`fortnum_bspline_create` / `_set_knots` / `_eval_basis` /
+`_eval_deriv` / `_span_index` / `_destroy`). Status codes cross as plain
+integers matching `fortnum_status_t%code`. The header is the single source of
+truth for the C signatures.
 
 ---
 

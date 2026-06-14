@@ -80,6 +80,40 @@ def gen_dawson():
     return len(grid)
 
 
+def gen_erf():
+    # erf and erfc reference grid: dense near 0, out to the tails where erf
+    # saturates to +-1 and erfc underflows. KAMEL/KIM use erf/erfc on the real
+    # line (any sign), so cover both branches symmetrically.
+    grid = np.sort(np.concatenate([
+        np.linspace(-6.0, 6.0, 121),
+        np.array([-30.0, -10.0, -3.5, -0.001, 0.0, 0.001, 3.5, 10.0, 30.0]),
+    ]))
+    rows = 0
+    with open(_path("erf.csv"), "w", newline="\n") as f:
+        f.write("# fortnum oracle table\n")
+        f.write("# function: erf\n")
+        f.write("# backend: scipy.special.erf\n")
+        f.write("# columns: index,x,primal,derivative\n")
+        f.write("# has_derivative: 1\n")
+        for i, x in enumerate(grid):
+            xf = float(x)
+            d = 2.0 / math.sqrt(math.pi) * math.exp(-xf * xf)
+            f.write(f"{i},{xf!r},{float(sps.erf(xf))!r},{d!r}\n")
+            rows += 1
+    with open(_path("erfc.csv"), "w", newline="\n") as f:
+        f.write("# fortnum oracle table\n")
+        f.write("# function: erfc\n")
+        f.write("# backend: scipy.special.erfc\n")
+        f.write("# columns: index,x,primal,derivative\n")
+        f.write("# has_derivative: 1\n")
+        for i, x in enumerate(grid):
+            xf = float(x)
+            d = -2.0 / math.sqrt(math.pi) * math.exp(-xf * xf)
+            f.write(f"{i},{xf!r},{float(sps.erfc(xf))!r},{d!r}\n")
+            rows += 1
+    return rows
+
+
 def gen_gamma():
     # unnormalized lower incomplete gamma = gammainc(a,x)*gamma(a)
     a_vals = [0.5, 1.0, 1.5, 2.0, 3.0, 5.0, 10.0]
@@ -172,6 +206,7 @@ if __name__ == "__main__":
     for name, fn in [
         ("bessel", gen_bessel),
         ("dawson", gen_dawson),
+        ("erf", gen_erf),
         ("lower_incomplete_gamma", gen_gamma),
         ("integrate_gk", gen_integrate_gk),
         ("gauss_legendre", gen_quadrature),

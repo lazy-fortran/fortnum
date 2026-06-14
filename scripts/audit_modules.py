@@ -229,16 +229,32 @@ PUBLIC_API_MODULES = {
     "fortnum_kinds",
     "fortnum_status",
     "fortnum_special",
+    "fortnum_special_complex_bessel",
+    "fortnum_special_hypergeometric_1f1",
+    "fortnum_special_erf_cbind",
     "fortnum_fft",
     "fortnum_quadrature",
     "fortnum_integrate_gk",
     "fortnum_integrate",
+    "fortnum_levin",
     "fortnum_ode",
+    "fortnum_ode_dop853",
     "fortnum_roots",
+    "fortnum_multiroot",
     "fortnum_rng",
     "fortnum_interp",
     "fortnum_polynomial",
+    "fortnum_bspline",
     "fortnum_oracle",
+}
+
+# C ABI binding modules: every public name is a bind(c) wrapper documented in
+# docs/migration_libneo.md (the C-consumer surface), not in the Fortran api.md.
+# They keep the bare 'private' default; the audit does not require api.md
+# entries for the C-callable symbol names.
+CBINDING_MODULES = {
+    "fortnum_capi",
+    "fortnum_capi_bspline",
 }
 
 # Internal utility modules; not expected in api.md.
@@ -282,6 +298,7 @@ def audit(src_dir: Path, api_md: Path) -> int:
         is_helper = name in PRIVATE_HELPER_MODULES
         is_internal = name in INTERNAL_MODULES
         is_public_api = name in PUBLIC_API_MODULES
+        is_cbinding = name in CBINDING_MODULES
 
         # 2. Public-API modules: every public name must be in api.md.
         if is_public_api:
@@ -313,6 +330,7 @@ def audit(src_dir: Path, api_md: Path) -> int:
             category = (
                 "helper"   if is_helper
                 else "internal" if is_internal
+                else "c-binding" if is_cbinding
                 else "public-api"
             )
             pub = ", ".join(mod["public_names"]) if mod["public_names"] else "(none)"

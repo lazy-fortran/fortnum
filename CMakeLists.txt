@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(fortnum LANGUAGES Fortran)
+project(fortnum LANGUAGES Fortran C)
 
 # Detect standalone vs subproject build so testing defaults sanely.
 set(FORTNUM_IS_STANDALONE OFF)
@@ -16,6 +16,18 @@ option(FORTNUM_ENZYME_REQUIRED "Fail configure if Enzyme is unavailable" OFF)
 
 # Shared library inclusion needs PIC-clean objects.
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+# Internal procedures passed as actual arguments need closures. gfortran's
+# default stack trampolines mark the object's .note.GNU-stack executable, which
+# makes the linker emit an executable-stack warning. Heap-allocated trampolines
+# (GCC 14+) keep the closures working while leaving the stack non-executable, so
+# the warning disappears without an executable stack and without breaking the
+# procedure-argument paths in ode/roots/integrate/oracle.
+include(CheckFortranCompilerFlag)
+check_fortran_compiler_flag("-ftrampoline-impl=heap" FORTNUM_HAVE_HEAP_TRAMPOLINES)
+if(FORTNUM_HAVE_HEAP_TRAMPOLINES)
+    add_compile_options($<$<COMPILE_LANGUAGE:Fortran>:-ftrampoline-impl=heap>)
+endif()
 
 # Pin a modern Fortran standard for free-form, full-feature builds.
 set(CMAKE_Fortran_STANDARD 2018)

@@ -35,6 +35,22 @@ add_executable(test_special_ad test_special_ad.f90)
 target_link_libraries(test_special_ad PRIVATE fortnum_ad_test_utils)
 add_test(NAME ad_special COMMAND test_special_ad)
 
+add_executable(test_complex_bessel_ad test_complex_bessel_ad.f90)
+target_link_libraries(test_complex_bessel_ad PRIVATE fortnum_ad_test_utils)
+add_test(NAME ad_complex_bessel COMMAND test_complex_bessel_ad)
+
+add_executable(test_hyperg_ad test_hyperg_ad.f90)
+target_link_libraries(test_hyperg_ad PRIVATE fortnum_ad_test_utils)
+add_test(NAME ad_hyperg COMMAND test_hyperg_ad)
+
+add_executable(test_erf_cbind_ad test_erf_cbind_ad.f90)
+target_link_libraries(test_erf_cbind_ad PRIVATE fortnum_ad_test_utils)
+add_test(NAME ad_erf_cbind COMMAND test_erf_cbind_ad)
+
+add_executable(test_bspline_ad test_bspline_ad.f90)
+target_link_libraries(test_bspline_ad PRIVATE fortnum_ad_test_utils)
+add_test(NAME ad_bspline COMMAND test_bspline_ad)
+
 add_executable(test_fft_ad test_fft_ad.f90)
 target_link_libraries(test_fft_ad PRIVATE fortnum_ad_test_utils)
 add_test(NAME ad_fft COMMAND test_fft_ad)

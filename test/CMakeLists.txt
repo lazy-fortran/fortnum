@@ -47,6 +47,29 @@ add_test(NAME fortnum_special_dawson_oracle
     COMMAND test_fortnum_special_dawson_oracle
         ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/dawson.csv)
 
+add_executable(test_fortnum_special_complex_bessel special/test_fortnum_special_complex_bessel.f90)
+target_link_libraries(test_fortnum_special_complex_bessel PRIVATE fortnum)
+add_test(NAME fortnum_special_complex_bessel COMMAND test_fortnum_special_complex_bessel)
+
+add_executable(test_fortnum_special_complex_bessel_oracle oracle/test_fortnum_special_complex_bessel_oracle.f90)
+target_link_libraries(test_fortnum_special_complex_bessel_oracle PRIVATE fortnum)
+add_test(NAME fortnum_special_complex_bessel_oracle
+    COMMAND test_fortnum_special_complex_bessel_oracle
+        ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/complex_bessel.csv)
+
+add_executable(test_fortnum_special_erf_cbind_oracle oracle/test_fortnum_special_erf_cbind_oracle.f90)
+target_link_libraries(test_fortnum_special_erf_cbind_oracle PRIVATE fortnum)
+add_test(NAME fortnum_special_erf_cbind_oracle
+    COMMAND test_fortnum_special_erf_cbind_oracle
+        ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/erf.csv
+        ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/erfc.csv)
+
+add_executable(test_fortnum_special_hyperg_oracle oracle/test_fortnum_special_hyperg_oracle.f90)
+target_link_libraries(test_fortnum_special_hyperg_oracle PRIVATE fortnum)
+add_test(NAME special_hyperg_oracle
+    COMMAND test_fortnum_special_hyperg_oracle
+        ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/hyperg_1f1.csv)
+
 add_executable(test_fortnum_special_gamma special/test_fortnum_special_gamma.f90)
 target_link_libraries(test_fortnum_special_gamma PRIVATE fortnum)
 add_test(NAME fortnum_special_gamma COMMAND test_fortnum_special_gamma)
@@ -112,6 +135,16 @@ add_test(NAME fortnum_ode_oracle
     COMMAND test_fortnum_ode_oracle
         ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data)
 
+add_executable(test_fortnum_ode_dop853 ode/test_fortnum_ode_dop853.f90)
+target_link_libraries(test_fortnum_ode_dop853 PRIVATE fortnum)
+add_test(NAME fortnum_ode_dop853 COMMAND test_fortnum_ode_dop853)
+
+add_executable(test_fortnum_dop853_oracle oracle/test_fortnum_dop853_oracle.f90)
+target_link_libraries(test_fortnum_dop853_oracle PRIVATE fortnum)
+add_test(NAME fortnum_dop853_oracle
+    COMMAND test_fortnum_dop853_oracle
+        ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data)
+
 # --- M3 roots ---
 add_executable(test_fortnum_roots roots/test_fortnum_roots.f90)
 target_link_libraries(test_fortnum_roots PRIVATE fortnum)
@@ -133,6 +166,14 @@ add_test(NAME fortnum_roots_brent_oracle
     COMMAND test_fortnum_roots_brent_oracle
         ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/roots_brent.csv)
 
+add_executable(test_fortnum_multiroot_oracle oracle/test_fortnum_multiroot_oracle.f90)
+target_link_libraries(test_fortnum_multiroot_oracle PRIVATE fortnum)
+add_test(NAME fortnum_multiroot_oracle
+    COMMAND test_fortnum_multiroot_oracle
+        ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/multiroot.csv
+        ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/deriv_central.csv
+        ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/argsort.csv)
+
 # --- M3 interp ---
 add_executable(test_fortnum_polynomial interp/test_fortnum_polynomial.f90)
 target_link_libraries(test_fortnum_polynomial PRIVATE fortnum)
@@ -141,6 +182,12 @@ add_test(NAME fortnum_polynomial COMMAND test_fortnum_polynomial)
 add_executable(test_fortnum_interp interp/test_fortnum_interp.f90)
 target_link_libraries(test_fortnum_interp PRIVATE fortnum)
 add_test(NAME fortnum_interp COMMAND test_fortnum_interp)
+
+add_executable(test_fortnum_bspline_oracle oracle/test_fortnum_bspline_oracle.f90)
+target_link_libraries(test_fortnum_bspline_oracle PRIVATE fortnum)
+add_test(NAME fortnum_bspline_oracle
+    COMMAND test_fortnum_bspline_oracle
+        ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/bspline.csv)
 
 # --- M3 rng ---
 add_executable(test_fortnum_rng rng/test_fortnum_rng.f90)
@@ -170,6 +217,13 @@ add_test(NAME fortnum_integrate_singular_oracle
     COMMAND test_fortnum_integrate_singular_oracle
         ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/integrate_qagp_singular.csv
         ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/integrate_qagiu_infinite.csv)
+
+# --- M4 Levin oscillatory-integral acceleration ---
+add_executable(test_fortnum_levin_oracle oracle/test_fortnum_levin_oracle.f90)
+target_link_libraries(test_fortnum_levin_oracle PRIVATE fortnum)
+add_test(NAME fortnum_levin_oracle
+    COMMAND test_fortnum_levin_oracle
+        ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/levin_u.csv)
 
 # --- M5.1 OpenMP concurrency tests ---
 add_executable(test_concurrency_special concurrency/test_concurrency_special.f90)
@@ -201,6 +255,12 @@ add_test(NAME module_visibility_audit
     COMMAND python3 ${CMAKE_SOURCE_DIR}/scripts/audit_modules.py
         --src ${CMAKE_SOURCE_DIR}/src
         --api ${CMAKE_SOURCE_DIR}/docs/api.md)
+
+# --- C ABI smoke test ---
+add_executable(test_capi_smoke capi/smoke.c)
+target_include_directories(test_capi_smoke PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(test_capi_smoke PRIVATE fortnum)
+add_test(NAME capi_smoke COMMAND test_capi_smoke)
 
 # --- M6 AD harness + optional Enzyme path ---
 add_subdirectory(ad)
