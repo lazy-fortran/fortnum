@@ -29,6 +29,14 @@ static double gaussian(double x, void *ctx) {
     return exp(-x * x);
 }
 
+/* Integrand that reads its parameter through ctx: f(x) = scale * x.
+ * Used to verify the C ABI forwards the opaque void* unchanged to the
+ * callback. int_0^1 scale*x dx = scale/2. */
+static double scaled_linear(double x, void *ctx) {
+    double scale = *(const double *)ctx;
+    return scale * x;
+}
+
 int main(void) {
     /* I_0(1.0) = 1.2660658777520084 (DLMF 10.25). */
     check("bessel_in(0,1)", fortnum_bessel_in(0, 1.0),
@@ -53,7 +61,7 @@ int main(void) {
     {
         double val = 0.0, abserr = 0.0;
         int code = fortnum_integrate_qags(gaussian, 0.0, 1.0, 0.0, 1e-10,
-                                          &val, &abserr);
+                                          &val, &abserr, NULL);
         printf("integrate_qags status=%d\n", code);
         if (code != FORTNUM_OK) failures++;
         check("integrate_qags(gauss)", val, 0.7468241328124271, 1e-9);
@@ -63,10 +71,21 @@ int main(void) {
     {
         double val = 0.0, abserr = 0.0;
         int code = fortnum_integrate_qag(gaussian, 0.0, 1.0, 0.0, 1e-10, 21,
-                                         &val, &abserr);
+                                         &val, &abserr, NULL);
         printf("integrate_qag status=%d\n", code);
         if (code != FORTNUM_OK) failures++;
         check("integrate_qag(gauss)", val, 0.7468241328124271, 1e-9);
+    }
+
+    /* Context forwarding: integrate scale*x with scale passed through ctx.
+     * int_0^1 scale*x dx = scale/2; here scale=3 so the result is 1.5. */
+    {
+        double scale = 3.0, val = 0.0, abserr = 0.0;
+        int code = fortnum_integrate_qag(scaled_linear, 0.0, 1.0, 0.0, 1e-10,
+                                         21, &val, &abserr, &scale);
+        printf("integrate_qag(ctx) status=%d\n", code);
+        if (code != FORTNUM_OK) failures++;
+        check("integrate_qag(ctx scale*x)", val, 1.5, 1e-9);
     }
 
     /* Complex I_0(1+0i) must match the real I_0(1). */

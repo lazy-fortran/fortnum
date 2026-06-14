@@ -113,37 +113,39 @@ int fortnum_levin_u_accel(const double *terms, int n, double *sum_accel,
 
 /* --- Adaptive quadrature (QUADPACK pattern) --- */
 
-/* Globally adaptive Gauss-Kronrod, rule key in {15,21,31,61}, no extrapolation. */
+/* Globally adaptive Gauss-Kronrod, rule key in {15,21,31,61}, no extrapolation.
+ * ctx is forwarded unchanged to every f invocation; pass NULL when unused. */
 int fortnum_integrate_qag(fortnum_scalar_fn f, double a, double b,
                           double epsabs, double epsrel, int key,
-                          double *value, double *abserr);
+                          double *value, double *abserr, void *ctx);
 
 /* Adaptive bisection plus Wynn epsilon extrapolation (GK21). */
 int fortnum_integrate_qags(fortnum_scalar_fn f, double a, double b,
                            double epsabs, double epsrel,
-                           double *value, double *abserr);
+                           double *value, double *abserr, void *ctx);
 
 /* QAGS seeded with npts user break points so each known singularity starts
  * on a panel boundary. */
 int fortnum_integrate_qagp(fortnum_scalar_fn f, double a, double b,
                            const double *points, int npts,
                            double epsabs, double epsrel,
-                           double *value, double *abserr);
+                           double *value, double *abserr, void *ctx);
 
 /* Semi-infinite / doubly infinite interval; inf in {-1, +1, +2}. */
 int fortnum_integrate_qagiu(fortnum_scalar_fn f, double bound, int inf,
                             double epsabs, double epsrel,
-                            double *value, double *abserr);
+                            double *value, double *abserr, void *ctx);
 
 /* --- Root finding --- */
 
-/* Brent's method on a bracketed interval [a, b]. */
+/* Brent's method on a bracketed interval [a, b]. ctx is forwarded to f. */
 int fortnum_root_brent(fortnum_scalar_fn f, double a, double b,
-                       double xtol, double ftol, int max_iter, double *root);
+                       double xtol, double ftol, int max_iter, double *root,
+                       void *ctx);
 
 /* Central finite-difference first derivative with Richardson error estimate. */
 int fortnum_deriv_central(fortnum_scalar_fn f, double x, double h,
-                          double *result, double *abserr);
+                          double *result, double *abserr, void *ctx);
 
 /* Ascending index sort: perm[k] is the 0-based index into x giving the k-th
  * smallest value (x[perm] nondecreasing). perm has length n. */
@@ -154,7 +156,7 @@ void fortnum_argsort(const double *x, int n, int *perm);
  * the start, x[n] receives the converged root. */
 int fortnum_multiroot_hybrid(fortnum_vector_fn fdf, int n, const double *x0,
                              double xtol, double ftol, int max_iter,
-                             double *x);
+                             double *x, void *ctx);
 
 /* --- ODE integration (Prince-Dormand RK8(7)13M / dop853) --- */
 
@@ -165,13 +167,14 @@ int fortnum_multiroot_hybrid(fortnum_vector_fn fdf, int n, const double *x0,
 int fortnum_ode_integrate_dop(fortnum_ode_rhs rhs, int neq, double t0,
                               double t1, const double *y0, double rtol,
                               double atol, int max_steps, int npts_cap,
-                              double *t_out, double *y_out, int *npts);
+                              double *t_out, double *y_out, int *npts,
+                              void *ctx);
 
 /* Flat dop853 solve with default max_steps; same buffer-capped output. */
 int fortnum_ode_solve_dop(fortnum_ode_rhs rhs, int neq, double t0, double t1,
                           const double *y0, double rtol, double atol,
                           int npts_cap, double *t_out, double *y_out,
-                          int *npts);
+                          int *npts, void *ctx);
 
 /* --- B-spline basis (clamped knot vector, GSL bspline workflow) ---
  *
