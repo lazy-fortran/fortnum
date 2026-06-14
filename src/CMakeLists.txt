@@ -47,4 +47,4 @@ target_include_directories(fortnum PUBLIC ${CMAKE_Fortran_MODULE_DIRECTORY})
 target_link_libraries(fortnum PUBLIC LAPACK::LAPACK)
 
 # Install the hand-written C ABI header so C/C++ consumers find it.
-install(FILES ${CMAKE_SOURCE_DIR}/include/fortnum.h DESTINATION include)
+install(FILES ${PROJECT_SOURCE_DIR}/include/fortnum.h DESTINATION include)
