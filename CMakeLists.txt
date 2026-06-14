@@ -27,6 +27,15 @@ include(CheckFortranCompilerFlag)
 check_fortran_compiler_flag("-ftrampoline-impl=heap" FORTNUM_HAVE_HEAP_TRAMPOLINES)
 if(FORTNUM_HAVE_HEAP_TRAMPOLINES)
     add_compile_options($<$<COMPILE_LANGUAGE:Fortran>:-ftrampoline-impl=heap>)
+else()
+    # Without heap trampolines (gfortran < 14) the closures still compile via
+    # stack trampolines. A consumer that turns trampolines into a hard error
+    # (libneo builds fortnum with -Werror=trampolines) would then break the
+    # build, so keep the warning non-fatal for fortnum's own sources.
+    check_fortran_compiler_flag("-Wno-error=trampolines" FORTNUM_HAVE_NO_ERROR_TRAMPOLINES)
+    if(FORTNUM_HAVE_NO_ERROR_TRAMPOLINES)
+        add_compile_options($<$<COMPILE_LANGUAGE:Fortran>:-Wno-error=trampolines>)
+    endif()
 endif()
 
 # Pin a modern Fortran standard for free-form, full-feature builds.
