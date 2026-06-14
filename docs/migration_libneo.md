@@ -189,6 +189,35 @@ Derivative status (policy `trace_rule`):
 
 ---
 
+## Fixed-rule Gauss quadrature
+
+| libneo / Burkardt | fortnum |
+|-------------------|---------|
+| `cgqf(order, kind=5, alpha, beta, a, b, x, w)` (gen_laguerre_rule.f90) | `gauss_gen_laguerre(n, alpha, x, w)` |
+
+`transport.f90` builds the generalized-Laguerre rule for the `1/nu` transport
+coefficient by calling `cgqf` with `kind = 5` (weight `x^alpha exp(-x)`),
+`alpha = 5/2` for `D11` and `7/2` for `D12`. `gauss_gen_laguerre` replaces that
+call and the bundled `gen_laguerre_rule.f90`.
+
+Interface differences:
+- `gauss_gen_laguerre` covers only `kind = 5` with the unit shift `a = 0`,
+  scale `b = 1`. `beta` does not apply. For other Burkardt kinds or a shifted
+  interval, use `gauss_legendre_ab` or open an issue.
+- Nodes come back ascending, so `calc_D_one_over_nu` sums them in increasing
+  speed order. The Burkardt routine returns the same set in the same order.
+- No LAPACK: the rule is the eigendecomposition of the Jacobi matrix by the
+  in-tree implicit-shift QL solver, matching the `gauss_legendre` Newton path.
+
+Derivative status (policy `transparent`):
+- The coefficient `calc_D_one_over_nu` takes the weights and abscissas as
+  `intent(in)` and differentiates only the integrand `1/coll_freq_tot`. The
+  map `f -> I = sum_i w_i f_i` is linear, so `gauss_legendre_jvp`,
+  `gauss_legendre_vjp`, and `gauss_legendre_grad` apply to the returned weight
+  vector unchanged. Nodes, weights, `n`, and `alpha` are inactive.
+
+---
+
 ## FFT
 
 | libneo / FFTW | fortnum |

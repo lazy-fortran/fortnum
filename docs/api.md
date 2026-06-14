@@ -390,6 +390,25 @@ subroutine gauss_legendre_ab(n, a, b, x, w)
 Gauss-Legendre rule mapped to [a, b]. The quadrature sum
 `sum_i w(i)*f(x(i))` approximates the integral of `f` over [a, b].
 
+### `gauss_gen_laguerre(n, alpha, x, w)`
+
+```fortran
+pure subroutine gauss_gen_laguerre(n, alpha, x, w)
+    integer,  intent(in)  :: n
+    real(dp), intent(in)  :: alpha
+    real(dp), intent(out) :: x(n), w(n)
+```
+
+Generalized Gauss-Laguerre nodes and weights for the weight
+`w(x) = x^alpha exp(-x)` on `[0, inf)`, `alpha > -1`. The quadrature sum
+`sum_i w(i)*f(x(i))` approximates the integral of `x^alpha exp(-x) f(x)` over
+`[0, inf)`. Nodes ascending. Golub-Welsch on the symmetric tridiagonal Jacobi
+matrix, solved by clean-room implicit-shift QL (no LAPACK), with zeroth moment
+`Gamma(alpha+1)`. Requires `n >= 1` and `alpha > -1`. Same `transparent`
+derivative policy as `gauss_legendre`: the linear map `f -> I` reuses
+`gauss_legendre_jvp` / `gauss_legendre_vjp` / `gauss_legendre_grad` on the
+returned weight vector.
+
 ---
 
 ## fortnum_integrate_gk
@@ -1266,7 +1285,9 @@ subroutine gauss_legendre_grad(w, grad)   ! dI/df_i = w_i (the weight vector)
 ```
 
 The map `f -> I` is linear; HVP is zero and omitted. Nodes and order are
-inactive.
+inactive. `gauss_gen_laguerre` shares this policy: its weight vector drops
+into the same three products, since the rule (Legendre or generalized Laguerre)
+only sets the inactive weights.
 
 ### fortnum_integrate (`trace_rule`)
 

@@ -8,9 +8,12 @@ program test_quadrature_ad
     !   (2) gauss_legendre_jvp matches central finite difference.
     !   (3) Dot-product identity  u.(J v) = v.(J^T u).
     !   (4) Known-function integration: sum w_i f(x_i) matches analytic integral.
+    !   (5) gauss_gen_laguerre transparent policy: the same linear-map products
+    !       apply to a generalized-Laguerre weight vector (ad.md transparent).
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
     use fortnum_quadrature, only: gauss_legendre, gauss_legendre_ab, &
-        gauss_legendre_jvp, gauss_legendre_vjp, gauss_legendre_grad
+        gauss_legendre_jvp, gauss_legendre_vjp, gauss_legendre_grad, &
+        gauss_gen_laguerre
     use fortnum_ad_test_utils, only: rel_err
     implicit none
 
@@ -21,6 +24,7 @@ program test_quadrature_ad
     call test_jvp_vs_fd(nfail)
     call test_dot_product_identity(nfail)
     call test_known_integral(nfail)
+    call test_gen_laguerre_transparent(nfail)
 
     if (nfail > 0) then
         write (error_unit, '(i0,a)') nfail, " test(s) failed"
@@ -162,5 +166,69 @@ contains
             nfail = nfail + 1
         end if
     end subroutine test_known_integral
+
+    ! (5) gauss_gen_laguerre is transparent w.r.t. integrand values, exactly as
+    ! gauss_legendre: I = sum_i w_i f_i is linear with Jacobian w^T, regardless
+    ! of how the rule (here generalized Laguerre, alpha = 5/2) produced w. The
+    ! caller holds nodes/weights fixed (libneo transport calc_D_one_over_nu takes
+    ! w, x as intent(in)), so the legendre jvp/vjp/grad products apply verbatim.
+    ! Checks: grad equals the gen-Laguerre weights; jvp matches central FD;
+    ! the dot-product adjoint identity holds on the gen-Laguerre weight vector.
+    subroutine test_gen_laguerre_transparent(nfail)
+        integer, intent(inout) :: nfail
+
+        integer,  parameter :: n = 8
+        real(dp), parameter :: alpha = 2.5_dp
+        real(dp), parameter :: h = 1.0e-6_dp
+        real(dp), parameter :: tol_fd = 1.0e-8_dp
+        real(dp), parameter :: tol_id = 4.0_dp*epsilon(1.0_dp)
+
+        real(dp) :: x(n), w(n), grad(n), v(n), u(1), jv(1), jtu(n)
+        real(dp) :: f(n), fp(n), fm(n), fd_val, lhs, rhs, e
+        integer  :: i
+        logical  :: ok
+
+        call gauss_gen_laguerre(n, alpha, x, w)
+
+        ! grad must equal the weight vector.
+        call gauss_legendre_grad(w, grad)
+        ok = .true.
+        do i = 1, n
+            if (grad(i) /= w(i)) ok = .false.
+        end do
+        if (.not. ok) then
+            write (error_unit, '(a)') "FAIL [gen_laguerre grad/=weights]"
+            nfail = nfail + 1
+        end if
+
+        ! jvp vs central FD of I = sum_i w_i f_i on f_i = exp(-x_i/4).
+        do i = 1, n
+            f(i) = exp(-0.25_dp*x(i))
+            v(i) = cos(real(i, dp))
+        end do
+        call gauss_legendre_jvp(w, v, jv)
+        fp = f + h*v
+        fm = f - h*v
+        fd_val = (dot_product(w, fp) - dot_product(w, fm))/(2.0_dp*h)
+        e = rel_err(jv(1), fd_val)
+        if (e > tol_fd) then
+            write (error_unit, '(a,es12.4,a,es12.4,a,es12.4)') &
+                "FAIL [gen_laguerre jvp_vs_fd] jvp=", jv(1), " fd=", fd_val, &
+                " rel_err=", e
+            nfail = nfail + 1
+        end if
+
+        ! Dot-product adjoint identity u.(Jv) = v.(J^T u).
+        u(1) = 0.9_dp
+        call gauss_legendre_vjp(w, u, jtu)
+        lhs = u(1)*jv(1)
+        rhs = dot_product(v, jtu)
+        e = abs(lhs - rhs)/max(abs(lhs), abs(rhs), 1.0_dp)
+        if (e > tol_id) then
+            write (error_unit, '(a,es12.4)') &
+                "FAIL [gen_laguerre dot_identity] rel_err=", e
+            nfail = nfail + 1
+        end if
+    end subroutine test_gen_laguerre_transparent
 
 end program test_quadrature_ad
