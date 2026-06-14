@@ -17,7 +17,7 @@ module fortnum_capi
 
     use, intrinsic :: iso_fortran_env, only: dp => real64
     use, intrinsic :: iso_c_binding, only: c_int, c_double, c_double_complex, &
-        c_funptr, c_ptr, c_f_procpointer, c_null_ptr
+        c_funptr, c_ptr, c_f_procpointer
 
     use fortnum_status, only: fortnum_status_t, FORTNUM_OK, FORTNUM_DOMAIN_ERROR
 
@@ -297,33 +297,38 @@ contains
 
     ! ------------------------------------------------------- adaptive quadrature
 
-    function fortnum_integrate_qag(f, a, b, epsabs, epsrel, key, value, abserr) &
-            result(code) bind(c, name="fortnum_integrate_qag")
+    function fortnum_integrate_qag(f, a, b, epsabs, epsrel, key, value, abserr, &
+            ctx) result(code) bind(c, name="fortnum_integrate_qag")
         type(c_funptr), value       :: f
         real(c_double), value       :: a, b, epsabs, epsrel
         integer(c_int), value       :: key
         real(c_double), intent(out) :: value, abserr
+        type(c_ptr),    value       :: ctx
         integer(c_int) :: code
-        code = run_finite_integral(0, f, a, b, epsabs, epsrel, key, value, abserr)
+        code = run_finite_integral(0, f, a, b, epsabs, epsrel, key, value, &
+            abserr, ctx)
     end function fortnum_integrate_qag
 
-    function fortnum_integrate_qags(f, a, b, epsabs, epsrel, value, abserr) &
-            result(code) bind(c, name="fortnum_integrate_qags")
+    function fortnum_integrate_qags(f, a, b, epsabs, epsrel, value, abserr, &
+            ctx) result(code) bind(c, name="fortnum_integrate_qags")
         type(c_funptr), value       :: f
         real(c_double), value       :: a, b, epsabs, epsrel
         real(c_double), intent(out) :: value, abserr
+        type(c_ptr),    value       :: ctx
         integer(c_int) :: code
         code = run_finite_integral(1, f, a, b, epsabs, epsrel, 21_c_int, value, &
-            abserr)
+            abserr, ctx)
     end function fortnum_integrate_qags
 
     function fortnum_integrate_qagp(f, a, b, points, npts, epsabs, epsrel, &
-            value, abserr) result(code) bind(c, name="fortnum_integrate_qagp")
+            value, abserr, ctx) result(code) &
+            bind(c, name="fortnum_integrate_qagp")
         type(c_funptr), value       :: f
         real(c_double), value       :: a, b, epsabs, epsrel
         integer(c_int), value       :: npts
         real(c_double), intent(in)  :: points(npts)
         real(c_double), intent(out) :: value, abserr
+        type(c_ptr),    value       :: ctx
         integer(c_int) :: code
         type(scalar_bridge_t), target :: br
         type(integrate_workspace_t)   :: ws
@@ -331,7 +336,7 @@ contains
         type(integrate_result_t)      :: res
         type(fortnum_status_t)        :: status
         br%fn  = f
-        br%ctx = c_null_ptr
+        br%ctx = ctx
         call integrate_qagp(integrand, real(a, dp), real(b, dp), &
             real(points, dp), real(epsabs, dp), real(epsrel, dp), ws, eps, res, &
             status, ctx=br)
@@ -341,11 +346,12 @@ contains
     end function fortnum_integrate_qagp
 
     function fortnum_integrate_qagiu(f, bound, inf, epsabs, epsrel, value, &
-            abserr) result(code) bind(c, name="fortnum_integrate_qagiu")
+            abserr, ctx) result(code) bind(c, name="fortnum_integrate_qagiu")
         type(c_funptr), value       :: f
         real(c_double), value       :: bound, epsabs, epsrel
         integer(c_int), value       :: inf
         real(c_double), intent(out) :: value, abserr
+        type(c_ptr),    value       :: ctx
         integer(c_int) :: code
         type(scalar_bridge_t), target :: br
         type(integrate_workspace_t)   :: ws
@@ -353,7 +359,7 @@ contains
         type(integrate_result_t)      :: res
         type(fortnum_status_t)        :: status
         br%fn  = f
-        br%ctx = c_null_ptr
+        br%ctx = ctx
         call integrate_qagiu(integrand, real(bound, dp), int(inf), &
             real(epsabs, dp), real(epsrel, dp), ws, eps, res, status, ctx=br)
         value  = res%value
@@ -363,12 +369,13 @@ contains
 
     ! Shared QAG/QAGS finite-interval driver. mode 0 = QAG, 1 = QAGS.
     function run_finite_integral(mode, f, a, b, epsabs, epsrel, key, value, &
-            abserr) result(code)
+            abserr, ctx) result(code)
         integer,        intent(in)  :: mode
         type(c_funptr), intent(in)  :: f
         real(c_double), intent(in)  :: a, b, epsabs, epsrel
         integer(c_int), intent(in)  :: key
         real(c_double), intent(out) :: value, abserr
+        type(c_ptr),    intent(in)  :: ctx
         integer(c_int) :: code
         type(scalar_bridge_t), target :: br
         type(integrate_workspace_t)   :: ws
@@ -376,7 +383,7 @@ contains
         type(integrate_result_t)      :: res
         type(fortnum_status_t)        :: status
         br%fn  = f
-        br%ctx = c_null_ptr
+        br%ctx = ctx
         if (mode == 0) then
             call integrate_qag(integrand, real(a, dp), real(b, dp), &
                 real(epsabs, dp), real(epsrel, dp), ws, res, status, &
@@ -408,19 +415,20 @@ contains
 
     ! ---------------------------------------------------------------- roots
 
-    function fortnum_root_brent(f, a, b, xtol, ftol, max_iter, root) &
+    function fortnum_root_brent(f, a, b, xtol, ftol, max_iter, root, ctx) &
             result(code) bind(c, name="fortnum_root_brent")
         type(c_funptr), value       :: f
         real(c_double), value       :: a, b, xtol, ftol
         integer(c_int), value       :: max_iter
         real(c_double), intent(out) :: root
+        type(c_ptr),    value       :: ctx
         integer(c_int) :: code
         type(scalar_bridge_t), target :: br
         type(fortnum_status_t)        :: status
         real(dp)                      :: x
         procedure(c_scalar_fn), pointer :: cf
         br%fn  = f
-        br%ctx = c_null_ptr
+        br%ctx = ctx
         ! Resolve the C procedure pointer here (c_f_procpointer is impure); the
         ! pure root_fn that root_brent demands then only calls through cf.
         call c_f_procpointer(br%fn, cf)
@@ -436,17 +444,18 @@ contains
         end function root_fn
     end function fortnum_root_brent
 
-    function fortnum_deriv_central(f, x, h, result, abserr) result(code) &
+    function fortnum_deriv_central(f, x, h, result, abserr, ctx) result(code) &
             bind(c, name="fortnum_deriv_central")
         type(c_funptr), value       :: f
         real(c_double), value       :: x, h
         real(c_double), intent(out) :: result, abserr
+        type(c_ptr),    value       :: ctx
         integer(c_int) :: code
         type(scalar_bridge_t), target :: br
         type(fortnum_status_t)        :: status
         real(dp)                      :: r, e
         br%fn  = f
-        br%ctx = c_null_ptr
+        br%ctx = ctx
         call deriv_central(deriv_fn, real(x, dp), real(h, dp), r, e, status, &
             ctx=br)
         result = r
@@ -475,7 +484,7 @@ contains
 
     ! ------------------------------------------------------------ multiroot
 
-    function fortnum_multiroot_hybrid(fdf, n, x0, xtol, ftol, max_iter, x) &
+    function fortnum_multiroot_hybrid(fdf, n, x0, xtol, ftol, max_iter, x, ctx) &
             result(code) bind(c, name="fortnum_multiroot_hybrid")
         type(c_funptr), value       :: fdf
         integer(c_int), value       :: n
@@ -483,12 +492,13 @@ contains
         real(c_double), value       :: xtol, ftol
         integer(c_int), value       :: max_iter
         real(c_double), intent(out) :: x(n)
+        type(c_ptr),    value       :: ctx
         integer(c_int) :: code
         type(vector_bridge_t), target :: br
         type(fortnum_status_t)        :: status
         real(dp)                      :: xout(n)
         br%fn  = fdf
-        br%ctx = c_null_ptr
+        br%ctx = ctx
         br%n   = int(n)
         call multiroot_hybrid(system, int(n), real(x0, dp), xout, status, &
             xtol=real(xtol, dp), ftol=real(ftol, dp), max_iter=int(max_iter), &
@@ -533,7 +543,7 @@ contains
     ! ------------------------------------------------------------------- ode
 
     function fortnum_ode_integrate_dop(rhs, neq, t0, t1, y0, rtol, atol, &
-            max_steps, npts_cap, t_out, y_out, npts) result(code) &
+            max_steps, npts_cap, t_out, y_out, npts, ctx) result(code) &
             bind(c, name="fortnum_ode_integrate_dop")
         type(c_funptr), value       :: rhs
         integer(c_int), value       :: neq, max_steps, npts_cap
@@ -542,9 +552,10 @@ contains
         real(c_double), intent(out) :: t_out(npts_cap)
         real(c_double), intent(out) :: y_out(neq, npts_cap)
         integer(c_int), intent(out) :: npts
+        type(c_ptr),    value       :: ctx
         integer(c_int) :: code
         code = run_ode_dop(rhs, neq, t0, t1, y0, rtol, atol, max_steps, &
-            npts_cap, t_out, y_out, npts)
+            npts_cap, t_out, y_out, npts, ctx)
     end function fortnum_ode_integrate_dop
 
     ! ode_solve_dop is the allocatable-output flat call; the C ABI cannot return
@@ -553,7 +564,7 @@ contains
     ! points (ode_integrate_dop / ode_solve_dop) run the same integrator; the C
     ! surface exposes the buffer-bounded one.
     function fortnum_ode_solve_dop(rhs, neq, t0, t1, y0, rtol, atol, &
-            npts_cap, t_out, y_out, npts) result(code) &
+            npts_cap, t_out, y_out, npts, ctx) result(code) &
             bind(c, name="fortnum_ode_solve_dop")
         type(c_funptr), value       :: rhs
         integer(c_int), value       :: neq, npts_cap
@@ -562,15 +573,16 @@ contains
         real(c_double), intent(out) :: t_out(npts_cap)
         real(c_double), intent(out) :: y_out(neq, npts_cap)
         integer(c_int), intent(out) :: npts
+        type(c_ptr),    value       :: ctx
         integer(c_int) :: code
         code = run_ode_dop(rhs, neq, t0, t1, y0, rtol, atol, 100000_c_int, &
-            npts_cap, t_out, y_out, npts)
+            npts_cap, t_out, y_out, npts, ctx)
     end function fortnum_ode_solve_dop
 
     ! Shared dop853 driver for both C ode entry points. Bridges the C rhs and
     ! copies the recorded mesh into the caller's fixed buffers (capped).
     function run_ode_dop(rhs, neq, t0, t1, y0, rtol, atol, max_steps, &
-            npts_cap, t_out, y_out, npts) result(code)
+            npts_cap, t_out, y_out, npts, ctx) result(code)
         type(c_funptr), intent(in)  :: rhs
         integer(c_int), intent(in)  :: neq, max_steps, npts_cap
         real(c_double), intent(in)  :: t0, t1, rtol, atol
@@ -578,6 +590,7 @@ contains
         real(c_double), intent(out) :: t_out(npts_cap)
         real(c_double), intent(out) :: y_out(neq, npts_cap)
         integer(c_int), intent(out) :: npts
+        type(c_ptr),    intent(in)  :: ctx
         integer(c_int) :: code
         type(vector_bridge_t), target :: br
         type(ode_problem_t)    :: problem
@@ -586,7 +599,7 @@ contains
         type(fortnum_status_t) :: status
         integer :: nout
         br%fn  = rhs
-        br%ctx = c_null_ptr
+        br%ctx = ctx
         br%n   = int(neq)
         problem%rhs => rhs_bridge
         problem%t0  = real(t0, dp)
