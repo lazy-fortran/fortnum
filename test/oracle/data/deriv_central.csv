@@ -1,0 +1,10 @@
+# fortnum oracle table
+# function: central finite difference (deriv_central)
+# backend: analytic derivatives (numpy)
+# columns: index,x,h,deriv
+# has_derivative: 1
+0,1.3,0.001,0.26749882862458735
+1,0.7,0.001,2.0137527074704766
+2,2.0,0.001,12.0
+3,0.4,0.001,2.5
+4,1.1,0.001,-0.8912073600614354

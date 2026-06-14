@@ -132,6 +132,10 @@ module fortnum_ode
         integer               :: neq = 0
         real(dp), allocatable :: k1(:), k2(:), k3(:), k4(:), k5(:), k6(:)
         real(dp), allocatable :: ytmp(:), y5(:), y4(:), yerr(:)
+        ! Higher stages and error vectors used by the RK8(7)13M integrator
+        ! (fortnum_ode_dop853). The Cash-Karp paths ignore these slots.
+        real(dp), allocatable :: k7(:), k8(:), k9(:), k10(:), k11(:), k12(:)
+        real(dp), allocatable :: y8(:), err5(:), err3(:)
     end type ode_workspace_t
 
     type, public :: ode_solution_t

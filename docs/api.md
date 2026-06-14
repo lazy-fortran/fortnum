@@ -157,6 +157,149 @@ pure function gamma_reg_p(a, x) result(p)
 Regularized lower incomplete gamma P(a, x) = gamma_lower(a, x) / Gamma(a).
 Requires `a > 0`, `x >= 0`.
 
+### fortnum_special_complex_bessel
+
+Complex-argument Bessel functions of integer order: J_n(z), I_n(z), K_n(z).
+Clean-room from DLMF chapter 10. The `scaled` flag on I and K factors out
+e^{Re z} (KODE scaling), needed where Re z is large. Negative order is handled
+internally: J_{-n} = (-1)^n J_n, I_{-n} = I_n, K_{-n} = K_n.
+
+Policy: `analytic_rule`. Active argument: `z` (complex). Inactive: `order`,
+`scaled`. Derivatives use the recurrences J_n'(z) = (J_{n-1}-J_{n+1})/2 (DLMF
+10.6.1), I_n'(z) = (I_{n-1}+I_{n+1})/2 (DLMF 10.29.2), K_n'(z) =
+-(K_{n-1}+K_{n+1})/2 (DLMF 10.29.4); forward complex products below.
+
+#### `bessel_j_complex(order, z, result, status)`
+
+```fortran
+subroutine bessel_j_complex(order, z, result, status)
+    integer,                intent(in)  :: order
+    complex(dp),            intent(in)  :: z
+    complex(dp),            intent(out) :: result
+    type(fortnum_status_t), intent(out) :: status
+```
+
+J_order(z) by power series near the origin, Hankel asymptotic for large |z|,
+and downward (Miller) recurrence in the near-real strip.
+
+#### `bessel_i_complex(order, z, scaled, result, status)`
+
+```fortran
+subroutine bessel_i_complex(order, z, scaled, result, status)
+    integer,                intent(in)  :: order
+    complex(dp),            intent(in)  :: z
+    logical,                intent(in)  :: scaled
+    complex(dp),            intent(out) :: result
+    type(fortnum_status_t), intent(out) :: status
+```
+
+I_order(z). With `scaled = .true.` returns e^{-Re z} I_order(z).
+
+#### `bessel_i_complex_array(order0, nseq, z, scaled, result, status)`
+
+```fortran
+subroutine bessel_i_complex_array(order0, nseq, z, scaled, result, status)
+    integer,                intent(in)  :: order0
+    integer,                intent(in)  :: nseq
+    complex(dp),            intent(in)  :: z
+    logical,                intent(in)  :: scaled
+    complex(dp),            intent(out) :: result(nseq)
+    type(fortnum_status_t), intent(out) :: status
+```
+
+I_{order0}(z) through I_{order0+nseq-1}(z) in one downward-recurrence pass.
+
+#### `bessel_k_complex(order, z, scaled, result, status)`
+
+```fortran
+subroutine bessel_k_complex(order, z, scaled, result, status)
+    integer,                intent(in)  :: order
+    complex(dp),            intent(in)  :: z
+    logical,                intent(in)  :: scaled
+    complex(dp),            intent(out) :: result
+    type(fortnum_status_t), intent(out) :: status
+```
+
+K_order(z) by the integral representation 10.32.18 on the right half-plane
+(`Re z > 0`). With `scaled = .true.` returns e^{z} K_order(z).
+
+#### `bessel_k_complex_array(order0, nseq, z, scaled, result, status)`
+
+```fortran
+subroutine bessel_k_complex_array(order0, nseq, z, scaled, result, status)
+    integer,                intent(in)  :: order0
+    integer,                intent(in)  :: nseq
+    complex(dp),            intent(in)  :: z
+    logical,                intent(in)  :: scaled
+    complex(dp),            intent(out) :: result(nseq)
+    type(fortnum_status_t), intent(out) :: status
+```
+
+K_{order0}(z) through K_{order0+nseq-1}(z) by upward recurrence in order.
+
+### fortnum_special_hypergeometric_1f1
+
+Confluent hypergeometric function 1F1(a;b;z) (Kummer M), complex a, b, z.
+Clean-room from DLMF chapter 13. Holomorphic in a and z; poles in b at the
+non-positive integers. One selector switches between Kummer transformation
+(Re z < 0), Taylor series (small |z|), and large-z asymptotics; only the
+converged value is exposed.
+
+Policy: `analytic_rule`. Active argument: `z`. Inactive: `a`, `b`.
+d/dz M = (a/b) M(a+1,b+1,z) (DLMF 13.3.15). `hyperg_1f1_a1` fixes a = 1, the
+form the FLR / plasma-dispersion consumers need; its forward and reverse
+products treat z as a real 2-vector (Re z, Im z).
+
+#### `hyperg_1f1(a, b, z, result, status)`
+
+```fortran
+subroutine hyperg_1f1(a, b, z, result, status)
+    complex(dp),            intent(in)  :: a, b, z
+    complex(dp),            intent(out) :: result
+    type(fortnum_status_t), intent(out) :: status
+```
+
+M(a, b, z). `FORTNUM_DOMAIN_ERROR` when b is at or near a non-positive integer.
+
+#### `hyperg_1f1_a1(b, z, result, status)`
+
+```fortran
+subroutine hyperg_1f1_a1(b, z, result, status)
+    complex(dp),            intent(in)  :: b, z
+    complex(dp),            intent(out) :: result
+    type(fortnum_status_t), intent(out) :: status
+```
+
+M(1, b, z); thin specialization forwarding to `hyperg_1f1` with a = 1.
+
+### fortnum_special_erf_cbind
+
+erf/erfc provider for the C ABI. Fortran callers use the F2008 intrinsics
+directly; this module forwards to them with no reimplementation so the ABI
+layer has C-callable symbols.
+
+Policy: `transparent`. Active argument: `x` (real scalar). d/dx erf(x) =
+2/sqrt(pi) e^{-x^2}, d/dx erfc(x) = -2/sqrt(pi) e^{-x^2} (DLMF 7.2.1).
+
+#### `fortnum_erf(x) -> real(dp)` (elemental)
+
+```fortran
+elemental function fortnum_erf(x) result(y)
+    real(dp), intent(in) :: x
+```
+
+Error function erf(x). Forwards to the intrinsic `erf`.
+
+#### `fortnum_erfc(x) -> real(dp)` (elemental)
+
+```fortran
+elemental function fortnum_erfc(x) result(y)
+    real(dp), intent(in) :: x
+```
+
+Complementary error function erfc(x) = 1 - erf(x). Forwards to the intrinsic
+`erfc`.
+
 ---
 
 ## fortnum_fft
@@ -422,6 +565,37 @@ Flat convenience call. Owns its workspace; discards the trace. Defaults:
 
 ---
 
+## fortnum_levin
+
+Levin-u sequence acceleration. Given a finite recorded sequence of series terms
+a_0..a_{n-1}, it forms the partial sums and returns the Levin-u accelerated
+limit with an error estimate, summing slowly convergent or divergent series
+such as the Kummer-ratio sums in the confluent hypergeometric consumers.
+
+Algorithm: Levin (1973), Weniger (1989) eqs 7.2-8 / 7.3-9, Fessler-Ford-Smith
+(1983). Remainder estimate omega_n = (1+n) a_n (the u variant). The table grows
+one term at a time; the diagonal value that moves least, scaled by a rounding
+floor, is the best estimate.
+
+Policy: `primal_only`. The accelerated value is a nonlinear rational transform
+of the terms and the selected order is data-dependent, so no derivative product
+applies. Active: `terms`. Inactive: `n`.
+
+### `levin_u_accel(terms, n, sum_accel, abserr, status)`
+
+```fortran
+subroutine levin_u_accel(terms, n, sum_accel, abserr, status)
+    integer,                intent(in)  :: n
+    real(dp),               intent(in)  :: terms(n)
+    real(dp),               intent(out) :: sum_accel
+    real(dp),               intent(out) :: abserr
+    type(fortnum_status_t), intent(out) :: status
+```
+
+Accelerate the series with terms `terms(1:n)`. Replaces Levin-u series acceleration.
+
+---
+
 ## fortnum_ode
 
 Adaptive ODE integration with Cash-Karp RK5(4) and PI step-size control.
@@ -516,6 +690,57 @@ Integrate and return the solution at each time in `t_eval`. `t_eval` must be
 strictly monotone. `y_out` is allocated `(neq, size(t_eval))`. Policy:
 `trace_rule` per segment.
 
+### fortnum_ode_dop853
+
+Adaptive Prince-Dormand RK8(7)-13M integrator. Twelve explicit stages give an
+eighth-order solution; embedded order-5 and order-3 estimators drive the PI
+step control. Same carriers (`ode_problem_t`, `ode_workspace_t`,
+`ode_solution_t`) and the same `trace_rule` policy as the Cash-Karp path; use
+it for the very tight tolerances where the higher order pays off. Active: `y0`,
+`ctx` parameters. Inactive: `rtol`, `atol`, step bounds.
+
+#### `ode_integrate_dop(problem, workspace, solution, status)`
+
+```fortran
+subroutine ode_integrate_dop(problem, workspace, solution, status)
+    type(ode_problem_t),    intent(in)    :: problem
+    type(ode_workspace_t),  intent(inout) :: workspace
+    type(ode_solution_t),   intent(inout) :: solution
+    type(fortnum_status_t), intent(out)   :: status
+```
+
+Integrate `problem` over its span, recording the accepted-step mesh in
+`solution`. Drop-in replacement for `ode_integrate` using the DOP853 stepper.
+
+#### `ode_solve_dop(rhs, t0, t1, y0, t_out, y_out, status [, rtol, atol])`
+
+```fortran
+subroutine ode_solve_dop(rhs, t0, t1, y0, t_out, y_out, status, rtol, atol)
+    procedure(ode_rhs_t)               :: rhs
+    real(dp),               intent(in) :: t0, t1
+    real(dp),               intent(in) :: y0(:)
+    real(dp), allocatable, intent(out) :: t_out(:)
+    real(dp), allocatable, intent(out) :: y_out(:,:)
+    type(fortnum_status_t), intent(out) :: status
+    real(dp), intent(in), optional     :: rtol, atol
+```
+
+Flat DOP853 call. Allocates and returns the accepted mesh `t_out` and states
+`y_out(neq, size(t_out))`. Mirrors `ode_solve`.
+
+#### `dop853_step(rhs, t, y, h, ...)`
+
+```fortran
+subroutine dop853_step(rhs, t, y, h, have_k1, k1, k2, k3, k4, k5, k6, &
+    k7, k8, k9, k10, k11, k12, ytmp, y8, err5, err3, nfev)
+```
+
+One RK8(7)-13M stage block: from `(t, y)` it fills the order-8 update `y8` and
+the order-5 and order-3 error vectors `err5`, `err3` for the step controller.
+The stage slots and `nfev` are caller-owned workspace; `have_k1` reuses the
+first stage (FSAL) across accepted steps. Used by `ode_integrate_dop`; exposed
+for callers driving a custom mesh.
+
 ---
 
 ## fortnum_roots
@@ -593,6 +818,93 @@ subroutine root_brent(f, a, b, x, status, xtol, ftol, max_iter)
 Brent's method: inverse quadratic interpolation, secant, and bisection combined.
 Superlinear convergence on smooth functions; guaranteed linear in the worst case.
 Requires f(a)*f(b) <= 0. Defaults same as `root_bisect`.
+
+### fortnum_multiroot
+
+Multidimensional root finding F(x) = 0 in R^n, plus two scalar utilities the
+same consumer needs. Both solvers run a Newton step with a backtracking line
+search on 1/2 |F|^2; the Newton system is solved by Gaussian elimination with
+partial pivoting. A singular Jacobian reports `FORTNUM_DOMAIN_ERROR`.
+
+Solver policy: `implicit_rule`; the root satisfies F(x*, p) = 0 and the implicit
+function theorem gives dx*/dp = -J_x^{-1} J_p. `deriv_central` and `argsort` are
+`primal_only`. Reserved n-dim products: `multiroot_jvp`, `multiroot_vjp`,
+`multiroot_grad`.
+
+Callback abstract interfaces: `multiroot_fdf_t` returns F and the analytic
+Jacobian; `multiroot_fn_t` returns F only (Jacobian by finite difference);
+`deriv_fn_t` is the scalar function differenced by `deriv_central`. Each takes
+the optional unlimited-polymorphic `ctx`.
+
+```fortran
+abstract interface
+    function deriv_fn_t(x, ctx) result(fx)
+        real(dp),           intent(in) :: x
+        class(*), optional, intent(in) :: ctx
+        real(dp)                       :: fx
+    end function deriv_fn_t
+end interface
+```
+
+#### `multiroot_hybrid(fdf, n, x0, x, status [, xtol, ftol, max_iter, ctx])`
+
+```fortran
+subroutine multiroot_hybrid(fdf, n, x0, x, status, xtol, ftol, max_iter, ctx)
+    procedure(multiroot_fdf_t)         :: fdf
+    integer,                intent(in) :: n
+    real(dp),               intent(in) :: x0(n)
+    real(dp),               intent(out):: x(n)
+    type(fortnum_status_t), intent(out):: status
+    real(dp), intent(in), optional     :: xtol, ftol
+    integer,  intent(in), optional     :: max_iter
+    class(*), intent(in), optional     :: ctx
+```
+
+Hybrid solve with an analytic Jacobian supplied by the `fdf` callback
+(`multiroot_fdf_t`). Replaces the analytic-Jacobian Powell hybrid dogleg.
+
+#### `multiroot_hybrids(fn, n, x0, x, status [, xtol, ftol, max_iter, ctx])`
+
+```fortran
+subroutine multiroot_hybrids(fn, n, x0, x, status, xtol, ftol, max_iter, ctx)
+    procedure(multiroot_fn_t)          :: fn
+    integer,                intent(in) :: n
+    real(dp),               intent(in) :: x0(n)
+    real(dp),               intent(out):: x(n)
+    type(fortnum_status_t), intent(out):: status
+    real(dp), intent(in), optional     :: xtol, ftol
+    integer,  intent(in), optional     :: max_iter
+    class(*), intent(in), optional     :: ctx
+```
+
+Same iteration with the Jacobian built column by column by central differences
+of the residual `fn` (`multiroot_fn_t`). Replaces
+the finite-difference-Jacobian Powell hybrid dogleg.
+
+#### `deriv_central(f, x, h, result, abserr, status [, ctx])`
+
+```fortran
+subroutine deriv_central(f, x, h, result, abserr, status, ctx)
+    procedure(deriv_fn_t)               :: f
+    real(dp),               intent(in)  :: x, h
+    real(dp),               intent(out) :: result, abserr
+    type(fortnum_status_t), intent(out) :: status
+    class(*), intent(in), optional      :: ctx
+```
+
+Central finite-difference first derivative of `f` at `x` with step `h`, with a
+Richardson truncation/round-off error estimate in `abserr`. The operation is
+finite differencing, so it is `primal_only`: use the value, do not AD through it.
+
+#### `argsort(x, perm)`
+
+```fortran
+pure subroutine argsort(x, perm)
+    real(dp), intent(in)  :: x(:)
+    integer,  intent(out) :: perm(size(x))
+```
+
+Ascending stable index permutation: `x(perm)` is sorted. `primal_only`.
 
 ---
 
@@ -760,6 +1072,86 @@ on `f`; precompute once and reuse over many function-value vectors.
 
 ---
 
+## fortnum_bspline
+
+B-spline basis functions and derivatives over a breakpoint set, in the the external backend
+convention: order `k = degree + 1`, `nbreak` breakpoints, end breakpoints
+repeated with multiplicity `k` (clamped basis). The coefficient count is
+`ncoef = nbreak + k - 2`. Cox-de Boor recursion (de Boor 2001; Piegl & Tiller).
+
+Policy: `transparent` inside a fixed knot span; within one span the spline value
+sum_i c_i B_{i,k}(x) is a fixed polynomial in x. The span index from
+`bspline_span_index` is `primal_only`: crossing a knot is non-smooth, so hold
+the span fixed when differentiating in x. Active: `x`. Inactive: order `k`, the
+breakpoint array, `nderiv`.
+
+### Type: `bspline_workspace_t`
+
+Caller-owned workspace holding the order, breakpoints, augmented knot vector,
+and `ncoef`. Built by `bspline_init` and `bspline_set_knots`.
+
+### `bspline_init(ws, order, nbreak, status)`
+
+```fortran
+subroutine bspline_init(ws, order, nbreak, status)
+    type(bspline_workspace_t), intent(out) :: ws
+    integer,                   intent(in)  :: order
+    integer,                   intent(in)  :: nbreak
+    type(fortnum_status_t),    intent(out) :: status
+```
+
+Allocate the workspace for spline order `order` over `nbreak` breakpoints.
+
+### `bspline_set_knots(ws, breakpts, status)`
+
+```fortran
+subroutine bspline_set_knots(ws, breakpts, status)
+    type(bspline_workspace_t), intent(inout) :: ws
+    real(dp),                  intent(in)     :: breakpts(:)
+    type(fortnum_status_t),    intent(out)    :: status
+```
+
+Build the clamped augmented knot vector from strictly increasing `breakpts`.
+
+### `bspline_eval_basis(ws, x, values, status)`
+
+```fortran
+subroutine bspline_eval_basis(ws, x, values, status)
+    type(bspline_workspace_t), intent(in)  :: ws
+    real(dp),                  intent(in)  :: x
+    real(dp),                  intent(out) :: values(:)
+    type(fortnum_status_t),    intent(out) :: status
+```
+
+Scatter the `ncoef` basis-function values at `x` into `values(1:ncoef)`; the
+nonzero entries are the `k` functions on x's span.
+
+### `bspline_eval_deriv(ws, x, nderiv, dvalues, status)`
+
+```fortran
+subroutine bspline_eval_deriv(ws, x, nderiv, dvalues, status)
+    type(bspline_workspace_t), intent(in)  :: ws
+    real(dp),                  intent(in)  :: x
+    integer,                   intent(in)  :: nderiv
+    real(dp),                  intent(out) :: dvalues(0:, :)
+    type(fortnum_status_t),    intent(out) :: status
+```
+
+Fill `dvalues(0:nderiv, 1:ncoef)` with the basis functions and their
+derivatives up to order `nderiv` at `x`.
+
+### `bspline_span_index(ws, x) -> integer` (pure function)
+
+```fortran
+pure function bspline_span_index(ws, x) result(span)
+    type(bspline_workspace_t), intent(in) :: ws
+    real(dp),                  intent(in) :: x
+```
+
+Knot span containing `x`, by binary search. `primal_only`.
+
+---
+
 ## fortnum_oracle
 
 Testing infrastructure. Reads CSV reference tables produced by
@@ -836,10 +1228,22 @@ subroutine dawson_grad(x, u, jtu)      ! scalar adjoint u F'(x)
 subroutine gamma_lower_jvp(x, v, jv)   ! d/dx gamma_lower(a,x) = x^(a-1) e^(-x); a inactive
 subroutine bessel_in_jvp(n, x, v, jv)  ! dI_n/dx = (I_{n-1}+I_{n+1})/2  (DLMF 10.29.2)
 subroutine bessel_kn_jvp(n, x, v, jv)  ! dK_n/dx = -(K_{n-1}+K_{n+1})/2 (DLMF 10.29.4)
+subroutine bessel_j_complex_jvp(order, z, v, jv, status)  ! J_n'(z)v (DLMF 10.6.1)
+subroutine bessel_i_complex_jvp(order, z, scaled, v, jv, status)  ! I_n'(z)v (DLMF 10.29.2)
+subroutine bessel_k_complex_jvp(order, z, scaled, v, jv, status)  ! K_n'(z)v (DLMF 10.29.4)
+subroutine hyperg_1f1_a1_jvp(z, b, v, jv)   ! d/dz M(1,b,z) v; z as (Re,Im) 2-vector
+subroutine hyperg_1f1_a1_vjp(z, b, u, jtu)  ! reverse product of the same map
+subroutine fortnum_erf_jvp(x, v, jv)        ! 2/sqrt(pi) e^{-x^2} v (DLMF 7.2.1)
+subroutine fortnum_erfc_jvp(x, v, jv)       ! -2/sqrt(pi) e^{-x^2} v
+subroutine fortnum_erf_grad(x, u, jtu)      ! scalar adjoint (VJP)
+subroutine fortnum_erfc_grad(x, u, jtu)
 ```
 
 Derivative of `gamma_lower` with respect to the shape `a` is deferred (digamma
-series). HVP is deferred for all three: no scalar loss context in the module.
+series). HVP is deferred for all: no scalar loss context in the module. The
+complex Bessel products carry `status` because the primal evaluates a status
+path. `hyperg_1f1_a1` differentiates the analytic map z -> M, exercised as the
+Cauchy-Riemann Jacobian on (Re z, Im z); `erf`/`erfc` are `transparent`.
 
 ### fortnum_fft (`transparent`, linear)
 
@@ -913,6 +1317,18 @@ subroutine lagrange_fval_vjp(n, x, xp, u, jtu)
 Derivatives are valid inside a fixed cell. Crossing a cell boundary is a
 non-smooth event; the caller holds the index fixed when differentiating with
 respect to the evaluation point.
+
+### fortnum_bspline (`transparent`, fixed span)
+
+```fortran
+subroutine bspline_eval_jvp(ws, x, coef, vx, jv, status)   ! d/dx [sum c_i B_i(x)] vx
+subroutine bspline_eval_vjp(ws, x, coef, u, jtu, status)   ! (d/dx [sum c_i B_i(x)])^T u
+```
+
+The spline value is differentiated in `x` at the fixed span; the coefficients
+`coef` are inactive. Crossing a knot is non-smooth, so the caller holds the span
+fixed (the AD test checks this). Both directions match the analytic recurrence
+weights from `bspline_eval_deriv`.
 
 ### fortnum_rng (`primal_only`)
 

@@ -5,6 +5,7 @@ module fortnum_special
     ! - Modified Bessel functions (fortnum_special_bessel)
     ! - Dawson integral (fortnum_special_dawson)
     ! - Lower incomplete gamma function (fortnum_special_gamma)
+    ! - Confluent hypergeometric 1F1 (fortnum_special_hypergeometric_1f1)
     !
     ! Re-export layout preserves each module's derivative policy for future
     ! derivative product entry points (issue #40). Each routine documents its
@@ -26,6 +27,11 @@ module fortnum_special
         gamma_lower, &
         gamma_reg_p, &
         gamma_lower_jvp
+    use fortnum_special_hypergeometric_1f1, only: &
+        hyperg_1f1, &
+        hyperg_1f1_a1, &
+        hyperg_1f1_a1_jvp, &
+        hyperg_1f1_a1_vjp
 
     implicit none
     private
@@ -50,5 +56,11 @@ module fortnum_special
     public :: gamma_lower, gamma_reg_p
     ! d/dx only; d/da deferred (requires digamma, see gamma_lower module header).
     public :: gamma_lower_jvp
+
+    ! Confluent hypergeometric 1F1(a;b;z) (Kummer M), complex a, b, z.
+    ! Derivative policy: analytic_rule; d/dz M = (a/b) M(a+1,b+1,z).
+    ! Active argument: z.  Inactive: a, b.  hyperg_1f1_a1 fixes a = 1.
+    public :: hyperg_1f1, hyperg_1f1_a1
+    public :: hyperg_1f1_a1_jvp, hyperg_1f1_a1_vjp
 
 end module fortnum_special
