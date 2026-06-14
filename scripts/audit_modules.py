@@ -241,6 +241,7 @@ PUBLIC_API_MODULES = {
     "fortnum_ode_dop853",
     "fortnum_roots",
     "fortnum_multiroot",
+    "fortnum_roots_complex",
     "fortnum_rng",
     "fortnum_interp",
     "fortnum_polynomial",

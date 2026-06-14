@@ -180,6 +180,14 @@ add_test(NAME fortnum_multiroot_oracle
         ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/deriv_central.csv
         ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/argsort.csv)
 
+# complex_region_roots solves the moment pencil with LAPACK ZGGEV; the library
+# already links LAPACK::LAPACK PUBLIC, so the test inherits it.
+add_executable(test_fortnum_complex_roots_oracle oracle/test_fortnum_complex_roots_oracle.f90)
+target_link_libraries(test_fortnum_complex_roots_oracle PRIVATE fortnum)
+add_test(NAME fortnum_complex_roots_oracle
+    COMMAND test_fortnum_complex_roots_oracle
+        ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/complex_roots.csv)
+
 # --- M3 interp ---
 add_executable(test_fortnum_polynomial interp/test_fortnum_polynomial.f90)
 target_link_libraries(test_fortnum_polynomial PRIVATE fortnum)
