@@ -835,31 +835,32 @@ contains
         epstab%nres   = 0
     end subroutine reset_epstab
 
-    ! Maintain iord so iord(1) is the largest-error subinterval. The full
-    ! resort is cheap relative to the GK panel cost and keeps the pop O(1).
+    ! Maintain iord so iord(1) is the largest-error subinterval. The adaptive
+    ! loop pops only iord(1), so the full descending sort the old code built was
+    ! dead work beyond locating the maximum. Find that maximum in one O(last)
+    ! pass with the same strict-greater, lowest-index tie-break the selection
+    ! sort used, so iord(1) (hence the pop sequence and every downstream value)
+    ! is identical; fill the rest with the identity to keep the array defined.
     subroutine reorder(ws)
         type(integrate_workspace_t), intent(inout) :: ws
-        integer  :: i, j, k
+        integer  :: i, k
         real(dp) :: emax
         do i = 1, ws%last
             ws%iord(i) = i
         end do
-        ! Selection-style descending sort by ws%e; last is small in practice.
-        do i = 1, ws%last - 1
-            k = i
-            emax = ws%e(ws%iord(i))
-            do j = i + 1, ws%last
-                if (ws%e(ws%iord(j)) > emax) then
-                    emax = ws%e(ws%iord(j))
-                    k = j
-                end if
-            end do
-            if (k /= i) then
-                j = ws%iord(i)
-                ws%iord(i) = ws%iord(k)
-                ws%iord(k) = j
+        if (ws%last < 2) return
+        k    = 1
+        emax = ws%e(1)
+        do i = 2, ws%last
+            if (ws%e(i) > emax) then
+                emax = ws%e(i)
+                k = i
             end if
         end do
+        if (k /= 1) then
+            ws%iord(1) = k
+            ws%iord(k) = 1
+        end if
     end subroutine reorder
 
     ! QUADPACK roundoff detectors. iroff1/iroff2 catch a bisection that fails
