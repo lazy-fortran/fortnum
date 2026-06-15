@@ -9,6 +9,7 @@ target_sources(fortnum PRIVATE
     ad/fortnum_ad_interfaces.f90
     bindings/fortnum_capi.f90
     bindings/fortnum_capi_bspline.f90
+    bindings/fortnum_capi_rk8pd.f90
     fft/fortnum_fft.f90
     fortnum_kinds.f90
     fortnum_status.f90

@@ -37,6 +37,13 @@ static double scaled_linear(double x, void *ctx) {
     return scale * x;
 }
 
+/* ODE rhs for the re-entrant rk8pd check: y' = -y, so y(t) = y0 exp(-t). */
+static void decay_rhs(double t, int n, const double *y, double *dydt,
+                      void *ctx) {
+    (void)t; (void)n; (void)ctx;
+    dydt[0] = -y[0];
+}
+
 int main(void) {
     /* I_0(1.0) = 1.2660658777520084 (DLMF 10.25). */
     check("bessel_in(0,1)", fortnum_bessel_in(0, 1.0),
@@ -155,6 +162,27 @@ int main(void) {
             check("bspline partition_of_unity", sum, 1.0, 1e-12);
             free(vals);
             fortnum_bspline_destroy(bs);
+        }
+    }
+
+    /* Re-entrant rk8pd: evolve y' = -y from y(0)=1 across several output
+     * abscissae, carrying the adaptive step, and check y(3) = exp(-3). */
+    {
+        void *od = fortnum_rk8pd_create(decay_rhs, 1, 1e-3, 1e-14, 1e-14,
+                                        100000, NULL);
+        if (!od) {
+            printf("rk8pd_create returned NULL\n");
+            failures++;
+        } else {
+            double t = 0.0, y[1] = {1.0};
+            double outs[3] = {1.0, 2.0, 3.0};
+            int code = FORTNUM_OK;
+            for (int k = 0; k < 3 && code == FORTNUM_OK; ++k)
+                code = fortnum_rk8pd_integrate_to(od, &t, outs[k], y);
+            printf("rk8pd_integrate_to status=%d t=%.15g\n", code, t);
+            if (code != FORTNUM_OK) failures++;
+            check("rk8pd y(3)=exp(-3)", y[0], exp(-3.0), 1e-11);
+            fortnum_rk8pd_destroy(od);
         }
     }
 

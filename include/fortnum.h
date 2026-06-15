@@ -182,6 +182,30 @@ int fortnum_ode_solve_dop(fortnum_ode_rhs rhs, int neq, double t0, double t1,
                           int npts_cap, double *t_out, double *y_out,
                           int *npts, void *ctx);
 
+/* --- Re-entrant ODE integration (adaptive Prince-Dormand rk8pd) ---
+ *
+ * Bit-faithful to the documented rk8pd stepper under the y_new error-per-step control, evolved
+ * continuously like a loop over an accepted-step evolve advance: the adaptive step is
+ * carried across output abscissae rather than reset per segment. The evolve
+ * state is opaque; create returns a handle, integrate_to advances it to each
+ * next abscissa, destroy frees it. eps_abs/eps_rel match the y_new error-per-step control
+ * (D0 = eps_abs + eps_rel*|y|). */
+
+/* Allocate an evolve state for neq equations with starting step h0 and the reference
+ * tolerances. rhs/ctx are forwarded to every derivative evaluation. Returns
+ * NULL on a domain error (neq < 1 or h0 <= 0). */
+void *fortnum_rk8pd_create(fortnum_ode_rhs rhs, int neq, double h0,
+                           double eps_abs, double eps_rel, int max_steps,
+                           void *ctx);
+
+/* Advance the carried solution from *t to t1, continuing the adaptive schedule.
+ * y[neq] holds the state at *t on entry and at t1 on return; *t is updated to
+ * t1. Returns the fortnum status code (0 == FORTNUM_OK). */
+int fortnum_rk8pd_integrate_to(void *handle, double *t, double t1, double *y);
+
+/* Free the evolve state behind the handle. */
+void fortnum_rk8pd_destroy(void *handle);
+
 /* --- B-spline basis (clamped knot vector, clamped-knot workflow) ---
  *
  * The workspace is opaque: create returns a handle, eval/deriv take it back,
