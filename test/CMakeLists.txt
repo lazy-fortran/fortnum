@@ -149,6 +149,10 @@ add_executable(test_fortnum_ode_dop853 ode/test_fortnum_ode_dop853.f90)
 target_link_libraries(test_fortnum_ode_dop853 PRIVATE fortnum)
 add_test(NAME fortnum_ode_dop853 COMMAND test_fortnum_ode_dop853)
 
+add_executable(test_fortnum_ode_rk8pd ode/test_fortnum_ode_rk8pd.f90)
+target_link_libraries(test_fortnum_ode_rk8pd PRIVATE fortnum)
+add_test(NAME fortnum_ode_rk8pd COMMAND test_fortnum_ode_rk8pd)
+
 add_executable(test_fortnum_ode_vode ode/test_fortnum_ode_vode.f90)
 target_link_libraries(test_fortnum_ode_vode PRIVATE fortnum)
 add_test(NAME fortnum_ode_vode COMMAND test_fortnum_ode_vode)

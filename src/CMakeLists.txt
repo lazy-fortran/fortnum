@@ -21,6 +21,7 @@ target_sources(fortnum PRIVATE
     ode/fortnum_ode_ddeabm.f90
     ode/fortnum_ode_dop853.f90
     ode/fortnum_ode_events.f90
+    ode/fortnum_ode_rk8pd.f90
     ode/fortnum_ode_vode.f90
     ode/fortnum_ode_wrapper.f90
     quadrature/fortnum_integrate.f90
