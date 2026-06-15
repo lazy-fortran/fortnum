@@ -21,6 +21,7 @@ program test_fortnum_special_complex_bessel
     call test_i_of_iz_is_j(nfail)
     call test_scaling_flag(nfail)
     call test_negative_order(nfail)
+    call test_high_phase_crossover(nfail)
     call test_k_domain_guard(nfail)
 
     if (nfail > 0) then
@@ -124,6 +125,54 @@ contains
         call bessel_k_complex(2, z, .false., kp, s)
         call check("K_-2 = K_2", km, kp, nfail)
     end subroutine test_negative_order
+
+    subroutine test_high_phase_crossover(nfail)
+        ! KiLCA FLRE rotates a 1st-quadrant z by +90 deg, so J_n is evaluated
+        ! at |z| just above the asymptotic crossover with large |arg z|
+        ! (135-150 deg).  A constant-|z| asymptotic gate drifts to ~8e-8 there;
+        ! the phase-dependent onset keeps the power series in control.
+        ! References from mpmath (dps=40).
+        integer, intent(inout) :: nfail
+        complex(dp) :: r
+        type(fortnum_status_t) :: s
+        real(dp), parameter :: htol = 1.0e-9_dp
+        complex(dp) :: z135, z150, z140
+        z135 = (-9.19238815542511782_dp,  9.19238815542511782_dp)
+        z150 = (-13.8564064605510183_dp,  8.0_dp)
+        z140 = (-11.4906666467846705_dp,  9.64181414529808989_dp)
+        call bessel_j_complex(0, z135, r, s)
+        call check_tol("J0(13e^i135)", r, &
+            (-882.646616506136632_dp, 646.635649165139629_dp), htol, nfail)
+        call bessel_j_complex(5, z135, r, s)
+        call check_tol("J5(13e^i135)", r, &
+            (42.969322118538905_dp, -547.949800225452184_dp), htol, nfail)
+        call bessel_j_complex(0, z150, r, s)
+        call check_tol("J0(16e^i150)", r, &
+            (216.423420104425402_dp, 205.478133232450891_dp), htol, nfail)
+        call bessel_j_complex(5, z150, r, s)
+        call check_tol("J5(16e^i150)", r, &
+            (-202.045568128097589_dp, 22.8692652901359511_dp), htol, nfail)
+        call bessel_j_complex(0, z140, r, s)
+        call check_tol("J0(15e^i140)", r, &
+            (83.0119613251706904_dp, -1592.05779970515358_dp), htol, nfail)
+        call bessel_j_complex(5, z140, r, s)
+        call check_tol("J5(15e^i140)", r, &
+            (703.334154533809306_dp, 611.137751877428783_dp), htol, nfail)
+    end subroutine test_high_phase_crossover
+
+    subroutine check_tol(label, got, want, t, nfail)
+        character(*), intent(in)    :: label
+        complex(dp),  intent(in)    :: got, want
+        real(dp),     intent(in)    :: t
+        integer,      intent(inout) :: nfail
+        real(dp) :: e
+        e = abs(got - want)/max(abs(want), 1.0e-300_dp)
+        if (e > t) then
+            write (error_unit, "(a,a,a,2es24.16,a,2es24.16,a,es12.4)") &
+                "FAIL ", label, " got=", got, " want=", want, " relerr=", e
+            nfail = nfail + 1
+        end if
+    end subroutine check_tol
 
     subroutine test_k_domain_guard(nfail)
         ! K requires Re z > 0; a non-positive real part must flag a status error.

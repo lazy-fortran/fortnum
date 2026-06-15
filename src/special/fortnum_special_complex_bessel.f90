@@ -49,10 +49,11 @@ module fortnum_special_complex_bessel
     real(dp), parameter :: pi      = 3.14159265358979323846_dp
     real(dp), parameter :: two_pi  = 6.28318530717958647692_dp
 
-    ! J: Hankel asymptotic above asym_j_min; below it the power series (off the
-    ! real axis it stays machine-accurate to this |z|) or, on the near-real
-    ! strip beyond miller_j_min where the series cancels, Miller recurrence.
-    ! Validated worst-case over the domain: 2.5e-12.
+    ! J: Hankel asymptotic above a phase-dependent onset (asym_j_min on the
+    ! positive real axis, rising to ~20.6 near arg z = pi where 10.17.3
+    ! converges slower); below it the power series (off the real axis it stays
+    ! machine-accurate well past this |z|) or, on the near-real strip beyond
+    ! miller_j_min where the series cancels, Miller recurrence.
     real(dp), parameter :: asym_j_min   = 13.0_dp
     real(dp), parameter :: miller_j_min = 9.0_dp
     real(dp), parameter :: near_real_ratio = 0.25_dp
@@ -83,7 +84,11 @@ contains
 
         n  = abs(order)
         az = abs(z)
-        if (az > asym_j_min) then
+        ! The Hankel asymptotic 10.17.3 converges slower as |arg z| -> pi, so
+        ! the |z| onset rises with phase; the power series covers the off-axis
+        ! interior (accurate there to |z| >= 30).
+        if (az > asym_j_min + 11.0_dp* &
+            (min(abs(atan2(aimag(z), real(z, dp))), pi)/pi)**2) then
             result = j_asymptotic(n, z)
         else if (az > miller_j_min .and. &
                  abs(aimag(z)) <= near_real_ratio*abs(real(z, dp))) then
