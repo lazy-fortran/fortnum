@@ -18,6 +18,7 @@ target_sources(fortnum PRIVATE
     interp/fortnum_polynomial.f90
     ode/fortnum_ode.f90
     ode/fortnum_ode_cash_karp.f90
+    ode/fortnum_ode_ddeabm.f90
     ode/fortnum_ode_dop853.f90
     ode/fortnum_ode_events.f90
     ode/fortnum_ode_vode.f90

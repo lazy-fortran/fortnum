@@ -153,6 +153,10 @@ add_executable(test_fortnum_ode_vode ode/test_fortnum_ode_vode.f90)
 target_link_libraries(test_fortnum_ode_vode PRIVATE fortnum)
 add_test(NAME fortnum_ode_vode COMMAND test_fortnum_ode_vode)
 
+add_executable(test_fortnum_ode_ddeabm ode/test_fortnum_ode_ddeabm.f90)
+target_link_libraries(test_fortnum_ode_ddeabm PRIVATE fortnum)
+add_test(NAME fortnum_ode_ddeabm COMMAND test_fortnum_ode_ddeabm)
+
 add_executable(test_fortnum_dop853_oracle oracle/test_fortnum_dop853_oracle.f90)
 target_link_libraries(test_fortnum_dop853_oracle PRIVATE fortnum)
 add_test(NAME fortnum_dop853_oracle
