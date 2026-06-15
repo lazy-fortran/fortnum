@@ -11,7 +11,7 @@ module fortnum_levin
     ! Algorithm (clean-room from the published papers, no the external backend source):
     !   D. Levin, Int. J. Comput. Math. B3 (1973) 371-388.
     !   E. J. Weniger, Comput. Phys. Rep. 10 (1989) 189-371, eqs 7.2-8, 7.3-9.
-    !   Fessler, Ford, Smith, ACM TOMS 9 (1983) 346-354 (the reference's algorithm).
+    !   Fessler, Ford, Smith, ACM TOMS 9 (1983) 346-354.
     !
     !   With remainder estimate omega_n = (beta + n) * a_n (beta = 1, the
     !   "u" variant, Weniger 7.3-9) the L-transformation
@@ -21,9 +21,9 @@ module fortnum_levin
     !       X_k^{(n)} = X_{k-1}^{(n+1)} - r * X_{k-1}^{(n)},  X in {N, D}
     !       r = ((beta + n) / (beta + n + k))^{k-1}.
     !   The fully accelerated value uses terms 0..n-1 and is N_{n-1}^{(0)} /
-    !   D_{n-1}^{(0)}.  As in the accelerator routine the table is grown one term
-    !   at a time and the order whose diagonal value moves the least, scaled by
-    !   a rounding floor, is returned as the best estimate.
+    !   D_{n-1}^{(0)}.  The table is grown one term at a time; the order whose
+    !   diagonal value moves the least, scaled by a rounding floor, is returned
+    !   as the best estimate.
     !
     ! DERIVATIVE POLICY (ad.md): primal_only.  The accelerated value is a
     !   nonlinear rational transform of the term sequence, and the order that
@@ -111,7 +111,7 @@ contains
             val = qnum(1)/qden(1)
 
             ! Error estimate: change against the previous order's diagonal
-            ! value, floored by the relative rounding level (the accelerator scheme).
+            ! value, floored by the relative rounding level.
             if (i == 1) then
                 est = abs(val)
             else
