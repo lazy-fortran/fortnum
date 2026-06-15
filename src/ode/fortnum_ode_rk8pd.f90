@@ -148,9 +148,9 @@ module fortnum_ode_rk8pd
     real(dp), parameter :: B12 = -528747749.0_dp / 2220607170.0_dp
     real(dp), parameter :: B13 = 1.0_dp / 4.0_dp
 
-    ! Seventh-order embedded weights bhat (Prince-Dormand 1981). The error
-    ! coefficient ec_i = b_i - bhat_i is the the reference rk8pd error vector. b13 has no
-    ! bhat counterpart (bhat13 = 0), so ec13 = b13.
+    ! Seventh-order embedded weights bhat (Prince-Dormand 1981; the reference rk8pd A[]).
+    ! yerr is formed as h*(seventh-order sum - eighth-order sum) at runtime, the
+    ! same separate-then-subtract order the reference uses; bhat13 = 0 (no k13 term).
     real(dp), parameter :: BH1  = 13451932.0_dp / 455176623.0_dp
     real(dp), parameter :: BH6  = -808719846.0_dp / 976000145.0_dp
     real(dp), parameter :: BH7  = 1757004468.0_dp / 5645159321.0_dp
@@ -159,17 +159,6 @@ module fortnum_ode_rk8pd
     real(dp), parameter :: BH10 = 465885868.0_dp / 322736535.0_dp
     real(dp), parameter :: BH11 = 53011238.0_dp / 667516719.0_dp
     real(dp), parameter :: BH12 = 2.0_dp / 45.0_dp
-
-    ! Error weights ec_i = b_i - bhat_i (the reference rk8pd yerr coefficients).
-    real(dp), parameter :: EC1  = B1  - BH1
-    real(dp), parameter :: EC6  = B6  - BH6
-    real(dp), parameter :: EC7  = B7  - BH7
-    real(dp), parameter :: EC8  = B8  - BH8
-    real(dp), parameter :: EC9  = B9  - BH9
-    real(dp), parameter :: EC10 = B10 - BH10
-    real(dp), parameter :: EC11 = B11 - BH11
-    real(dp), parameter :: EC12 = B12 - BH12
-    real(dp), parameter :: EC13 = B13
 
     ! Re-entrant evolve state. Carries the adaptive step size and the cached
     ! first-stage derivative (rk8pd is not FSAL, but f(t,y) at the segment start
@@ -212,6 +201,8 @@ contains
         real(dp), intent(out)           :: yerr(:)
         integer,  intent(inout)         :: nfev
         class(*), intent(in), optional  :: ctx
+
+        real(dp) :: ksum7(size(y)), ksum8(size(y))
 
         if (.not. have_k1) then
             call rhs(t, y, k1, ctx)
@@ -265,12 +256,18 @@ contains
         nfev = nfev + 12
 
         ! Stages 2 and 3 carry zero propagation weight; k13 (the doubled final
-        ! node) likewise contributes only through ec13 to the error estimate.
-        y8 = y + h * (B1 * k1 + B6 * k6 + B7 * k7 + B8 * k8 + B9 * k9 &
-            + B10 * k10 + B11 * k11 + B12 * k12 + B13 * k13)
+        ! node) contributes only to the eighth-order sum. Form the eighth- and
+        ! seventh-order weighted sums separately and take yerr from their
+        ! difference, exactly as the reference rk8pd does (yerr = h*(ksum7 - ksum8)).
+        ! Precombining the per-stage difference (b_i - bhat_i)*k_i instead rounds
+        ! differently and drifts rmax, hence the step schedule, from the reference's.
+        ksum8 = B1 * k1 + B6 * k6 + B7 * k7 + B8 * k8 + B9 * k9 &
+            + B10 * k10 + B11 * k11 + B12 * k12 + B13 * k13
+        ksum7 = BH1 * k1 + BH6 * k6 + BH7 * k7 + BH8 * k8 + BH9 * k9 &
+            + BH10 * k10 + BH11 * k11 + BH12 * k12
 
-        yerr = h * (EC1 * k1 + EC6 * k6 + EC7 * k7 + EC8 * k8 + EC9 * k9 &
-            + EC10 * k10 + EC11 * k11 + EC12 * k12 + EC13 * k13)
+        y8 = y + h * ksum8
+        yerr = h * (ksum7 - ksum8)
     end subroutine rk8pd_step
 
     ! Initialise a re-entrant evolve state for neq equations with starting step
@@ -439,7 +436,12 @@ contains
 
     ! the standard step controller step adjustment. Decrease (rejected step):
     !   h_new = h * max(0.2, S / rmax^(1/order)). Increase (accepted, rmax<0.5):
-    !   h_new = h * min(5.0, S / rmax^(1/(order+1))). order = STEP_ORDER.
+    !   h_new = h * min(5.0, S / rmax^(1/(order+1))), then floored at 1.0 so the
+    !   safety factor S<1 never turns an accepted step into a shrink (the reference v1
+    !   std_control_hadjust: "don't allow any decrease caused by S<1"). Omitting
+    !   that floor lets rmax just under 0.5 nudge the carried step down by a hair,
+    !   which drifts the step schedule from the reference on sensitive ODEs. order =
+    !   STEP_ORDER.
     real(dp) function adjust_step(h, rmax, decrease) result(h_new)
         real(dp), intent(in) :: h, rmax
         logical,  intent(in) :: decrease
@@ -454,6 +456,7 @@ contains
             end if
             fac = SAFETY / rmax**(1.0_dp / real(STEP_ORDER + 1, dp))
             if (fac > GROW_MAX) fac = GROW_MAX
+            if (fac < 1.0_dp) fac = 1.0_dp
         end if
         h_new = fac * h
     end function adjust_step
