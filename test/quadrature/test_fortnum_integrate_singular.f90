@@ -31,6 +31,7 @@ program test_fortnum_integrate_singular
     call test_qagiu_doubly_infinite()
     call test_qagiu_bad_inf_is_domain_error()
     call test_trace_frozen_qagp()
+    call test_qags_extrapolation_matches_quadpack()
 
     if (nfail > 0) then
         write (error_unit, "(i0,a)") nfail, " test(s) failed"
@@ -260,6 +261,30 @@ contains
         call check(st%code == FORTNUM_DOMAIN_ERROR, &
                    "qagiu bad inf is domain error")
     end subroutine test_qagiu_bad_inf_is_domain_error
+
+    ! Endpoint-singular QAGS at a tight tolerance must reach the QUADPACK
+    ! dqagse accuracy with the QUADPACK subdivision economy: the Wynn-epsilon
+    ! extrapolation drives both int log(x) and int 1/sqrt(x) on [0,1] to machine
+    ! precision in 6 subintervals (231 GK21 evals), matching Netlib dqagse. The
+    ! pre-extrapolation driver drifted to ~1e-12 in 34-66 subintervals at the
+    ! same tolerance; this asserts both the value and the panel economy so a
+    ! regression to the slow path (the consumer 600 s timeout) is caught.
+    subroutine test_qags_extrapolation_matches_quadpack()
+        type(integrate_workspace_t) :: ws
+        type(integrate_epstab_t)    :: eps
+        type(integrate_result_t)    :: res
+        type(fortnum_status_t)      :: st
+        call integrate_qags(f_log, 0.0_dp, 1.0_dp, 0.0_dp, 1.0e-10_dp, ws, &
+                            eps, res, st)
+        call check(status_ok(st), "qags log tight status ok")
+        call check_close(res%value, -1.0_dp, 1.0e-13_dp, "qags log tight value")
+        call check(res%nsub <= 8, "qags log tight subdivision economy")
+        call integrate_qags(f_inv_sqrt, 0.0_dp, 1.0_dp, 0.0_dp, 1.0e-10_dp, ws, &
+                            eps, res, st)
+        call check(status_ok(st), "qags 1/sqrt tight status ok")
+        call check_close(res%value, 2.0_dp, 1.0e-11_dp, "qags 1/sqrt tight value")
+        call check(res%nsub <= 8, "qags 1/sqrt tight subdivision economy")
+    end subroutine test_qags_extrapolation_matches_quadpack
 
     ! The QAGP trace is the frozen subdivision: oriented, contiguous, and its
     ! left endpoint set contains the seeded break point (hook #40 re-walks).

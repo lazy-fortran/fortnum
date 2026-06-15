@@ -598,21 +598,34 @@ contains
         type(fortnum_status_t),    intent(out)   :: status
 
         real(dp) :: r0, e0, resabs0, resasc0
-        real(dp) :: area, errsum, errbnd
+        real(dp) :: area, errsum, errbnd, raw_esum
         integer  :: i, neval_panel
 
         call status_set(status, FORTNUM_OK, "")
         neval_panel = panel_neval(key)
         area   = 0.0_dp
-        errsum = 0.0_dp
+        raw_esum = 0.0_dp
         do i = 1, npan
             call gk_apply(panel_f, key, ws%a(i), ws%b(i), r0, e0, &
                           resabs0, resasc0)
             ws%r(i) = r0
             ws%e(i) = e0
             ws%level(i) = 0
-            area   = area + r0
-            errsum = errsum + e0
+            ! dqagpe (dqagpe.f line 322): a panel whose GK error equals its
+            ! resasc estimate sits next to a break-point singularity. Mark it so
+            ! its error is inflated below, forcing it to subdivide first.
+            ws%ndin(i) = 0
+            if (e0 == resasc0 .and. e0 /= 0.0_dp) ws%ndin(i) = 1
+            area     = area + r0
+            raw_esum = raw_esum + e0
+        end do
+        ! Inflate the error of break-adjacent singular panels to the total raw
+        ! error so dqpsrt subdivides them ahead of the smooth panels (dqagpe
+        ! lines 326-329); errsum then sums the (possibly inflated) estimates.
+        errsum = 0.0_dp
+        do i = 1, npan
+            if (ws%ndin(i) == 1) ws%e(i) = raw_esum
+            errsum = errsum + ws%e(i)
         end do
         ws%last = npan
         result%neval = npan*neval_panel
@@ -640,6 +653,15 @@ contains
     ! the roundoff/limit detectors, the optional epsilon extrapolation, and the
     ! final value choice between direct sum and extrapolated value.
     ! ==================================================================
+    ! Port of QUADPACK's globally adaptive driver. use_eps=.false. is the QAG
+    ! path: no extrapolation, bisect iord(1) each step. use_eps=.true. is
+    ! QAGS/QAGP/QAGIU: the dqagpe level/levmax/erlarg/ertest/extrap/noext/nrmax
+    ! machinery drives the Wynn-epsilon table (qelg) only at the label-140 gate.
+    ! The extrapolation gate keys on subdivision DEPTH (level vs levmax), not
+    ! interval length, so the two halves of a symmetric break-point singularity
+    ! reach equal depth before extrapolating and the area sequence stays
+    ! geometric for the epsilon table; a length gate stalls on a one-sided
+    ! descent. The per-panel GK rule (gk_apply) and frozen-trace are unchanged.
     subroutine adapt_loop(panel_f, key, epsabs, epsrel, limit, use_eps, &
                           neval_panel, area, errsum, ws, epstab, result, status)
         procedure(panel_kernel_t)               :: panel_f
@@ -657,27 +679,65 @@ contains
         real(dp) :: r1, e1, resabs1, resasc1
         real(dp) :: r2, e2, resabs2, resasc2
         real(dp) :: r12, e12
-        integer  :: maxerr, ncode, iroff1, iroff2, iroff3
-        logical  :: extrap_better
+        real(dp) :: erlarg, erlast, ertest, correc
+        real(dp) :: reseps, abseps
+        integer  :: maxerr, nrmax, ier, ierro, iroff1, iroff2, iroff3
+        integer  :: ktmin, id, jupbnd, k, levmax, levcur
+        logical  :: extrap, noext, extrap_better
 
         call status_set(status, FORTNUM_OK, "")
-        ncode = 0
+        ier    = 0
+        ierro  = 0
         iroff1 = 0
         iroff2 = 0
         iroff3 = 0
+        ktmin  = 0
+        nrmax  = 1
+        extrap = .false.
+        noext  = .false.
         extrap_better = .false.
+        erlarg = errsum
+        erlast = 0.0_dp
+        correc = 0.0_dp
+        levmax = 1
+        levcur = 0
         errbnd = max(epsabs, epsrel*abs(area))
+        ertest = errbnd
 
-        call eps_init(epstab, use_eps, area)
+        ! qelg state lives in epstab; reset and seed rlist2(1) = area (dqagpe
+        ! line 358). For QAG (use_eps=.false.) the table is never consulted. The
+        ! extrapolation gate follows QUADPACK dqagpe: it keys on the subdivision
+        ! DEPTH (level/levmax), not interval length, so both halves of a
+        ! symmetric break-point singularity are bisected to the same depth before
+        ! extrapolating. That yields a geometric area sequence the Wynn epsilon
+        ! table can accelerate; the length gate stalls on a one-sided descent.
+        call reset_epstab(epstab)
+        if (use_eps) then
+            epstab%tab(1) = area
+            epstab%n = 1
+        end if
 
+        ! main do-loop (dqagpe do 160 last = npts2,limit). ws%last already counts
+        ! the seeded panel(s); each pass bisects one interval and appends one.
         do while (ws%last < limit)
-            ! Pop the worst-error subinterval (iord(1)) and bisect it.
-            maxerr = ws%iord(1)
+            maxerr = ws%iord(nrmax)
             errmax = ws%e(maxerr)
+            levcur = ws%level(maxerr) + 1
             a1 = ws%a(maxerr)
             b1 = 0.5_dp*(ws%a(maxerr) + ws%b(maxerr))
             a2 = b1
             b2 = ws%b(maxerr)
+            erlast = errmax
+
+            ! Bad-integrand collapse (dqagse lines 322-323): the interval to be
+            ! bisected has shrunk to roundoff next to a singularity. QUADPACK
+            ! sets ier=4 and stops; check it before the GK pair so a node landing
+            ! on the singularity cannot poison the running totals with Inf/NaN.
+            if (max(abs(a1), abs(b2)) <= (1.0_dp + 100.0_dp*epmach)* &
+                (abs(a2) + 1000.0_dp*uflow)) then
+                ier = 4
+                exit
+            end if
 
             call gk_apply(panel_f, key, a1, b1, r1, e1, resabs1, resasc1)
             call gk_apply(panel_f, key, a2, b2, r2, e2, resabs2, resasc2)
@@ -686,70 +746,164 @@ contains
             r12 = r1 + r2
             e12 = e1 + e2
 
-            ! A bisection so deep that a GK node lands on the singularity
-            ! itself (or its panel sum overflows) is the QUADPACK code-3
-            ! "bad integrand behaviour" case: keep the last finite area and
-            ! stop before it corrupts the running totals (ADR section 4.2).
+            ! A bisection so deep a GK panel sum overflows or returns NaN is
+            ! QUADPACK's code-3 bad-integrand case: keep the last finite totals.
             if (.not. is_finite(r12) .or. .not. is_finite(e12)) then
-                ncode = 3
+                ier = 3
                 exit
             end if
 
             errsum = errsum + e12 - errmax
             area   = area + r12 - ws%r(maxerr)
 
-            call roundoff_count(ws%r(maxerr), r12, errmax, e12, ws%last, &
-                                resasc1, e1, resasc2, e2, iroff1, iroff2, &
-                                iroff3, use_eps)
-
-            ! Replace maxerr with the left half, append the right half.
-            ws%level(ws%last + 1) = ws%level(maxerr) + 1
-            ws%level(maxerr)      = ws%level(maxerr) + 1
-            ws%a(maxerr) = a1
-            ws%b(maxerr) = b1
-            ws%r(maxerr) = r1
-            ws%e(maxerr) = e1
-            ws%last = ws%last + 1
-            ws%a(ws%last) = a2
-            ws%b(ws%last) = b2
-            ws%r(ws%last) = r2
-            ws%e(ws%last) = e2
-            ws%ndin(ws%last) = 0
-            call reorder(ws)
+            ! roundoff detectors (dqagse lines 299-304); resasc==error marks a
+            ! panel where GK could not separate roundoff, skipped per QUADPACK.
+            if (resasc1 /= e1 .and. resasc2 /= e2) then
+                if (.not. (abs(ws%r(maxerr) - r12) > 1.0e-5_dp*abs(r12) &
+                           .or. e12 < 0.99_dp*errmax)) then
+                    if (extrap) then
+                        iroff2 = iroff2 + 1
+                    else
+                        iroff1 = iroff1 + 1
+                    end if
+                end if
+                if (ws%last > 10 .and. e12 > errmax) iroff3 = iroff3 + 1
+            end if
 
             errbnd = max(epsabs, epsrel*abs(area))
+
+            ! error flags (dqagse lines 311-317). The bad-integrand collapse
+            ! (line 322) is checked before the GK pair above.
+            if (iroff1 + iroff2 >= 10 .or. iroff3 >= 20) ier = 2
+            if (iroff2 >= 5) ierro = 3
+            if (ws%last + 1 == limit) ier = 1
+
+            ! Append the two halves with dqagse's larger-error-into-maxerr
+            ! placement (lines 327-340) so dqpsrt's nrmax walk is well defined.
+            if (e2 > e1) then
+                ws%a(maxerr) = a2
+                ws%a(ws%last + 1) = a1
+                ws%b(ws%last + 1) = b1
+                ws%r(maxerr) = r2
+                ws%r(ws%last + 1) = r1
+                ws%e(maxerr) = e2
+                ws%e(ws%last + 1) = e1
+            else
+                ws%a(ws%last + 1) = a2
+                ws%b(maxerr) = b1
+                ws%b(ws%last + 1) = b2
+                ws%r(maxerr) = r1
+                ws%r(ws%last + 1) = r2
+                ws%e(maxerr) = e1
+                ws%e(ws%last + 1) = e2
+            end if
+            ws%level(maxerr)      = levcur
+            ws%level(ws%last + 1) = levcur
+            ws%ndin(ws%last + 1)  = 0
+            ws%last = ws%last + 1
+
+            ! dqpsrt: maintain descending iord and pick the nrmax-th largest.
+            call dqpsrt(ws, limit, maxerr, errmax, nrmax)
+
             if (errsum <= errbnd) exit
+            if (ier /= 0) exit
+            if (.not. use_eps) cycle
+            if (noext) cycle
 
-            ! Convergence-failure detectors (QUADPACK iroffN, code 1, code 3).
-            if (iroff1 + iroff2 >= 10 .or. iroff3 >= 20) ncode = 2
-            if (iroff2 >= 5) ncode = 4
-            if (ws%last == limit) ncode = 1
-            if (max(abs(a1), abs(b2)) <= (1.0_dp + 100.0_dp*epmach)* &
-                (abs(a2) + 1000.0_dp*uflow)) ncode = 3
-            if (ncode /= 0) exit
+            ! erlarg tracks the error over intervals not yet at max depth
+            ! (dqagpe lines 466-468).
+            erlarg = erlarg - erlast
+            if (levcur + 1 <= levmax) erlarg = erlarg + e12
 
-            if (use_eps) call eps_step(epstab, ws, area)
+            if (.not. extrap) then
+                ! Enter extrapolation only once the interval to bisect next has
+                ! reached the maximum depth (dqagpe lines 471-474).
+                if (ws%level(maxerr) + 1 <= levmax) cycle
+                extrap = .true.
+                nrmax = 2
+            end if
+
+            if (.not. (ierro == 3 .or. erlarg <= ertest)) then
+                ! dqagpe do-130: walk nrmax forward to bisect a max-depth
+                ! interval next; bail to the next bisection as soon as the
+                ! nrmax-th interval is not yet at max depth.
+                id = nrmax
+                jupbnd = ws%last
+                if (ws%last > 2 + limit/2) jupbnd = limit + 3 - ws%last
+                block
+                    logical :: found_shallow
+                    found_shallow = .false.
+                    do k = id, jupbnd
+                        maxerr = ws%iord(nrmax)
+                        errmax = ws%e(maxerr)
+                        if (ws%level(maxerr) + 1 <= levmax) then
+                            found_shallow = .true.
+                            exit
+                        end if
+                        nrmax = nrmax + 1
+                    end do
+                    if (found_shallow) cycle
+                end block
+            end if
+
+            ! dqagpe label 140: append area to rlist2 and extrapolate (only once
+            ! at least three elements are present).
+            epstab%n = epstab%n + 1
+            if (epstab%n > 50) then
+                epstab%tab(1:49) = epstab%tab(3:51)
+                epstab%n = 49
+            end if
+            epstab%tab(epstab%n) = area
+            if (epstab%n > 2) then
+                call qelg(epstab, reseps, abseps)
+                ktmin = ktmin + 1
+                if (ktmin > 5 .and. epstab%abserr < 1.0e-3_dp*errsum) ier = 5
+                if (abseps < epstab%abserr) then
+                    ktmin = 0
+                    epstab%abserr = abseps
+                    epstab%result = reseps
+                    correc = erlarg
+                    ertest = max(epsabs, epsrel*abs(reseps))
+                    if (epstab%abserr <= ertest) exit
+                end if
+                ! dqagpe label 150: prepare bisection of a max-depth interval.
+                if (epstab%n == 1) noext = .true.
+                if (ier >= 5) exit
+            end if
+            maxerr = ws%iord(1)
+            errmax = ws%e(maxerr)
+            nrmax  = 1
+            extrap = .false.
+            levmax = levmax + 1
+            erlarg = errsum
         end do
 
-        ! On the way out, choose between the direct panel sum and the best
-        ! extrapolation when the direct sum did not meet the bound.
-        if (use_eps .and. epstab%nres >= 1 .and. errsum > errbnd) then
-            if (epstab%abserr < errsum) then
+        ! Final result and error estimate (dqagpe lines 170-210). Choose the
+        ! extrapolated value when the table converged; otherwise the direct sum.
+        if (use_eps .and. epstab%abserr /= oflow) then
+            if (.not. (ier + ierro == 0)) then
+                if (ierro == 3) epstab%abserr = epstab%abserr + correc
+                if (ier == 0) ier = 3
+            end if
+            ! Accept the extrapolated value unless it is plainly worse than the
+            ! running sum (dqagpe lines 175-190); errsum then stays the verdict.
+            if (epstab%abserr <= errsum .or. abs(area) == 0.0_dp) then
                 area = epstab%result
                 errsum = epstab%abserr
                 extrap_better = .true.
             end if
         end if
 
-        ! A panel that overflowed at a break-point singularity (is_finite guard,
-        ! ncode 3) is not a non-smooth verdict if the epsilon table already met
-        ! the tolerance: the bisection merely probed past the useful depth, and
-        ! the extrapolated value is the converged answer. Clear that code.
+        ! A singular-panel collapse (ier 3 NaN guard or ier 4 width collapse)
+        ! is not a failure if the extrapolation already met the tolerance: the
+        ! bisection merely probed past the useful depth. Drop the code so the
+        ! converged extrapolated value reports success (dqagse keeps the result).
         errbnd = max(epsabs, epsrel*abs(area))
-        if (ncode == 3 .and. extrap_better .and. errsum <= errbnd) ncode = 0
+        if ((ier == 3 .or. ier == 4) .and. extrap_better .and. &
+            errsum <= errbnd) ier = 0
 
-        call set_driver_status(status, ncode, errsum, errbnd)
-        call finalize(ws, result, area, errsum, extrap_better, epstab%result)
+        call set_driver_status(status, ier, errsum, errbnd)
+        call finalize(ws, result, area, errsum, extrap_better, area)
     end subroutine adapt_loop
 
     ! ------------------------------------------------------------------
@@ -835,55 +989,104 @@ contains
         epstab%nres   = 0
     end subroutine reset_epstab
 
-    ! Maintain iord so iord(1) is the largest-error subinterval. The adaptive
-    ! loop pops only iord(1), so the full descending sort the old code built was
-    ! dead work beyond locating the maximum. Find that maximum in one O(last)
-    ! pass with the same strict-greater, lowest-index tie-break the selection
-    ! sort used, so iord(1) (hence the pop sequence and every downstream value)
-    ! is identical; fill the rest with the identity to keep the array defined.
+    ! Build a full descending ordering of iord(1..last) by error estimate
+    ! (largest first), with the lowest-index tie-break QUADPACK's incremental
+    ! dqpsrt also produces. Used to initialize iord before the adaptive loop
+    ! (the seeded QAGP path and the single-panel QAGS path), where the loop then
+    ! maintains the ordering incrementally via dqpsrt. nrmax is reset to 1.
     subroutine reorder(ws)
         type(integrate_workspace_t), intent(inout) :: ws
-        integer  :: i, k
+        integer  :: i, j, k
         real(dp) :: emax
+        logical, allocatable :: taken(:)
         do i = 1, ws%last
             ws%iord(i) = i
         end do
         if (ws%last < 2) return
-        k    = 1
-        emax = ws%e(1)
-        do i = 2, ws%last
-            if (ws%e(i) > emax) then
-                emax = ws%e(i)
-                k = i
-            end if
+        allocate (taken(ws%last))
+        taken = .false.
+        do i = 1, ws%last
+            k = 0
+            emax = -1.0_dp
+            do j = 1, ws%last
+                if (.not. taken(j) .and. ws%e(j) > emax) then
+                    emax = ws%e(j)
+                    k = j
+                end if
+            end do
+            ws%iord(i) = k
+            taken(k) = .true.
         end do
-        if (k /= 1) then
-            ws%iord(1) = k
-            ws%iord(k) = 1
-        end if
     end subroutine reorder
 
-    ! QUADPACK roundoff detectors. iroff1/iroff2 catch a bisection that fails
-    ! to reduce the error; iroff3 is the extrapolation-phase guard.
-    subroutine roundoff_count(rold, rnew, eold, enew, last, resasc1, e1, &
-                              resasc2, e2, iroff1, iroff2, iroff3, use_eps)
-        real(dp), intent(in)    :: rold, rnew, eold, enew, resasc1, e1
-        real(dp), intent(in)    :: resasc2, e2
-        integer,  intent(in)    :: last
-        integer,  intent(inout) :: iroff1, iroff2, iroff3
-        logical,  intent(in)    :: use_eps
-        if (resasc1 /= e1 .and. resasc2 /= e2) then
-            if (abs(rold - rnew) <= 1.0e-5_dp*abs(rnew) .and. &
-                enew >= 0.99_dp*eold) then
-                if (use_eps) then
-                    iroff3 = iroff3 + 1
-                else
-                    iroff1 = iroff1 + 1
-                end if
-            end if
-            if (last > 10 .and. enew > eold) iroff2 = iroff2 + 1
+    ! Incremental QUADPACK dqpsrt (Netlib dqpsrt.f): after one bisection the two
+    ! new error estimates sit at ws%e(maxerr) and ws%e(last); reinsert them so
+    ! iord stays a descending pointer list and return the nrmax-th largest in
+    ! maxerr/ermax. limit bounds the maintained-order length exactly as dqagse
+    ! expects (k = last if last<=limit/2+2, else limit+1-last).
+    subroutine dqpsrt(ws, limit, maxerr, ermax, nrmax)
+        type(integrate_workspace_t), intent(inout) :: ws
+        integer,                     intent(in)    :: limit
+        integer,                     intent(inout) :: maxerr, nrmax
+        real(dp),                    intent(out)   :: ermax
+        integer  :: i, ibeg, ido, isucc, j, jbnd, jupbn, k, last
+        real(dp) :: errmax, errmin
+        last = ws%last
+        if (last <= 2) then
+            ws%iord(1) = 1
+            ws%iord(2) = 2
+            maxerr = ws%iord(nrmax)
+            ermax = ws%e(maxerr)
+            return
         end if
-    end subroutine roundoff_count
+        ! The maxerr error may have grown; bubble it up from nrmax.
+        errmax = ws%e(maxerr)
+        if (nrmax /= 1) then
+            ido = nrmax - 1
+            do i = 1, ido
+                isucc = ws%iord(nrmax - 1)
+                if (errmax <= ws%e(isucc)) exit
+                ws%iord(nrmax) = isucc
+                nrmax = nrmax - 1
+            end do
+        end if
+        jupbn = last
+        if (last > limit/2 + 2) jupbn = limit + 3 - last
+        errmin = ws%e(last)
+        ! Insert errmax top-down from iord(nrmax+1).
+        jbnd = jupbn - 1
+        ibeg = nrmax + 1
+        if (ibeg <= jbnd) then
+            do i = ibeg, jbnd
+                isucc = ws%iord(i)
+                if (errmax >= ws%e(isucc)) then
+                    ! Insert errmin bottom-up.
+                    ws%iord(i - 1) = maxerr
+                    k = jbnd
+                    do j = i, jbnd
+                        isucc = ws%iord(k)
+                        if (errmin < ws%e(isucc)) then
+                            ws%iord(k + 1) = last
+                            maxerr = ws%iord(nrmax)
+                            ermax = ws%e(maxerr)
+                            return
+                        end if
+                        ws%iord(k + 1) = isucc
+                        k = k - 1
+                    end do
+                    ws%iord(i) = last
+                    maxerr = ws%iord(nrmax)
+                    ermax = ws%e(maxerr)
+                    return
+                end if
+                ws%iord(i - 1) = isucc
+            end do
+        end if
+        ws%iord(jbnd) = maxerr
+        ws%iord(jupbn) = last
+        maxerr = ws%iord(nrmax)
+        ermax = ws%e(maxerr)
+    end subroutine dqpsrt
 
     subroutine set_driver_status(status, ncode, errsum, errbnd)
         type(fortnum_status_t), intent(out) :: status
@@ -992,111 +1195,112 @@ contains
         end if
     end subroutine ensure_trace
 
-    ! ---- Wynn epsilon extrapolation (QUADPACK qelg). ----
-
-    subroutine eps_init(epstab, use_eps, area)
+    ! ---- Wynn epsilon extrapolation: faithful port of QUADPACK dqelg. ----
+    !
+    ! epstab%n counts the elements in column one of the epsilon table; the
+    ! caller appends the new partial sum at epstab%tab(n) before calling. This
+    ! updates epstab%tab in place (the two lower diagonals, numbered from the
+    ! right corner), advances nres/res3la, and returns the best approximation
+    ! reseps and its error estimate abseps. epstab%result/%abserr cache the best
+    ! reseps/abseps seen, which the driver compares against on each call.
+    subroutine qelg(epstab, reseps, abseps)
         type(integrate_epstab_t), intent(inout) :: epstab
-        logical,                  intent(in)    :: use_eps
-        real(dp),                 intent(in)    :: area
-        if (.not. use_eps) return
-        epstab%n = 1
-        epstab%tab(1) = area
-        epstab%abserr = oflow
-        epstab%nres = 0
-    end subroutine eps_init
+        real(dp),                 intent(out)   :: reseps, abseps
+        real(dp) :: delta1, delta2, delta3, epsinf, error, err1, err2, err3
+        real(dp) :: e0, e1, e2, e3, e1abs, res, ss, tol1, tol2, tol3
+        integer  :: i, ib, ib2, ie, indx, k1, k2, k3, limexp, n, newelm, num
 
-    ! Append the current total area as a new sequence element and extrapolate.
-    subroutine eps_step(epstab, ws, area)
-        type(integrate_epstab_t),    intent(inout) :: epstab
-        type(integrate_workspace_t), intent(in)    :: ws
-        real(dp),                    intent(in)    :: area
-        if (ws%last < 3) return
-        epstab%n = epstab%n + 1
-        if (epstab%n > 50) then
-            ! Shift the column to keep qelg's width bound (QUADPACK).
-            epstab%tab(1:49) = epstab%tab(3:51)
-            epstab%n = 49
-        end if
-        epstab%tab(epstab%n) = area
-        if (epstab%n >= 3) call qelg(epstab)
-    end subroutine eps_step
-
-    ! Wynn epsilon algorithm on epstab%tab(1:n). Produces epstab%result and
-    ! epstab%abserr, with the QUADPACK three-term roundoff guard via res3la.
-    subroutine qelg(epstab)
-        type(integrate_epstab_t), intent(inout) :: epstab
-        real(dp) :: tab(52)
-        real(dp) :: e1, e2, e3, res, err
-        real(dp) :: err2, err3, ss, epsinf, tol2, tol3
-        integer  :: n, newelm, i, ib, ib2, k1
-
-        n = epstab%n
-        tab = epstab%tab
+        limexp = 50
         epstab%nres = epstab%nres + 1
+        abseps = oflow
+        reseps = epstab%tab(epstab%n)
+        n = epstab%n
         if (n < 3) then
-            epstab%result = tab(n)
-            epstab%abserr = oflow
+            abseps = max(abseps, 5.0_dp*epmach*abs(reseps))
             return
         end if
-        k1 = n
-        res = tab(n)
-        err = oflow
+        epstab%tab(n + 2) = epstab%tab(n)
         newelm = (n - 1)/2
+        epstab%tab(n) = oflow
+        num = n
+        k1 = n
         do i = 1, newelm
-            k1 = k1 - 1
-            e1 = tab(k1 + 1)
+            k2 = k1 - 1
+            k3 = k1 - 2
+            res = epstab%tab(k1 + 2)
+            e0 = epstab%tab(k3)
+            e1 = epstab%tab(k2)
             e2 = res
-            e3 = tab(k1)
-            err2 = abs(e2 - e1)
-            tol2 = max(abs(e2), abs(e1))*epmach
-            err3 = abs(e1 - e3)
-            tol3 = max(abs(e1), abs(e3))*epmach
+            e1abs = abs(e1)
+            delta2 = e2 - e1
+            err2 = abs(delta2)
+            tol2 = max(abs(e2), e1abs)*epmach
+            delta3 = e1 - e0
+            err3 = abs(delta3)
+            tol3 = max(e1abs, abs(e0))*epmach
             if (err2 <= tol2 .and. err3 <= tol3) then
-                res = e2
-                err = err2 + err3
+                ! e0, e1, e2 equal to machine accuracy: convergence assumed.
+                reseps = res
+                abseps = err2 + err3
+                abseps = max(abseps, 5.0_dp*epmach*abs(reseps))
+                return
+            end if
+            e3 = epstab%tab(k1)
+            epstab%tab(k1) = e1
+            delta1 = e1 - e3
+            err1 = abs(delta1)
+            tol1 = max(e1abs, abs(e3))*epmach
+            if (err1 <= tol1 .or. err2 <= tol2 .or. err3 <= tol3) then
+                n = i + i - 1
                 exit
             end if
-            ! Three-point Wynn lozenge step.
-            ss = 1.0_dp/(e2 - e1) - 1.0_dp/(e1 - e3)
+            ss = 1.0_dp/delta1 + 1.0_dp/delta2 - 1.0_dp/delta3
             epsinf = abs(ss*e1)
             if (epsinf <= 1.0e-4_dp) then
-                res = e2
-                err = err2 + err3
+                n = i + i - 1
                 exit
             end if
             res = e1 + 1.0_dp/ss
-            tab(k1) = res
-            err = err2 + abs(res - e2) + err3
-            if (err <= epstab%abserr) then
-                epstab%abserr = err
-                epstab%result = res
+            epstab%tab(k1) = res
+            k1 = k1 - 2
+            error = err2 + abs(res - e2) + err3
+            if (error <= abseps) then
+                abseps = error
+                reseps = res
             end if
         end do
-        if (epstab%abserr == oflow) then
-            epstab%result = res
-            epstab%abserr = err
-        end if
-        ! Three-term roundoff floor (QUADPACK res3la).
-        if (epstab%nres >= 4) then
-            epstab%abserr = max(epstab%abserr, &
-                5.0_dp*epmach*max(abs(epstab%result), abs(res)))
-        end if
-        epstab%res3la(1) = epstab%res3la(2)
-        epstab%res3la(2) = epstab%res3la(3)
-        epstab%res3la(3) = epstab%result
-        ! Compress the worked column back into the table for the next call.
-        do i = 1, newelm + 1
-            ib = 2*i - 1
+
+        ! Shift the table (dqelg lines 155-169).
+        if (n == limexp) n = 2*(limexp/2) - 1
+        ib = 1
+        if ((num/2)*2 == num) ib = 2
+        ie = newelm + 1
+        do i = 1, ie
             ib2 = ib + 2
-            if (ib2 <= n) tab(ib) = tab(ib2)
+            epstab%tab(ib) = epstab%tab(ib2)
+            ib = ib2
         end do
-        if (mod(n, 2) == 0) then
-            do i = 1, newelm
-                k1 = 2*i
-                if (k1 + 2 <= n + 2) tab(k1) = tab(k1 + 2)
+        if (num /= n) then
+            indx = num - n + 1
+            do i = 1, n
+                epstab%tab(i) = epstab%tab(indx)
+                indx = indx + 1
             end do
         end if
-        epstab%tab = tab
+        epstab%n = n
+
+        if (epstab%nres < 4) then
+            epstab%res3la(epstab%nres) = reseps
+            abseps = oflow
+        else
+            abseps = abs(reseps - epstab%res3la(3)) &
+                     + abs(reseps - epstab%res3la(2)) &
+                     + abs(reseps - epstab%res3la(1))
+            epstab%res3la(1) = epstab%res3la(2)
+            epstab%res3la(2) = epstab%res3la(3)
+            epstab%res3la(3) = reseps
+        end if
+        abseps = max(abseps, 5.0_dp*epmach*abs(reseps))
     end subroutine qelg
 
 end module fortnum_integrate
