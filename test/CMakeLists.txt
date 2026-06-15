@@ -70,6 +70,10 @@ add_test(NAME special_hyperg_oracle
     COMMAND test_fortnum_special_hyperg_oracle
         ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/hyperg_1f1.csv)
 
+add_executable(test_fortnum_hyperg_1f1m special/test_fortnum_hyperg_1f1m.f90)
+target_link_libraries(test_fortnum_hyperg_1f1m PRIVATE fortnum)
+add_test(NAME special_hyperg_1f1m COMMAND test_fortnum_hyperg_1f1m)
+
 add_executable(test_fortnum_special_gamma special/test_fortnum_special_gamma.f90)
 target_link_libraries(test_fortnum_special_gamma PRIVATE fortnum)
 add_test(NAME fortnum_special_gamma COMMAND test_fortnum_special_gamma)

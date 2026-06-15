@@ -28,7 +28,8 @@ module fortnum_capi
     use fortnum_special_complex_bessel, only: bessel_j_complex, &
         bessel_i_complex, bessel_i_complex_array, &
         bessel_k_complex, bessel_k_complex_array
-    use fortnum_special_hypergeometric_1f1, only: hyperg_1f1, hyperg_1f1_a1
+    use fortnum_special_hypergeometric_1f1, only: hyperg_1f1, hyperg_1f1_a1, &
+        hyperg_1f1m_a1
 
     use fortnum_quadrature, only: gauss_legendre, gauss_legendre_ab
     use fortnum_levin, only: levin_u_accel
@@ -99,7 +100,7 @@ module fortnum_capi
     public :: fortnum_bessel_j_complex
     public :: fortnum_bessel_i_complex, fortnum_bessel_i_complex_array
     public :: fortnum_bessel_k_complex, fortnum_bessel_k_complex_array
-    public :: fortnum_hyperg_1f1, fortnum_hyperg_1f1_a1
+    public :: fortnum_hyperg_1f1, fortnum_hyperg_1f1_a1, fortnum_hyperg_1f1m_a1
     public :: fortnum_integrate_qag, fortnum_integrate_qags
     public :: fortnum_integrate_qagp, fortnum_integrate_qagiu
     public :: fortnum_gauss_legendre, fortnum_gauss_legendre_ab
@@ -266,6 +267,18 @@ contains
         result = r
         code = int(status%code, c_int)
     end function fortnum_hyperg_1f1_a1
+
+    function fortnum_hyperg_1f1m_a1(b, z, result) result(code) &
+            bind(c, name="fortnum_hyperg_1f1m_a1")
+        complex(c_double_complex), value    :: b, z
+        complex(c_double_complex), intent(out) :: result
+        integer(c_int)         :: code
+        complex(dp)            :: r
+        type(fortnum_status_t) :: status
+        call hyperg_1f1m_a1(cmplx(b, kind=dp), cmplx(z, kind=dp), r, status)
+        result = r
+        code = int(status%code, c_int)
+    end function fortnum_hyperg_1f1m_a1
 
     ! ---------------------------------------------------------- fixed quadrature
 

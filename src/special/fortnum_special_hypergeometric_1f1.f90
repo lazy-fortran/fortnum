@@ -43,6 +43,7 @@ module fortnum_special_hypergeometric_1f1
 
     public :: hyperg_1f1
     public :: hyperg_1f1_a1
+    public :: hyperg_1f1m_a1
     ! analytic_rule derivatives (ad.md sec. 2): d/dz M = (a/b) M(a+1,b+1,z).
     !   hyperg_1f1_a1_jvp: forward product J(z) v, z = (Re z, Im z).
     !   hyperg_1f1_a1_vjp: reverse product J(z)^T u.
@@ -105,6 +106,23 @@ contains
         type(fortnum_status_t), intent(out) :: status
         call hyperg_1f1(cmplx(1.0_dp, 0.0_dp, dp), b, z, result, status)
     end subroutine hyperg_1f1_a1
+
+    ! Modified form for a = 1 used by the KiLCA FLR reduction, which writes
+    !   M(1,b,z) = 1 + z/b + z^2/(b(b+1)) * (1 + F11m)
+    ! and consumes F11m, not M.  Reconstructing F11m from M cancels two ~1
+    ! quantities and divides by z^2 (tiny at small z), amplifying the float64
+    ! error in M by |M| |b(b+1)/z^2| / |F11m|.  The closed form
+    !   F11m = M(1, b+2, z) - 1
+    ! (a = 1 telescoping of (b)_k against the modified-0 reduction) computes
+    ! the modified value directly with no cancellation.
+    subroutine hyperg_1f1m_a1(b, z, result, status)
+        complex(dp), intent(in)  :: b, z
+        complex(dp), intent(out) :: result
+        type(fortnum_status_t), intent(out) :: status
+        complex(dp) :: m
+        call hyperg_1f1(cmplx(1.0_dp, 0.0_dp, dp), b + 2.0_dp, z, m, status)
+        result = m - 1.0_dp
+    end subroutine hyperg_1f1m_a1
 
     ! Evaluate M(a,b,z) assuming Re(z) >= 0: pick the Taylor series for
     ! moderate |z| and the large-z asymptotic series otherwise.

@@ -99,6 +99,12 @@ int fortnum_hyperg_1f1(fortnum_complex a, fortnum_complex b, fortnum_complex z,
 int fortnum_hyperg_1f1_a1(fortnum_complex b, fortnum_complex z,
                           fortnum_complex *result);
 
+/* Modified form F11m for a = 1: M(1,b,z) = 1 + z/b + z^2/(b(b+1))*(1+F11m).
+   Returns F11m = M(1,b+2,z) - 1 directly, avoiding the cancellation that
+   reconstructing F11m from M incurs at small z. */
+int fortnum_hyperg_1f1m_a1(fortnum_complex b, fortnum_complex z,
+                           fortnum_complex *result);
+
 /* --- Fixed-rule Gauss-Legendre quadrature --- */
 
 /* Nodes x[n] (ascending) and weights w[n] on [-1, 1]. */
