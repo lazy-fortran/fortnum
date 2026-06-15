@@ -345,10 +345,11 @@ contains
     ! estimate (replaces the reference central-difference rule).
     !
     ! result holds f'(x); abserr holds an estimate of |result - f'(x)|.
-    ! h is the step; a 5-point central rule
-    !   f'(x) ~ ( -f(x+2h) + 8 f(x+h) - 8 f(x-h) + f(x-2h) ) / (12 h)
-    ! is combined with the 3-point rule to form a truncation-plus-rounding
-    ! error estimate, as the reference does.  abserr = |trunc| + |round|.
+    ! Reproduces the reference central-difference rule operation-for-operation so a KiLCA build
+    ! that swaps its old backend for fortnum keeps bit-identical derivatives: the 5-point
+    ! rule on (x-h, x-h/2, x+h/2, x+h) combined with the 3-point rule, then the
+    ! same optimal-stepsize second pass the reference applies when rounding dominates
+    ! truncation.  Ref: the central-difference rule.
     subroutine deriv_central(f, x, h, result, abserr, status, ctx)
         procedure(deriv_fn_t)               :: f
         real(dp),               intent(in)  :: x, h
@@ -356,8 +357,8 @@ contains
         type(fortnum_status_t), intent(out) :: status
         class(*), intent(in), optional      :: ctx
 
-        real(dp) :: fp1, fm1, fp2, fm2
-        real(dp) :: r3, r5, e3, e5, dy, round, trunc
+        real(dp) :: r_0, round, trunc, error
+        real(dp) :: h_opt, r_opt, round_opt, trunc_opt, error_opt
 
         call status_set(status, FORTNUM_OK, "")
         if (h <= 0.0_dp) then
@@ -368,29 +369,57 @@ contains
             return
         end if
 
-        fp1 = f(x + h,        ctx)
-        fm1 = f(x - h,        ctx)
-        fp2 = f(x + 2.0_dp*h, ctx)
-        fm2 = f(x - 2.0_dp*h, ctx)
+        call the central-difference rule(f, x, h, r_0, round, trunc, ctx)
+        error = round + trunc
 
-        ! 3-point and 5-point central estimates.
-        r3 = 0.5_dp * (fp1 - fm1) / h
-        r5 = (-fp2 + 8.0_dp*fp1 - 8.0_dp*fm1 + fm2) / (12.0_dp * h)
+        ! Optimise the stepsize when rounding dominates, mirroring the reference: scale h
+        ! by (round / (2 trunc))^(1/3) and re-evaluate, keeping the refined
+        ! estimate only when it lowers the error and stays consistent.
+        if (round < trunc .and. round > 0.0_dp .and. trunc > 0.0_dp) then
+            h_opt = h * (round / (2.0_dp * trunc))**(1.0_dp/3.0_dp)
+            call the central-difference rule(f, x, h_opt, r_opt, round_opt, trunc_opt, ctx)
+            error_opt = round_opt + trunc_opt
+            if (error_opt < error .and. &
+                abs(r_opt - r_0) < 4.0_dp * error) then
+                r_0   = r_opt
+                error = error_opt
+            end if
+        end if
 
-        ! Rounding-error scale of each rule (central-difference form): sum of
-        ! |coefficient| * |f| * eps / h.
-        e3 = (abs(fp1) + abs(fm1)) * epsilon(1.0_dp) / h
-        e5 = 2.0_dp * (abs(fp2) + abs(fp1) + abs(fm1) + abs(fm2)) &
-             * epsilon(1.0_dp) / h + abs(r5) * epsilon(1.0_dp)
-
-        ! Truncation: the difference between the two orders bounds it.
-        dy    = abs(r5 - r3)
-        trunc = dy
-        round = abs(e5) + abs(e3)
-
-        result = r5
-        abserr = trunc + round
+        result = r_0
+        abserr = error
     end subroutine deriv_central
+
+    ! 5-point central derivative on (x-h, x-h/2, x+h/2, x+h) with separate
+    ! rounding and truncation error estimates; the central point is unused.
+    ! Operation order copied from the reference the central-difference rule so the result is
+    ! bit-identical to the reference central-difference helper.
+    subroutine the central-difference rule(f, x, h, result, abserr_round, abserr_trunc, ctx)
+        procedure(deriv_fn_t)          :: f
+        real(dp), intent(in)           :: x, h
+        real(dp), intent(out)          :: result, abserr_round, abserr_trunc
+        class(*), intent(in), optional :: ctx
+
+        real(dp) :: fm1, fp1, fmh, fph, r3, r5, e3, e5, dy
+
+        fm1 = f(x - h,         ctx)
+        fp1 = f(x + h,         ctx)
+        fmh = f(x - h/2.0_dp,  ctx)
+        fph = f(x + h/2.0_dp,  ctx)
+
+        r3 = 0.5_dp * (fp1 - fm1)
+        r5 = (4.0_dp/3.0_dp) * (fph - fmh) - (1.0_dp/3.0_dp) * r3
+
+        e3 = (abs(fp1) + abs(fm1)) * epsilon(1.0_dp)
+        e5 = 2.0_dp * (abs(fph) + abs(fmh)) * epsilon(1.0_dp) + e3
+
+        ! Finite-precision error in x+h = O(eps * x).
+        dy = max(abs(r3/h), abs(r5/h)) * (abs(x)/h) * epsilon(1.0_dp)
+
+        result       = r5 / h
+        abserr_trunc = abs((r5 - r3) / h)
+        abserr_round = abs(e5 / h) + dy
+    end subroutine the central-difference rule
 
     ! Ascending index sort (replaces an index heapsort): perm is the
     ! permutation with x(perm) nondecreasing.  Heapsort on the index array so
