@@ -163,9 +163,14 @@ contains
     ! state%tn becomes the root time, y_out the state there, and t_root the root
     ! time. event_dir restricts the crossing direction (+1 rising, -1 falling,
     ! 0 any). event_tol is the absolute resolution in t.
+    !
+    ! Up to VODE_MAX_EVENTS event functions may be monitored at once (DVODE
+    ! NEVENTS): pass event2/event_dir2 for the second g. The earliest root of
+    ! either function over a completed step wins; event_index reports which
+    ! function located it (1 or 2, 0 if none).
     subroutine vode_integrate_to(rhs, state, tout, relerr, abserr, y_out, &
             status, event, event_dir, event_tol, &
-            t_root, root_found, ctx)
+            t_root, root_found, event_index, event2, event_dir2, ctx)
         procedure(ode_rhs_t)               :: rhs
         type(vode_state_t),    intent(inout) :: state
         real(dp), intent(in)                 :: tout
@@ -178,20 +183,27 @@ contains
         real(dp), intent(in),  optional      :: event_tol
         real(dp), intent(out), optional      :: t_root
         logical,  intent(out), optional      :: root_found
+        integer,  intent(out), optional      :: event_index
+        procedure(ode_event_t), optional :: event2
+        integer,  intent(in),  optional      :: event_dir2
         class(*), intent(in), optional       :: ctx
 
-        integer  :: neq, kflag, edir
-        real(dp) :: dir, etol, troot, g_left, tlast
+        integer  :: neq, kflag, nev, found_idx
+        integer  :: edir(VODE_MAX_EVENTS)
+        real(dp) :: dir, etol, troot, tlast
+        real(dp) :: g_left(VODE_MAX_EVENTS)
         logical  :: found, has_event
         real(dp), allocatable :: y_left(:)
 
         call status_set(status, FORTNUM_OK, "")
         found = .false.
+        found_idx = 0
         troot = state%tn
         neq = state%neq
 
         if (present(root_found)) root_found = .false.
         if (present(t_root)) t_root = state%tn
+        if (present(event_index)) event_index = 0
 
         if (neq < 1 .or. .not. allocated(state%yh)) then
             call status_set(status, FORTNUM_DOMAIN_ERROR, &
@@ -207,8 +219,21 @@ contains
 
     allocate(y_out(neq), y_left(neq))
     has_event = present(event)
+    nev = 0
     edir = 0
-    if (present(event_dir)) edir = event_dir
+    if (present(event)) then
+        nev = 1
+        if (present(event_dir)) edir(1) = event_dir
+    end if
+    if (present(event2)) then
+        if (.not. present(event)) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "vode_integrate_to: event2 requires event")
+            return
+        end if
+        nev = 2
+        if (present(event_dir2)) edir(2) = event_dir2
+    end if
     etol = 1.0e-10_dp
     if (present(event_tol)) etol = event_tol
 
@@ -257,7 +282,8 @@ end if
 ! seed the event left endpoint at the current state
 if (has_event) then
     y_left = state%yh(:, 1)
-    g_left = event(state%tn, y_left, ctx)
+    g_left(1) = event(state%tn, y_left, ctx)
+    if (nev == 2) g_left(2) = event2(state%tn, y_left, ctx)
     tlast = state%tn
 end if
 
@@ -282,19 +308,21 @@ do
 
     ! Event scan over the completed step [tlast, state%tn].
     if (has_event) then
-        call scan_step_for_root(event, state, edir, etol, &
-            tlast, g_left, y_left, troot, found, ctx)
+        call scan_step_for_root(event, event2, nev, state, edir, etol, &
+            tlast, g_left, troot, found, found_idx, ctx)
         if (found) then
             call interpolate(state, troot, y_out)
             state%tn = troot
             state%hu = troot - tlast
             if (present(t_root)) t_root = troot
             if (present(root_found)) root_found = .true.
+            if (present(event_index)) event_index = found_idx
             exit
         end if
         tlast = state%tn
         y_left = state%yh(:, 1)
-        g_left = event(state%tn, y_left, ctx)
+        g_left(1) = event(state%tn, y_left, ctx)
+        if (nev == 2) g_left(2) = event2(state%tn, y_left, ctx)
     end if
 
     ! Reached tout?
@@ -948,23 +976,67 @@ real(dp) function initial_step(rhs, state, tout, relerr, abserr, ctx) &
     h0 = sign(h0, tout - t0)
 end function initial_step
 
-! Scan the completed step [tlast, tn] for the first sign change of g
-! consistent with edir, then locate the root on the Nordsieck interpolant
-! by the Illinois algorithm to resolution etol.
-subroutine scan_step_for_root(event, state, edir, etol, &
-        tlast, g_left, y_left, troot, found, ctx)
-    procedure(ode_event_t)        :: event
+! Scan the completed step [tlast, tn] for the first direction-consistent sign
+! change of either monitored event function, locate each candidate root on the
+! Nordsieck interpolant by the Illinois algorithm to resolution etol, and
+! return the earliest in the integration direction (DVODE NEVENTS root logic).
+! ev_idx reports which function (1 or 2) owns the returned root.
+subroutine scan_step_for_root(event, event2, nev, state, edir, etol, &
+        tlast, g_left, troot, found, ev_idx, ctx)
+    procedure(ode_event_t)            :: event
+    procedure(ode_event_t), optional  :: event2
+    integer,  intent(in)              :: nev
+    type(vode_state_t), intent(in)    :: state
+    integer,  intent(in)              :: edir(:)
+    real(dp), intent(in)              :: etol, tlast
+    real(dp), intent(in)              :: g_left(:)
+    real(dp), intent(out)             :: troot
+    logical,  intent(out)             :: found
+    integer,  intent(out)             :: ev_idx
+    class(*), intent(in), optional    :: ctx
+
+    real(dp) :: troot_i, dirn
+    logical  :: found_i
+    integer  :: k
+
+    found = .false.
+    ev_idx = 0
+    troot = state%tn
+    dirn = sign(1.0_dp, state%tn - tlast)
+
+    do k = 1, nev
+        if (k == 1) then
+            call locate_event_root(event, state, edir(k), etol, &
+                tlast, g_left(k), troot_i, found_i, ctx)
+        else
+            call locate_event_root(event2, state, edir(k), etol, &
+                tlast, g_left(k), troot_i, found_i, ctx)
+        end if
+        if (.not. found_i) cycle
+        ! First found, or earlier in the integration direction.
+        if (.not. found .or. (troot_i - troot) * dirn < 0.0_dp) then
+            troot = troot_i
+            ev_idx = k
+            found = .true.
+        end if
+    end do
+end subroutine scan_step_for_root
+
+! Locate the first direction-consistent root of one event function over the
+! completed step [tlast, tn] on the Nordsieck interpolant by the Illinois
+! algorithm to resolution etol.
+subroutine locate_event_root(event, state, edir, etol, &
+        tlast, g_left, troot, found, ctx)
+    procedure(ode_event_t)            :: event
     type(vode_state_t), intent(in)    :: state
     integer,  intent(in)              :: edir
     real(dp), intent(in)              :: etol, tlast, g_left
-    real(dp), intent(in)              :: y_left(:)
     real(dp), intent(out)             :: troot
     logical,  intent(out)             :: found
     class(*), intent(in), optional    :: ctx
 
     real(dp) :: g_right, g0, g1, gx, x0, x1, x2, alpha, dirn
     integer  :: last, nxlast, cross
-    logical  :: xroot
     real(dp), allocatable :: ytmp(:)
 
     found = .false.
@@ -986,7 +1058,6 @@ subroutine scan_step_for_root(event, state, edir, etol, &
     alpha = 1.0_dp
     last = 1
     nxlast = 0
-    xroot = .false.
 
     do
         if (abs(x1 - x0) <= etol) exit
@@ -1016,7 +1087,7 @@ subroutine scan_step_for_root(event, state, edir, etol, &
 
     troot = x1
     found = .true.
-end subroutine scan_step_for_root
+end subroutine locate_event_root
 
 ! Sign-change classifier: +1 rising (- to +), -1 falling (+ to -), 0 none.
 pure integer function crossing(ga, gb) result(c)

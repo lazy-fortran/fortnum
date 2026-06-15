@@ -24,6 +24,7 @@ program test_fortnum_ode_vode
     call check_harmonic_energy(nfail)
     call check_linear_system(nfail)
     call check_event_root(nfail)
+    call check_two_event_root(nfail)
     call check_restart_continuation(nfail)
 
     if (nfail > 0) then
@@ -69,6 +70,16 @@ contains
         real(dp) :: g
         g = y(1)
     end function ev_y1
+
+    ! g = y1 - 1/2: with y1 = cos(t) this falls through zero at t = pi/3,
+    ! earlier than ev_y1's pi/2.
+    function ev_y1_half(t, y, ctx) result(g)
+        real(dp), intent(in) :: t
+        real(dp), intent(in) :: y(:)
+        class(*), intent(in), optional :: ctx
+        real(dp) :: g
+        g = y(1) - 0.5_dp
+    end function ev_y1_half
 
     ! y' = -y, y(0) = 1: assert y(tout) - exp(-tout) is below the requested
     ! tolerance over a long interval. This is the case the prior draft failed.
@@ -197,6 +208,68 @@ contains
             nfail = nfail + 1
         end if
     end subroutine check_event_root
+
+    ! Two monitored events (DVODE NEVENTS=2). With y1 = cos(t), ev_y1 falls
+    ! through zero at t = pi/2 and ev_y1_half at t = pi/3 (earlier). The
+    ! integrator must locate pi/3 and report the function that owns it,
+    ! independent of the argument order in which the two g's are passed.
+    subroutine check_two_event_root(nfail)
+        integer, intent(inout) :: nfail
+        type(vode_state_t) :: st
+        type(fortnum_status_t) :: status
+        real(dp), allocatable :: yout(:)
+        real(dp) :: atol(1), rtol, tout, troot, etol, expected, root_margin
+        integer  :: idx
+        logical  :: found
+
+        rtol = 1.0e-10_dp
+        atol = 1.0e-12_dp
+        etol = 1.0e-10_dp
+        ! The Illinois search returns a bracket endpoint once the bracket width
+        ! drops to etol, so the located root sits within a few etol of the true
+        ! crossing; require that bound rather than etol itself.
+        root_margin = 10.0_dp * etol
+        tout = 5.0_dp
+        expected = PI / 3.0_dp
+
+        ! event = late root (pi/2), event2 = early root (pi/3): index 2 wins.
+        call vode_init(st, 2, 0.0_dp, [1.0_dp, 0.0_dp])
+        call vode_integrate_to(rhs_osc, st, tout, rtol, atol, yout, status, &
+            event=ev_y1, event_dir=-1, event_tol=etol, t_root=troot, &
+            root_found=found, event_index=idx, &
+            event2=ev_y1_half, event_dir2=-1)
+        write (*, "(a,l1,a,i0,a,es20.12,a,es12.4)") &
+            "two-event: found=", found, " idx=", idx, " troot=", troot, &
+            " err=", abs(troot - expected)
+        if (.not. status_ok(status)) then
+            write (error_unit, "(a)") "  two-event: status not OK"
+            nfail = nfail + 1
+        end if
+        if (.not. found) then
+            write (error_unit, "(a)") "  two-event: root not found"
+            nfail = nfail + 1
+        else
+            if (idx /= 2) then
+                write (error_unit, "(a)") "  two-event: wrong event index"
+                nfail = nfail + 1
+            end if
+            if (abs(troot - expected) > root_margin) then
+                write (error_unit, "(a)") "  two-event: root outside tolerance"
+                nfail = nfail + 1
+            end if
+        end if
+
+        ! Swap the order: the early root now arrives as event, index 1 wins.
+        call vode_init(st, 2, 0.0_dp, [1.0_dp, 0.0_dp])
+        call vode_integrate_to(rhs_osc, st, tout, rtol, atol, yout, status, &
+            event=ev_y1_half, event_dir=-1, event_tol=etol, t_root=troot, &
+            root_found=found, event_index=idx, &
+            event2=ev_y1, event_dir2=-1)
+        if (.not. found .or. idx /= 1 .or. abs(troot - expected) > root_margin) then
+            write (error_unit, "(a)") "  two-event: swapped order mismatch"
+            nfail = nfail + 1
+        end if
+    end subroutine check_two_event_root
 
     ! Restart continuation: integrating to tout in one shot must match a series
     ! of contiguous calls that carry state forward (KAMEL grid-to-grid usage).
