@@ -188,6 +188,10 @@ add_test(NAME fortnum_complex_roots_oracle
     COMMAND test_fortnum_complex_roots_oracle
         ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/complex_roots.csv)
 
+add_executable(test_fortnum_roots_multiplicity roots/test_fortnum_roots_multiplicity.f90)
+target_link_libraries(test_fortnum_roots_multiplicity PRIVATE fortnum)
+add_test(NAME fortnum_roots_multiplicity COMMAND test_fortnum_roots_multiplicity)
+
 # --- M3 interp ---
 add_executable(test_fortnum_polynomial interp/test_fortnum_polynomial.f90)
 target_link_libraries(test_fortnum_polynomial PRIVATE fortnum)

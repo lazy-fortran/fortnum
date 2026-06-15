@@ -273,7 +273,7 @@ contains
         if (status%code /= FORTNUM_OK) return
 
         do k = 1, ndist
-            call newton_polish(f, zk(k), ll, ur, nz, nf, mref, ctx, fk, status)
+            call newton_polish(f, zk(k), ll, ur, nz, nf, mref, mk(k), ctx, fk, status)
             if (status%code /= FORTNUM_OK) return
             call append_root(roots, fvals, mult, nfound, zk(k), fk, mk(k))
         end do
@@ -508,15 +508,17 @@ contains
     end subroutine multiplicities
 
     ! Modified complex Newton on f, keeping the iterate inside [ll, ur].
-    ! Uses the central-difference derivative; the "modified" step damps when
-    ! a full step leaves the box or overshoots, recovering a multiple root by
-    ! Newton's linear-rate behaviour there.
-    subroutine newton_polish(f, z, ll, ur, nz, nf, mref, ctx, fz, status)
+    ! Uses the central-difference derivative; the multiplicity factor m
+    ! restores quadratic convergence at a multiplicity-m zero, where the
+    ! plain Newton step is only linearly convergent. The damping shrinks the
+    ! step when a full step would leave the box.
+    subroutine newton_polish(f, z, ll, ur, nz, nf, mref, m, ctx, fz, status)
         procedure(complex_root_fn_t)        :: f
         complex(dp),         intent(inout)  :: z
         complex(dp),         intent(in)     :: ll, ur
         real(dp),            intent(in)     :: nz, nf
         integer,             intent(in)     :: mref
+        integer,             intent(in)     :: m
         class(*),  intent(in), optional     :: ctx
         complex(dp),         intent(out)    :: fz
         type(fortnum_status_t), intent(out) :: status
@@ -547,7 +549,7 @@ contains
                     "complex_region_roots: zero derivative during Newton polish")
                 return
             end if
-            step = fz / fpr
+            step = real(max(m, 1), dp) * fz / fpr
             lam  = 1.0_dp
             do
                 znew = zc - cmplx(lam, 0.0_dp, dp) * step
