@@ -126,12 +126,23 @@ contains
 
     ! Evaluate M(a,b,z) assuming Re(z) >= 0: pick the Taylor series for
     ! moderate |z| and the large-z asymptotic series otherwise.
+    !
+    ! The large-z asymptotic (DLMF 13.7.2) is valid only when |z| dominates
+    ! the order: its 2F0 tail carries (b-a)_s (1-a)_s / z^s, which diverges
+    ! when |b| is comparable to |z|.  The Taylor series, by contrast, has
+    ! ratio (a+k) z / ((b+k)(k+1)), so |b| >= |z| keeps the terms contracting
+    ! and machine-accurate without large intermediate magnitudes.  The KiLCA
+    ! modified-form consumer evaluates M(1, b+2, z) with b ~ 1 + z, i.e.
+    ! |b| > |z| at large z; routing it through the asymptotic branch (the old
+    ! |z|-only gate) returned a wholly wrong value.  Take the asymptotic
+    ! branch only when |z| is large AND |b| < |z| (the small-order regime it
+    ! is built for).
     subroutine eval_positive_re(a, b, z, m, ok)
         complex(dp), intent(in)  :: a, b, z
         complex(dp), intent(out) :: m
         logical,     intent(out) :: ok
 
-        if (abs(z) <= z_series_max) then
+        if (abs(z) <= z_series_max .or. abs(b) >= abs(z)) then
             call series_1f1(a, b, z, m, ok)
         else
             call asymptotic_1f1(a, b, z, m, ok)

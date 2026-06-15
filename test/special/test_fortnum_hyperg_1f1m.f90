@@ -16,22 +16,27 @@ program test_fortnum_hyperg_1f1m
     implicit none
 
     real(dp), parameter :: rel_tol = 1.0e-8_dp
-    integer,  parameter :: ncase = 5
+    integer,  parameter :: ncase = 8
 
     ! b_re, b_im, z_re, f11m_re, f11m_im (z_im = 0 over the consumer grid).
+    ! The flre conductivity sweep reaches large z = x1^2 with b = 1 + z - i*x2,
+    ! so |b| > |z| there: the last three cases (z = 64, 64, 400) guard the
+    ! series/asymptotic crossover that the |z|-only gate routed wrongly.
     real(dp), parameter :: bre(ncase) = &
-        [1.01_dp, 1.01_dp, 1.01_dp, 1.09_dp, 5.0_dp]
+        [1.01_dp, 1.01_dp, 1.01_dp, 1.09_dp, 5.0_dp, 65.0_dp, 65.0_dp, 401.0_dp]
     real(dp), parameter :: bim(ncase) = &
-        [-4.0_dp, -1.0_dp, 0.0_dp, -2.0_dp, -2.0_dp]
+        [-4.0_dp, -1.0_dp, 0.0_dp, -2.0_dp, -2.0_dp, 0.0_dp, -8.0_dp, 0.0_dp]
     real(dp), parameter :: zre(ncase) = &
-        [0.01_dp, 0.01_dp, 0.01_dp, 0.09_dp, 4.0_dp]
+        [0.01_dp, 0.01_dp, 0.01_dp, 0.09_dp, 4.0_dp, 64.0_dp, 64.0_dp, 400.0_dp]
     real(dp), parameter :: fre(ncase) = [ &
         0.00120061968696303871_dp, 0.00299847135353516077_dp, &
         0.00333056063606658202_dp, 0.0207773222910076061_dp, &
-        0.879941883520409987_dp]
+        0.879941883520409987_dp, 7.78607612691535186_dp, &
+        5.25741317247839837_dp, 22.583254728782295_dp]
     real(dp), parameter :: fim(ncase) = [ &
         0.00159965944697732065_dp, 0.000998121726977174834_dp, &
-        0.0_dp, 0.0137081430292269098_dp, 0.420815058286077092_dp]
+        0.0_dp, 0.0137081430292269098_dp, 0.420815058286077092_dp, &
+        0.0_dp, 4.12522932270957618_dp, 0.0_dp]
 
     integer :: i, nfail
     complex(dp) :: b, z, ref, got
