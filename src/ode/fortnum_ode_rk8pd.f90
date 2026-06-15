@@ -1,11 +1,12 @@
 module fortnum_ode_rk8pd
     ! Clean-room Prince-Dormand RK8(7)13M stepper with adaptive step
     ! control, bit-faithful to the documented rk8pd stepper driven by
-    ! the y_new error-per-step control / an accepted-step evolve advance. KiLCA's background
-    ! equilibrium ODE (calc_back.cpp) was tuned against that exact documented behavior,
-    ! and Hairer's DOP853 (a different 8(7) error norm) drifts from the recorded
-    ! golden near a resonant grid point. This module reproduces the documented behavior
-    ! so the background profile matches the golden continuously.
+    ! the y_new error-per-step control / an accepted-step evolve advance (the documented old adaptive-evolve API,
+    ! which KiLCA's calc_back.cpp uses). The background equilibrium ODE was tuned
+    ! against that exact documented behavior, and Hairer's DOP853 (a different 8(7) error
+    ! norm) drifts from the recorded golden near a resonant grid point. This
+    ! module reproduces the documented behavior so the background profile matches the
+    ! golden continuously.
     !
     ! Method and coefficients: Prince and Dormand, "High order embedded
     !   Runge-Kutta formulae", J. Comput. Appl. Math. 7 (1981) 67-75, the
@@ -17,15 +18,19 @@ module fortnum_ode_rk8pd
     !   modules differ only in the error estimator and the step controller.
     !
     ! Step control: the reference "standard" controller (the standard error-per-step controller
-    !   with a_y = 1, a_dydt = 0, i.e. control_y_new). Per component the scaled
-    !   tolerance is D0 = eps_abs + eps_rel*|y|; the failure ratio is
+    !   with a_y = 1, a_dydt = 0, i.e. control_y_new). The controller runs on the
+    !   POST-step solution, because the documented rk8pd stepper updates y in place before
+    !   an accepted-step evolve advance hands it to std_control_hadjust. Per component the
+    !   scaled tolerance is D0 = eps_abs + eps_rel*|y|; the failure ratio is
     !   rmax = max_i |yerr_i| / D0_i. the standard step controller uses three bands
     !   keyed on the step's reported order (rk8pd order = 8):
-    !     rmax > 1.1  : decrease, h *= max(0.2, S / rmax^(1/order)), step rejected;
+    !     rmax > 1.1  : decrease, h *= max(0.2, S / rmax^(1/order));
     !     rmax < 0.5  : increase, h *= min(5.0, S / rmax^(1/(order+1)));
     !     otherwise   : leave h unchanged.
-    !   S = 0.9. This is the documented the reference formula, written clean-room
-    !   source.
+    !   S = 0.9. A decrease is honoured (step rejected and retried) only when it
+    !   actually shrinks h and shifts t by at least one ULP; otherwise the step
+    !   just taken is kept. This is the documented the reference formula and evolve control
+    !   flow, written clean-room, not external source.
     !
     ! Re-entrant evolve: rk8pd_state_t carries the current step size and the
     !   first-stage derivative across output points so a caller can step from one
@@ -322,8 +327,7 @@ contains
         logical,  intent(in), optional        :: single_step
 
         integer  :: neq, nstep
-        real(dp) :: dir, h, h_used, rmax, h_clip
-        logical  :: final_clip, one_step
+        logical  :: one_step
 
         call status_set(status, FORTNUM_OK, "")
         neq = size(y)
@@ -341,125 +345,159 @@ contains
         one_step = .false.
         if (present(single_step)) one_step = single_step
 
-        dir = sign(1.0_dp, t1 - t)
         if (t1 == t) return
 
         nstep = 0
         do
-            if (abs(t1 - t) <= 0.0_dp) exit
+            if (t == t1) exit
             if (nstep >= max_steps) then
                 call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
                     "rk8pd_evolve_apply: exceeded max_steps")
                 return
             end if
 
-            ! Cache f(t, y) for the step's first stage. the reference recomputes it at the
-            ! start of each evolve_apply; here it is reused if already valid at t.
-            if (.not. (state%have_dydt .and. state%t_dydt == t)) then
-                call rhs(t, y, state%dydt0, ctx)
-                nfev = nfev + 1
-                state%have_dydt = .true.
-                state%t_dydt = t
+            ! One an accepted-step evolve advance call: advance the carried (t, y) by one
+            ! accepted step toward t1, retrying internally on rejection.
+            call evolve_apply_once(rhs, state, t, t1, y, eps_abs, eps_rel, &
+                nfev, ctx)
+
+            nstep = nstep + 1
+            if (one_step) exit
+        end do
+    end subroutine rk8pd_evolve_apply
+
+    ! One an accepted-step evolve advance call (documented old adaptive-evolve API, rk8pd + control_y_new),
+    ! ported operation-for-operation from the documented evolve/control flow:
+    !   - the carried step state%h is clipped to the remaining span (t1 - t0),
+    !     setting final_step when it reaches the end;
+    !   - the step is taken first, then std_control_hadjust runs on the POST-step
+    !     y (the reference's rk8pd_apply updates y in place before hadjust sees it);
+    !   - a decrease is honoured only when it shrinks h AND moves t by at least
+    !     one ULP, otherwise the just-taken step is kept (the reference "keep current step
+    !     size"); on a honoured decrease the step is undone and retried from t0;
+    !   - the suggested next step (the adjusted, possibly clipped h0) is carried
+    !     in state%h, exactly as the reference writes *h = h0 on return.
+    subroutine evolve_apply_once(rhs, state, t, t1, y, eps_abs, eps_rel, &
+            nfev, ctx)
+        procedure(ode_rhs_t)            :: rhs
+        type(rk8pd_state_t), intent(inout) :: state
+        real(dp),            intent(inout) :: t
+        real(dp),            intent(in)    :: t1
+        real(dp),            intent(inout) :: y(:)
+        real(dp),            intent(in)    :: eps_abs, eps_rel
+        integer,             intent(inout) :: nfev
+        class(*), intent(in), optional     :: ctx
+
+        real(dp) :: t0, dt, h0, h_old, t_curr, t_next, rmax
+        logical  :: final_step, dec
+
+        t0 = t
+        dt = t1 - t0
+        ! Orient the carried step to the integration direction. the reference itself
+        ! errors on a sign mismatch and leaves direction to the caller; the
+        ! carried state%h is a magnitude here, so give it dt's sign at the
+        ! boundary (a no-op for the forward calc_back path).
+        h0 = sign(state%h, dt)
+
+        ! Compute f(t0, y) once for the first stage (the reference: can_use_dydt_in).
+        if (.not. (state%have_dydt .and. state%t_dydt == t0)) then
+            call rhs(t0, y, state%dydt0, ctx)
+            nfev = nfev + 1
+            state%have_dydt = .true.
+            state%t_dydt = t0
+        end if
+
+        do  ! try_step
+            ! Clip the trial step to the remaining interval (the reference h0 > dt cap).
+            if ((dt >= 0.0_dp .and. h0 > dt) .or. &
+                (dt < 0.0_dp .and. h0 < dt)) then
+                h0 = dt
+                final_step = .true.
+            else
+                final_step = .false.
             end if
 
-            ! Clip the trial step to the interval, mirroring the h0 cap at the
-            ! remaining span. The clip is local: state%h keeps the unclipped
-            ! proposal so the continuous schedule survives across output points.
-            h = state%h
-            h_clip = abs(t1 - t)
-            final_clip = h >= h_clip
-            if (final_clip) h = h_clip
-
             state%k1 = state%dydt0
-            call rk8pd_step(rhs, t, y, dir * h, .true., &
+            call rk8pd_step(rhs, t0, y, h0, .true., &
                 state%k1, state%k2, state%k3, state%k4, state%k5, state%k6, &
                 state%k7, state%k8, state%k9, state%k10, state%k11, &
                 state%k12, state%k13, state%ytmp, state%y8, state%yerr, &
                 nfev, ctx)
 
-            rmax = failure_ratio(y, state%y8, state%yerr, eps_abs, eps_rel)
-
-            h_used = h
-            if (rmax > DEC_BAND) then
-                ! Reject: shrink and retry from the same t. The carried step
-                ! state%h shrinks by the reference's decrease rule; the clip is not
-                ! recorded so the continuous schedule is unaffected.
-                state%h = adjust_step(h, rmax, decrease=.true.)
-                state%have_dydt = .true. ! dydt0 still valid at t
-                nstep = nstep + 1
-                cycle
-            end if
-
-            ! Accept. Advance t and y; recompute f at the new point next loop.
-            if (final_clip) then
+            if (final_step) then
                 t = t1
             else
-                t = t + dir * h_used
+                t = t0 + h0
             end if
+
+            ! std_control_hadjust on the POST-step state%y8 (the stepper updates y in
+            ! place before the controller reads it). h_old is the clipped step
+            ! just used; hadjust overwrites h0 with the suggestion.
+            h_old = h0
+            call control_hadjust(state%y8, state%yerr, eps_abs, eps_rel, &
+                h0, rmax, dec)
+
+            if (dec) then
+                ! HADJ_DEC: honour only if it shrinks h and shifts t by >= 1 ULP,
+                ! else keep the just-taken step (the reference "keep current step size").
+                t_curr = t
+                t_next = t + h0
+                if (abs(h0) < abs(h_old) .and. t_next /= t_curr) then
+                    ! Step decreased: undo and retry from t0 with the smaller h0.
+                    t = t0
+                    cycle
+                else
+                    h0 = h_old   ! keep current step size
+                end if
+            end if
+
+            ! Accept the step.
             y = state%y8
+            state%h = h0
             state%have_dydt = .false.
-
-            ! Carry the next step. the reference leaves h unchanged in the dead band
-            ! (0.5 <= rmax <= 1.1) and grows it when rmax < 0.5. The clip on a
-            ! final step is local, so grow/keep is applied to the unclipped
-            ! carried value, not to the clipped h_used.
-            if (rmax < INC_BAND) then
-                state%h = adjust_step(state%h, rmax, decrease=.false.)
-            end if
-
-            nstep = nstep + 1
-            if (final_clip) exit
-            if (one_step) exit
+            return
         end do
-    end subroutine rk8pd_evolve_apply
+    end subroutine evolve_apply_once
 
     ! --- internals ---
 
-    ! the y_new error-per-step control failure ratio: max over components of |yerr_i| / D0_i,
-    ! D0_i = eps_abs + eps_rel*|y_i|. y is the pre-step state; the reference scales by the
-    ! input y, not the proposed y8.
-    real(dp) function failure_ratio(y, y8, yerr, eps_abs, eps_rel) result(r)
-        real(dp), intent(in) :: y(:), y8(:), yerr(:)
-        real(dp), intent(in) :: eps_abs, eps_rel
-        real(dp) :: d0, ratio
+    ! the standard step controller (documented old adaptive-evolve API, control_y_new: a_y=1,
+    ! a_dydt=0). Scans the POST-step solution y, forms the failure ratio
+    !   rmax = max_i |yerr_i| / (eps_rel*|y_i| + eps_abs),
+    ! then adjusts h in place by the standard three-band rule and reports whether the
+    ! decision was a decrease (dec). h enters as the step just used (h_old) and
+    ! leaves as the suggested next step. rmax starts from DBL_MIN as the reference does, so
+    ! a zero error never makes the ratio collapse to exactly zero.
+    subroutine control_hadjust(y, yerr, eps_abs, eps_rel, h, rmax, dec)
+        real(dp), intent(in)    :: y(:), yerr(:)
+        real(dp), intent(in)    :: eps_abs, eps_rel
+        real(dp), intent(inout) :: h
+        real(dp), intent(out)   :: rmax
+        logical,  intent(out)   :: dec
+        real(dp) :: d0, ratio, fac, h_old
         integer  :: i, n
         n = size(y)
-        r = 0.0_dp
+        rmax = tiny(1.0_dp)
         do i = 1, n
-            d0 = eps_abs + eps_rel * abs(y(i))
-            if (d0 > 0.0_dp) then
-                ratio = abs(yerr(i)) / d0
-                if (ratio > r) r = ratio
-            end if
+            d0 = eps_rel * abs(y(i)) + eps_abs
+            ratio = abs(yerr(i)) / abs(d0)
+            if (ratio > rmax) rmax = ratio
         end do
-    end function failure_ratio
 
-    ! the standard step controller step adjustment. Decrease (rejected step):
-    !   h_new = h * max(0.2, S / rmax^(1/order)). Increase (accepted, rmax<0.5):
-    !   h_new = h * min(5.0, S / rmax^(1/(order+1))), then floored at 1.0 so the
-    !   safety factor S<1 never turns an accepted step into a shrink (the reference v1
-    !   std_control_hadjust: "don't allow any decrease caused by S<1"). Omitting
-    !   that floor lets rmax just under 0.5 nudge the carried step down by a hair,
-    !   which drifts the step schedule from the reference on sensitive ODEs. order =
-    !   STEP_ORDER.
-    real(dp) function adjust_step(h, rmax, decrease) result(h_new)
-        real(dp), intent(in) :: h, rmax
-        logical,  intent(in) :: decrease
-        real(dp) :: fac
-        if (decrease) then
+        h_old = h
+        dec = .false.
+        if (rmax > DEC_BAND) then
             fac = SAFETY / rmax**(1.0_dp / real(STEP_ORDER, dp))
             if (fac < SHRINK_MIN) fac = SHRINK_MIN
-        else
-            if (rmax <= 0.0_dp) then
-                h_new = GROW_MAX * h
-                return
-            end if
+            h = fac * h_old
+            dec = .true.
+        else if (rmax < INC_BAND) then
             fac = SAFETY / rmax**(1.0_dp / real(STEP_ORDER + 1, dp))
             if (fac > GROW_MAX) fac = GROW_MAX
             if (fac < 1.0_dp) fac = 1.0_dp
+            h = fac * h_old
         end if
-        h_new = fac * h
-    end function adjust_step
+    end subroutine control_hadjust
 
     ! Allocate the thirteen stage slots, the cached first-stage derivative, and
     ! the scratch states once when the size changes.
