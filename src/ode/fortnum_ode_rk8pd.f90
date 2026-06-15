@@ -304,8 +304,14 @@ contains
     ! shrink). On return t == t1, y holds the solution there, state%h carries the
     ! step proposed for continuing past t1, and the cached first-stage derivative
     ! is valid at t1. nfev accumulates RHS evaluations.
+    !
+    ! single_step (default .false.): when .true. the routine returns after one
+    ! accepted step exactly as a single an accepted-step evolve advance call does, so a
+    ! caller that records the adaptive mesh (one row per accepted step) reproduces
+    ! the adaptive evolve loop point for point. t then lands either on the accepted
+    ! step endpoint or on t1 when that step was clipped to the interval end.
     subroutine rk8pd_evolve_apply(rhs, state, t, t1, y, eps_abs, eps_rel, &
-            max_steps, nfev, status, ctx)
+            max_steps, nfev, status, ctx, single_step)
         procedure(ode_rhs_t)            :: rhs
         type(rk8pd_state_t),    intent(inout) :: state
         real(dp),               intent(inout) :: t
@@ -316,10 +322,11 @@ contains
         integer,                intent(inout) :: nfev
         type(fortnum_status_t), intent(out)   :: status
         class(*), intent(in), optional        :: ctx
+        logical,  intent(in), optional        :: single_step
 
         integer  :: neq, nstep
         real(dp) :: dir, h, h_used, rmax, h_clip
-        logical  :: final_clip
+        logical  :: final_clip, one_step
 
         call status_set(status, FORTNUM_OK, "")
         neq = size(y)
@@ -333,6 +340,9 @@ contains
                 "rk8pd_evolve_apply: invalid tolerances")
             return
         end if
+
+        one_step = .false.
+        if (present(single_step)) one_step = single_step
 
         dir = sign(1.0_dp, t1 - t)
         if (t1 == t) return
@@ -402,6 +412,7 @@ contains
 
             nstep = nstep + 1
             if (final_clip) exit
+            if (one_step) exit
         end do
     end subroutine rk8pd_evolve_apply
 

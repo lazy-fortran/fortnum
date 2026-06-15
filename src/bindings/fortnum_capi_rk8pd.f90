@@ -24,7 +24,7 @@ module fortnum_capi_rk8pd
     private
 
     public :: fortnum_rk8pd_create, fortnum_rk8pd_integrate_to
-    public :: fortnum_rk8pd_destroy
+    public :: fortnum_rk8pd_step_to, fortnum_rk8pd_destroy
 
     ! C rhs callback ABI: dydt = f(t, y) with a leading abscissa, the equation
     ! count, and the opaque user context (matches fortnum_ode_rhs / c_ode_rhs).
@@ -130,6 +130,54 @@ contains
             dydt = real(dc, dp)
         end subroutine rhs_bridge
     end function fortnum_rk8pd_integrate_to
+
+    ! Advance the carried solution by one accepted step toward t1, mirroring a
+    ! single an accepted-step evolve advance call: on return *t holds the accepted-step
+    ! endpoint (or t1 when that step was clipped to the interval end) and y the
+    ! solution there. A caller looping until *t == t1 and recording (*t, y) after
+    ! each call reproduces the adaptive evolve mesh point for point. Returns the
+    ! fortnum status code (0 == FORTNUM_OK).
+    function fortnum_rk8pd_step_to(handle, t, t1, y) result(code) &
+            bind(c, name="fortnum_rk8pd_step_to")
+        type(c_ptr),    value         :: handle
+        real(c_double), intent(inout) :: t
+        real(c_double), value         :: t1
+        real(c_double), intent(inout) :: y(*)
+        integer(c_int) :: code
+        type(rk8pd_handle_t), pointer :: h
+        type(fortnum_status_t)        :: status
+        real(dp) :: tt
+        real(dp), allocatable :: yy(:)
+        integer  :: nfev
+        if (.not. c_associated(handle)) then
+            code = 1
+            return
+        end if
+        call c_f_pointer(handle, h)
+        allocate (yy(h%neq))
+        yy = real(y(1:h%neq), dp)
+        tt = real(t, dp)
+        nfev = 0
+        call rk8pd_evolve_apply(rhs_bridge, h%state, tt, real(t1, dp), yy, &
+            h%eps_abs, h%eps_rel, h%max_steps, nfev, status, &
+            single_step=.true.)
+        y(1:h%neq) = real(yy, c_double)
+        t = real(tt, c_double)
+        code = int(status%code, c_int)
+    contains
+        subroutine rhs_bridge(tb, yb, dydt, ctx)
+            real(dp), intent(in)  :: tb
+            real(dp), intent(in)  :: yb(:)
+            real(dp), intent(out) :: dydt(:)
+            class(*), intent(in), optional :: ctx
+            procedure(c_ode_rhs), pointer :: cf
+            real(c_double) :: yc(size(yb)), dc(size(yb))
+            call c_f_procpointer(h%rhs, cf)
+            yc = real(yb, c_double)
+            call cf(real(tb, c_double), int(size(yb), c_int), yc, dc, h%ctx)
+            dydt = real(dc, dp)
+        end subroutine rhs_bridge
+    end function fortnum_rk8pd_step_to
 
     ! Free the evolve state behind the handle.
     subroutine fortnum_rk8pd_destroy(handle) &

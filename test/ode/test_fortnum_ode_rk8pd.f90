@@ -25,6 +25,7 @@ program test_fortnum_ode_rk8pd
     call check_single_step_order(nfail)
     call check_control_grows(nfail)
     call check_reentrant_matches_single(nfail)
+    call check_single_step_mesh(nfail)
     call check_backward(nfail)
     call check_bad_input(nfail)
 
@@ -181,6 +182,64 @@ contains
             nfail = nfail + 1
         end if
     end subroutine check_reentrant_matches_single
+
+    ! single_step mode returns after one accepted step, mirroring a single
+    ! an accepted-step evolve advance call. Looping until t == t1 and recording each
+    ! step must (a) advance t strictly toward t1 each call, (b) land exactly on
+    ! t1, and (c) reach the same endpoint as one full continuous evolve. This is
+    ! the contract KiLCA's imhd zone solver relies on to rebuild the evolve mesh.
+    subroutine check_single_step_mesh(nfail)
+        integer, intent(inout) :: nfail
+        type(rk8pd_state_t)    :: st_step, st_one
+        type(fortnum_status_t) :: status
+        real(dp) :: y_step(2), y_one(2), t, t_prev, t1, h0, gap
+        integer  :: nfev, nsteps
+        real(dp), parameter :: PI = 3.14159265358979323846264338327950288_dp
+        h0 = 1.0e-3_dp
+        t1 = 6.0_dp * PI
+
+        ! One full continuous evolve over [0, t1].
+        call rk8pd_evolve_init(st_one, 2, h0, status)
+        y_one = [1.0_dp, 0.0_dp]
+        t = 0.0_dp
+        nfev = 0
+        call rk8pd_evolve_apply(rhs_osc, st_one, t, t1, y_one, 1.0e-12_dp, &
+            1.0e-12_dp, 1000000, nfev, status)
+
+        ! Step-by-step evolve recording each accepted step.
+        call rk8pd_evolve_init(st_step, 2, h0, status)
+        y_step = [1.0_dp, 0.0_dp]
+        t = 0.0_dp
+        nfev = 0
+        nsteps = 0
+        do
+            if (t >= t1) exit
+            t_prev = t
+            call rk8pd_evolve_apply(rhs_osc, st_step, t, t1, y_step, &
+                1.0e-12_dp, 1.0e-12_dp, 1000000, nfev, status, &
+                single_step=.true.)
+            if (status%code /= FORTNUM_OK) exit
+            if (.not. (t > t_prev)) then
+                write (error_unit, "(a,es14.6)") &
+                    "FAIL single_step_mesh: t did not advance, t=", t
+                nfail = nfail + 1
+                return
+            end if
+            nsteps = nsteps + 1
+            if (nsteps > 1000000) exit
+        end do
+
+        gap = max(abs(y_step(1) - y_one(1)), abs(y_step(2) - y_one(2)))
+        write (*, "(a,i0,a,es12.4)") &
+            "rk8pd single-step mesh: nsteps=", nsteps, "  endpoint gap=", gap
+        if (status%code /= FORTNUM_OK .or. abs(t - t1) > 1.0e-13_dp .or. &
+            gap > 1.0e-12_dp .or. nsteps < 2) then
+            write (error_unit, "(a,es14.6,a,es14.6,a,i0)") &
+                "FAIL single_step_mesh: t=", t, " gap=", gap, &
+                " code=", status%code
+            nfail = nfail + 1
+        end if
+    end subroutine check_single_step_mesh
 
     subroutine check_backward(nfail)
         integer, intent(inout) :: nfail

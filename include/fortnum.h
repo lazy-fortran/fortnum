@@ -203,6 +203,14 @@ void *fortnum_rk8pd_create(fortnum_ode_rhs rhs, int neq, double h0,
  * t1. Returns the fortnum status code (0 == FORTNUM_OK). */
 int fortnum_rk8pd_integrate_to(void *handle, double *t, double t1, double *y);
 
+/* Advance the carried solution by one accepted step toward t1, mirroring a
+ * single an accepted-step evolve advance call: on return *t holds the accepted-step
+ * endpoint (or t1 when that step was clipped to the interval end) and y[neq] the
+ * solution there. Loop until *t == t1, recording (*t, y) after each call, to
+ * reproduce the adaptive evolve mesh point for point. Returns the fortnum status
+ * code (0 == FORTNUM_OK). */
+int fortnum_rk8pd_step_to(void *handle, double *t, double t1, double *y);
+
 /* Free the evolve state behind the handle. */
 void fortnum_rk8pd_destroy(void *handle);
 
