@@ -1,8 +1,8 @@
 module fortnum_ode_dop853
     ! Adaptive Prince-Dormand RK8(7)-13M integrator (dop853 class). Twelve
     ! explicit stages give an eighth-order solution; two embedded error
-    ! estimators (orders 5 and 3) drive the adaptive step. Replaces the reference
-    ! the documented rk8pd stepper for the very tight tolerances KiLCA needs.
+    ! estimators (orders 5 and 3) drive the adaptive step, for the very tight
+    ! tolerances KiLCA needs (Hairer, Norsett, Wanner; Prince-Dormand 1981).
     !
     ! Derivative policy: trace_rule (ad.md sec 1, 4; ode.md sec 1, 4).
     !   Same policy as the Cash-Karp integrator in fortnum_ode: the adaptive

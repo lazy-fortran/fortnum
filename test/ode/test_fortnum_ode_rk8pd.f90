@@ -184,7 +184,7 @@ contains
     end subroutine check_reentrant_matches_single
 
     ! single_step mode returns after one accepted step, mirroring a single
-    ! an accepted-step evolve advance call. Looping until t == t1 and recording each
+    ! adaptive evolve advance. Looping until t == t1 and recording each
     ! step must (a) advance t strictly toward t1 each call, (b) land exactly on
     ! t1, and (c) reach the same endpoint as one full continuous evolve. This is
     ! the contract KiLCA's imhd zone solver relies on to rebuild the evolve mesh.

@@ -6,8 +6,8 @@ test reads back. The reference is scipy.interpolate.BSpline: each basis
 function B_{i,k} is recovered by evaluating a spline whose coefficient vector is
 the i-th unit vector, which is exactly splev/BSpline with unit coefficients.
 
-This reproduces the clamped-knot convention NEO-2 uses (collop_bspline,
-collop_bspline): spline order k = degree + 1, nbreak breakpoints, an augmented
+This reproduces the clamped-knot convention NEO-2 uses (collop_bspline):
+spline order k = degree + 1, nbreak breakpoints, an augmented
 clamped knot vector with end multiplicity k, and ncoef = nbreak + k - 2 basis
 functions.
 

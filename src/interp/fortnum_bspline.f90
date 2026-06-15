@@ -1,7 +1,7 @@
 module fortnum_bspline
-    ! B-spline basis functions and derivatives over a breakpoint set, matching
-    ! the clamped-knot convention used by NEO-2 (collop_bspline.f90,
-    ! collop_bspline.f90): "order" k is the spline order (k = degree + 1), the
+    ! B-spline basis functions and derivatives over a breakpoint set, using the
+    ! clamped-knot convention used by NEO-2 (collop_bspline.f90): "order" k is
+    ! the spline order (k = degree + 1), the
     ! caller supplies nbreak breakpoints, and the augmented knot vector repeats
     ! the two end breakpoints with multiplicity k so the basis is clamped /
     ! interpolatory at the boundary. The number of basis functions (coefficients)

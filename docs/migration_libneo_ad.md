@@ -16,9 +16,9 @@ primal, never added arguments to it (`ad.md §6`).
 
 | libneo backend | fortnum primal | derivative product | status |
 |---|---|---|---|
-| `modified Bessel `I_n(x)`` | `bessel_in(n, x)` | `bessel_in_jvp(n, x, v, jv)` | NOW (`analytic_rule`) |
-| `modified Bessel `K_n(x)`` | `bessel_kn(n, x)` | `bessel_kn_jvp(n, x, v, jv)` | NOW (`analytic_rule`) |
-| `modified Bessel `I_n(x)` array` | `bessel_in_array(nmax, x, values)` | no JVP yet | later (recurrence over array; #TBD) |
+| modified Bessel `I_n(x)` | `bessel_in(n, x)` | `bessel_in_jvp(n, x, v, jv)` | NOW (`analytic_rule`) |
+| modified Bessel `K_n(x)` | `bessel_kn(n, x)` | `bessel_kn_jvp(n, x, v, jv)` | NOW (`analytic_rule`) |
+| modified Bessel `I_n(x)` array | `bessel_in_array(nmax, x, values)` | no JVP yet | later (recurrence over array; #TBD) |
 
 Active argument in both JVPs: `x` (the argument). Inactive: `n` (integer
 order, selects branch; `ad.md §3`).
@@ -44,9 +44,9 @@ Active argument: `x`. Analytic rule: `F'(x) = 1 - 2 x F(x)`.
 
 | libneo backend | fortnum primal | derivative product | status |
 |---|---|---|---|
-| `lower incomplete gamma` | `gamma_lower(a, x)` | `gamma_lower_jvp(x, v, jv)` | NOW d/dx (`analytic_rule`) |
+| lower incomplete gamma | `gamma_lower(a, x)` | `gamma_lower_jvp(x, v, jv)` | NOW d/dx (`analytic_rule`) |
 | | | d/da | later: requires digamma series (#TBD) |
-| `regularized lower incomplete gamma P` | `gamma_reg_p(a, x)` | | later (depends on d/da of gamma) |
+| regularized lower incomplete gamma P | `gamma_reg_p(a, x)` | | later (depends on d/da of gamma) |
 
 Active argument for NOW derivative: `x` (integration limit). Shape `a` is
 treated as inactive. The JVP packs `x = [x_val, a_val]` so the harness can
@@ -79,7 +79,7 @@ the JVP/VJP routines are new names.
 
 | libneo | fortnum primal | derivative product | status |
 |---|---|---|---|
-| `odeint` (the reference the documented adaptive-evolve API or custom) | `ode_integrate(problem, ws, sol, st)` | `ode_integrate_jvp` forward sensitivity | NOW (`trace_rule`) |
+| `odeint` (external adaptive integrator or custom) | `ode_integrate(problem, ws, sol, st)` | `ode_integrate_jvp` forward sensitivity | NOW (`trace_rule`) |
 | | | `ode_integrate_vjp` discrete adjoint | NOW |
 | | `ode_solve(rhs, t0, t1, y0, ...)` | primal convenience call | primal only |
 
@@ -99,10 +99,10 @@ HVP deferred: needs a caller-defined scalar loss on `y(t1)`.
 
 | libneo backend / QUADPACK | fortnum primal | derivative product | status |
 |---|---|---|---|
-| `adaptive quadrature QAG / `dqag` | `integrate_qag(...)` | `integrate_qag_jvp(dfdp, result, di_dp, st, ctx)` | NOW (`trace_rule`) |
-| `adaptive quadrature QAGS / `dqags` | `integrate_qags(...)` | later (#TBD) | |
-| `adaptive quadrature QAGp` | `integrate_qagp(...)` | later | |
-| `adaptive quadrature QAGiu` | `integrate_qagiu(...)` | later | |
+| adaptive quadrature QAG / `dqag` | `integrate_qag(...)` | `integrate_qag_jvp(dfdp, result, di_dp, st, ctx)` | NOW (`trace_rule`) |
+| adaptive quadrature QAGS / `dqags` | `integrate_qags(...)` | later (#TBD) | |
+| adaptive quadrature QAGP | `integrate_qagp(...)` | later | |
+| adaptive quadrature QAGIU | `integrate_qagiu(...)` | later | |
 | Single-rule QK panel | `gk_apply(...)` | primal only | |
 
 `integrate_qag_jvp` differentiates at the frozen accepted subdivision recorded
@@ -142,10 +142,10 @@ point; crossing a cell boundary is a non-smooth event (`ad.md §4`).
 
 | libneo backend | fortnum primal | derivative product | status |
 |---|---|---|---|
-| `RNG alloc + seed` | `rng_seed(g, seed, status)` | none | never |
-| `uniform draw` | `rng_uniform(g, value)` | none | never |
+| RNG alloc + seed | `rng_seed(g, seed, status)` | none | never |
+| uniform draw | `rng_uniform(g, value)` | none | never |
 | standard normal draw | `rng_normal(g, value)` | none | never |
-| `RNG free` | nothing (rng_t lives on stack) | | |
+| RNG free | nothing (rng_t lives on stack) | | |
 
 Policy `primal_only`. A pseudorandom draw is not a differentiable function of
 its seed (`ad.md §4`). Gradients of estimators built on draws live in the

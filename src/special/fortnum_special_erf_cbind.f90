@@ -2,7 +2,7 @@ module fortnum_special_erf_cbind
     ! Thin erf/erfc provider for the C ABI.
     !
     ! Fortran callers use the Fortran 2008 intrinsics erf/erfc directly; KAMEL
-    ! C++ (the C++ caller) needs C-callable symbols. The
+    ! C++ needs C-callable erf/erfc symbols. The
     ! module functions fortnum_erf/fortnum_erfc forward to the intrinsics with no
     ! reimplementation so the ABI layer can export them.
     !

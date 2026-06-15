@@ -3,7 +3,7 @@
 
 The reference for 1F1(a;b;z) (Kummer M) at complex b and z is mpmath.hyp1f1
 evaluated at high working precision, cross-checked against scipy.special.hyp1f1
-on the real axis. fortnum never links an external math library at runtime: the Fortran oracle
+on the real axis. fortnum links no external math library at runtime: the Fortran oracle
 test reads this CSV and asserts agreement within a documented tolerance.
 
 The grid covers the (a=1, b=1+t2, z=t1) domain MEPHIT and KiLCA use, where

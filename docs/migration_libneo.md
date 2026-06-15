@@ -1,7 +1,7 @@
 # Migration: libneo external backend and math-kit to fortnum
 
-This document maps the math routines used in libneo's external numerical backend and
-math-kit to their fortnum equivalents. For each mapping it states whether
+This document maps the math routines used in libneo's external numerical
+backend and math-kit to their fortnum equivalents. For each mapping it states whether
 derivative products are available now, planned, or excluded.
 
 The fortnum derivative policy vocabulary is defined in `docs/design/ad.md`.
@@ -14,10 +14,10 @@ No derivative products ship yet; all are reserved for issue #40.
 ### Modified Bessel functions
 
 | libneo backend | fortnum |
-|--------------|---------|
-| `modified Bessel `I_n(x)`` | `bessel_in(n, x)` |
-| `modified Bessel `I_n(x)` array` | `bessel_in_array(nmax, x, values(0:nmax))` |
-| `modified Bessel `K_n(x)`` | `bessel_kn(n, x)` |
+|----------------|---------|
+| modified Bessel `I_n(x)` | `bessel_in(n, x)` |
+| modified Bessel `I_n(x)` array | `bessel_in_array(nmax, x, values(0:nmax))` |
+| modified Bessel `K_n(x)` | `bessel_kn(n, x)` |
 
 Interface differences:
 - `bessel_in` is `elemental`; pass a scalar or an array directly.
@@ -48,9 +48,9 @@ Derivative status (policy `analytic_rule`):
 ### Incomplete gamma
 
 | libneo backend | fortnum |
-|--------------|---------|
-| `lower incomplete gamma` (lower incomplete, unnormalized) | `gamma_lower(a, x)` |
-| `regularized lower incomplete gamma P` (regularized P) | `gamma_reg_p(a, x)` |
+|----------------|---------|
+| lower incomplete gamma, unnormalized | `gamma_lower(a, x)` |
+| regularized lower incomplete gamma P | `gamma_reg_p(a, x)` |
 
 Both routines are pure functions. Domain violations (`a <= 0` or `x < 0`) stop
 with `error stop`; the primal signature carries no status argument by design.
@@ -99,7 +99,7 @@ Derivative status (policy `analytic_rule`): `hyperg_1f1_a1_jvp` /
 ### Error function (C ABI)
 
 | KAMEL backend | fortnum |
-|-------------|---------|
+|---------------|---------|
 | `erf(x)` | `fortnum_erf(x)` |
 | `erfc(x)` | `fortnum_erfc(x)` |
 
@@ -115,13 +115,13 @@ Derivative status (policy `transparent`): `fortnum_erf_jvp`, `fortnum_erfc_jvp`,
 ## Series acceleration
 
 | libneo backend | fortnum |
-|--------------|---------|
-| `Levin-u series acceleration (alloc + accel)` | `levin_u_accel(terms, n, sum_accel, abserr, status)` |
+|----------------|---------|
+| Levin-u series acceleration (alloc + accel) | `levin_u_accel(terms, n, sum_accel, abserr, status)` |
 
 Clean-room Levin-u transform (Levin 1973; Weniger 1989; Fessler-Ford-Smith
 1983). The caller passes the recorded series terms `terms(1:n)`; the workspace
-the workspace is internal, so no alloc/free pair is
-needed. `sum_accel` and `abserr` replace the reference out-parameters.
+is internal, so no alloc/free pair is needed. `sum_accel` and `abserr` carry
+the accelerated value and its error estimate.
 
 Derivative status (policy `primal_only`): none. The accelerated value is a
 data-dependent nonlinear rational transform of the term sequence.
@@ -131,15 +131,15 @@ data-dependent nonlinear rational transform of the term sequence.
 ## Multidimensional root finding
 
 | libneo backend | fortnum |
-|--------------|---------|
-| `hybrid multiroot solver, analytic Jacobian` | `multiroot_hybrid(fdf, n, x0, x, status, ...)` |
-| `hybrid multiroot solver, finite-diff Jacobian` | `multiroot_hybrids(fn, n, x0, x, status, ...)` |
+|----------------|---------|
+| hybrid multiroot solver, analytic Jacobian | `multiroot_hybrid(fdf, n, x0, x, status, ...)` |
+| hybrid multiroot solver, finite-diff Jacobian | `multiroot_hybrids(fn, n, x0, x, status, ...)` |
 | central finite-difference derivative | `deriv_central(f, x, h, result, abserr, status, ctx)` |
 | index sort of a real array | `argsort(x, perm)` |
 
 Interface differences:
 - The residual and Jacobian come through abstract interfaces with an optional
-  `ctx`, not a `C function struct: `multiroot_fdf_t` returns F
+  `ctx`, not a C function struct: `multiroot_fdf_t` returns F
   and the analytic Jacobian; `multiroot_fn_t` returns F only.
 - No iterator object and no alloc/free. One call drives the iteration to
   convergence; `xtol`, `ftol`, `max_iter` are optional.
@@ -188,29 +188,29 @@ Derivative status (policy `implicit_rule`, `differentiate_through=false`):
 ## Numerical integration
 
 | libneo backend / QUADPACK | fortnum |
-|--------------------------|---------|
-| `adaptive quadrature QAG` | `integrate_qag` |
-| `adaptive quadrature QAGs` | `integrate_qags` |
-| `adaptive quadrature QAGp` | `integrate_qagp` |
-| `adaptive quadrature QAGIU (semi-infinite)` | `integrate_qagiu` |
+|---------------------------|---------|
+| adaptive quadrature QAG | `integrate_qag` |
+| adaptive quadrature QAGS | `integrate_qags` |
+| adaptive quadrature QAGP (break points) | `integrate_qagp` |
+| adaptive quadrature QAGIU (semi-infinite) | `integrate_qagiu` |
 | Direct QUADPACK `dqag` / `dqags` | `integrate_qag` / `integrate_qags` |
 | Single-rule QK15/21/31/61 panel | `gk_apply` |
 
 Interface differences:
 - The integrand interface requires an optional `ctx` argument:
   `function f(x, ctx) result(fx)`. A parameter-free integrand ignores `ctx`.
-  This replaces the reference's `C integrand struct and function pointer.
+  This replaces the C integrand struct and function pointer.
 - Workspace and epsilon-table types are caller-owned and explicit.
-  `integrate_workspace_t` replaces the reference workspace handle;
+  `integrate_workspace_t` replaces the external workspace handle;
   `integrate_epstab_t` is the Wynn epsilon table. Pass default-initialized
   values on the first call; reuse them across calls to avoid reallocation.
 - Status is a `fortnum_status_t` argument, not an integer error code.
-  `FORTNUM_OK` maps to the reference's `success code 0`; `FORTNUM_CONVERGENCE_ERROR`
-  maps to `max-iteration or round-off-limit failures`; `FORTNUM_DOMAIN_ERROR` covers
+  `FORTNUM_OK` is the success code 0; `FORTNUM_CONVERGENCE_ERROR`
+  covers max-iteration and round-off-limit failures; `FORTNUM_DOMAIN_ERROR` covers
   non-smooth derivative cases (break-point singularity at an endpoint, or
   bad integrand behaviour).
 - `integrate` is a flat single-call wrapper that owns its workspace; it is
-  the closest equivalent to a the reference integration call without explicit workspace
+  the closest equivalent to an integration call without explicit workspace
   management.
 
 Derivative status (policy `trace_rule`):
@@ -279,8 +279,8 @@ Derivative status (policy `transparent`):
 
 | libneo | fortnum |
 |--------|---------|
-| `odeint` (the reference `the adaptive evolve routines` or custom) | `ode_integrate` / `ode_solve` |
-| `the documented rk8pd stepper` (RK8(7), tight tolerances) | `ode_integrate_dop` / `ode_solve_dop` |
+| `odeint` (external adaptive integrator or custom) | `ode_integrate` / `ode_solve` |
+| Prince-Dormand RK8(7) stepper, tight tolerances | `ode_integrate_dop` / `ode_solve_dop` |
 
 Interface differences:
 - The RHS is an abstract interface: `subroutine rhs(t, y, dydt, ctx)` with
@@ -307,15 +307,16 @@ Derivative status (policy `trace_rule`):
 ## B-spline basis
 
 | libneo backend (NEO-2) | fortnum |
-|-----------------------------|---------|
-| `B-spline workspace alloc + knots` | `bspline_init` + `bspline_set_knots` |
-| `B-spline basis evaluation` | `bspline_eval_basis(ws, x, values, status)` |
-| `B-spline derivative evaluation` | `bspline_eval_deriv(ws, x, nderiv, dvalues, status)` |
+|------------------------|---------|
+| B-spline workspace alloc + knots | `bspline_init` + `bspline_set_knots` |
+| B-spline basis evaluation | `bspline_eval_basis(ws, x, values, status)` |
+| B-spline derivative evaluation | `bspline_eval_deriv(ws, x, nderiv, dvalues, status)` |
 | span lookup | `bspline_span_index(ws, x)` |
 
-Clean-room Cox-de Boor recursion (de Boor 2001; Piegl & Tiller); no external source is used. The convention matches NEO-2 `collop_bspline.f90`: order
+Clean-room Cox-de Boor recursion (de Boor 2001; Piegl & Tiller). The convention
+matches NEO-2 `collop_bspline.f90`: order
 `k = degree + 1`, clamped end knots, `ncoef = nbreak + k - 2`. The workspace
-`bspline_workspace_t` is caller-owned, replacing the reference workspace handle and
+`bspline_workspace_t` is caller-owned, replacing the external workspace handle and
 its free call.
 
 Derivative status (policy `transparent` inside a fixed span): `bspline_eval_jvp`
@@ -373,11 +374,11 @@ Derivative status:
 ## Random number generation
 
 | libneo backend | fortnum |
-|--------------|---------|
-| `RNG alloc + seed` | `rng_seed(g, seed, status)` |
-| `uniform draw` | `rng_uniform(g, value)` |
+|----------------|---------|
+| RNG alloc + seed | `rng_seed(g, seed, status)` |
+| uniform draw | `rng_uniform(g, value)` |
 | standard normal draw | `rng_normal(g, value)` |
-| `RNG free` | nothing (rng_t lives on the stack or in a derived type) |
+| RNG free | nothing (rng_t lives on the stack or in a derived type) |
 
 Interface differences:
 - `rng_t` is a plain derived type; no allocation or free needed.
@@ -385,7 +386,7 @@ Interface differences:
   substreams from one seeded parent without locking. This replaces a pattern
   of seeding separate generators with different seeds.
 - The algorithm is Threefry-2x64-20, not the Mersenne Twister or another
-  generators. Output is deterministic: the same seed and the same stream index
+  classic generator. Output is deterministic: the same seed and the same stream index
   produce the same sequence on any compiler and platform that passes the
   built-in determinism gate.
 

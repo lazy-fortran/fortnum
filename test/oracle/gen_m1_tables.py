@@ -3,7 +3,8 @@
 
 Each table is the scipy/numpy reference for one fortnum module. The Fortran
 oracle tests read these CSVs and assert agreement within a documented
-tolerance, so fortnum links no external math library: the reference lives in the data file.
+tolerance, so fortnum links no external math library at runtime: the
+reference lives in the data file.
 
 Run: python3 test/oracle/gen_m1_tables.py
 """

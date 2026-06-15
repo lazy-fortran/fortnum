@@ -611,7 +611,7 @@ subroutine levin_u_accel(terms, n, sum_accel, abserr, status)
     type(fortnum_status_t), intent(out) :: status
 ```
 
-Accelerate the series with terms `terms(1:n)`. Replaces Levin-u series acceleration.
+Accelerate the series with terms `terms(1:n)` (Levin-u sequence acceleration).
 
 ---
 
@@ -880,7 +880,7 @@ subroutine multiroot_hybrid(fdf, n, x0, x, status, xtol, ftol, max_iter, ctx)
 ```
 
 Hybrid solve with an analytic Jacobian supplied by the `fdf` callback
-(`multiroot_fdf_t`). Replaces the analytic-Jacobian Powell hybrid dogleg.
+(`multiroot_fdf_t`); Powell hybrid dogleg with analytic Jacobian.
 
 #### `multiroot_hybrids(fn, n, x0, x, status [, xtol, ftol, max_iter, ctx])`
 
@@ -897,8 +897,8 @@ subroutine multiroot_hybrids(fn, n, x0, x, status, xtol, ftol, max_iter, ctx)
 ```
 
 Same iteration with the Jacobian built column by column by central differences
-of the residual `fn` (`multiroot_fn_t`). Replaces
-the finite-difference-Jacobian Powell hybrid dogleg.
+of the residual `fn` (`multiroot_fn_t`); finite-difference-Jacobian variant of
+the Powell hybrid dogleg.
 
 #### `deriv_central(f, x, h, result, abserr, status [, ctx])`
 
@@ -1164,7 +1164,7 @@ on `f`; precompute once and reuse over many function-value vectors.
 
 ## fortnum_bspline
 
-B-spline basis functions and derivatives over a breakpoint set, in the the external backend
+B-spline basis functions and derivatives over a breakpoint set, in the clamped-knot
 convention: order `k = degree + 1`, `nbreak` breakpoints, end breakpoints
 repeated with multiplicity `k` (clamped basis). The coefficient count is
 `ncoef = nbreak + k - 2`. Cox-de Boor recursion (de Boor 2001; Piegl & Tiller).

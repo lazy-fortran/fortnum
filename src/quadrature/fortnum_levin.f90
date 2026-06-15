@@ -1,14 +1,15 @@
 module fortnum_levin
     ! Levin u sequence-acceleration / nonlinear series transform.
     !
-    ! Replaces the reference the Levin-u accelerator family used by MEPHIT (hyper1F1.c
-    ! hypergeometric1f1_kummer_modified_0_accel) and KAMEL KiLCA
-    ! (math/hyper/hyper1F1.cpp) to sum the Kummer-series ratio of a confluent
-    ! hypergeometric function.  The caller passes a finite, recorded sequence
-    ! of series terms a_0 .. a_{n-1}; the routine forms the partial sums and
-    ! returns the Levin-u accelerated limit together with an error estimate.
+    ! Levin-u sequence acceleration for summing a recorded series, as used by
+    ! MEPHIT (hyper1F1.c hypergeometric1f1_kummer_modified_0_accel) and KAMEL
+    ! KiLCA (math/hyper/hyper1F1.cpp) to sum the Kummer-series ratio of a
+    ! confluent hypergeometric function.  The caller passes a finite, recorded
+    ! sequence of series terms a_0 .. a_{n-1}; the routine forms the partial
+    ! sums and returns the Levin-u accelerated limit together with an error
+    ! estimate.
     !
-    ! Algorithm (clean-room from the published papers, no the external backend source):
+    ! Algorithm (clean-room from the published papers):
     !   D. Levin, Int. J. Comput. Math. B3 (1973) 371-388.
     !   E. J. Weniger, Comput. Phys. Rep. 10 (1989) 189-371, eqs 7.2-8, 7.3-9.
     !   Fessler, Ford, Smith, ACM TOMS 9 (1983) 346-354.

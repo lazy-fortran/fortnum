@@ -1,7 +1,7 @@
 module fortnum_capi
     ! C ABI for fortnum. bind(c, name="fortnum_*") wrappers let C and C++
-    ! consumers (KAMEL KiLCA + QL-Balance, MEPHIT C sources) link fortnum in
-    ! place of the external backend. Each wrapper forwards to a pure Fortran routine and
+    ! consumers (KAMEL KiLCA + QL-Balance, MEPHIT C sources) link fortnum for
+    ! C/C++ callers. Each wrapper forwards to a pure Fortran routine and
     ! translates the argument convention: C double <-> real(dp), C int <->
     ! integer, c_double_complex <-> complex(dp), assumed-size C arrays by
     ! reference, and the fortnum_status code as the integer return value.

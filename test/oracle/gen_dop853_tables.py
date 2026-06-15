@@ -8,7 +8,7 @@ method family the fortnum integrator implements. The fortnum
 ode_integrate_dop run in the oracle test integrates the same IVPs and must
 match these points.
 
-Cases mirror the consumers KiLCA drives through the documented rk8pd stepper: a tight
+Cases mirror the consumers KiLCA drives through its RK8(7) stepper: a tight
 exponential decay (background-style stiffly tight tolerance), exponential
 growth, and the harmonic oscillator (flow-style oscillatory transport). All
 have closed-form solutions, so the test also checks the analytic value.

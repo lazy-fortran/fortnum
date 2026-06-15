@@ -153,8 +153,9 @@ equilibrium solvers.
 
 ### NEO-2
 
-NEO-2 uses the reference and Fthe reference as its numerical backends. Replace the external backend calls with
-the corresponding fortnum APIs (see `docs/migration_libneo_ad.md`). The
+NEO-2 calls an external numerical backend for special functions, quadrature,
+ODE integration, B-splines, and RNG. Replace those calls with the corresponding
+fortnum APIs (see `docs/migration_libneo_ad.md`). The
 derivative-ready wrappers arrive as drop-in substitutes: the primal signatures
 match the libneo mapping table, and the derivative entry points are new names
 that leave the primal calls unchanged.
@@ -167,9 +168,9 @@ boundary is a non-smooth event.
 
 ### KAMEL
 
-KAMEL uses an external special-function and quadrature backend, libcerf, SLATEC/AMOS (Bessel
-via Fortran 77 wrappers), and a custom ODE integrator. Replace the following
-where the calling context is smooth:
+KAMEL uses an external special-function and quadrature backend, libcerf,
+SLATEC/AMOS (Bessel via Fortran 77 wrappers), and a custom ODE integrator.
+Replace the following where the calling context is smooth:
 
 - special functions: fortnum_special (Bessel, gamma, Dawson)
 - quadrature: fortnum_integrate (QAG/QAGS pattern)

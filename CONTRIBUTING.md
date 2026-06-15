@@ -99,7 +99,7 @@ Tests run via CTest. Do not merge if any test fails.
 Use the issue templates in `.github/ISSUE_TEMPLATE/`. Two templates exist:
 
 - **Module port**: for porting a known algorithm from a published
-  reference library.
+  reference.
 - **Clean-room implementation**: for writing a new routine from primary
   sources (DLMF, textbooks, papers) without reference to existing code.
 

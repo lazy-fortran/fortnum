@@ -1,8 +1,9 @@
 /* fortnum C ABI.
  *
- * C and C++ link target for the fortnum numerical library: a drop-in source
- * for the reference routines that KAMEL (KiLCA + QL-Balance) and the MEPHIT C
- * sources use. Every prototype here matches a bind(c) wrapper in
+ * C and C++ link target for the fortnum numerical library: the special
+ * functions, quadrature, ODE, and interpolation routines that KAMEL (KiLCA +
+ * QL-Balance) and the MEPHIT C sources use. Every prototype here matches a
+ * bind(c) wrapper in
  * src/bindings/fortnum_capi.f90.
  *
  * Status convention: routines that can fail return an int status code
@@ -64,7 +65,7 @@ double fortnum_gamma_lower(double a, double x);
 /* Regularized lower incomplete gamma P(a,x) = gamma_lower(a,x)/Gamma(a). */
 double fortnum_gamma_reg_p(double a, double x);
 
-/* Error function and complementary error function (C-callable erf/erfc). */
+/* C-callable error function and complementary error function. */
 double fortnum_erf(double x);
 double fortnum_erfc(double x);
 
@@ -184,14 +185,13 @@ int fortnum_ode_solve_dop(fortnum_ode_rhs rhs, int neq, double t0, double t1,
 
 /* --- Re-entrant ODE integration (adaptive Prince-Dormand rk8pd) ---
  *
- * Bit-faithful to the documented rk8pd stepper under the y_new error-per-step control, evolved
- * continuously like a loop over an accepted-step evolve advance: the adaptive step is
- * carried across output abscissae rather than reset per segment. The evolve
- * state is opaque; create returns a handle, integrate_to advances it to each
- * next abscissa, destroy frees it. eps_abs/eps_rel match the y_new error-per-step control
- * (D0 = eps_abs + eps_rel*|y|). */
+ * Adaptive RK8(7)13M evolve with error-per-step control (D0 = eps_abs +
+ * eps_rel*|y|), evolved continuously: the adaptive step is carried across
+ * output abscissae rather than reset per segment. The evolve state is opaque;
+ * create returns a handle, integrate_to advances it to each next abscissa,
+ * destroy frees it. */
 
-/* Allocate an evolve state for neq equations with starting step h0 and the reference
+/* Allocate an evolve state for neq equations with starting step h0 and the
  * tolerances. rhs/ctx are forwarded to every derivative evaluation. Returns
  * NULL on a domain error (neq < 1 or h0 <= 0). */
 void *fortnum_rk8pd_create(fortnum_ode_rhs rhs, int neq, double h0,
@@ -204,7 +204,7 @@ void *fortnum_rk8pd_create(fortnum_ode_rhs rhs, int neq, double h0,
 int fortnum_rk8pd_integrate_to(void *handle, double *t, double t1, double *y);
 
 /* Advance the carried solution by one accepted step toward t1, mirroring a
- * single an accepted-step evolve advance call: on return *t holds the accepted-step
+ * single accepted-step advance: on return *t holds the accepted-step
  * endpoint (or t1 when that step was clipped to the interval end) and y[neq] the
  * solution there. Loop until *t == t1, recording (*t, y) after each call, to
  * reproduce the adaptive evolve mesh point for point. Returns the fortnum status
@@ -214,7 +214,7 @@ int fortnum_rk8pd_step_to(void *handle, double *t, double t1, double *y);
 /* Free the evolve state behind the handle. */
 void fortnum_rk8pd_destroy(void *handle);
 
-/* --- B-spline basis (clamped knot vector, clamped-knot workflow) ---
+/* --- B-spline basis (clamped knot vector) ---
  *
  * The workspace is opaque: create returns a handle, eval/deriv take it back,
  * destroy frees it. order = degree + 1; ncoef = nbreak + order - 2. */

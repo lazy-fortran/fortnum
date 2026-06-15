@@ -4,7 +4,7 @@ module fortnum_multiroot
     ! finite-difference first derivative with a Richardson error estimate,
     ! and an ascending index sort.
     !
-    ! Solvers (replace Powell hybrid dogleg, analytic and finite-difference Jacobian):
+    ! Solvers (Powell hybrid dogleg, analytic and finite-difference Jacobian):
     !   multiroot_hybrid  - Newton step with a backtracking line search on the
     !       residual 1/2 |F|^2, analytic Jacobian supplied by the callback.
     !   multiroot_hybrids - same iteration, Jacobian built column by column by
@@ -440,7 +440,7 @@ contains
         err_round = abs(noise_rich / h) + abscissa_noise
     end subroutine central_diff_estimate
 
-    ! Ascending index sort (replaces an index heapsort): perm is the
+    ! Ascending index sort: perm is the
     ! permutation with x(perm) nondecreasing.  Heapsort on the index array so
     ! the input x is never moved; O(n log n), no recursion, no allocation
     ! beyond perm.  Ties keep ascending value order (not a stability claim).

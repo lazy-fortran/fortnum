@@ -1,5 +1,5 @@
 module fortnum_capi_bspline
-    ! C ABI for the B-spline basis (fortnum_bspline), matching the the clamped-knot B-spline
+    ! C ABI for the B-spline basis (fortnum_bspline), using the clamped-knot
     ! workflow NEO-2 uses (collop_bspline.f90). The stateful workspace is opaque
     ! to C: create returns a void* handle, the eval/deriv calls take it back, and
     ! destroy frees it. Handle lifetime is caller-managed; no module-level state,
