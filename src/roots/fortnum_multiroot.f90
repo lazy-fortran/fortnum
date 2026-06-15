@@ -341,15 +341,16 @@ contains
         a(r2, :) = tmp
     end subroutine swap_row
 
-    ! Central finite-difference first derivative with a Richardson error
-    ! estimate (replaces the reference central-difference rule).
+    ! Central finite-difference first derivative with an adaptive step.
     !
-    ! result holds f'(x); abserr holds an estimate of |result - f'(x)|.
-    ! Reproduces the reference central-difference rule operation-for-operation so a KiLCA build
-    ! that swaps its old backend for fortnum keeps bit-identical derivatives: the 5-point
-    ! rule on (x-h, x-h/2, x+h/2, x+h) combined with the 3-point rule, then the
-    ! same optimal-stepsize second pass the reference applies when rounding dominates
-    ! truncation.  Ref: the central-difference rule.
+    ! result holds f'(x); abserr estimates |result - f'(x)|. A first pass at the
+    ! requested step h reports the truncation and rounding parts of the error
+    ! separately. When rounding dominates truncation the step is too small, so a
+    ! single corrected step -- the one that balances the O(h^2) truncation
+    ! against the O(1/h) rounding -- is tried, and its result is kept only when
+    ! it lowers the total error and stays consistent with the first pass.
+    ! Ref: Abramowitz and Stegun, "Handbook of Mathematical Functions", 25.3.6,
+    ! and the standard truncation/rounding step-size balance.
     subroutine deriv_central(f, x, h, result, abserr, status, ctx)
         procedure(deriv_fn_t)               :: f
         real(dp),               intent(in)  :: x, h
@@ -357,8 +358,8 @@ contains
         type(fortnum_status_t), intent(out) :: status
         class(*), intent(in), optional      :: ctx
 
-        real(dp) :: r_0, round, trunc, error
-        real(dp) :: h_opt, r_opt, round_opt, trunc_opt, error_opt
+        real(dp) :: deriv, round, trunc, total
+        real(dp) :: h_bal, deriv_bal, round_bal, trunc_bal, total_bal
 
         call status_set(status, FORTNUM_OK, "")
         if (h <= 0.0_dp) then
@@ -369,57 +370,75 @@ contains
             return
         end if
 
-        call the central-difference rule(f, x, h, r_0, round, trunc, ctx)
-        error = round + trunc
+        call central_diff_estimate(f, x, h, deriv, round, trunc, ctx)
+        total = round + trunc
 
-        ! Optimise the stepsize when rounding dominates, mirroring the reference: scale h
-        ! by (round / (2 trunc))^(1/3) and re-evaluate, keeping the refined
-        ! estimate only when it lowers the error and stays consistent.
+        ! Truncation falls as h^2 and rounding rises as 1/h, so they balance at
+        ! h_bal = h*(round/(2*trunc))^(1/3). Re-estimate there when the current
+        ! step is rounding-limited and keep the balanced result only if it both
+        ! lowers the total error and stays within a few error bars of the first.
         if (round < trunc .and. round > 0.0_dp .and. trunc > 0.0_dp) then
-            h_opt = h * (round / (2.0_dp * trunc))**(1.0_dp/3.0_dp)
-            call the central-difference rule(f, x, h_opt, r_opt, round_opt, trunc_opt, ctx)
-            error_opt = round_opt + trunc_opt
-            if (error_opt < error .and. &
-                abs(r_opt - r_0) < 4.0_dp * error) then
-                r_0   = r_opt
-                error = error_opt
+            h_bal = h * (round / (2.0_dp * trunc))**(1.0_dp/3.0_dp)
+            call central_diff_estimate(f, x, h_bal, deriv_bal, round_bal, &
+                trunc_bal, ctx)
+            total_bal = round_bal + trunc_bal
+            if (total_bal < total .and. &
+                abs(deriv_bal - deriv) < 4.0_dp * total) then
+                deriv = deriv_bal
+                total = total_bal
             end if
         end if
 
-        result = r_0
-        abserr = error
+        result = deriv
+        abserr = total
     end subroutine deriv_central
 
-    ! 5-point central derivative on (x-h, x-h/2, x+h/2, x+h) with separate
-    ! rounding and truncation error estimates; the central point is unused.
-    ! Operation order copied from the reference the central-difference rule so the result is
-    ! bit-identical to the reference central-difference helper.
-    subroutine the central-difference rule(f, x, h, result, abserr_round, abserr_trunc, ctx)
+    ! Fourth-order central derivative from the four off-centre samples
+    ! f(x +/- h) and f(x +/- h/2), with the truncation and rounding parts of the
+    ! error returned separately; the value at x itself is not needed.
+    !
+    ! The half-step central difference and the full-step central difference each
+    ! carry an O(h^2) truncation term with the same coefficient, so the
+    ! Richardson combination (4*half - full)/3 cancels it and leaves an O(h^4)
+    ! estimate. The gap between the two orders bounds the remaining truncation.
+    ! The rounding part is the relative machine error the sampled values carry
+    ! through the weighted sum, plus the error from the inexact abscissae
+    ! x +/- h. The common 1/h factor is applied once at the end.
+    subroutine central_diff_estimate(f, x, h, deriv, err_round, err_trunc, ctx)
         procedure(deriv_fn_t)          :: f
         real(dp), intent(in)           :: x, h
-        real(dp), intent(out)          :: result, abserr_round, abserr_trunc
+        real(dp), intent(out)          :: deriv, err_round, err_trunc
         class(*), intent(in), optional :: ctx
 
-        real(dp) :: fm1, fp1, fmh, fph, r3, r5, e3, e5, dy
+        real(dp) :: f_lo, f_hi, f_lo_half, f_hi_half
+        real(dp) :: diff_wide, diff_rich, eps, noise_wide, noise_rich
+        real(dp) :: abscissa_noise
 
-        fm1 = f(x - h,         ctx)
-        fp1 = f(x + h,         ctx)
-        fmh = f(x - h/2.0_dp,  ctx)
-        fph = f(x + h/2.0_dp,  ctx)
+        f_lo      = f(x - h,        ctx)
+        f_hi      = f(x + h,        ctx)
+        f_lo_half = f(x - h/2.0_dp, ctx)
+        f_hi_half = f(x + h/2.0_dp, ctx)
 
-        r3 = 0.5_dp * (fp1 - fm1)
-        r5 = (4.0_dp/3.0_dp) * (fph - fmh) - (1.0_dp/3.0_dp) * r3
+        ! Full-step (order-2) and Richardson-combined (order-4) numerators.
+        diff_wide = 0.5_dp * (f_hi - f_lo)
+        diff_rich = (4.0_dp/3.0_dp) * (f_hi_half - f_lo_half) &
+            - (1.0_dp/3.0_dp) * diff_wide
 
-        e3 = (abs(fp1) + abs(fm1)) * epsilon(1.0_dp)
-        e5 = 2.0_dp * (abs(fph) + abs(fmh)) * epsilon(1.0_dp) + e3
+        ! Rounding floor of each numerator: every sampled value contributes its
+        ! own relative roundoff weighted by its coefficient magnitude.
+        eps = epsilon(1.0_dp)
+        noise_wide = (abs(f_hi) + abs(f_lo)) * eps
+        noise_rich = 2.0_dp * (abs(f_hi_half) + abs(f_lo_half)) * eps &
+            + noise_wide
 
-        ! Finite-precision error in x+h = O(eps * x).
-        dy = max(abs(r3/h), abs(r5/h)) * (abs(x)/h) * epsilon(1.0_dp)
+        ! Roundoff of x +/- h leaks into the estimate as O(eps * x / h).
+        abscissa_noise = max(abs(diff_wide/h), abs(diff_rich/h)) &
+            * (abs(x)/h) * eps
 
-        result       = r5 / h
-        abserr_trunc = abs((r5 - r3) / h)
-        abserr_round = abs(e5 / h) + dy
-    end subroutine the central-difference rule
+        deriv     = diff_rich / h
+        err_trunc = abs((diff_rich - diff_wide) / h)
+        err_round = abs(noise_rich / h) + abscissa_noise
+    end subroutine central_diff_estimate
 
     ! Ascending index sort (replaces an index heapsort): perm is the
     ! permutation with x(perm) nondecreasing.  Heapsort on the index array so

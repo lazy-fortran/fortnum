@@ -1,8 +1,8 @@
 module fortnum_capi_rk8pd
-    ! C ABI for the re-entrant adaptive rk8pd integrator (fortnum_ode_rk8pd).
-    ! KiLCA's calc_back evolves its background ODE continuously across the radial
-    ! grid; this surface mirrors a loop over an accepted-step evolve advance so the
-    ! caller carries the adaptive step from one output abscissa to the next.
+    ! C ABI for the re-entrant rk8pd integrator (fortnum_ode_rk8pd). KiLCA's
+    ! calc_back evolves its background ODE continuously across the radial grid;
+    ! this surface lets the caller carry the adaptive step from one output
+    ! abscissa to the next.
     !
     ! The evolve state is opaque to C: create returns a void* handle holding the
     ! re-entrant rk8pd_state_t plus the C rhs callback and its void* context;
@@ -54,8 +54,8 @@ module fortnum_capi_rk8pd
 contains
 
     ! Allocate a re-entrant rk8pd evolve state for neq equations with first step
-    ! magnitude h0 and the error-per-step tolerances (eps_abs, eps_rel) used by
-    ! the y_new error-per-step control. rhs is the C callback, ctx its opaque user
+    ! magnitude h0 and the controller tolerances (eps_abs, eps_rel). rhs is the
+    ! C callback, ctx its opaque user
     ! pointer, forwarded unchanged to every evaluation. The starting abscissa is
     ! carried by the caller through fortnum_rk8pd_integrate_to. Returns an opaque
     ! handle (c_null_ptr on a domain error); the handle owns the state until
@@ -86,8 +86,8 @@ contains
     end function fortnum_rk8pd_create
 
     ! Advance the carried solution from *t to t1, continuing the adaptive
-    ! schedule (one an accepted-step evolve advance pass per call). On entry y[neq] holds
-    ! the state at *t; on return *t == t1 and y holds the solution there, with
+    ! schedule. On entry y[neq] holds the state at *t; on return *t == t1 and y
+    ! holds the solution there, with
     ! the carried step ready for the next abscissa. Returns the fortnum status
     ! code (0 == FORTNUM_OK).
     function fortnum_rk8pd_integrate_to(handle, t, t1, y) result(code) &
@@ -131,12 +131,11 @@ contains
         end subroutine rhs_bridge
     end function fortnum_rk8pd_integrate_to
 
-    ! Advance the carried solution by one accepted step toward t1, mirroring a
-    ! single an accepted-step evolve advance call: on return *t holds the accepted-step
-    ! endpoint (or t1 when that step was clipped to the interval end) and y the
-    ! solution there. A caller looping until *t == t1 and recording (*t, y) after
-    ! each call reproduces the adaptive evolve mesh point for point. Returns the
-    ! fortnum status code (0 == FORTNUM_OK).
+    ! Advance the carried solution by one accepted step toward t1: on return *t
+    ! holds the accepted-step endpoint (or t1 when that step was clipped to the
+    ! interval end) and y the solution there. A caller looping until *t == t1 and
+    ! recording (*t, y) after each call sees every accepted-step boundary.
+    ! Returns the fortnum status code (0 == FORTNUM_OK).
     function fortnum_rk8pd_step_to(handle, t, t1, y) result(code) &
             bind(c, name="fortnum_rk8pd_step_to")
         type(c_ptr),    value         :: handle
