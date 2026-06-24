@@ -79,6 +79,7 @@ contains
     ! tolerances and iteration cap mirror multiroot_hybrid's defaults.  After
     ! this the caller evaluates F (and J) at state%x and calls multiroot_step.
     pure subroutine multiroot_rc_init(state, n, x0, xtol, ftol, max_iter)
+        !$acc routine seq
         type(multiroot_rc_t), intent(out) :: state
         integer, intent(in) :: n
         real(dp), intent(in) :: x0(n)
