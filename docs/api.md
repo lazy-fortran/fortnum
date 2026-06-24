@@ -927,6 +927,83 @@ Ascending stable index permutation: `x(perm)` is sorted. `primal_only`.
 
 ---
 
+### fortnum_multiroot_rc
+
+Reverse-communication (RC) mirror of `multiroot_hybrid` for device offload. The
+caller drives the loop, evaluates F and the analytic Jacobian inline, and calls
+`multiroot_step` repeatedly; the stepper carries the same Powell dogleg + Armijo
+line search and the same stop tests as `multiroot_hybrid`, with no callback, no
+`ctx`, no allocation, and no I/O, so it is valid inside an `!$acc routine seq`.
+Additive: the host callback API is unchanged. The inner LU is single-source via
+`fortnum_linalg`'s `lu_solve`.
+
+Policy: `primal_only` (the iteration is not a differentiable map); the
+differentiable surface is the caller's residual plus the same implicit-rule
+sensitivity dx*/dp = -J_x^{-1} J_p at the converged root as `multiroot_hybrid`.
+
+Action tokens: `MULTIROOT_NEED_FJ` (evaluate F and J at `state%x` and call
+again), `MULTIROOT_DONE` (converged, root in `state%x`), `MULTIROOT_FAILED`
+(`state%fail_code` is `MULTIROOT_RC_SINGULAR` or `MULTIROOT_RC_MAXITER`).
+`MULTIROOT_RC_MAX_N` bounds the system size.
+
+```fortran
+type :: multiroot_rc_t
+
+pure subroutine multiroot_rc_init(state, n, x0, xtol, ftol, max_iter)
+    type(multiroot_rc_t), intent(out) :: state
+    integer,              intent(in)  :: n
+    real(dp),             intent(in)  :: x0(n)
+    real(dp), intent(in), optional    :: xtol, ftol
+    integer,  intent(in), optional    :: max_iter
+
+pure subroutine multiroot_step(state, f, jac, action)
+    type(multiroot_rc_t), intent(inout) :: state
+    real(dp),             intent(in)    :: f(state%n)
+    real(dp),             intent(in)    :: jac(state%n, state%n)
+    integer,              intent(out)   :: action
+```
+
+---
+
+## fortnum_linalg
+
+Small dense linear algebra for orbit hot paths and device kernels: closed-form
+2x2/3x3 determinant and inverse with a near-singular guard, and a fixed-MAX_N
+in-place dense LU solve with partial pivoting. Every routine is `pure` and
+carries `!$acc routine seq`, so one source serves the CPU integrators and the
+OpenACC device kernels. No automatic or allocatable arrays, no `error stop`, no
+I/O: singularity is a return status (`LINALG_OK == 0`, `LINALG_SINGULAR` for the
+closed-form inverses, the failing pivot column `k > 0` for `lu_solve`).
+`LINALG_MAX_N` is the documented upper bound for `lu_solve`.
+
+Policy: `primal_only` for `det2`/`det3`/`inv2`/`inv3`/`jacobian_ok3`;
+`lu_solve` realises x = A^{-1} b, whose linear-solve sensitivity belongs to the
+consumer that owns A and b, not to the in-place factorisation.
+
+```fortran
+pure function det2(a) result(d)            ! real(dp) :: a(2,2)
+pure function det3(a) result(d)            ! real(dp) :: a(3,3)
+pure function jacobian_ok3(a) result(ok)   ! logical; near-singular / NaN reject
+
+pure subroutine inv2(a, ainv, info)
+    real(dp), intent(in)  :: a(2, 2)
+    real(dp), intent(out) :: ainv(2, 2)
+    integer,  intent(out) :: info
+
+pure subroutine inv3(a, ainv, info)
+    real(dp), intent(in)  :: a(3, 3)
+    real(dp), intent(out) :: ainv(3, 3)
+    integer,  intent(out) :: info
+
+pure subroutine lu_solve(n, a, b, info)
+    integer,  intent(in)    :: n               ! 1 <= n <= LINALG_MAX_N
+    real(dp), intent(inout) :: a(n, n)         ! overwritten with LU factors
+    real(dp), intent(inout) :: b(n)            ! rhs in, solution out
+    integer,  intent(out)   :: info            ! 0 ok; k>0 singular pivot column
+```
+
+---
+
 ## fortnum_roots_complex
 
 Distinct zeros of an analytic function inside an axis-aligned complex rectangle,

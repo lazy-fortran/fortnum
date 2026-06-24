@@ -17,6 +17,7 @@ target_sources(fortnum PRIVATE
     interp/fortnum_bspline.f90
     interp/fortnum_interp.f90
     interp/fortnum_polynomial.f90
+    linalg/fortnum_linalg.f90
     ode/fortnum_ode.f90
     ode/fortnum_ode_cash_karp.f90
     ode/fortnum_ode_ddeabm.f90
@@ -31,6 +32,7 @@ target_sources(fortnum PRIVATE
     quadrature/fortnum_quadrature.f90
     rng/fortnum_rng.f90
     roots/fortnum_multiroot.f90
+    roots/fortnum_multiroot_rc.f90
     roots/fortnum_roots.f90
     roots/fortnum_roots_complex.f90
     special/fortnum_special.f90

@@ -208,6 +208,16 @@ add_executable(test_fortnum_roots_multiplicity roots/test_fortnum_roots_multipli
 target_link_libraries(test_fortnum_roots_multiplicity PRIVATE fortnum)
 add_test(NAME fortnum_roots_multiplicity COMMAND test_fortnum_roots_multiplicity)
 
+# reverse-communication device-style multiroot stepper (matches host hybrid)
+add_executable(test_fortnum_multiroot_rc roots/test_fortnum_multiroot_rc.f90)
+target_link_libraries(test_fortnum_multiroot_rc PRIVATE fortnum)
+add_test(NAME fortnum_multiroot_rc COMMAND test_fortnum_multiroot_rc)
+
+# --- small dense linalg (host + !$acc routine seq) ---
+add_executable(test_fortnum_linalg linalg/test_fortnum_linalg.f90)
+target_link_libraries(test_fortnum_linalg PRIVATE fortnum)
+add_test(NAME fortnum_linalg COMMAND test_fortnum_linalg)
+
 # --- M3 interp ---
 add_executable(test_fortnum_polynomial interp/test_fortnum_polynomial.f90)
 target_link_libraries(test_fortnum_polynomial PRIVATE fortnum)
