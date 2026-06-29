@@ -13,7 +13,7 @@ program test_special_ad
     ! bessel_in_jvp / bessel_kn_jvp take an explicit integer order n; harness-
     ! compatible wrappers close over n via internal procedures.
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
-    use fortnum_ad_test_utils, only: check_jvp_vs_fd, dot_product_identity, rel_err
+    use fortnum_ad_test_utils, only: check_jvp_vs_fd, dot_product_identity
     use fortnum_special_dawson, only: dawson, dawson_jvp, dawson_grad
     use fortnum_special_gamma,  only: gamma_lower, gamma_lower_jvp
     use fortnum_special_bessel, only: bessel_in, bessel_kn, &

@@ -4,7 +4,7 @@ program test_complex_step
     ! no subtractive cancellation, so agreement is to a few ulp even with a
     ! tiny step.
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
-    use fortnum_ad_test_utils, only: check_complex_step, complex_step_deriv
+    use fortnum_ad_test_utils, only: check_complex_step
     implicit none
 
     real(dp), parameter :: PI = 3.14159265358979323846_dp

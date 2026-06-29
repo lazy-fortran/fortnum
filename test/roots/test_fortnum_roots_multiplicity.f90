@@ -9,7 +9,7 @@ program test_fortnum_roots_multiplicity
     ! the modified step reaches ~3e-12 / ~1.9e-12. The bar here is 1e-11,
     ! well below the plain-step errors and far under the 1e-8 golden bar.
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
-    use fortnum_roots_complex, only: complex_region_roots, complex_root_fn_t
+    use fortnum_roots_complex, only: complex_region_roots
     use fortnum_status, only: fortnum_status_t, FORTNUM_OK
     implicit none
 

@@ -50,6 +50,7 @@ contains
         real(dp), intent(in)  :: v(:)
         real(dp), intent(out) :: jv(:)
         complex(dp) :: dz(NC)
+        associate (unused_x => x); end associate
         call pack_c(v, dz)
         call fft_c2c_jvp(dz, -1)
         call unpack_c(dz, jv)
@@ -60,6 +61,7 @@ contains
         real(dp), intent(in)  :: u(:)
         real(dp), intent(out) :: jtu(:)
         complex(dp) :: w(NC)
+        associate (unused_x => x); end associate
         call pack_c(u, w)
         call fft_c2c_vjp(w, -1)
         call unpack_c(w, jtu)
@@ -102,6 +104,7 @@ contains
         real(dp), intent(in)  :: v(:)
         real(dp), intent(out) :: jv(:)
         complex(dp) :: dz(NC)
+        associate (unused_x => x); end associate
         call pack_c(v, dz)
         call fft_c2c_jvp(dz, +1)
         call unpack_c(dz, jv)
@@ -112,6 +115,7 @@ contains
         real(dp), intent(in)  :: u(:)
         real(dp), intent(out) :: jtu(:)
         complex(dp) :: w(NC)
+        associate (unused_x => x); end associate
         call pack_c(u, w)
         call fft_c2c_vjp(w, +1)
         call unpack_c(w, jtu)
@@ -124,6 +128,7 @@ contains
         real(dp), intent(in)  :: v(:)
         real(dp), intent(out) :: jv(:)
         complex(dp) :: dz(NB)
+        associate (unused_x => x); end associate
         call pack_n(v, dz, NB)
         call fft_c2c_jvp(dz, -1)
         call unpack_n(dz, jv, NB)
@@ -134,6 +139,7 @@ contains
         real(dp), intent(in)  :: u(:)
         real(dp), intent(out) :: jtu(:)
         complex(dp) :: w(NB)
+        associate (unused_x => x); end associate
         call pack_n(u, w, NB)
         call fft_c2c_vjp(w, -1)
         call unpack_n(w, jtu, NB)
@@ -168,6 +174,7 @@ contains
         real(dp), intent(in)  :: v(:)
         real(dp), intent(out) :: jv(:)
         complex(dp) :: dc(NR/2 + 1)
+        associate (unused_x => x); end associate
         call fft_r2c_jvp(v, dc)
         call unpack_c(dc, jv)
     end subroutine r2c_jvp

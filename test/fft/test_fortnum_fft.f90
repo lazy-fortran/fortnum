@@ -176,6 +176,7 @@ contains
     subroutine fft_r2c_via_c2c(z, n)
         complex(dp), intent(inout) :: z(:)
         integer, intent(in) :: n
+        associate (unused_n => n); end associate
         call fft_c2c(z, -1)
     end subroutine fft_r2c_via_c2c
 

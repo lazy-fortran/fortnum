@@ -4,7 +4,7 @@ program test_finite_difference
     ! componentwise quadratic (J diagonal, linear in x). The reference kernels
     ! live here, not in fortnum, so the test validates the harness itself.
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
-    use fortnum_ad_test_utils, only: check_jvp_vs_fd, fd_jvp, fd_jvp_step, &
+    use fortnum_ad_test_utils, only: check_jvp_vs_fd, fd_jvp_step, &
         rel_err
     implicit none
 
@@ -72,6 +72,7 @@ contains
         real(dp), intent(in)  :: x(:)
         real(dp), intent(in)  :: v(:)
         real(dp), intent(out) :: jv(:)
+        associate (unused_x => x); end associate
         jv(1) = 2.0_dp*v(1) - v(2) + 3.0_dp*v(3)
         jv(2) = v(1) + 4.0_dp*v(2)
         jv(3) = -v(1) + 0.5_dp*v(2) + 2.0_dp*v(3)

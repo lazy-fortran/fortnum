@@ -11,7 +11,7 @@ program test_fortnum_complex_roots_oracle
     ! case is re-run with a reduced m_max to exercise the ICON=3 subdivision
     ! recursion, and one case re-runs the independent winding-number check.
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
-    use fortnum_roots_complex, only: complex_region_roots, complex_root_fn_t
+    use fortnum_roots_complex, only: complex_region_roots
     use fortnum_status, only: fortnum_status_t, FORTNUM_OK
     implicit none
 
