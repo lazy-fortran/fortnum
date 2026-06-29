@@ -57,6 +57,12 @@ add_test(NAME fortnum_special_complex_bessel_oracle
     COMMAND test_fortnum_special_complex_bessel_oracle
         ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/complex_bessel.csv)
 
+add_executable(test_fortnum_complex_bessel_halfplane special/test_fortnum_complex_bessel_halfplane.f90)
+target_link_libraries(test_fortnum_complex_bessel_halfplane PRIVATE fortnum)
+add_test(NAME fortnum_complex_bessel_halfplane
+    COMMAND test_fortnum_complex_bessel_halfplane
+        ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/complex_bessel_halfplane.csv)
+
 add_executable(test_fortnum_special_erf_cbind_oracle oracle/test_fortnum_special_erf_cbind_oracle.f90)
 target_link_libraries(test_fortnum_special_erf_cbind_oracle PRIVATE fortnum)
 add_test(NAME fortnum_special_erf_cbind_oracle
