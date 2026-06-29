@@ -1,7 +1,9 @@
 program test_bspline_ad
     ! Verify the derivative routines in fortnum_bspline:
-    !   bspline_eval_jvp -- d/dx [sum_i c_i B_i(x)] . vx   (x active)
-    !   bspline_eval_vjp -- (d/dx [sum_i c_i B_i(x)])^T . u (x active)
+    !   bspline_eval_jvp      -- d/dx [sum_i c_i B_i(x)] . vx   (x active)
+    !   bspline_eval_vjp      -- (d/dx [sum_i c_i B_i(x)])^T . u (x active)
+    !   bspline_eval_coef_jvp -- d/dc [sum_i c_i B_i(x)] . vc   (coef active)
+    !   bspline_eval_coef_vjp -- (d/dc [sum_i c_i B_i(x)])^T . u (coef active)
     !
     ! Checks:
     !   1. JVP vs central finite difference of the spline value (inside a span).
@@ -10,10 +12,13 @@ program test_bspline_ad
     !   3. Dot-product (adjoint) identity u.(Jv) = v.(J^T u).
     !   4. Span-boundary non-smoothness: crossing an interior knot changes the
     !      primal_only span index and is flagged via check_smoothness.
+    !   5. Coefficient products: coef JVP vs FD, coef VJP (u=1) equals the basis
+    !      vector B(x), and the coef adjoint identity.
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
     use fortnum_bspline, only: bspline_workspace_t, bspline_init, &
         bspline_set_knots, bspline_eval_deriv, bspline_eval_jvp, &
-        bspline_eval_vjp, bspline_span_index, bspline_eval_basis
+        bspline_eval_vjp, bspline_span_index, bspline_eval_basis, &
+        bspline_eval_coef_jvp, bspline_eval_coef_vjp
     use fortnum_status, only: fortnum_status_t, FORTNUM_OK
     use fortnum_ad_test_utils, only: rel_err, fd_jvp_step, &
         check_smoothness, ad_status_t, AD_SMOOTH, AD_NONSMOOTH
@@ -26,6 +31,7 @@ program test_bspline_ad
     call test_jvp_vs_analytic(nfail)
     call test_dotprod_identity(nfail)
     call test_span_boundary_nonsmooth(nfail)
+    call test_coef_products(nfail)
 
     if (nfail > 0) then
         write (error_unit, '(i0,a)') nfail, " test(s) failed"
@@ -163,6 +169,68 @@ contains
             nfail = nfail + 1
         end if
     end subroutine test_span_boundary_nonsmooth
+
+    ! (5) Coefficient-active products: s = sum_i c_i B_i(x) is linear in c with
+    ! Jacobian B(x). Checks coef JVP vs central FD, coef VJP (u=1) == basis
+    ! vector, and the adjoint identity u.(J vc) = vc.(J^T u).
+    subroutine test_coef_products(nfail)
+        integer, intent(inout) :: nfail
+        type(bspline_workspace_t) :: ws
+        type(fortnum_status_t)    :: s
+        real(dp), allocatable     :: coef(:), vc(:), jtu(:), basis(:), cp(:), cm(:)
+        real(dp) :: x, u, jv, fd, sp, sm, h, e
+        integer  :: i
+        logical  :: ok
+
+        call setup(ws, coef)
+        allocate (vc(ws%ncoef), jtu(ws%ncoef), basis(ws%ncoef))
+        allocate (cp(ws%ncoef), cm(ws%ncoef))
+        x = 0.53_dp
+        do i = 1, ws%ncoef
+            vc(i) = cos(0.7_dp*real(i, dp))
+        end do
+
+        call bspline_eval_coef_jvp(ws, x, vc, jv, s)
+        if (s%code /= FORTNUM_OK) then
+            write (error_unit, '(a)') "FAIL [coef_jvp] status"
+            nfail = nfail + 1
+            return
+        end if
+
+        h  = 1.0e-6_dp
+        cp = coef + h*vc
+        cm = coef - h*vc
+        call eval_spline(ws, x, cp, sp)
+        call eval_spline(ws, x, cm, sm)
+        fd = (sp - sm)/(2.0_dp*h)
+        if (rel_err(jv, fd) > 1.0e-7_dp) then
+            write (error_unit, '(a,es24.16,a,es24.16,a,es12.4)') &
+                "FAIL [coef_jvp_vs_fd] jv=", jv, " fd=", fd, &
+                " rel_err=", rel_err(jv, fd)
+            nfail = nfail + 1
+        end if
+
+        call bspline_eval_coef_vjp(ws, x, 1.0_dp, jtu, s)
+        call bspline_eval_basis(ws, x, basis, s)
+        ok = .true.
+        do i = 1, ws%ncoef
+            if (jtu(i) /= basis(i)) ok = .false.
+        end do
+        if (.not. ok) then
+            write (error_unit, '(a)') "FAIL [coef_vjp grad /= basis vector]"
+            nfail = nfail + 1
+        end if
+
+        u = 1.7_dp
+        call bspline_eval_coef_vjp(ws, x, u, jtu, s)
+        e = abs(u*jv - dot_product(vc, jtu))/max(abs(u*jv), 1.0_dp)
+        if (e > 1.0e-13_dp) then
+            write (error_unit, '(a,es24.16,a,es24.16,a,es12.4)') &
+                "FAIL [coef_dotprod] u.(Jv)=", u*jv, &
+                " v.(J^Tu)=", dot_product(vc, jtu), " rel_err=", e
+            nfail = nfail + 1
+        end if
+    end subroutine test_coef_products
 
     ! Spline value s(x) = sum_i c_i B_i(x).
     subroutine eval_spline(ws, x, coef, val)
