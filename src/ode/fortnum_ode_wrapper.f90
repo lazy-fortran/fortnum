@@ -71,7 +71,7 @@ contains
         allocate(y_out(neq, n))
         y_out(:, 1) = problem%y0
 
-        if (n == 1) return   ! single output point: nothing to integrate
+        if (n == 1) return ! single output point: nothing to integrate
 
         ! Direction must be consistent across all intervals.
         dir = sign(1.0_dp, t_eval(n) - t_eval(1))

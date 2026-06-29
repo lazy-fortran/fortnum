@@ -39,36 +39,36 @@ module fortnum_multiroot_rc
     integer, parameter, public :: MULTIROOT_RC_MAX_N = 8
 
     ! Action tokens returned by multiroot_step.
-    integer, parameter, public :: MULTIROOT_NEED_FJ = 0  ! evaluate F,J at state%x
-    integer, parameter, public :: MULTIROOT_DONE = 1     ! converged (root in x)
-    integer, parameter, public :: MULTIROOT_FAILED = 2   ! see state%fail_code
+    integer, parameter, public :: MULTIROOT_NEED_FJ = 0 ! evaluate F,J at state%x
+    integer, parameter, public :: MULTIROOT_DONE = 1 ! converged (root in x)
+    integer, parameter, public :: MULTIROOT_FAILED = 2 ! see state%fail_code
 
     ! fail_code values surfaced on MULTIROOT_FAILED (host maps to fortnum codes).
-    integer, parameter, public :: MULTIROOT_RC_SINGULAR = 1     ! singular Jacobian
-    integer, parameter, public :: MULTIROOT_RC_MAXITER = 2      ! max_iter reached
+    integer, parameter, public :: MULTIROOT_RC_SINGULAR = 1 ! singular Jacobian
+    integer, parameter, public :: MULTIROOT_RC_MAXITER = 2 ! max_iter reached
 
     ! Internal phase of the resumable stepper.
-    integer, parameter :: PHASE_START = 0       ! ingest F at x0
-    integer, parameter :: PHASE_NEWTON = 1      ! have F,J at current x: solve, step
-    integer, parameter :: PHASE_LINESEARCH = 2  ! have F,J at a trial point
-    integer, parameter :: PHASE_DONE = 3        ! terminal
+    integer, parameter :: PHASE_START = 0 ! ingest F at x0
+    integer, parameter :: PHASE_NEWTON = 1 ! have F,J at current x: solve, step
+    integer, parameter :: PHASE_LINESEARCH = 2 ! have F,J at a trial point
+    integer, parameter :: PHASE_DONE = 3 ! terminal
 
     ! Caller-owned RC state.  Flat: only scalars and fixed-size arrays, so it
     ! copies cleanly to the device and is valid as a routine-seq dummy.
     type, public :: multiroot_rc_t
-        integer :: n = 0                       ! system size (1..MULTIROOT_RC_MAX_N)
+        integer :: n = 0 ! system size (1..MULTIROOT_RC_MAX_N)
         integer :: phase = PHASE_START
-        integer :: iter = 0                    ! Newton steps taken
+        integer :: iter = 0 ! Newton steps taken
         integer :: max_iter = 1000
-        integer :: ls_count = 0                ! line-search halvings tried
+        integer :: ls_count = 0 ! line-search halvings tried
         integer :: fail_code = 0
         real(dp) :: xtol = 1.0e-10_dp
         real(dp) :: ftol = 1.0e-10_dp
-        real(dp) :: lambda = 1.0_dp            ! current line-search step length
-        real(dp) :: g0 = 0.0_dp                ! 1/2 |F|^2 at the accepted point
-        real(dp) :: x(MULTIROOT_RC_MAX_N) = 0.0_dp     ! current iterate / trial point
-        real(dp) :: x_base(MULTIROOT_RC_MAX_N) = 0.0_dp  ! accepted iterate
-        real(dp) :: dx(MULTIROOT_RC_MAX_N) = 0.0_dp    ! Newton direction
+        real(dp) :: lambda = 1.0_dp ! current line-search step length
+        real(dp) :: g0 = 0.0_dp ! 1/2 |F|^2 at the accepted point
+        real(dp) :: x(MULTIROOT_RC_MAX_N) = 0.0_dp ! current iterate / trial point
+        real(dp) :: x_base(MULTIROOT_RC_MAX_N) = 0.0_dp ! accepted iterate
+        real(dp) :: dx(MULTIROOT_RC_MAX_N) = 0.0_dp ! Newton direction
     end type multiroot_rc_t
 
     public :: multiroot_rc_init, multiroot_step

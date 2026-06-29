@@ -96,7 +96,7 @@ contains
         real(dp) :: x
         do j = 1, nprob
             call root_newton(fdf_sq, lo(j), 10.0_dp, 5.0_dp, x, st, &
-                             xtol=1.0e-12_dp)
+                xtol=1.0e-12_dp)
             ser_n(j) = x
         end do
     end subroutine serial_newton
@@ -107,7 +107,7 @@ contains
         !$omp parallel do default(shared) private(st, x, j) schedule(static)
         do j = 1, nprob
             call root_newton(fdf_sq, lo(j), 10.0_dp, 5.0_dp, x, st, &
-                             xtol=1.0e-12_dp)
+                xtol=1.0e-12_dp)
             par_n(j) = x
         end do
         !$omp end parallel do

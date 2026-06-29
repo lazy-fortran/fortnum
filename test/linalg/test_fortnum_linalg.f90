@@ -6,7 +6,7 @@ program test_fortnum_linalg
     ! check, and the singular-status contract for inv2/inv3/lu_solve.
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
     use fortnum_linalg, only: det2, det3, inv2, inv3, jacobian_ok3, lu_solve, &
-                              LINALG_OK, LINALG_SINGULAR, LINALG_MAX_N
+        LINALG_OK, LINALG_SINGULAR, LINALG_MAX_N
     implicit none
 
     integer :: nfail
@@ -65,11 +65,11 @@ contains
     subroutine test_det(nfail)
         integer, intent(inout) :: nfail
         real(dp) :: a2(2, 2), a3(3, 3)
-        a2 = reshape([2.0_dp, 1.0_dp, 3.0_dp, 4.0_dp], [2, 2])  ! det = 8-3 = 5
+        a2 = reshape([2.0_dp, 1.0_dp, 3.0_dp, 4.0_dp], [2, 2]) ! det = 8-3 = 5
         call check("det2", det2(a2), 5.0_dp, 1.0e-13_dp, nfail)
         ! Upper triangular: det = product of diagonal = 2*3*4 = 24.
         a3 = reshape([2.0_dp, 0.0_dp, 0.0_dp, 5.0_dp, 3.0_dp, 0.0_dp, &
-                      7.0_dp, 9.0_dp, 4.0_dp], [3, 3])
+            7.0_dp, 9.0_dp, 4.0_dp], [3, 3])
         call check("det3_triangular", det3(a3), 24.0_dp, 1.0e-12_dp, nfail)
     end subroutine test_det
 
@@ -89,7 +89,7 @@ contains
         real(dp) :: a(3, 3), ainv(3, 3), prod(3, 3)
         integer :: info
         a = reshape([4.0_dp, 1.0_dp, 0.5_dp, 0.2_dp, 3.0_dp, 1.1_dp, &
-                     0.7_dp, 0.3_dp, 5.0_dp], [3, 3])
+            0.7_dp, 0.3_dp, 5.0_dp], [3, 3])
         call inv3(a, ainv, info)
         call check_int("inv3_ok", info, LINALG_OK, nfail)
         prod = matmul(a, ainv)
@@ -101,7 +101,7 @@ contains
         real(dp) :: a(3, 3), bad(3, 3), nanm(3, 3)
         real(dp) :: nan
         a = reshape([4.0_dp, 1.0_dp, 0.5_dp, 0.2_dp, 3.0_dp, 1.1_dp, &
-                     0.7_dp, 0.3_dp, 5.0_dp], [3, 3])
+            0.7_dp, 0.3_dp, 5.0_dp], [3, 3])
         call check_true("jac_ok_true", jacobian_ok3(a), nfail)
         ! Row scaled by 1e-10 pushes |det| below the 1e-8*scale^3 floor.
         bad = a
@@ -165,7 +165,7 @@ contains
         real(dp) :: a(3, 3), acopy(3, 3), ainv(3, 3), b(3), bcopy(3), xinv(3)
         integer :: info
         a = reshape([4.0_dp, 1.0_dp, 0.5_dp, 0.2_dp, 3.0_dp, 1.1_dp, &
-                     0.7_dp, 0.3_dp, 5.0_dp], [3, 3])
+            0.7_dp, 0.3_dp, 5.0_dp], [3, 3])
         b = [1.0_dp, -2.0_dp, 0.5_dp]
         acopy = a
         bcopy = b
@@ -186,13 +186,13 @@ contains
         call check_int("inv2_sing", info, LINALG_SINGULAR, nfail)
         call check("inv2_sing_zero", maxval(abs(ainv2)), 0.0_dp, 0.0_dp, nfail)
         a3 = reshape([1.0_dp, 2.0_dp, 1.0_dp, 3.0_dp, 6.0_dp, 3.0_dp, &
-                      0.5_dp, 1.0_dp, 0.5_dp], [3, 3])  ! columns dependent
+            0.5_dp, 1.0_dp, 0.5_dp], [3, 3]) ! columns dependent
         call inv3(a3, ainv3, info)
         call check_int("inv3_sing", info, LINALG_SINGULAR, nfail)
         call check("inv3_sing_zero", maxval(abs(ainv3)), 0.0_dp, 0.0_dp, nfail)
         ! lu_solve on a singular A: column 2 = 2*column 1.
         as = reshape([1.0_dp, 0.0_dp, 2.0_dp, 2.0_dp, 0.0_dp, 4.0_dp, &
-                      0.0_dp, 1.0_dp, 1.0_dp], [3, 3])
+            0.0_dp, 1.0_dp, 1.0_dp], [3, 3])
         bs = [1.0_dp, 1.0_dp, 1.0_dp]
         call lu_solve(3, as, bs, info)
         call check_true("lu_sing", info > 0, nfail)

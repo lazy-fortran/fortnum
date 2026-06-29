@@ -32,7 +32,7 @@ contains
         x = [1.0_dp, -2.0_dp, 0.5_dp]
         v = [0.3_dp, 1.1_dp, -0.7_dp]
         if (.not. check_jvp_vs_fd("linear_map", f_linear, jvp_linear, &
-                x, v, tol=1.0e-7_dp)) nfail = nfail + 1
+            x, v, tol=1.0e-7_dp)) nfail = nfail + 1
     end subroutine test_linear_map
 
     ! Componentwise quadratic y_i = x_i^2. J = diag(2 x_i), so JVP = 2 x .* v.
@@ -42,7 +42,7 @@ contains
         x = [0.5_dp, 1.5_dp, -3.0_dp, 2.0_dp]
         v = [1.0_dp, -1.0_dp, 0.25_dp, 0.5_dp]
         if (.not. check_jvp_vs_fd("quadratic", f_quad, jvp_quad, &
-                x, v, tol=1.0e-6_dp)) nfail = nfail + 1
+            x, v, tol=1.0e-6_dp)) nfail = nfail + 1
     end subroutine test_quadratic
 
     ! The safeguarded step must stay strictly positive and finite even for a
@@ -73,22 +73,22 @@ contains
         real(dp), intent(in)  :: v(:)
         real(dp), intent(out) :: jv(:)
         associate (unused_x => x); end associate
-        jv(1) = 2.0_dp*v(1) - v(2) + 3.0_dp*v(3)
-        jv(2) = v(1) + 4.0_dp*v(2)
-        jv(3) = -v(1) + 0.5_dp*v(2) + 2.0_dp*v(3)
-    end subroutine jvp_linear
+            jv(1) = 2.0_dp*v(1) - v(2) + 3.0_dp*v(3)
+            jv(2) = v(1) + 4.0_dp*v(2)
+            jv(3) = -v(1) + 0.5_dp*v(2) + 2.0_dp*v(3)
+        end subroutine jvp_linear
 
-    subroutine f_quad(x, y)
-        real(dp), intent(in)  :: x(:)
-        real(dp), intent(out) :: y(:)
-        y = x*x
-    end subroutine f_quad
+        subroutine f_quad(x, y)
+            real(dp), intent(in)  :: x(:)
+            real(dp), intent(out) :: y(:)
+            y = x*x
+        end subroutine f_quad
 
-    subroutine jvp_quad(x, v, jv)
-        real(dp), intent(in)  :: x(:)
-        real(dp), intent(in)  :: v(:)
-        real(dp), intent(out) :: jv(:)
-        jv = 2.0_dp*x*v
-    end subroutine jvp_quad
+        subroutine jvp_quad(x, v, jv)
+            real(dp), intent(in)  :: x(:)
+            real(dp), intent(in)  :: v(:)
+            real(dp), intent(out) :: jv(:)
+            jv = 2.0_dp*x*v
+        end subroutine jvp_quad
 
-end program test_finite_difference
+    end program test_finite_difference

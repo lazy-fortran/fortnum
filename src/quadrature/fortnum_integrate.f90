@@ -23,8 +23,8 @@ module fortnum_integrate
     use, intrinsic :: iso_fortran_env, only: dp => real64
     use fortnum_integrate_gk, only: gk_apply
     use fortnum_status, only: fortnum_status_t, status_set, &
-                              FORTNUM_OK, FORTNUM_DOMAIN_ERROR, &
-                              FORTNUM_CONVERGENCE_ERROR
+        FORTNUM_OK, FORTNUM_DOMAIN_ERROR, &
+        FORTNUM_CONVERGENCE_ERROR
     implicit none
     private
 
@@ -106,7 +106,7 @@ contains
     ! QAG: globally adaptive, selectable GK rule, no extrapolation.
     ! ------------------------------------------------------------------
     subroutine integrate_qag(f, a, b, epsabs, epsrel, workspace, result, &
-                             status, key, limit, ctx)
+            status, key, limit, ctx)
         procedure(integrate_integrand_t)        :: f
         real(dp),                  intent(in)    :: a, b, epsabs, epsrel
         type(integrate_workspace_t), intent(inout) :: workspace
@@ -126,7 +126,7 @@ contains
         result%key          = key_loc
 
         if (.not. valid_finite(a, b, epsabs, epsrel, limit_loc, key_loc, &
-                               status)) then
+            status)) then
             result%status = status
             return
         end if
@@ -143,7 +143,7 @@ contains
             logical, intent(in) :: use_eps
             type(integrate_epstab_t) :: dummy_eps
             call driver(panel_f, a, b, epsabs, epsrel, key_loc, limit_loc, &
-                        use_eps, workspace, dummy_eps, result, status)
+                use_eps, workspace, dummy_eps, result, status)
         end subroutine qag_core
 
         function panel_f(x) result(fx)
@@ -158,7 +158,7 @@ contains
     ! QAGS: adaptive bisection plus Wynn epsilon extrapolation. Fixed GK21.
     ! ------------------------------------------------------------------
     subroutine integrate_qags(f, a, b, epsabs, epsrel, workspace, epstab, &
-                              result, status, limit, ctx)
+            result, status, limit, ctx)
         procedure(integrate_integrand_t)        :: f
         real(dp),                  intent(in)    :: a, b, epsabs, epsrel
         type(integrate_workspace_t), intent(inout) :: workspace
@@ -189,7 +189,7 @@ contains
 
         subroutine qags_core()
             call driver(panel_f, a, b, epsabs, epsrel, 21, limit_loc, &
-                        .true., workspace, epstab, result, status)
+                .true., workspace, epstab, result, status)
         end subroutine qags_core
 
         function panel_f(x) result(fx)
@@ -207,7 +207,7 @@ contains
     ! frozen-subdivision derivative): reported as FORTNUM_DOMAIN_ERROR.
     ! ------------------------------------------------------------------
     subroutine integrate_qagp(f, a, b, points, epsabs, epsrel, workspace, &
-                              epstab, result, status, limit, ctx)
+            epstab, result, status, limit, ctx)
         procedure(integrate_integrand_t)        :: f
         real(dp),                  intent(in)    :: a, b, epsabs, epsrel
         real(dp),                  intent(in)    :: points(:)
@@ -280,7 +280,7 @@ contains
 
         if (limit_loc < npan) then
             call status_set(status, FORTNUM_DOMAIN_ERROR, &
-                            "integrate: limit below the seeded panel count")
+                "integrate: limit below the seeded panel count")
             result%status = status
             return
         end if
@@ -290,7 +290,7 @@ contains
         do i = 1, npan
             workspace%a(i) = bnds(i)
             workspace%b(i) = bnds(i + 1)
-            workspace%ndin(i) = 1   ! break-seeded panel (ADR section 3.1)
+            workspace%ndin(i) = 1 ! break-seeded panel (ADR section 3.1)
         end do
         call qagp_core()
         result%status = status
@@ -299,7 +299,7 @@ contains
 
         subroutine qagp_core()
             call driver_seeded(panel_f, 21, epsabs, epsrel, limit_loc, npan, &
-                               workspace, epstab, result, status)
+                workspace, epstab, result, status)
         end subroutine qagp_core
 
         function panel_f(x) result(fx)
@@ -320,7 +320,7 @@ contains
     !   inf = +2: (-inf, +inf), split at bound, both transforms, summed.
     ! ------------------------------------------------------------------
     subroutine integrate_qagiu(f, bound, inf, epsabs, epsrel, workspace, &
-                               epstab, result, status, limit, ctx)
+            epstab, result, status, limit, ctx)
         procedure(integrate_integrand_t)        :: f
         real(dp),                  intent(in)    :: bound, epsabs, epsrel
         integer,                   intent(in)    :: inf
@@ -342,18 +342,18 @@ contains
         ! validator on it. inf and a non-finite bound are the extra rejects.
         if (inf /= -1 .and. inf /= 1 .and. inf /= 2) then
             call status_set(status, FORTNUM_DOMAIN_ERROR, &
-                            "integrate: inf must be one of -1, +1, +2")
+                "integrate: inf must be one of -1, +1, +2")
             result%status = status
             return
         end if
         if (.not. (abs(bound) <= oflow)) then
             call status_set(status, FORTNUM_DOMAIN_ERROR, &
-                            "integrate: bound must be finite")
+                "integrate: bound must be finite")
             result%status = status
             return
         end if
         if (.not. valid_finite(0.0_dp, 1.0_dp, epsabs, epsrel, limit_loc, 21, &
-                               status)) then
+            status)) then
             result%status = status
             return
         end if
@@ -380,18 +380,18 @@ contains
                 call reset_epstab(eps2)
                 sgn = 1
                 call driver(panel_f, 0.0_dp, 1.0_dp, epsabs, epsrel, 21, &
-                            limit_loc, .true., workspace, epstab, result, &
-                            status)
+                    limit_loc, .true., workspace, epstab, result, &
+                    status)
                 sgn = -1
                 call driver(panel_f, 0.0_dp, 1.0_dp, epsabs, epsrel, 21, &
-                            limit_loc, .true., ws2, eps2, res2, status)
+                    limit_loc, .true., ws2, eps2, res2, status)
                 result%value  = result%value + res2%value
                 result%abserr = result%abserr + res2%abserr
                 result%neval  = result%neval + res2%neval
             else
                 call driver(panel_f, 0.0_dp, 1.0_dp, epsabs, epsrel, 21, &
-                            limit_loc, .true., workspace, epstab, result, &
-                            status)
+                    limit_loc, .true., workspace, epstab, result, &
+                    status)
             end if
         end subroutine qagiu_core
 
@@ -434,7 +434,7 @@ contains
         if (present(epsrel)) epsrel_loc = epsrel
 
         call integrate_qag(f, a, b, epsabs_loc, epsrel_loc, workspace, result, &
-                           status, key=key, ctx=ctx)
+            status, key=key, ctx=ctx)
         value = result%value
     end subroutine integrate
 
@@ -629,12 +629,12 @@ contains
         end if
         if (result%nsub < 1) then
             call status_set(status, FORTNUM_DOMAIN_ERROR, &
-                            "integrate_jvp: empty frozen subdivision trace")
+                "integrate_jvp: empty frozen subdivision trace")
             return
         end if
         if (.not. allocated(result%sub_a)) then
             call status_set(status, FORTNUM_DOMAIN_ERROR, &
-                            "integrate_jvp: empty frozen subdivision trace")
+                "integrate_jvp: empty frozen subdivision trace")
             return
         end if
 
@@ -643,8 +643,8 @@ contains
 
         do i = 1, result%nsub
             call gk_apply(tangent, key_loc, result%sub_a(i), &
-                          result%sub_b(i), panel_r, panel_e, &
-                          panel_resabs, panel_resasc)
+                result%sub_b(i), panel_r, panel_e, &
+                panel_resabs, panel_resasc)
             di_dp = di_dp + panel_r
         end do
     end subroutine jvp_walk_trace
@@ -654,7 +654,7 @@ contains
     ! bridged by the caller's host-associated wrapper; never a module pointer.
     ! ==================================================================
     subroutine driver(panel_f, a, b, epsabs, epsrel, key, limit, use_eps, &
-                      ws, epstab, result, status)
+            ws, epstab, result, status)
         procedure(panel_kernel_t)               :: panel_f
         real(dp),                  intent(in)    :: a, b, epsabs, epsrel
         integer,                   intent(in)    :: key, limit
@@ -691,13 +691,13 @@ contains
         ! deceptively small estimate on an oscillatory smooth panel.
         if (e0 <= 100.0_dp*epmach*resabs0 .and. e0 > errbnd) then
             call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
-                            "integrate: roundoff dominates the first panel")
+                "integrate: roundoff dominates the first panel")
         else if (e0 <= errbnd .and. e0 /= resasc0) then
             call finalize(ws, result, area, errsum, .false., 0.0_dp)
             return
         else if (limit == 1) then
             call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
-                            "integrate: limit reached before tolerance")
+                "integrate: limit reached before tolerance")
         end if
         if (status%code /= FORTNUM_OK) then
             call finalize(ws, result, area, errsum, .false., 0.0_dp)
@@ -705,7 +705,7 @@ contains
         end if
 
         call adapt_loop(panel_f, key, epsabs, epsrel, limit, use_eps, &
-                        neval_panel, area, errsum, ws, epstab, result, status)
+            neval_panel, area, errsum, ws, epstab, result, status)
     end subroutine driver
 
     ! ==================================================================
@@ -716,7 +716,7 @@ contains
     ! always true here (QAGP rides the QAGS extrapolation machinery).
     ! ==================================================================
     subroutine driver_seeded(panel_f, key, epsabs, epsrel, limit, npan, &
-                             ws, epstab, result, status)
+            ws, epstab, result, status)
         procedure(panel_kernel_t)               :: panel_f
         integer,                   intent(in)    :: key, limit, npan
         real(dp),                  intent(in)    :: epsabs, epsrel
@@ -735,7 +735,7 @@ contains
         raw_esum = 0.0_dp
         do i = 1, npan
             call gk_apply(panel_f, key, ws%a(i), ws%b(i), r0, e0, &
-                          resabs0, resasc0)
+                resabs0, resasc0)
             ws%r(i) = r0
             ws%e(i) = e0
             ws%level(i) = 0
@@ -765,13 +765,13 @@ contains
             return
         else if (limit <= npan) then
             call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
-                            "integrate: limit reached before tolerance")
+                "integrate: limit reached before tolerance")
             call finalize(ws, result, area, errsum, .false., 0.0_dp)
             return
         end if
 
         call adapt_loop(panel_f, key, epsabs, epsrel, limit, .true., &
-                        neval_panel, area, errsum, ws, epstab, result, status)
+            neval_panel, area, errsum, ws, epstab, result, status)
     end subroutine driver_seeded
 
     ! ==================================================================
@@ -791,7 +791,7 @@ contains
     ! geometric for the epsilon table; a length gate stalls on a one-sided
     ! descent. The per-panel GK rule (gk_apply) and frozen-trace are unchanged.
     subroutine adapt_loop(panel_f, key, epsabs, epsrel, limit, use_eps, &
-                          neval_panel, area, errsum, ws, epstab, result, status)
+            neval_panel, area, errsum, ws, epstab, result, status)
         procedure(panel_kernel_t)               :: panel_f
         integer,                   intent(in)    :: key, limit, neval_panel
         real(dp),                  intent(in)    :: epsabs, epsrel
@@ -888,7 +888,7 @@ contains
             ! panel where GK could not separate roundoff, skipped per QUADPACK.
             if (resasc1 /= e1 .and. resasc2 /= e2) then
                 if (.not. (abs(ws%r(maxerr) - r12) > 1.0e-5_dp*abs(r12) &
-                           .or. e12 < 0.99_dp*errmax)) then
+                    .or. e12 < 0.99_dp*errmax)) then
                     if (extrap) then
                         iroff2 = iroff2 + 1
                     else
@@ -1064,22 +1064,22 @@ contains
         valid_finite = .false.
         if (b <= a) then
             call status_set(status, FORTNUM_DOMAIN_ERROR, &
-                            "integrate: require a < b")
+                "integrate: require a < b")
             return
         end if
         if (limit < 1) then
             call status_set(status, FORTNUM_DOMAIN_ERROR, &
-                            "integrate: limit must be >= 1")
+                "integrate: limit must be >= 1")
             return
         end if
         if (key /= 15 .and. key /= 21 .and. key /= 31 .and. key /= 61) then
             call status_set(status, FORTNUM_DOMAIN_ERROR, &
-                            "integrate: key must be one of 15, 21, 31, 61")
+                "integrate: key must be one of 15, 21, 31, 61")
             return
         end if
         if (epsabs <= 0.0_dp .and. epsrel < eps_floor) then
             call status_set(status, FORTNUM_DOMAIN_ERROR, &
-                            "integrate: epsabs/epsrel below the kernel floor")
+                "integrate: epsabs/epsrel below the kernel floor")
             return
         end if
         call status_set(status, FORTNUM_OK, "")
@@ -1226,26 +1226,26 @@ contains
                 call status_set(status, FORTNUM_OK, "")
             else
                 call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
-                                "integrate: tolerance not reached")
+                    "integrate: tolerance not reached")
             end if
         case (1)
             call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
-                            "integrate: max subdivisions (limit) reached")
+                "integrate: max subdivisions (limit) reached")
         case (2)
             call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
-                            "integrate: roundoff prevents reaching tolerance")
+                "integrate: roundoff prevents reaching tolerance")
         case (3)
             ! Non-smooth: subdivision collapsed; the frozen-subdivision
             ! derivative is not well-posed (ADR section 4.2).
             call status_set(status, FORTNUM_DOMAIN_ERROR, &
-                            "integrate: bad integrand behaviour, "// &
-                            "non-integrable on this interval")
+                "integrate: bad integrand behaviour, "// &
+                "non-integrable on this interval")
         case (4)
             call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
-                            "integrate: slow convergence, extrapolation stalled")
+                "integrate: slow convergence, extrapolation stalled")
         case default
             call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
-                            "integrate: convergence failure")
+                "integrate: convergence failure")
         end select
     end subroutine set_driver_status
 
@@ -1259,177 +1259,177 @@ contains
         integer :: i, j, n
         integer, allocatable :: ord(:)
         associate (unused_area => area); end associate
-        n = ws%last
-        call ensure_trace(result, n)
-        ! Sort indices by left endpoint for a left-to-right trace.
-        allocate (ord(n))
-        do i = 1, n
-            ord(i) = i
-        end do
-        call sort_by_left(ws, ord, n)
-        do i = 1, n
-            j = ord(i)
-            result%sub_a(i) = ws%a(j)
-            result%sub_b(i) = ws%b(j)
-            result%sub_r(i) = ws%r(j)
-            result%sub_e(i) = ws%e(j)
-        end do
-        result%nsub   = n
-        result%abserr = errsum
-        result%extrapolated = extrapolated
-        if (extrapolated) then
-            result%value = eps_value
-        else
-            ! Sum fresh to avoid the running-update cancellation.
-            result%value = sum(result%sub_r(1:n))
-        end if
-    end subroutine finalize
+            n = ws%last
+            call ensure_trace(result, n)
+            ! Sort indices by left endpoint for a left-to-right trace.
+            allocate (ord(n))
+            do i = 1, n
+                ord(i) = i
+            end do
+            call sort_by_left(ws, ord, n)
+            do i = 1, n
+                j = ord(i)
+                result%sub_a(i) = ws%a(j)
+                result%sub_b(i) = ws%b(j)
+                result%sub_r(i) = ws%r(j)
+                result%sub_e(i) = ws%e(j)
+            end do
+            result%nsub   = n
+            result%abserr = errsum
+            result%extrapolated = extrapolated
+            if (extrapolated) then
+                result%value = eps_value
+            else
+                ! Sum fresh to avoid the running-update cancellation.
+                result%value = sum(result%sub_r(1:n))
+            end if
+        end subroutine finalize
 
-    subroutine sort_by_left(ws, ord, n)
-        type(integrate_workspace_t), intent(in)    :: ws
-        integer,                     intent(inout) :: ord(:)
-        integer,                     intent(in)    :: n
-        integer  :: i, j, k
-        real(dp) :: amin
-        do i = 1, n - 1
-            k = i
-            amin = ws%a(ord(i))
-            do j = i + 1, n
-                if (ws%a(ord(j)) < amin) then
-                    amin = ws%a(ord(j))
-                    k = j
+        subroutine sort_by_left(ws, ord, n)
+            type(integrate_workspace_t), intent(in)    :: ws
+            integer,                     intent(inout) :: ord(:)
+            integer,                     intent(in)    :: n
+            integer  :: i, j, k
+            real(dp) :: amin
+            do i = 1, n - 1
+                k = i
+                amin = ws%a(ord(i))
+                do j = i + 1, n
+                    if (ws%a(ord(j)) < amin) then
+                        amin = ws%a(ord(j))
+                        k = j
+                    end if
+                end do
+                if (k /= i) then
+                    j = ord(i)
+                    ord(i) = ord(k)
+                    ord(k) = j
                 end if
             end do
-            if (k /= i) then
-                j = ord(i)
-                ord(i) = ord(k)
-                ord(k) = j
+        end subroutine sort_by_left
+
+        subroutine ensure_trace(result, n)
+            type(integrate_result_t), intent(inout) :: result
+            integer,                  intent(in)    :: n
+            logical :: grow
+            grow = .not. allocated(result%sub_a)
+            if (.not. grow) grow = (size(result%sub_a) < n)
+            if (grow) then
+                if (allocated(result%sub_a)) deallocate (result%sub_a)
+                if (allocated(result%sub_b)) deallocate (result%sub_b)
+                if (allocated(result%sub_r)) deallocate (result%sub_r)
+                if (allocated(result%sub_e)) deallocate (result%sub_e)
+                allocate (result%sub_a(n), result%sub_b(n))
+                allocate (result%sub_r(n), result%sub_e(n))
             end if
-        end do
-    end subroutine sort_by_left
+        end subroutine ensure_trace
 
-    subroutine ensure_trace(result, n)
-        type(integrate_result_t), intent(inout) :: result
-        integer,                  intent(in)    :: n
-        logical :: grow
-        grow = .not. allocated(result%sub_a)
-        if (.not. grow) grow = (size(result%sub_a) < n)
-        if (grow) then
-            if (allocated(result%sub_a)) deallocate (result%sub_a)
-            if (allocated(result%sub_b)) deallocate (result%sub_b)
-            if (allocated(result%sub_r)) deallocate (result%sub_r)
-            if (allocated(result%sub_e)) deallocate (result%sub_e)
-            allocate (result%sub_a(n), result%sub_b(n))
-            allocate (result%sub_r(n), result%sub_e(n))
-        end if
-    end subroutine ensure_trace
+        ! ---- Wynn epsilon extrapolation: faithful port of QUADPACK dqelg. ----
+        !
+        ! epstab%n counts the elements in column one of the epsilon table; the
+        ! caller appends the new partial sum at epstab%tab(n) before calling. This
+        ! updates epstab%tab in place (the two lower diagonals, numbered from the
+        ! right corner), advances nres/res3la, and returns the best approximation
+        ! reseps and its error estimate abseps. epstab%result/%abserr cache the best
+        ! reseps/abseps seen, which the driver compares against on each call.
+        subroutine qelg(epstab, reseps, abseps)
+            type(integrate_epstab_t), intent(inout) :: epstab
+            real(dp),                 intent(out)   :: reseps, abseps
+            real(dp) :: delta1, delta2, delta3, epsinf, error, err1, err2, err3
+            real(dp) :: e0, e1, e2, e3, e1abs, res, ss, tol1, tol2, tol3
+            integer  :: i, ib, ib2, ie, indx, k1, k2, k3, limexp, n, newelm, num
 
-    ! ---- Wynn epsilon extrapolation: faithful port of QUADPACK dqelg. ----
-    !
-    ! epstab%n counts the elements in column one of the epsilon table; the
-    ! caller appends the new partial sum at epstab%tab(n) before calling. This
-    ! updates epstab%tab in place (the two lower diagonals, numbered from the
-    ! right corner), advances nres/res3la, and returns the best approximation
-    ! reseps and its error estimate abseps. epstab%result/%abserr cache the best
-    ! reseps/abseps seen, which the driver compares against on each call.
-    subroutine qelg(epstab, reseps, abseps)
-        type(integrate_epstab_t), intent(inout) :: epstab
-        real(dp),                 intent(out)   :: reseps, abseps
-        real(dp) :: delta1, delta2, delta3, epsinf, error, err1, err2, err3
-        real(dp) :: e0, e1, e2, e3, e1abs, res, ss, tol1, tol2, tol3
-        integer  :: i, ib, ib2, ie, indx, k1, k2, k3, limexp, n, newelm, num
-
-        limexp = 50
-        epstab%nres = epstab%nres + 1
-        abseps = oflow
-        reseps = epstab%tab(epstab%n)
-        n = epstab%n
-        if (n < 3) then
-            abseps = max(abseps, 5.0_dp*epmach*abs(reseps))
-            return
-        end if
-        epstab%tab(n + 2) = epstab%tab(n)
-        newelm = (n - 1)/2
-        epstab%tab(n) = oflow
-        num = n
-        k1 = n
-        do i = 1, newelm
-            k2 = k1 - 1
-            k3 = k1 - 2
-            res = epstab%tab(k1 + 2)
-            e0 = epstab%tab(k3)
-            e1 = epstab%tab(k2)
-            e2 = res
-            e1abs = abs(e1)
-            delta2 = e2 - e1
-            err2 = abs(delta2)
-            tol2 = max(abs(e2), e1abs)*epmach
-            delta3 = e1 - e0
-            err3 = abs(delta3)
-            tol3 = max(e1abs, abs(e0))*epmach
-            if (err2 <= tol2 .and. err3 <= tol3) then
-                ! e0, e1, e2 equal to machine accuracy: convergence assumed.
-                reseps = res
-                abseps = err2 + err3
+            limexp = 50
+            epstab%nres = epstab%nres + 1
+            abseps = oflow
+            reseps = epstab%tab(epstab%n)
+            n = epstab%n
+            if (n < 3) then
                 abseps = max(abseps, 5.0_dp*epmach*abs(reseps))
                 return
             end if
-            e3 = epstab%tab(k1)
-            epstab%tab(k1) = e1
-            delta1 = e1 - e3
-            err1 = abs(delta1)
-            tol1 = max(e1abs, abs(e3))*epmach
-            if (err1 <= tol1 .or. err2 <= tol2 .or. err3 <= tol3) then
-                n = i + i - 1
-                exit
-            end if
-            ss = 1.0_dp/delta1 + 1.0_dp/delta2 - 1.0_dp/delta3
-            epsinf = abs(ss*e1)
-            if (epsinf <= 1.0e-4_dp) then
-                n = i + i - 1
-                exit
-            end if
-            res = e1 + 1.0_dp/ss
-            epstab%tab(k1) = res
-            k1 = k1 - 2
-            error = err2 + abs(res - e2) + err3
-            if (error <= abseps) then
-                abseps = error
-                reseps = res
-            end if
-        end do
-
-        ! Shift the table (dqelg lines 155-169).
-        if (n == limexp) n = 2*(limexp/2) - 1
-        ib = 1
-        if ((num/2)*2 == num) ib = 2
-        ie = newelm + 1
-        do i = 1, ie
-            ib2 = ib + 2
-            epstab%tab(ib) = epstab%tab(ib2)
-            ib = ib2
-        end do
-        if (num /= n) then
-            indx = num - n + 1
-            do i = 1, n
-                epstab%tab(i) = epstab%tab(indx)
-                indx = indx + 1
+            epstab%tab(n + 2) = epstab%tab(n)
+            newelm = (n - 1)/2
+            epstab%tab(n) = oflow
+            num = n
+            k1 = n
+            do i = 1, newelm
+                k2 = k1 - 1
+                k3 = k1 - 2
+                res = epstab%tab(k1 + 2)
+                e0 = epstab%tab(k3)
+                e1 = epstab%tab(k2)
+                e2 = res
+                e1abs = abs(e1)
+                delta2 = e2 - e1
+                err2 = abs(delta2)
+                tol2 = max(abs(e2), e1abs)*epmach
+                delta3 = e1 - e0
+                err3 = abs(delta3)
+                tol3 = max(e1abs, abs(e0))*epmach
+                if (err2 <= tol2 .and. err3 <= tol3) then
+                    ! e0, e1, e2 equal to machine accuracy: convergence assumed.
+                    reseps = res
+                    abseps = err2 + err3
+                    abseps = max(abseps, 5.0_dp*epmach*abs(reseps))
+                    return
+                end if
+                e3 = epstab%tab(k1)
+                epstab%tab(k1) = e1
+                delta1 = e1 - e3
+                err1 = abs(delta1)
+                tol1 = max(e1abs, abs(e3))*epmach
+                if (err1 <= tol1 .or. err2 <= tol2 .or. err3 <= tol3) then
+                    n = i + i - 1
+                    exit
+                end if
+                ss = 1.0_dp/delta1 + 1.0_dp/delta2 - 1.0_dp/delta3
+                epsinf = abs(ss*e1)
+                if (epsinf <= 1.0e-4_dp) then
+                    n = i + i - 1
+                    exit
+                end if
+                res = e1 + 1.0_dp/ss
+                epstab%tab(k1) = res
+                k1 = k1 - 2
+                error = err2 + abs(res - e2) + err3
+                if (error <= abseps) then
+                    abseps = error
+                    reseps = res
+                end if
             end do
-        end if
-        epstab%n = n
 
-        if (epstab%nres < 4) then
-            epstab%res3la(epstab%nres) = reseps
-            abseps = oflow
-        else
-            abseps = abs(reseps - epstab%res3la(3)) &
-                     + abs(reseps - epstab%res3la(2)) &
-                     + abs(reseps - epstab%res3la(1))
-            epstab%res3la(1) = epstab%res3la(2)
-            epstab%res3la(2) = epstab%res3la(3)
-            epstab%res3la(3) = reseps
-        end if
-        abseps = max(abseps, 5.0_dp*epmach*abs(reseps))
-    end subroutine qelg
+            ! Shift the table (dqelg lines 155-169).
+            if (n == limexp) n = 2*(limexp/2) - 1
+            ib = 1
+            if ((num/2)*2 == num) ib = 2
+            ie = newelm + 1
+            do i = 1, ie
+                ib2 = ib + 2
+                epstab%tab(ib) = epstab%tab(ib2)
+                ib = ib2
+            end do
+            if (num /= n) then
+                indx = num - n + 1
+                do i = 1, n
+                    epstab%tab(i) = epstab%tab(indx)
+                    indx = indx + 1
+                end do
+            end if
+            epstab%n = n
 
-end module fortnum_integrate
+            if (epstab%nres < 4) then
+                epstab%res3la(epstab%nres) = reseps
+                abseps = oflow
+            else
+                abseps = abs(reseps - epstab%res3la(3)) &
+                    + abs(reseps - epstab%res3la(2)) &
+                    + abs(reseps - epstab%res3la(1))
+                epstab%res3la(1) = epstab%res3la(2)
+                epstab%res3la(2) = epstab%res3la(3)
+                epstab%res3la(3) = reseps
+            end if
+            abseps = max(abseps, 5.0_dp*epmach*abs(reseps))
+        end subroutine qelg
+
+    end module fortnum_integrate

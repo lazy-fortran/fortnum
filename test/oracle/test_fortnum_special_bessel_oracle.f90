@@ -33,7 +33,7 @@ program test_fortnum_special_bessel_oracle
     end if
 
     open (newunit=unit, file=csv_path(1:arglen), status="old", &
-          action="read", iostat=ios)
+        action="read", iostat=ios)
     if (ios /= 0) then
         write (error_unit, "(a)") &
             "cannot open "//csv_path(1:arglen)
@@ -60,9 +60,9 @@ program test_fortnum_special_bessel_oracle
         end if
 
         select case (func)
-        case (0)    ! I_n
+        case (0) ! I_n
             got = bessel_in(n, x)
-        case (1)    ! K_n
+        case (1) ! K_n
             got = bessel_kn(n, x)
         case default
             write (error_unit, "(a,i0,a,i0)") &

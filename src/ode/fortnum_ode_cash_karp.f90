@@ -77,7 +77,7 @@ contains
     ! one RHS call across a rejected-then-retried step. Cash-Karp is not FSAL,
     ! so the integrator only sets have_k1 when k1 already holds f(t, y).
     subroutine cash_karp_step(rhs, t, y, h, have_k1, &
-                              k1, k2, k3, k4, k5, k6, ytmp, y5, yerr, nfev, ctx)
+            k1, k2, k3, k4, k5, k6, ytmp, y5, yerr, nfev, ctx)
         interface
             subroutine rhs(t, y, dydt, ctx)
                 import :: dp
@@ -126,7 +126,7 @@ contains
         ! yerr = y5 - y4, formed from the weight differences to avoid cancelling
         ! the shared y term.
         yerr = h * ((b5_1 - b4_1) * k1 + (b5_3 - b4_3) * k3 &
-                    + (b5_4 - b4_4) * k4 - b4_5 * k5 + (b5_6 - b4_6) * k6)
+            + (b5_4 - b4_4) * k4 - b4_5 * k5 + (b5_6 - b4_6) * k6)
     end subroutine cash_karp_step
 
 end module fortnum_ode_cash_karp

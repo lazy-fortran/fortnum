@@ -21,7 +21,7 @@ program test_concurrency_rng
     use, intrinsic :: iso_fortran_env, only: dp => real64, int64, error_unit
     use fortnum_status, only: fortnum_status_t, status_ok
     use fortnum_rng, only: rng_t, rng_seed, rng_split, rng_next_u64, &
-                           rng_uniform, rng_normal
+        rng_uniform, rng_normal
     implicit none
 
     integer,        parameter :: nstream = 256

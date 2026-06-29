@@ -61,8 +61,8 @@ contains
         real(dp),               intent(out) :: abserr
         type(fortnum_status_t), intent(out) :: status
 
-        real(dp) :: n0(n), d0(n)       ! k=0 column: s_m/omega_m, 1/omega_m
-        real(dp) :: qnum(n), qden(n)   ! working N_k, D_k columns
+        real(dp) :: n0(n), d0(n) ! k=0 column: s_m/omega_m, 1/omega_m
+        real(dp) :: qnum(n), qden(n) ! working N_k, D_k columns
         real(dp) :: psum, omega, ratio, fact, val, prev, est, best, best_err
         integer  :: i, k, j, terms_used
 

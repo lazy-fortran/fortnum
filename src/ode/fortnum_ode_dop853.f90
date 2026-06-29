@@ -151,8 +151,8 @@ contains
     ! is not FSAL, so the integrator only sets it when k1 already holds
     ! f(t, y)).
     subroutine dop853_step(rhs, t, y, h, have_k1, k1, k2, k3, k4, k5, k6, &
-                           k7, k8, k9, k10, k11, k12, ytmp, y8, err5, err3, &
-                           nfev, ctx)
+            k7, k8, k9, k10, k11, k12, ytmp, y8, err5, err3, &
+            nfev, ctx)
         procedure(ode_rhs_t)            :: rhs
         real(dp), intent(in)            :: t
         real(dp), intent(in)            :: y(:)
@@ -192,35 +192,35 @@ contains
         call rhs(t + C7 * h, ytmp, k7, ctx)
 
         ytmp = y + h * (A8_1 * k1 + A8_4 * k4 + A8_5 * k5 + A8_6 * k6 &
-                        + A8_7 * k7)
+            + A8_7 * k7)
         call rhs(t + C8 * h, ytmp, k8, ctx)
 
         ytmp = y + h * (A9_1 * k1 + A9_4 * k4 + A9_5 * k5 + A9_6 * k6 &
-                        + A9_7 * k7 + A9_8 * k8)
+            + A9_7 * k7 + A9_8 * k8)
         call rhs(t + C9 * h, ytmp, k9, ctx)
 
         ytmp = y + h * (A10_1 * k1 + A10_4 * k4 + A10_5 * k5 + A10_6 * k6 &
-                        + A10_7 * k7 + A10_8 * k8 + A10_9 * k9)
+            + A10_7 * k7 + A10_8 * k8 + A10_9 * k9)
         call rhs(t + C10 * h, ytmp, k10, ctx)
 
         ytmp = y + h * (A11_1 * k1 + A11_4 * k4 + A11_5 * k5 + A11_6 * k6 &
-                        + A11_7 * k7 + A11_8 * k8 + A11_9 * k9 + A11_10 * k10)
+            + A11_7 * k7 + A11_8 * k8 + A11_9 * k9 + A11_10 * k10)
         call rhs(t + C11 * h, ytmp, k11, ctx)
 
         ytmp = y + h * (A12_1 * k1 + A12_4 * k4 + A12_5 * k5 + A12_6 * k6 &
-                        + A12_7 * k7 + A12_8 * k8 + A12_9 * k9 + A12_10 * k10 &
-                        + A12_11 * k11)
+            + A12_7 * k7 + A12_8 * k8 + A12_9 * k9 + A12_10 * k10 &
+            + A12_11 * k11)
         call rhs(t + C12 * h, ytmp, k12, ctx)
 
         nfev = nfev + 11
 
         y8 = y + h * (B1 * k1 + B6 * k6 + B7 * k7 + B8 * k8 + B9 * k9 &
-                      + B10 * k10 + B11 * k11 + B12 * k12)
+            + B10 * k10 + B11 * k11 + B12 * k12)
 
         err5 = h * (E5_1 * k1 + E5_6 * k6 + E5_7 * k7 + E5_8 * k8 + E5_9 * k9 &
-                    + E5_10 * k10 + E5_11 * k11 + E5_12 * k12)
+            + E5_10 * k10 + E5_11 * k11 + E5_12 * k12)
         err3 = h * (E3_1 * k1 + E3_6 * k6 + E3_7 * k7 + E3_8 * k8 + E3_9 * k9 &
-                    + E3_10 * k10 + E3_11 * k11 + E3_12 * k12)
+            + E3_10 * k10 + E3_11 * k11 + E3_12 * k12)
     end subroutine dop853_step
 
     ! Integrate problem%rhs from t0 to t1 with adaptive RK8(7)13M. Records the
@@ -298,8 +298,8 @@ contains
                 workspace%err5, workspace%err3, solution%nfev)
 
             err_norm = error_norm(solution%y(:,nstep+1), workspace%y8, &
-                                  workspace%err5, workspace%err3, &
-                                  problem%rtol, problem%atol)
+                workspace%err5, workspace%err3, &
+                problem%rtol, problem%atol)
             accepted = err_norm <= 1.0_dp
 
             if (accepted) then

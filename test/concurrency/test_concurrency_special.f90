@@ -10,7 +10,7 @@ program test_concurrency_special
     ! exists yet, so nothing to exercise here beyond this note.
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
     use fortnum_special, only: bessel_in, bessel_in_array, bessel_kn, &
-                               dawson, gamma_lower, gamma_reg_p
+        dawson, gamma_lower, gamma_reg_p
     implicit none
 
     integer, parameter :: ngrid = 4096

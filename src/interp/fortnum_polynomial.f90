@@ -38,10 +38,10 @@ module fortnum_polynomial
 
     public :: lagrange_weights
     public :: lagrange_deriv_weights
-    public :: lagrange_weights_jvp   ! d p(x)/d x  . v_x   (x active)
-    public :: lagrange_weights_vjp   ! (d p(x)/d x)^T . u   (x active)
-    public :: lagrange_fval_jvp      ! d p(x)/d f  . v_f   (f values active)
-    public :: lagrange_fval_vjp      ! (d p(x)/d f)^T . u  (f values active)
+    public :: lagrange_weights_jvp ! d p(x)/d x  . v_x   (x active)
+    public :: lagrange_weights_vjp ! (d p(x)/d x)^T . u   (x active)
+    public :: lagrange_fval_jvp ! d p(x)/d f  . v_f   (f values active)
+    public :: lagrange_fval_vjp ! (d p(x)/d f)^T . u  (f values active)
 
 contains
 
@@ -86,14 +86,14 @@ contains
 
         integer  :: i, k, j
         real(dp) :: fac
-        real(dp) :: tmp(n)  ! running partial products for each j
+        real(dp) :: tmp(n) ! running partial products for each j
 
         do i = 1, n
             ! tmp(j) accumulates the product over k /= i, updated factor by factor.
             ! Dropping factor k from L_i contributes 1/(xp(i)-xp(k)) to tmp(k)
             ! and (x-xp(k))/(xp(i)-xp(k)) to all tmp(j), j /= k.
             tmp    = 1.0_dp
-            tmp(i) = 0.0_dp   ! L_i never contributes to its own derivative slot
+            tmp(i) = 0.0_dp ! L_i never contributes to its own derivative slot
             do k = 1, n
                 if (k == i) cycle
                 fac = (x - xp(k))/(xp(i) - xp(k))
@@ -127,9 +127,9 @@ contains
         integer,  intent(in)  :: n
         real(dp), intent(in)  :: x
         real(dp), intent(in)  :: xp(n)
-        real(dp), intent(in)  :: f(n)    ! nodal values (inactive in this map)
-        real(dp), intent(in)  :: vx      ! tangent for x
-        real(dp), intent(out) :: jv      ! d p(x)/d x * vx
+        real(dp), intent(in)  :: f(n) ! nodal values (inactive in this map)
+        real(dp), intent(in)  :: vx ! tangent for x
+        real(dp), intent(out) :: jv ! d p(x)/d x * vx
         real(dp) :: dcoef(n)
         call lagrange_deriv_weights(n, x, xp, dcoef)
         jv = dot_product(f, dcoef) * vx
@@ -145,8 +145,8 @@ contains
         real(dp), intent(in)  :: x
         real(dp), intent(in)  :: xp(n)
         real(dp), intent(in)  :: f(n)
-        real(dp), intent(in)  :: u       ! output cotangent
-        real(dp), intent(out) :: jtu     ! input cotangent for x
+        real(dp), intent(in)  :: u ! output cotangent
+        real(dp), intent(out) :: jtu ! input cotangent for x
         real(dp) :: dcoef(n)
         call lagrange_deriv_weights(n, x, xp, dcoef)
         jtu = u * dot_product(f, dcoef)
@@ -164,8 +164,8 @@ contains
         integer,  intent(in)  :: n
         real(dp), intent(in)  :: x
         real(dp), intent(in)  :: xp(n)
-        real(dp), intent(in)  :: vf(n)  ! tangent for f values
-        real(dp), intent(out) :: jv     ! scalar tangent for p(x)
+        real(dp), intent(in)  :: vf(n) ! tangent for f values
+        real(dp), intent(out) :: jv ! scalar tangent for p(x)
         real(dp) :: coef(n)
         call lagrange_weights(n, x, xp, coef)
         jv = dot_product(coef, vf)
@@ -180,8 +180,8 @@ contains
         integer,  intent(in)  :: n
         real(dp), intent(in)  :: x
         real(dp), intent(in)  :: xp(n)
-        real(dp), intent(in)  :: u       ! output cotangent (scalar)
-        real(dp), intent(out) :: jtu(n)  ! input cotangents for f(1:n)
+        real(dp), intent(in)  :: u ! output cotangent (scalar)
+        real(dp), intent(out) :: jtu(n) ! input cotangents for f(1:n)
         real(dp) :: coef(n)
         call lagrange_weights(n, x, xp, coef)
         jtu = coef * u

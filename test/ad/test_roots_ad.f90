@@ -68,10 +68,10 @@ contains
         type(fortnum_status_t) :: st
 
         p      = 4.0_dp
-        xstar  = sqrt(p)         ! 2.0
-        f_x    = 2.0_dp * xstar  ! 4.0
+        xstar  = sqrt(p) ! 2.0
+        f_x    = 2.0_dp * xstar ! 4.0
         f_p    = -1.0_dp
-        dxdp_exact = 1.0_dp / (2.0_dp * xstar)  ! 0.25
+        dxdp_exact = 1.0_dp / (2.0_dp * xstar) ! 0.25
 
         call root_grad(f_x, f_p, dxdp, st)
         if (.not. status_ok(st)) then
@@ -126,7 +126,7 @@ contains
         f_x    = 2.0_dp * xstar
         f_p    = [-1.0_dp]
         dp_vec = [0.7_dp]
-        dx_exact = (-f_p(1) * dp_vec(1)) / f_x  ! = 0.7 / (2 sqrt(2))
+        dx_exact = (-f_p(1) * dp_vec(1)) / f_x ! = 0.7 / (2 sqrt(2))
 
         call root_jvp(f_x, f_p, dp_vec, dx, st)
         if (.not. status_ok(st)) then
@@ -386,7 +386,7 @@ contains
         type(fortnum_status_t) :: st
         p_mr = pv
         call multiroot_hybrid(fdf_mr, 2, [1.0_dp, 1.0_dp], xstar, st, &
-                              xtol=1.0e-14_dp, ftol=1.0e-14_dp)
+            xtol=1.0e-14_dp, ftol=1.0e-14_dp)
     end subroutine solve_mr
 
     ! F(x) and analytic Jacobian for the n-dim system; p_mr via host association.
@@ -409,7 +409,7 @@ contains
         type(fortnum_status_t) :: st
         p_solve = p_val
         call root_brent(f_x2mp, 0.0_dp, p_solve + 1.0_dp, xstar, st, &
-                        ftol=1.0e-14_dp)
+            ftol=1.0e-14_dp)
     end subroutine solve_x2mp
 
     ! f(x) = x^2 - p_solve, accessed via host association from the program.

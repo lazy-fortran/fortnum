@@ -23,11 +23,11 @@ program scalar_objective
     use fortnum_kinds,         only: dp
     use fortnum_status,        only: fortnum_status_t, status_ok, FORTNUM_OK
     use fortnum_active_vector, only: fortnum_active_layout_t, layout_init, &
-                                     layout_add, pack_block, unpack_block
+        layout_add, pack_block, unpack_block
     use fortnum_ad_interfaces, only: fortnum_ad_status_t, ad_status_set, &
-                                     ad_status_ok, &
-                                     FORTNUM_AD_BACKEND_ANALYTIC, &
-                                     FORTNUM_AD_QUALITY_EXACT
+        ad_status_ok, &
+        FORTNUM_AD_BACKEND_ANALYTIC, &
+        FORTNUM_AD_QUALITY_EXACT
     implicit none
 
     integer  :: nfail
@@ -73,7 +73,7 @@ program scalar_objective
     call fd_grad(layout, x, h, gfd)
 
     err = max(abs(g(1) - gfd(1)), abs(g(2) - gfd(2))) &
-          / max(maxval(abs(g)), 1.0_dp)
+        / max(maxval(abs(g)), 1.0_dp)
     if (err > 1.0e-6_dp) then
         write (error_unit, '(a,es12.4)') "FAIL [grad-vs-FD] rel_err=", err
         nfail = nfail + 1
@@ -82,7 +82,7 @@ program scalar_objective
     ! ------------------------------------------------------------------ (3) JVP == dot(grad, v)
     v = [0.4_dp, -1.1_dp]
     call my_jvp(2, x, v, f_got, jv_ad, layout, st)
-    jv_fd = dot_product(g, v)   ! exact for this linear-in-g case
+    jv_fd = dot_product(g, v) ! exact for this linear-in-g case
     err = abs(jv_ad - jv_fd) / max(abs(jv_fd), 1.0_dp)
     if (err > 1.0e-14_dp) then
         write (error_unit, '(a,es12.4)') "FAIL [JVP] rel_err=", err
@@ -96,8 +96,8 @@ program scalar_objective
     block
         real(dp) :: u, lhs, rhs
         u   = 2.5_dp
-        lhs = u * jv_ad               ! u * (J v)
-        rhs = dot_product(v, u*g)     ! v . (J^T u) = v . (u * grad)
+        lhs = u * jv_ad ! u * (J v)
+        rhs = dot_product(v, u*g) ! v . (J^T u) = v . (u * grad)
         err = abs(lhs - rhs) / max(abs(lhs), abs(rhs), 1.0_dp)
         if (err > 1.0e-14_dp) then
             write (error_unit, '(a,es12.4)') "FAIL [adjoint] rel_err=", err
@@ -149,7 +149,7 @@ contains
         type(fortnum_ad_status_t),     intent(out) :: st
         real(dp) :: g(n)
         call my_grad(n, x, f, g, layout, st)
-        jv = dot_product(g, v)   ! scalar objective: J v = grad . v
+        jv = dot_product(g, v) ! scalar objective: J v = grad . v
     end subroutine my_jvp
 
     ! Central FD of each gradient component.

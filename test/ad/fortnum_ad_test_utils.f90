@@ -14,22 +14,22 @@ module fortnum_ad_test_utils
     private
 
     ! ------------------------------------------------------------ public API
-    public :: vector_fn_i        ! primal map  y = f(x)
-    public :: jvp_fn_i           ! forward product  Jv = J(x) v
-    public :: vjp_fn_i           ! reverse product  Jtu = J(x)^T u
+    public :: vector_fn_i ! primal map  y = f(x)
+    public :: jvp_fn_i ! forward product  Jv = J(x) v
+    public :: vjp_fn_i ! reverse product  Jtu = J(x)^T u
     public :: scalar_complex_fn_i ! analytic scalar f for complex-step
 
-    public :: fd_jvp             ! central-FD estimate of J(x) v
-    public :: fd_jvp_step        ! safeguarded step size for a base point
-    public :: check_jvp_vs_fd    ! forward-product check (JVP vs central FD)
+    public :: fd_jvp ! central-FD estimate of J(x) v
+    public :: fd_jvp_step ! safeguarded step size for a base point
+    public :: check_jvp_vs_fd ! forward-product check (JVP vs central FD)
     public :: dot_product_identity ! mandatory adjoint identity u.(Jv)=v.(J^T u)
     public :: complex_step_deriv ! df/dx via Im f(x+ih)/h
     public :: check_complex_step ! complex-step vs analytic-derivative compare
-    public :: rel_err            ! scaled error helper used by the checks
-    public :: ad_status_t        ! smoothness/branch status carrier
+    public :: rel_err ! scaled error helper used by the checks
+    public :: ad_status_t ! smoothness/branch status carrier
     public :: AD_SMOOTH, AD_NONSMOOTH
-    public :: check_smoothness   ! same-trace passes, branch change reports
-    public :: enzyme_available   ! .true. only in FORTNUM_ENABLE_ENZYME builds
+    public :: check_smoothness ! same-trace passes, branch change reports
+    public :: enzyme_available ! .true. only in FORTNUM_ENABLE_ENZYME builds
     public :: check_enzyme_vs_analytic ! inert unless built with Enzyme
 
     ! Smoothness verdicts for a same-trace vs branch-change derivative check.
@@ -150,7 +150,7 @@ contains
         real(dp) :: worst
         integer  :: i, m
 
-        m = size(x)            ! square-Jacobian default; callers size jv to m
+        m = size(x) ! square-Jacobian default; callers size jv to m
         allocate (jv_ad(m), jv_fd(m))
         call jvp(x, v, jv_ad)
         if (present(h_in)) then
@@ -183,8 +183,8 @@ contains
         procedure(jvp_fn_i)      :: jvp
         procedure(vjp_fn_i)      :: vjp
         real(dp), intent(in)     :: x(:)
-        real(dp), intent(in)     :: u(:)   ! in R^m (output space)
-        real(dp), intent(in)     :: v(:)   ! in R^n (input space)
+        real(dp), intent(in)     :: u(:) ! in R^m (output space)
+        real(dp), intent(in)     :: v(:) ! in R^n (input space)
         real(dp), intent(in)     :: tol
         logical                  :: ok
         real(dp), allocatable :: jv(:), jtu(:)
@@ -193,8 +193,8 @@ contains
         allocate (jv(size(u)), jtu(size(v)))
         call jvp(x, v, jv)
         call vjp(x, u, jtu)
-        lhs = dot_product(u, jv)     ! u^T (J v)
-        rhs = dot_product(v, jtu)    ! v^T (J^T u)
+        lhs = dot_product(u, jv) ! u^T (J v)
+        rhs = dot_product(v, jtu) ! v^T (J^T u)
         e = abs(lhs - rhs) / max(abs(lhs), abs(rhs), 1.0_dp)
         ok = (e <= tol)
         if (.not. ok) then

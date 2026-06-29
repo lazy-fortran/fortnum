@@ -47,7 +47,7 @@ contains
         ! Newton is quadratically convergent and typically delivers the
         ! last bit.  Both are checked at the same tolerance; 2e-15 covers
         ! bisection's inherent rounding without masking algorithmic errors.
-        real(dp), parameter :: ATOL = 2.0e-15_dp  ! ~9 ulp at dp
+        real(dp), parameter :: ATOL = 2.0e-15_dp ! ~9 ulp at dp
 
         integer  :: unit, ios, idx
         character(len=512) :: line, buf

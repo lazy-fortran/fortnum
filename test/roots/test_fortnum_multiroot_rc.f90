@@ -11,8 +11,8 @@ program test_fortnum_multiroot_rc
     use fortnum_multiroot, only: multiroot_hybrid
     use fortnum_status, only: fortnum_status_t, FORTNUM_OK
     use fortnum_multiroot_rc, only: multiroot_rc_t, multiroot_rc_init, &
-                                    multiroot_step, MULTIROOT_NEED_FJ, MULTIROOT_DONE, &
-                                    MULTIROOT_FAILED, MULTIROOT_RC_SINGULAR
+        multiroot_step, MULTIROOT_NEED_FJ, MULTIROOT_DONE, &
+        MULTIROOT_FAILED, MULTIROOT_RC_SINGULAR
     implicit none
 
     integer :: nfail
@@ -138,7 +138,7 @@ contains
         x0 = [0.5_dp, 0.5_dp]
         call multiroot_rc_init(st, 2, x0)
         f = [1.0_dp, 1.0_dp]
-        jac = reshape([1.0_dp, 2.0_dp, 2.0_dp, 4.0_dp], [2, 2])  ! col2 = 2*col1
+        jac = reshape([1.0_dp, 2.0_dp, 2.0_dp, 4.0_dp], [2, 2]) ! col2 = 2*col1
         call multiroot_step(st, f, jac, action)
         if (action /= MULTIROOT_FAILED) then
             nfail = nfail + 1

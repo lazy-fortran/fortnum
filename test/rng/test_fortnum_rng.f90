@@ -81,7 +81,7 @@ contains
     subroutine test_algorithm_kat(nfail)
         integer, intent(inout) :: nfail
         integer(int64) :: out(2), allf
-        allf = -1_int64    ! 0xFFFFFFFFFFFFFFFF
+        allf = -1_int64 ! 0xFFFFFFFFFFFFFFFF
 
         call rng_threefry2x64([0_int64, 0_int64], [0_int64, 0_int64], out)
         call fail_u64("kat k0c0 w0", out(1), int(z"C2B6E3A8C2C69865", int64), nfail)
@@ -115,10 +115,10 @@ contains
         integer(int64) :: u, ref(5)
         integer :: i
         ref = [ int(z"1DE54F88EE45799D", int64), &
-                int(z"F0667974A2493AA2", int64), &
-                int(z"65025578079863D5", int64), &
-                int(z"6A01B96411EF7215", int64), &
-                int(z"4992EA790FA6D8D1", int64) ]
+            int(z"F0667974A2493AA2", int64), &
+            int(z"65025578079863D5", int64), &
+            int(z"6A01B96411EF7215", int64), &
+            int(z"4992EA790FA6D8D1", int64) ]
         call rng_seed(g, 42_int64, st)
         do i = 1, 5
             call rng_next_u64(g, u)
@@ -134,10 +134,10 @@ contains
         real(dp) :: x, ref(5)
         integer :: i
         ref = [ 1.1678025334392383e-001_dp, &
-                9.3906363580234575e-001_dp, &
-                3.9456686191951595e-001_dp, &
-                4.1408880894772238e-001_dp, &
-                2.8739800887674549e-001_dp ]
+            9.3906363580234575e-001_dp, &
+            3.9456686191951595e-001_dp, &
+            4.1408880894772238e-001_dp, &
+            2.8739800887674549e-001_dp ]
         call rng_seed(g, 42_int64, st)
         do i = 1, 5
             call rng_uniform(g, x)
@@ -154,10 +154,10 @@ contains
         real(dp) :: x, ref(5)
         integer :: i
         ref = [  1.9223651376270539e+000_dp, &
-                -7.7423178123251901e-001_dp, &
-                -1.1698807832550875e+000_dp, &
-                 7.0093672228221038e-001_dp, &
-                -1.2710648023628732e-001_dp ]
+            -7.7423178123251901e-001_dp, &
+            -1.1698807832550875e+000_dp, &
+            7.0093672228221038e-001_dp, &
+            -1.2710648023628732e-001_dp ]
         call rng_seed(g, 42_int64, st)
         do i = 1, 5
             call rng_normal(g, x)
@@ -210,7 +210,7 @@ contains
         end do
         call rng_seed(a, 555_int64, st)
         do i = 1, 8
-            call rng_normal(a, na(i))   ! reseed: spare cleared
+            call rng_normal(a, na(i)) ! reseed: spare cleared
         end do
         call check_true("spare cleared on reseed", na(1) == na(1), nfail)
         ! Re-run u64 from a third generator; must match ua exactly.

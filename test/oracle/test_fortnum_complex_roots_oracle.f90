@@ -19,8 +19,8 @@ program test_fortnum_complex_roots_oracle
     ! every call to complex_region_roots; read only inside the f wrappers.
     integer, save :: active_case = -1
 
-    real(dp), parameter :: ZTOL = 5.0e-8_dp   ! newtonz default
-    real(dp), parameter :: FTOL = 1.0e-7_dp   ! |f| acceptance at a polished zero
+    real(dp), parameter :: ZTOL = 5.0e-8_dp ! newtonz default
+    real(dp), parameter :: FTOL = 1.0e-7_dp ! |f| acceptance at a polished zero
 
     character(len=4096) :: path
     integer :: alen, astat, nfail, total
@@ -60,16 +60,16 @@ contains
         select case (active_case)
         case (0)
             fk = (kr - cmplx(0.5_dp, 0.5_dp, dp)) &
-               * (kr - cmplx(-0.6_dp, -0.3_dp, dp))
+                * (kr - cmplx(-0.6_dp, -0.3_dp, dp))
         case (1)
             fk = (kr - cmplx(0.4_dp, 0.7_dp, dp))**2 &
-               * (kr - cmplx(-0.8_dp, 0.1_dp, dp))
+                * (kr - cmplx(-0.8_dp, 0.1_dp, dp))
         case (2)
             fk = (kr - cmplx(-0.3_dp, 0.6_dp, dp))**3
         case (3)
             fk = (kr - cmplx(0.20_dp, 0.10_dp, dp)) &
-               * (kr - cmplx(0.50_dp, 0.10_dp, dp)) &
-               * (kr - cmplx(-0.9_dp, -0.6_dp, dp))**2
+                * (kr - cmplx(0.50_dp, 0.10_dp, dp)) &
+                * (kr - cmplx(-0.9_dp, -0.6_dp, dp))**2
         case (4, 5)
             fk = sin(kr)
         case default

@@ -52,11 +52,11 @@ module fortnum_ode_events
         logical               :: found = .false.
         real(dp)              :: t_event = 0.0_dp
         real(dp), allocatable :: y_event(:)
-        integer               :: bracket_step = 0   ! root lies in [t(i), t(i+1)]
+        integer               :: bracket_step = 0 ! root lies in [t(i), t(i+1)]
         integer               :: direction = ODE_EVENT_ANY
-        real(dp)              :: g_dot = 0.0_dp      ! dg/dt at the root
+        real(dp)              :: g_dot = 0.0_dp ! dg/dt at the root
         logical               :: transversal = .false.
-        integer               :: nfev = 0            ! rhs calls spent locating
+        integer               :: nfev = 0 ! rhs calls spent locating
     end type ode_event_result_t
 
 contains
@@ -72,7 +72,7 @@ contains
     ! crossing is bracketed result%found stays .false. and status is
     ! FORTNUM_OK.
     subroutine ode_event_scan(rhs, event, solution, direction, event_tol, &
-                              result, status, ctx)
+            result, status, ctx)
         procedure(ode_rhs_t)                 :: rhs
         procedure(ode_event_t)               :: event
         type(ode_solution_t),  intent(in)    :: solution
@@ -118,8 +118,8 @@ contains
                     solution%t(i), solution%t(i + 1), ya, yb, fa, fb, &
                     event_tol, tr, yr, gr, ctx)
                 call total_derivative(rhs, event, tr, yr, &
-                                      event_tol, result%g_dot, &
-                                      result%transversal, ctx, result%nfev, fr)
+                    event_tol, result%g_dot, &
+                    result%transversal, ctx, result%nfev, fr)
 
                 result%found        = .true.
                 result%t_event      = tr
@@ -197,7 +197,7 @@ contains
     ! spent: the Hermite interpolant reuses the endpoint derivatives the scan
     ! already evaluated, so location is pure root-finding on g.
     subroutine locate_in_step(event, ta, tb, ya, yb, fa, fb, &
-                              event_tol, tr, yr, gr, ctx)
+            event_tol, tr, yr, gr, ctx)
         procedure(ode_event_t)            :: event
         real(dp), intent(in)              :: ta, tb
         real(dp), intent(in)              :: ya(:), yb(:), fa(:), fb(:)
@@ -219,7 +219,7 @@ contains
         fpb = g_at(event, ta, tb, ya, yb, fa, fb, b, yr, ctx)
         c = b
         fpc = fpb
-        only_two = .true.   ! a and c coincide until the first contraction
+        only_two = .true. ! a and c coincide until the first contraction
         d = b - a
         e = d
 
@@ -252,7 +252,7 @@ contains
                 if (p > 0.0_dp) q = -q
                 p = abs(p)
                 if (2.0_dp * p < min(3.0_dp * xm * q - abs(tol1 * q), &
-                                     abs(e * q))) then
+                    abs(e * q))) then
                     e = d
                     d = p / q
                 else
@@ -262,7 +262,7 @@ contains
                 d = xm; e = d
             end if
             a = b; fpa = fpb
-            only_two = .false.   ! a now differs from c: three distinct points
+            only_two = .false. ! a now differs from c: three distinct points
             if (abs(d) > tol1) then
                 b = b + d
             else
@@ -294,7 +294,7 @@ contains
     ! from one rhs call; g is differentiated by a small time perturbation that
     ! advances y by f. Transversality holds when |dg/dt| exceeds event_tol.
     subroutine total_derivative(rhs, event, tr, yr, event_tol, gdot, &
-                                transversal, ctx, nfev, fr)
+            transversal, ctx, nfev, fr)
         procedure(ode_rhs_t)             :: rhs
         procedure(ode_event_t)           :: event
         real(dp), intent(in)             :: tr

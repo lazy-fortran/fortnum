@@ -14,18 +14,18 @@ program test_special_ad
     ! compatible wrappers close over n via internal procedures.
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
     use fortnum_ad_test_utils, only: check_jvp_vs_fd, dot_product_identity, &
-                                     fd_jvp, rel_err
+        fd_jvp, rel_err
     use fortnum_special_dawson, only: dawson, dawson_jvp, dawson_grad
     use fortnum_special_gamma,  only: gamma_lower, gamma_lower_jvp, &
-                                      gamma_lower_jvp_da, gamma_reg_p, &
-                                      gamma_reg_p_jvp, gamma_reg_p_grad
+        gamma_lower_jvp_da, gamma_reg_p, &
+        gamma_reg_p_jvp, gamma_reg_p_grad
     use fortnum_special_bessel, only: bessel_in, bessel_kn, bessel_in_array, &
-                                      bessel_in_jvp, bessel_kn_jvp, &
-                                      bessel_in_array_jvp, bessel_in_array_vjp
+        bessel_in_jvp, bessel_kn_jvp, &
+        bessel_in_array_jvp, bessel_in_array_vjp
     implicit none
 
-    real(dp), parameter :: tol_fd = 1.0e-7_dp   ! central-FD tolerance (h ~ eps^1/3)
-    real(dp), parameter :: tol_adj = 1.0e-13_dp  ! adjoint identity tolerance
+    real(dp), parameter :: tol_fd = 1.0e-7_dp ! central-FD tolerance (h ~ eps^1/3)
+    real(dp), parameter :: tol_adj = 1.0e-13_dp ! adjoint identity tolerance
 
     ! Shared order variables closed over by the Bessel harness wrappers.
     integer, save :: n_in = 0
@@ -86,11 +86,11 @@ contains
         u = [0.7_dp]
         v = [1.0_dp]
         if (.not. dot_product_identity("dawson_grad_adjoint", &
-                dawson_jvp, dawson_grad, x, u, v, tol_adj)) nfail = nfail + 1
+            dawson_jvp, dawson_grad, x, u, v, tol_adj)) nfail = nfail + 1
         x = [-0.8_dp]
         u = [-1.3_dp]
         if (.not. dot_product_identity("dawson_grad_adjoint_neg", &
-                dawson_jvp, dawson_grad, x, u, v, tol_adj)) nfail = nfail + 1
+            dawson_jvp, dawson_grad, x, u, v, tol_adj)) nfail = nfail + 1
     end subroutine test_dawson_grad_adjoint
 
     ! ---------------------------------------------------------------- gamma_lower
@@ -186,14 +186,14 @@ contains
         u = [0.7_dp]
         v = [0.9_dp, -1.3_dp]
         if (.not. dot_product_identity("gamma_reg_p_grad_adjoint", &
-                gamma_reg_p_jvp, gamma_reg_p_grad, x_arr, u, v, tol_adj)) &
+            gamma_reg_p_jvp, gamma_reg_p_grad, x_arr, u, v, tol_adj)) &
             nfail = nfail + 1
 
         x_arr = [0.5_dp, 1.5_dp]
         u = [-1.1_dp]
         v = [1.4_dp, 0.6_dp]
         if (.not. dot_product_identity("gamma_reg_p_grad_adjoint2", &
-                gamma_reg_p_jvp, gamma_reg_p_grad, x_arr, u, v, tol_adj)) &
+            gamma_reg_p_jvp, gamma_reg_p_grad, x_arr, u, v, tol_adj)) &
             nfail = nfail + 1
     end subroutine test_gamma_reg_p_grad_adjoint
 
@@ -290,12 +290,12 @@ contains
         end do
         x = [1.7_dp]
         if (.not. dot_product_identity("bessel_in_array_adjoint", &
-                jvp_bessel_in_array_wrap, vjp_bessel_in_array_wrap, &
-                x, u, v, tol_adj)) nfail = nfail + 1
+            jvp_bessel_in_array_wrap, vjp_bessel_in_array_wrap, &
+            x, u, v, tol_adj)) nfail = nfail + 1
         x = [4.5_dp]
         if (.not. dot_product_identity("bessel_in_array_adjoint2", &
-                jvp_bessel_in_array_wrap, vjp_bessel_in_array_wrap, &
-                x, u, v, tol_adj)) nfail = nfail + 1
+            jvp_bessel_in_array_wrap, vjp_bessel_in_array_wrap, &
+            x, u, v, tol_adj)) nfail = nfail + 1
     end subroutine test_bessel_in_array_adjoint
 
     ! ---------------------------------------------------------------- primal wrappers

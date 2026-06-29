@@ -9,8 +9,8 @@ program test_fortnum_quadrature
     implicit none
 
     integer,  parameter :: n_cases(6) = [1, 2, 3, 5, 8, 16]
-    real(dp), parameter :: tol = 4.0_dp*epsilon(1.0_dp)   ! near machine eps
-    real(dp), parameter :: poly_tol = 1.0e-13_dp           ! polynomial exactness
+    real(dp), parameter :: tol = 4.0_dp*epsilon(1.0_dp) ! near machine eps
+    real(dp), parameter :: poly_tol = 1.0e-13_dp ! polynomial exactness
     integer             :: j, k, n
     real(dp)            :: sum_w, err
     logical             :: ok

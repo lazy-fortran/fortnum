@@ -71,7 +71,7 @@ contains
 
         call setup(ws, coef)
         allocate (v0(ws%ncoef))
-        x  = 0.53_dp        ! interior, inside one span
+        x  = 0.53_dp ! interior, inside one span
         vx = 1.0_dp
 
         call bspline_eval_jvp(ws, x, coef, vx, jv, s)
@@ -150,7 +150,7 @@ contains
 
         call setup(ws, coef)
         eps = 1.0e-9_dp
-        xk  = 0.45_dp   ! an interior breakpoint / knot
+        xk  = 0.45_dp ! an interior breakpoint / knot
 
         tag_base = bspline_span_index(ws, xk - eps)
         tag_pert = bspline_span_index(ws, xk + eps)

@@ -11,7 +11,7 @@ program test_dot_products
     ! 3x2 linear map A: R^2 -> R^3. Module-scope so JVP/VJP share the matrix.
     real(dp), parameter :: A(3, 2) = reshape( &
         [1.0_dp, -2.0_dp, 0.5_dp, &
-         3.0_dp,  4.0_dp, -1.0_dp], shape(A))
+        3.0_dp,  4.0_dp, -1.0_dp], shape(A))
 
     integer :: nfail
     nfail = 0
@@ -34,11 +34,11 @@ contains
     subroutine test_linear_identity(nfail)
         integer, intent(inout) :: nfail
         real(dp) :: x(2), u(3), v(2)
-        x = [0.0_dp, 0.0_dp]            ! J constant; x irrelevant
+        x = [0.0_dp, 0.0_dp] ! J constant; x irrelevant
         u = [1.0_dp, -0.5_dp, 2.0_dp]
         v = [0.75_dp, -1.25_dp]
         if (.not. dot_product_identity("linear", jvp_lin, vjp_lin, &
-                x, u, v, tol=1.0e-13_dp)) nfail = nfail + 1
+            x, u, v, tol=1.0e-13_dp)) nfail = nfail + 1
     end subroutine test_linear_identity
 
     ! Nonlinear map y = (x1^2, x1 x2, sin(x2)) : R^2 -> R^3.
@@ -50,7 +50,7 @@ contains
         u = [0.4_dp, 1.3_dp, -0.9_dp]
         v = [1.2_dp, 0.7_dp]
         if (.not. dot_product_identity("nonlinear", jvp_nl, vjp_nl, &
-                x, u, v, tol=1.0e-13_dp)) nfail = nfail + 1
+            x, u, v, tol=1.0e-13_dp)) nfail = nfail + 1
     end subroutine test_nonlinear_identity
 
     ! A VJP using A instead of A^T breaks the identity; the check must fail.
@@ -99,45 +99,45 @@ contains
         real(dp), intent(in)  :: v(:)
         real(dp), intent(out) :: jv(:)
         associate (unused_x => x); end associate
-        jv = matmul(A, v)
-    end subroutine jvp_lin
+            jv = matmul(A, v)
+        end subroutine jvp_lin
 
-    subroutine vjp_lin(x, u, jtu)
-        real(dp), intent(in)  :: x(:)
-        real(dp), intent(in)  :: u(:)
-        real(dp), intent(out) :: jtu(:)
-        associate (unused_x => x); end associate
-        jtu = matmul(transpose(A), u)
-    end subroutine vjp_lin
+        subroutine vjp_lin(x, u, jtu)
+            real(dp), intent(in)  :: x(:)
+            real(dp), intent(in)  :: u(:)
+            real(dp), intent(out) :: jtu(:)
+            associate (unused_x => x); end associate
+                jtu = matmul(transpose(A), u)
+            end subroutine vjp_lin
 
-    ! Wrong on purpose: drops the transpose, so J^T u is computed as A u-shaped
-    ! garbage (shapes still conform only by coincidence of the 3x2 sizes, so
-    ! use a hand assembly that conforms but is not the true adjoint).
-    subroutine vjp_lin_wrong(x, u, jtu)
-        real(dp), intent(in)  :: x(:)
-        real(dp), intent(in)  :: u(:)
-        real(dp), intent(out) :: jtu(:)
-        associate (unused_x => x); end associate
-        ! True adjoint is matmul(transpose(A), u); perturb one entry.
-        jtu = matmul(transpose(A), u)
-        jtu(1) = jtu(1) + 1.0_dp
-    end subroutine vjp_lin_wrong
+            ! Wrong on purpose: drops the transpose, so J^T u is computed as A u-shaped
+            ! garbage (shapes still conform only by coincidence of the 3x2 sizes, so
+            ! use a hand assembly that conforms but is not the true adjoint).
+            subroutine vjp_lin_wrong(x, u, jtu)
+                real(dp), intent(in)  :: x(:)
+                real(dp), intent(in)  :: u(:)
+                real(dp), intent(out) :: jtu(:)
+                associate (unused_x => x); end associate
+                    ! True adjoint is matmul(transpose(A), u); perturb one entry.
+                    jtu = matmul(transpose(A), u)
+                    jtu(1) = jtu(1) + 1.0_dp
+                end subroutine vjp_lin_wrong
 
-    subroutine jvp_nl(x, v, jv)
-        real(dp), intent(in)  :: x(:)
-        real(dp), intent(in)  :: v(:)
-        real(dp), intent(out) :: jv(:)
-        jv(1) = 2.0_dp*x(1)*v(1)
-        jv(2) = x(2)*v(1) + x(1)*v(2)
-        jv(3) = cos(x(2))*v(2)
-    end subroutine jvp_nl
+                subroutine jvp_nl(x, v, jv)
+                    real(dp), intent(in)  :: x(:)
+                    real(dp), intent(in)  :: v(:)
+                    real(dp), intent(out) :: jv(:)
+                    jv(1) = 2.0_dp*x(1)*v(1)
+                    jv(2) = x(2)*v(1) + x(1)*v(2)
+                    jv(3) = cos(x(2))*v(2)
+                end subroutine jvp_nl
 
-    subroutine vjp_nl(x, u, jtu)
-        real(dp), intent(in)  :: x(:)
-        real(dp), intent(in)  :: u(:)
-        real(dp), intent(out) :: jtu(:)
-        jtu(1) = 2.0_dp*x(1)*u(1) + x(2)*u(2)
-        jtu(2) = x(1)*u(2) + cos(x(2))*u(3)
-    end subroutine vjp_nl
+                subroutine vjp_nl(x, u, jtu)
+                    real(dp), intent(in)  :: x(:)
+                    real(dp), intent(in)  :: u(:)
+                    real(dp), intent(out) :: jtu(:)
+                    jtu(1) = 2.0_dp*x(1)*u(1) + x(2)*u(2)
+                    jtu(2) = x(1)*u(2) + cos(x(2))*u(3)
+                end subroutine vjp_nl
 
-end program test_dot_products
+            end program test_dot_products

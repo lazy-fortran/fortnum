@@ -230,7 +230,7 @@ contains
                 workspace%y5, workspace%yerr, solution%nfev)
 
             err_norm = error_norm(solution%y(:,nstep+1), workspace%y5, &
-                                  workspace%yerr, problem%rtol, problem%atol)
+                workspace%yerr, problem%rtol, problem%atol)
             accepted = err_norm <= 1.0_dp
 
             if (accepted) then
@@ -465,9 +465,9 @@ contains
         call ck_stage(rhs, var_rhs, t + CK_C5 * h, yt, st, yk5, sk5)
 
         yt = y + h * (CK_A61 * yk1 + CK_A62 * yk2 + CK_A63 * yk3 &
-                      + CK_A64 * yk4 + CK_A65 * yk5)
+            + CK_A64 * yk4 + CK_A65 * yk5)
         st = s + h * (CK_A61 * sk1 + CK_A62 * sk2 + CK_A63 * sk3 &
-                      + CK_A64 * sk4 + CK_A65 * sk5)
+            + CK_A64 * sk4 + CK_A65 * sk5)
         call ck_stage(rhs, var_rhs, t + CK_C6 * h, yt, st, yk6, sk6)
 
         y = y + h * (CK_B5_1 * yk1 + CK_B5_3 * yk3 + CK_B5_4 * yk4 + CK_B5_6 * yk6)
@@ -501,9 +501,9 @@ contains
         real(dp) :: yk1(neq), yk2(neq), yk3(neq), yk4(neq), yk5(neq), yk6(neq)
         real(dp) :: yt(neq)
         real(dp) :: tn(6)
-        real(dp) :: yn(neq, 6)          ! primal stage states
-        real(dp) :: skbar(neq, 6)       ! cotangent of stage outputs sk_i
-        real(dp) :: inbar(neq)          ! cotangent of stage input in_i
+        real(dp) :: yn(neq, 6) ! primal stage states
+        real(dp) :: skbar(neq, 6) ! cotangent of stage outputs sk_i
+        real(dp) :: inbar(neq) ! cotangent of stage input in_i
         real(dp) :: sbar(neq)
         real(dp) :: a(6, 6), b(6)
         integer  :: i, j
@@ -521,7 +521,7 @@ contains
         yt = y + h * (CK_A51 * yk1 + CK_A52 * yk2 + CK_A53 * yk3 + CK_A54 * yk4)
         call rhs(t + CK_C5 * h, yt, yk5); yn(:, 5) = yt; tn(5) = t + CK_C5 * h
         yt = y + h * (CK_A61 * yk1 + CK_A62 * yk2 + CK_A63 * yk3 &
-                      + CK_A64 * yk4 + CK_A65 * yk5)
+            + CK_A64 * yk4 + CK_A65 * yk5)
         call rhs(t + CK_C6 * h, yt, yk6); yn(:, 6) = yt; tn(6) = t + CK_C6 * h
 
         ! Tableau coupling/weights as a matrix, zeros for unused entries.
@@ -542,7 +542,7 @@ contains
             skbar(:, i) = h * b(i) * lam
         end do
         do i = 6, 1, -1
-            call var_rhs_adj(tn(i), yn(:, i), skbar(:, i), inbar)  ! g_i^T skbar_i
+            call var_rhs_adj(tn(i), yn(:, i), skbar(:, i), inbar) ! g_i^T skbar_i
             sbar = sbar + inbar
             do j = 1, i - 1
                 skbar(:, j) = skbar(:, j) + h * a(i, j) * inbar

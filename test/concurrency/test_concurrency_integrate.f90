@@ -12,9 +12,9 @@ program test_concurrency_integrate
     use fortnum_status, only: fortnum_status_t
     use fortnum_quadrature, only: gauss_legendre
     use fortnum_integrate, only: integrate_qag, integrate_qags, &
-                                 integrate_qagp, integrate_qagiu, &
-                                 integrate_workspace_t, integrate_epstab_t, &
-                                 integrate_result_t
+        integrate_qagp, integrate_qagiu, &
+        integrate_workspace_t, integrate_epstab_t, &
+        integrate_result_t
     implicit none
 
     integer, parameter :: nprob = 256
@@ -62,7 +62,7 @@ contains
         w = 1.0e-2_dp
         if (present(ctx)) then
             select type (ctx)
-            type is (real(dp))
+                type is (real(dp))
                 w = ctx
             end select
         end if
@@ -73,14 +73,14 @@ contains
         real(dp), intent(in) :: x
         class(*), intent(in), optional :: ctx
         real(dp) :: fx
-        fx = 1.0_dp/(1.0_dp + x*x)         ! integral 0..inf = pi/2
+        fx = 1.0_dp/(1.0_dp + x*x) ! integral 0..inf = pi/2
     end function f_recip
 
     function f_sqrtsing(x, ctx) result(fx)
         real(dp), intent(in) :: x
         class(*), intent(in), optional :: ctx
         real(dp) :: fx
-        fx = 1.0_dp/sqrt(abs(x - 0.5_dp))  ! integrable singularity at 0.5
+        fx = 1.0_dp/sqrt(abs(x - 0.5_dp)) ! integrable singularity at 0.5
     end function f_sqrtsing
 
     ! gauss_legendre fills caller-owned x,w; each thread owns its own arrays.
@@ -108,7 +108,7 @@ contains
         type(fortnum_status_t)      :: st
         do j = 1, nprob
             call integrate_qag(f_lorentz, 0.0_dp, 1.0_dp, 0.0_dp, 1.0e-9_dp, &
-                               ws, res, st, ctx=widths(j))
+                ws, res, st, ctx=widths(j))
             ser_v(j) = res%value
             ser_e(j) = res%abserr
         end do
@@ -122,7 +122,7 @@ contains
         !$omp   schedule(static)
         do j = 1, nprob
             call integrate_qag(f_lorentz, 0.0_dp, 1.0_dp, 0.0_dp, 1.0e-9_dp, &
-                               ws, res, st, ctx=widths(j))
+                ws, res, st, ctx=widths(j))
             par_v(j) = res%value
             par_e(j) = res%abserr
         end do
@@ -136,7 +136,7 @@ contains
         type(fortnum_status_t)      :: st
         do j = 1, nprob
             call integrate_qags(f_lorentz, 0.0_dp, 1.0_dp, 0.0_dp, 1.0e-9_dp, &
-                                ws, eps, res, st, ctx=widths(j))
+                ws, eps, res, st, ctx=widths(j))
             ser_v(j) = res%value
             ser_e(j) = res%abserr
         end do
@@ -151,7 +151,7 @@ contains
         !$omp   schedule(static)
         do j = 1, nprob
             call integrate_qags(f_lorentz, 0.0_dp, 1.0_dp, 0.0_dp, 1.0e-9_dp, &
-                                ws, eps, res, st, ctx=widths(j))
+                ws, eps, res, st, ctx=widths(j))
             par_v(j) = res%value
             par_e(j) = res%abserr
         end do
@@ -167,7 +167,7 @@ contains
         pts = [0.5_dp]
         do j = 1, nprob
             call integrate_qagp(f_sqrtsing, 0.0_dp, 1.0_dp, pts, 0.0_dp, &
-                                1.0e-8_dp, ws, eps, res, st)
+                1.0e-8_dp, ws, eps, res, st)
             ser_v(j) = res%value
         end do
     end subroutine serial_qagp
@@ -183,7 +183,7 @@ contains
         do j = 1, nprob
             pts = [0.5_dp]
             call integrate_qagp(f_sqrtsing, 0.0_dp, 1.0_dp, pts, 0.0_dp, &
-                                1.0e-8_dp, ws, eps, res, st)
+                1.0e-8_dp, ws, eps, res, st)
             par_v(j) = res%value
         end do
         !$omp end parallel do
@@ -196,7 +196,7 @@ contains
         type(fortnum_status_t)      :: st
         do j = 1, nprob
             call integrate_qagiu(f_recip, 0.0_dp, 1, 0.0_dp, 1.0e-9_dp, &
-                                 ws, eps, res, st)
+                ws, eps, res, st)
             ser_v(j) = res%value
         end do
     end subroutine serial_qagiu
@@ -210,7 +210,7 @@ contains
         !$omp   schedule(static)
         do j = 1, nprob
             call integrate_qagiu(f_recip, 0.0_dp, 1, 0.0_dp, 1.0e-9_dp, &
-                                 ws, eps, res, st)
+                ws, eps, res, st)
             par_v(j) = res%value
         end do
         !$omp end parallel do

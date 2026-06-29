@@ -117,9 +117,9 @@ contains
     ! Inactive: w (the rule weights, produced by gauss_legendre or gauss_legendre_ab).
     ! w and v must have the same length n; jv must have size >= 1.
     pure subroutine gauss_legendre_jvp(w, v, jv)
-        real(dp), intent(in)  :: w(:)   ! quadrature weights (inactive rule parameter)
-        real(dp), intent(in)  :: v(:)   ! tangent for integrand values, size n
-        real(dp), intent(out) :: jv(1)  ! forward product dI, scalar
+        real(dp), intent(in)  :: w(:) ! quadrature weights (inactive rule parameter)
+        real(dp), intent(in)  :: v(:) ! tangent for integrand values, size n
+        real(dp), intent(out) :: jv(1) ! forward product dI, scalar
         jv(1) = dot_product(w, v)
     end subroutine gauss_legendre_jvp
 
@@ -129,8 +129,8 @@ contains
     ! Active output: jtu = (dI/df)^T u, i.e. jtu_i = u(1) * w_i.
     ! Inactive: w (rule weights).
     pure subroutine gauss_legendre_vjp(w, u, jtu)
-        real(dp), intent(in)  :: w(:)   ! quadrature weights (inactive rule parameter)
-        real(dp), intent(in)  :: u(1)   ! output costate (scalar), size 1
+        real(dp), intent(in)  :: w(:) ! quadrature weights (inactive rule parameter)
+        real(dp), intent(in)  :: u(1) ! output costate (scalar), size 1
         real(dp), intent(out) :: jtu(:) ! reverse product, size n
         jtu = u(1) * w
     end subroutine gauss_legendre_vjp
@@ -141,7 +141,7 @@ contains
     ! Inactive: n (determined from size(w)); w (rule weights, already computed).
     ! Output: grad(n) receives the weight vector w.
     pure subroutine gauss_legendre_grad(w, grad)
-        real(dp), intent(in)  :: w(:)    ! quadrature weights (inactive rule parameter)
+        real(dp), intent(in)  :: w(:) ! quadrature weights (inactive rule parameter)
         real(dp), intent(out) :: grad(:) ! dI/df_i = w_i, size n
         grad = w
     end subroutine gauss_legendre_grad

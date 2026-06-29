@@ -44,7 +44,7 @@ program test_fortnum_gen_laguerre_oracle
     end if
 
     open (newunit=unit, file=path(1:arglen), status="old", action="read", &
-          iostat=ios)
+        iostat=ios)
     if (ios /= 0) then
         write (error_unit, "(a)") "cannot open: "//path(1:arglen)
         stop 1

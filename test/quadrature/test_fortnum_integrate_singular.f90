@@ -7,11 +7,11 @@ program test_fortnum_integrate_singular
 
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
     use fortnum_status, only: fortnum_status_t, status_ok, &
-                              FORTNUM_OK, FORTNUM_DOMAIN_ERROR, &
-                              FORTNUM_CONVERGENCE_ERROR
+        FORTNUM_OK, FORTNUM_DOMAIN_ERROR, &
+        FORTNUM_CONVERGENCE_ERROR
     use fortnum_integrate, only: integrate_qags, integrate_qagp, &
-                                 integrate_qagiu, integrate_workspace_t, &
-                                 integrate_epstab_t, integrate_result_t
+        integrate_qagiu, integrate_workspace_t, &
+        integrate_epstab_t, integrate_result_t
     implicit none
 
     real(dp), parameter :: PI = 3.14159265358979323846264338327950288_dp
@@ -126,7 +126,7 @@ contains
         type(integrate_result_t)    :: res
         type(fortnum_status_t)      :: st
         call integrate_qags(f_inv_sqrt, 0.0_dp, 1.0_dp, 0.0_dp, 1.0e-8_dp, ws, &
-                            eps, res, st)
+            eps, res, st)
         call check(status_ok(st), "qags 1/sqrt status ok")
         call check_close(res%value, 2.0_dp, 1.0e-7_dp, "qags 1/sqrt value")
     end subroutine test_qags_inv_sqrt
@@ -138,7 +138,7 @@ contains
         type(integrate_result_t)    :: res
         type(fortnum_status_t)      :: st
         call integrate_qags(f_log, 0.0_dp, 1.0_dp, 0.0_dp, 1.0e-8_dp, ws, &
-                            eps, res, st)
+            eps, res, st)
         call check(status_ok(st), "qags log status ok")
         call check_close(res%value, -1.0_dp, 1.0e-7_dp, "qags log value")
     end subroutine test_qags_log
@@ -151,10 +151,10 @@ contains
         real(dp) :: pts(1)
         pts = [0.5_dp]
         call integrate_qagp(f_interior_sing, 0.0_dp, 1.0_dp, pts, 0.0_dp, &
-                            1.0e-8_dp, ws, eps, res, st)
+            1.0e-8_dp, ws, eps, res, st)
         call check(status_ok(st), "qagp interior status ok")
         call check_close(res%value, 2.0_dp*sqrt(2.0_dp), 1.0e-6_dp, &
-                         "qagp interior singularity value")
+            "qagp interior singularity value")
     end subroutine test_qagp_interior_singularity
 
     ! |x-0.3|+|x-0.7| on [0,1] = 0.58 (analytic piecewise integral).
@@ -166,7 +166,7 @@ contains
         real(dp) :: pts(2)
         pts = [0.3_dp, 0.7_dp]
         call integrate_qagp(f_two_kinks, 0.0_dp, 1.0_dp, pts, 0.0_dp, &
-                            1.0e-9_dp, ws, eps, res, st)
+            1.0e-9_dp, ws, eps, res, st)
         call check(status_ok(st), "qagp two kinks status ok")
         call check_close(res%value, 0.58_dp, 1.0e-8_dp, "qagp two kinks value")
         ! Both break points seeded a panel boundary in the frozen trace.
@@ -181,12 +181,12 @@ contains
         type(fortnum_status_t)      :: stp, sts
         real(dp) :: pts(0)
         call integrate_qagp(f_inv_sqrt, 0.0_dp, 1.0_dp, pts, 0.0_dp, &
-                            1.0e-8_dp, wsp, epsp, resp, stp)
+            1.0e-8_dp, wsp, epsp, resp, stp)
         call integrate_qags(f_inv_sqrt, 0.0_dp, 1.0_dp, 0.0_dp, 1.0e-8_dp, &
-                            wss, epss, ress, sts)
+            wss, epss, ress, sts)
         call check(status_ok(stp), "qagp empty status ok")
         call check_close(resp%value, ress%value, 1.0e-12_dp, &
-                         "qagp empty equals qags")
+            "qagp empty equals qags")
     end subroutine test_qagp_empty_reduces_to_qags
 
     subroutine test_qagp_break_on_endpoint_is_domain_error()
@@ -195,11 +195,11 @@ contains
         type(integrate_result_t)    :: res
         type(fortnum_status_t)      :: st
         real(dp) :: pts(1)
-        pts = [0.0_dp]   ! coincides with a: break structure ambiguous
+        pts = [0.0_dp] ! coincides with a: break structure ambiguous
         call integrate_qagp(f_inv_sqrt, 0.0_dp, 1.0_dp, pts, 0.0_dp, &
-                            1.0e-8_dp, ws, eps, res, st)
+            1.0e-8_dp, ws, eps, res, st)
         call check(st%code == FORTNUM_DOMAIN_ERROR, &
-                   "qagp break on endpoint is domain error")
+            "qagp break on endpoint is domain error")
     end subroutine test_qagp_break_on_endpoint_is_domain_error
 
     ! integral exp(-x) on [0,inf) = 1.
@@ -209,7 +209,7 @@ contains
         type(integrate_result_t)    :: res
         type(fortnum_status_t)      :: st
         call integrate_qagiu(f_exp_decay, 0.0_dp, 1, 0.0_dp, 1.0e-8_dp, ws, &
-                             eps, res, st)
+            eps, res, st)
         call check(status_ok(st), "qagiu exp decay status ok")
         call check_close(res%value, 1.0_dp, 1.0e-7_dp, "qagiu exp decay value")
     end subroutine test_qagiu_exp_decay
@@ -221,7 +221,7 @@ contains
         type(integrate_result_t)    :: res
         type(fortnum_status_t)      :: st
         call integrate_qagiu(f_lorentz0, 0.0_dp, 1, 0.0_dp, 1.0e-8_dp, ws, &
-                             eps, res, st)
+            eps, res, st)
         call check(status_ok(st), "qagiu lorentz status ok")
         call check_close(res%value, 0.5_dp*PI, 1.0e-7_dp, "qagiu lorentz value")
     end subroutine test_qagiu_lorentz_halfline
@@ -233,7 +233,7 @@ contains
         type(integrate_result_t)    :: res
         type(fortnum_status_t)      :: st
         call integrate_qagiu(f_exp_grow, 0.0_dp, -1, 0.0_dp, 1.0e-8_dp, ws, &
-                             eps, res, st)
+            eps, res, st)
         call check(status_ok(st), "qagiu lower halfline status ok")
         call check_close(res%value, 1.0_dp, 1.0e-7_dp, "qagiu lower value")
     end subroutine test_qagiu_lower_halfline
@@ -245,10 +245,10 @@ contains
         type(integrate_result_t)    :: res
         type(fortnum_status_t)      :: st
         call integrate_qagiu(f_gauss, 0.0_dp, 2, 0.0_dp, 1.0e-8_dp, ws, &
-                             eps, res, st)
+            eps, res, st)
         call check(status_ok(st), "qagiu doubly infinite status ok")
         call check_close(res%value, sqrt(PI), 1.0e-7_dp, &
-                         "qagiu doubly infinite value")
+            "qagiu doubly infinite value")
     end subroutine test_qagiu_doubly_infinite
 
     subroutine test_qagiu_bad_inf_is_domain_error()
@@ -257,9 +257,9 @@ contains
         type(integrate_result_t)    :: res
         type(fortnum_status_t)      :: st
         call integrate_qagiu(f_exp_decay, 0.0_dp, 3, 0.0_dp, 1.0e-8_dp, ws, &
-                             eps, res, st)
+            eps, res, st)
         call check(st%code == FORTNUM_DOMAIN_ERROR, &
-                   "qagiu bad inf is domain error")
+            "qagiu bad inf is domain error")
     end subroutine test_qagiu_bad_inf_is_domain_error
 
     ! Endpoint-singular QAGS at a tight tolerance must reach the QUADPACK
@@ -275,12 +275,12 @@ contains
         type(integrate_result_t)    :: res
         type(fortnum_status_t)      :: st
         call integrate_qags(f_log, 0.0_dp, 1.0_dp, 0.0_dp, 1.0e-10_dp, ws, &
-                            eps, res, st)
+            eps, res, st)
         call check(status_ok(st), "qags log tight status ok")
         call check_close(res%value, -1.0_dp, 1.0e-13_dp, "qags log tight value")
         call check(res%nsub <= 8, "qags log tight subdivision economy")
         call integrate_qags(f_inv_sqrt, 0.0_dp, 1.0_dp, 0.0_dp, 1.0e-10_dp, ws, &
-                            eps, res, st)
+            eps, res, st)
         call check(status_ok(st), "qags 1/sqrt tight status ok")
         call check_close(res%value, 2.0_dp, 1.0e-11_dp, "qags 1/sqrt tight value")
         call check(res%nsub <= 8, "qags 1/sqrt tight subdivision economy")
@@ -298,7 +298,7 @@ contains
         logical  :: ordered, contiguous_trace, has_break
         pts = [0.5_dp]
         call integrate_qagp(f_interior_sing, 0.0_dp, 1.0_dp, pts, 0.0_dp, &
-                            1.0e-8_dp, ws, eps, res, st)
+            1.0e-8_dp, ws, eps, res, st)
         call check(res%nsub >= 2, "qagp trace nsub >= 2")
         ordered = .true.
         contiguous_trace = .true.

@@ -496,9 +496,9 @@ contains
         if (la == 1) then
             do q = 0, lrem - 1
                 call butterfly5(src(q), src(q + lrem), src(q + 2*lrem), &
-                                src(q + 3*lrem), src(q + 4*lrem), &
-                                dst(5*q), dst(5*q + 1), dst(5*q + 2), &
-                                dst(5*q + 3), dst(5*q + 4))
+                    src(q + 3*lrem), src(q + 4*lrem), &
+                    dst(5*q), dst(5*q + 1), dst(5*q + 2), &
+                    dst(5*q + 3), dst(5*q + 4))
             end do
             return
         end if
@@ -516,8 +516,8 @@ contains
                 u3 = w(3*k*lrem)*src(i3 + k)
                 u4 = w(4*k*lrem)*src(i4 + k)
                 call butterfly5(u0, u1, u2, u3, u4, dst(o0 + k), &
-                                dst(o0 + la + k), dst(o0 + 2*la + k), &
-                                dst(o0 + 3*la + k), dst(o0 + 4*la + k))
+                    dst(o0 + la + k), dst(o0 + 2*la + k), &
+                    dst(o0 + 3*la + k), dst(o0 + 4*la + k))
             end do
         end do
     end subroutine pass5

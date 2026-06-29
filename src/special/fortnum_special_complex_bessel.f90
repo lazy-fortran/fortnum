@@ -91,7 +91,7 @@ contains
             (min(abs(atan2(aimag(z), real(z, dp))), pi)/pi)**2) then
             result = j_asymptotic(n, z)
         else if (az > miller_j_min .and. &
-                 abs(aimag(z)) <= near_real_ratio*abs(real(z, dp))) then
+                abs(aimag(z)) <= near_real_ratio*abs(real(z, dp))) then
             result = j_miller(n, z)
         else
             result = j_series(n, z)

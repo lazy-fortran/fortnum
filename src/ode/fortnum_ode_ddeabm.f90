@@ -59,15 +59,15 @@ module fortnum_ode_ddeabm
     ! difference array; columns 13..16 hold prediction and round-off control.
     type :: ddeabm_state_t
         integer  :: neq    = 0
-        integer  :: kord   = 1   ! order for the next step (K in DSTEPS)
-        integer  :: kold   = 0   ! order used for the last successful step
+        integer  :: kord   = 1 ! order for the next step (K in DSTEPS)
+        integer  :: kold   = 0 ! order used for the last successful step
         integer  :: kprev  = 0
-        integer  :: ns     = 0   ! steps taken at the current step size
-        integer  :: ksteps = 0   ! attempted steps since last reset
+        integer  :: ns     = 0 ! steps taken at the current step size
+        integer  :: ksteps = 0 ! attempted steps since last reset
         integer  :: ivc    = 0
         integer  :: kgi    = 0
-        integer  :: init   = 0   ! 0 fresh, 1 yp set, 2 fully started
-        integer  :: nsteps = 0   ! accepted steps (diagnostic)
+        integer  :: init   = 0 ! 0 fresh, 1 yp set, 2 fully started
+        integer  :: nsteps = 0 ! accepted steps (diagnostic)
         integer  :: nfev   = 0
         integer  :: nrejected = 0
         integer  :: max_steps = 500000
@@ -228,7 +228,7 @@ contains
         ! tstop / tout consistency: cannot ask to integrate past tstop.
         if (state%has_tstop) then
             if (sign(1.0_dp, tout - state%t) /= &
-                    sign(1.0_dp, state%tstop - state%t) .or. &
+                sign(1.0_dp, state%tstop - state%t) .or. &
                 abs(tout - state%t) > abs(state%tstop - state%t)) then
                 call status_set(status, FORTNUM_DOMAIN_ERROR, &
                     "ddeabm_integrate_to: tout conflicts with tstop")

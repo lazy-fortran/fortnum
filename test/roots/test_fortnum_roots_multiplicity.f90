@@ -44,8 +44,8 @@ contains
         select case (active_case)
         case (0)
             fk = (kr - cmplx(0.20_dp, 0.10_dp, dp)) &
-               * (kr - cmplx(0.50_dp, 0.10_dp, dp)) &
-               * (kr - cmplx(-0.9_dp, -0.6_dp, dp))**2
+                * (kr - cmplx(0.50_dp, 0.10_dp, dp)) &
+                * (kr - cmplx(-0.9_dp, -0.6_dp, dp))**2
         case (1)
             fk = (kr - cmplx(-0.3_dp, 0.6_dp, dp))**3
         case default

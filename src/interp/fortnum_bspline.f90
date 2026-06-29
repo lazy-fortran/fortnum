@@ -42,19 +42,19 @@ module fortnum_bspline
     public :: bspline_eval_basis
     public :: bspline_eval_deriv
     public :: bspline_span_index
-    public :: bspline_eval_jvp   ! d/dx [sum_i c_i B_i(x)] . vx   (x active)
-    public :: bspline_eval_vjp   ! (d/dx [sum_i c_i B_i(x)])^T . u (x active)
-    public :: bspline_eval_coef_jvp   ! d/dc [sum_i c_i B_i(x)] . vc  (coef active)
-    public :: bspline_eval_coef_vjp   ! (d/dc [sum_i c_i B_i(x)])^T . u (coef active)
+    public :: bspline_eval_jvp ! d/dx [sum_i c_i B_i(x)] . vx   (x active)
+    public :: bspline_eval_vjp ! (d/dx [sum_i c_i B_i(x)])^T . u (x active)
+    public :: bspline_eval_coef_jvp ! d/dc [sum_i c_i B_i(x)] . vc  (coef active)
+    public :: bspline_eval_coef_vjp ! (d/dc [sum_i c_i B_i(x)])^T . u (coef active)
 
     ! Caller-owned B-spline state. order, nbreak, ncoef and the augmented knot
     ! vector are filled by bspline_init / bspline_set_knots; no module-level
     ! mutable state exists, so two workspaces never race.
     type :: bspline_workspace_t
-        integer               :: order  = 0   ! spline order k (degree + 1)
-        integer               :: nbreak = 0   ! number of breakpoints
-        integer               :: ncoef  = 0   ! number of basis funcs = nbreak+k-2
-        real(dp), allocatable :: knots(:)     ! augmented knot vector, length nbreak+2(k-1)
+        integer               :: order  = 0 ! spline order k (degree + 1)
+        integer               :: nbreak = 0 ! number of breakpoints
+        integer               :: ncoef  = 0 ! number of basis funcs = nbreak+k-2
+        real(dp), allocatable :: knots(:) ! augmented knot vector, length nbreak+2(k-1)
         logical               :: knots_set = .false.
     end type bspline_workspace_t
 
@@ -258,7 +258,7 @@ contains
         end if
 
         k    = ws%order
-        p    = k - 1            ! polynomial degree
+        p    = k - 1 ! polynomial degree
         span = bspline_span_index(ws, x)
 
         ! ndu(1,1) holds the triangular table of basis values and knot diffs.
@@ -349,8 +349,8 @@ contains
     subroutine bspline_eval_jvp(ws, x, coef, vx, jv, status)
         type(bspline_workspace_t), intent(in)  :: ws
         real(dp),                  intent(in)  :: x
-        real(dp),                  intent(in)  :: coef(:)   ! spline coefficients (inactive)
-        real(dp),                  intent(in)  :: vx        ! tangent for x
+        real(dp),                  intent(in)  :: coef(:) ! spline coefficients (inactive)
+        real(dp),                  intent(in)  :: vx ! tangent for x
         real(dp),                  intent(out) :: jv
         type(fortnum_status_t),    intent(out) :: status
 
@@ -374,8 +374,8 @@ contains
         type(bspline_workspace_t), intent(in)  :: ws
         real(dp),                  intent(in)  :: x
         real(dp),                  intent(in)  :: coef(:)
-        real(dp),                  intent(in)  :: u         ! output cotangent
-        real(dp),                  intent(out) :: jtu       ! input cotangent for x
+        real(dp),                  intent(in)  :: u ! output cotangent
+        real(dp),                  intent(out) :: jtu ! input cotangent for x
         type(fortnum_status_t),    intent(out) :: status
 
         real(dp) :: dvals(0:1, ws%ncoef)
@@ -399,7 +399,7 @@ contains
     subroutine bspline_eval_coef_jvp(ws, x, vc, jv, status)
         type(bspline_workspace_t), intent(in)  :: ws
         real(dp),                  intent(in)  :: x
-        real(dp),                  intent(in)  :: vc(:)   ! tangent for coefficients
+        real(dp),                  intent(in)  :: vc(:) ! tangent for coefficients
         real(dp),                  intent(out) :: jv
         type(fortnum_status_t),    intent(out) :: status
 
@@ -421,8 +421,8 @@ contains
     subroutine bspline_eval_coef_vjp(ws, x, u, jtu, status)
         type(bspline_workspace_t), intent(in)  :: ws
         real(dp),                  intent(in)  :: x
-        real(dp),                  intent(in)  :: u         ! output cotangent
-        real(dp),                  intent(out) :: jtu(:)    ! input cotangent for coef
+        real(dp),                  intent(in)  :: u ! output cotangent
+        real(dp),                  intent(out) :: jtu(:) ! input cotangent for coef
         type(fortnum_status_t),    intent(out) :: status
 
         real(dp) :: basis(ws%ncoef)

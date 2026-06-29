@@ -220,10 +220,10 @@ contains
     ! dI_n/dx = (I_{n-1}(x) + I_{n+1}(x)) / 2  (DLMF 10.29.2).
     ! Uses I_{-1} = I_1 (symmetry) so n=0 is handled correctly.
     pure subroutine bessel_in_jvp(n, x, v, jv)
-        integer,  intent(in)  :: n    ! inactive order
-        real(dp), intent(in)  :: x    ! active argument
-        real(dp), intent(in)  :: v    ! tangent
-        real(dp), intent(out) :: jv   ! directional derivative
+        integer,  intent(in)  :: n ! inactive order
+        real(dp), intent(in)  :: x ! active argument
+        real(dp), intent(in)  :: v ! tangent
+        real(dp), intent(out) :: jv ! directional derivative
         jv = 0.5_dp*(bessel_in(n - 1, x) + bessel_in(n + 1, x)) * v
     end subroutine bessel_in_jvp
 
@@ -231,10 +231,10 @@ contains
     ! dK_n/dx = -(K_{n-1}(x) + K_{n+1}(x)) / 2  (DLMF 10.29.4).
     ! Uses K_{-1} = K_1 (symmetry) so n=0 is handled correctly.
     pure subroutine bessel_kn_jvp(n, x, v, jv)
-        integer,  intent(in)  :: n    ! inactive order
-        real(dp), intent(in)  :: x    ! active argument (must be > 0)
-        real(dp), intent(in)  :: v    ! tangent
-        real(dp), intent(out) :: jv   ! directional derivative
+        integer,  intent(in)  :: n ! inactive order
+        real(dp), intent(in)  :: x ! active argument (must be > 0)
+        real(dp), intent(in)  :: v ! tangent
+        real(dp), intent(out) :: jv ! directional derivative
         jv = -0.5_dp*(bessel_kn(n - 1, x) + bessel_kn(n + 1, x)) * v
     end subroutine bessel_kn_jvp
 
@@ -243,9 +243,9 @@ contains
     ! with I_{-1} = I_1 so J_0 = I_1. One extra order from bessel_in_array keeps
     ! the products consistent with the array primal's recurrence.
     pure subroutine bessel_in_array_jvp(nmax, x, v, jv)
-        integer,  intent(in)  :: nmax       ! inactive order count
-        real(dp), intent(in)  :: x          ! active argument
-        real(dp), intent(in)  :: v          ! scalar tangent
+        integer,  intent(in)  :: nmax ! inactive order count
+        real(dp), intent(in)  :: x ! active argument
+        real(dp), intent(in)  :: v ! scalar tangent
         real(dp), intent(out) :: jv(0:nmax) ! directional derivative per order
 
         real(dp) :: ext(0:nmax + 1)
@@ -262,10 +262,10 @@ contains
     ! jtu = (J^T u) = sum_n u_n J_n with J_n as in bessel_in_array_jvp, so the
     ! adjoint identity u.(J v) = v.(J^T u) holds to rounding.
     pure subroutine bessel_in_array_vjp(nmax, x, u, jtu)
-        integer,  intent(in)  :: nmax      ! inactive order count
-        real(dp), intent(in)  :: x         ! active argument
+        integer,  intent(in)  :: nmax ! inactive order count
+        real(dp), intent(in)  :: x ! active argument
         real(dp), intent(in)  :: u(0:nmax) ! output-space adjoint
-        real(dp), intent(out) :: jtu       ! input-space adjoint (scalar)
+        real(dp), intent(out) :: jtu ! input-space adjoint (scalar)
 
         real(dp) :: ext(0:nmax + 1)
         integer  :: n
@@ -462,7 +462,7 @@ contains
             pref = sqrt(half_pi/x)*exp(-x)
             if (x < cheb_hi_x_min) then
                 u  = (2.0_dp/x - cheb_mid_s_lo - cheb_mid_s_hi) &
-                     /(cheb_mid_s_hi - cheb_mid_s_lo)
+                    /(cheb_mid_s_hi - cheb_mid_s_lo)
                 k0 = pref*cheb_eval(cheb_mid_k0, u)
                 k1 = pref*cheb_eval(cheb_mid_k1, u)
             else

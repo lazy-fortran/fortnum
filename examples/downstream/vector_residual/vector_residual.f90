@@ -29,11 +29,11 @@ program vector_residual
     use fortnum_kinds,         only: dp
     use fortnum_status,        only: fortnum_status_t, status_ok, FORTNUM_OK
     use fortnum_active_vector, only: fortnum_active_layout_t, layout_init, &
-                                     layout_add, pack_block, unpack_block
+        layout_add, pack_block, unpack_block
     use fortnum_ad_interfaces, only: fortnum_ad_status_t, ad_status_set, &
-                                     ad_status_ok, &
-                                     FORTNUM_AD_BACKEND_ANALYTIC, &
-                                     FORTNUM_AD_QUALITY_EXACT
+        ad_status_ok, &
+        FORTNUM_AD_BACKEND_ANALYTIC, &
+        FORTNUM_AD_QUALITY_EXACT
     implicit none
 
     integer :: nfail
@@ -101,8 +101,8 @@ contains
         ! ------------------------------------------------------------ (3) adjoint identity
         u = [1.0_dp, -0.5_dp, 0.3_dp]
         call res_vjp(3, x, u, jtu_ad, layout, st)
-        lhs = dot_product(u, jv_ad)        ! u . (J v)
-        rhs = dot_product(v, jtu_ad)       ! v . (J^T u)
+        lhs = dot_product(u, jv_ad) ! u . (J v)
+        rhs = dot_product(v, jtu_ad) ! v . (J^T u)
         err = abs(lhs - rhs) / max(abs(lhs), abs(rhs), 1.0_dp)
         if (err > 1.0e-13_dp) then
             write (error_unit, '(a,es12.4,a,es24.16,a,es24.16)') &

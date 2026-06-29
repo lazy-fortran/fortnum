@@ -63,7 +63,7 @@ contains
         cur_seq = -1
 
         open (newunit=unit, file=csv_path, status="old", action="read", &
-              iostat=ios)
+            iostat=ios)
         if (ios /= 0) then
             write (error_unit, "(a)") "cannot open: "//trim(csv_path)
             stop 1
@@ -88,7 +88,7 @@ contains
                 s = nseq
                 seqname(s) = rname
             end if
-            k = rkfld + 1   ! 0-based k -> 1-based index
+            k = rkfld + 1 ! 0-based k -> 1-based index
             z_in(k, s) = cmplx(rri, rii, dp)
             z_ref(k, s) = cmplx(rrf, rimf, dp)
             if (k > seqlen(s)) seqlen(s) = k
@@ -112,7 +112,7 @@ contains
             n = seqlen(s)
             if (maxval(abs(aimag(z_in(1:n, s)))) < 1.0e-15_dp) then
                 call check_r2c(seqname(s), real(z_in(1:n, s), dp), &
-                               z_ref(1:n, s), n)
+                    z_ref(1:n, s), n)
             end if
         end do
     end subroutine run_tests
@@ -127,7 +127,7 @@ contains
         real(dp) :: err, tol
 
         z = z_in_ref
-        call fft_c2c(z, -1)  ! forward
+        call fft_c2c(z, -1) ! forward
 
         do k = 1, n
             err = abs(z(k) - z_ref(k))

@@ -572,7 +572,7 @@ contains
         call f(zc, fz, ctx)
         if (abs(fz) > max(nf, 1.0e-8_dp)) &
             call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
-                "complex_region_roots: Newton polish did not converge")
+            "complex_region_roots: Newton polish did not converge")
     end subroutine newton_polish
 
     ! Append one distinct zero to the growing result arrays.
