@@ -38,7 +38,7 @@ program test_fortnum_integrate_gk_oracle
     end if
 
     open (newunit=unit, file=csv_path(1:arglen), status="old", action="read", &
-          iostat=ios)
+        iostat=ios)
     if (ios /= 0) then
         write (error_unit, "(a)") &
             "cannot open: "//csv_path(1:arglen)
@@ -59,7 +59,7 @@ program test_fortnum_integrate_gk_oracle
         end if
         active_case = cid
         call integrate_gk(dispatch, a, b, 0.0_dp, 1.0e-12_dp, result, abserr, &
-                          ierr, key=21, limit=200)
+            ierr, key=21, limit=200)
         if (ierr /= 0) then
             write (error_unit, "(a,i0,a,i0)") &
                 "case ", cid, ": ierr = ", ierr
@@ -115,17 +115,17 @@ contains
         real(dp), intent(in) :: x
         real(dp) :: fx
         select case (active_case)
-        case (0)   ! exp(x) on [0,1]; analytic = e-1
+        case (0) ! exp(x) on [0,1]; analytic = e-1
             fx = exp(x)
-        case (1)   ! 3x^2+2x+1 on [0,2]; analytic = 14
+        case (1) ! 3x^2+2x+1 on [0,2]; analytic = 14
             fx = 3.0_dp*x**2 + 2.0_dp*x + 1.0_dp
-        case (2)   ! sin(x) on [0,pi]; analytic = 2
+        case (2) ! sin(x) on [0,pi]; analytic = 2
             fx = sin(x)
-        case (3)   ! cos(x) on [0,pi/2]; analytic = 1
+        case (3) ! cos(x) on [0,pi/2]; analytic = 1
             fx = cos(x)
-        case (4)   ! sqrt(x) on [0,1]; analytic = 2/3
+        case (4) ! sqrt(x) on [0,1]; analytic = 2/3
             fx = sqrt(x)
-        case (5)   ! exp(-x^2) on [0,1]; ref from scipy
+        case (5) ! exp(-x^2) on [0,1]; ref from scipy
             fx = exp(-x*x)
         case default
             fx = 0.0_dp

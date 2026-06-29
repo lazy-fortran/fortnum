@@ -23,8 +23,8 @@ module fortnum_active_vector
     ! x(offset : offset + size - 1) carrying one logical quantity.
     type, public :: fortnum_av_block_t
         character(FORTNUM_AV_NAME_LEN) :: name = ""
-        integer :: offset = 0   ! 1-based start index into x(:)
-        integer :: size   = 0   ! number of entries in this block
+        integer :: offset = 0 ! 1-based start index into x(:)
+        integer :: size   = 0 ! number of entries in this block
     end type fortnum_av_block_t
 
     ! Layout descriptor: total length n and the named blocks that tile it.
@@ -32,8 +32,8 @@ module fortnum_active_vector
     ! blocks are stored in declaration order; offsets are assigned so the
     ! blocks tile [1, n] without gaps or overlap.
     type, public :: fortnum_active_layout_t
-        integer :: n      = 0   ! total flat length
-        integer :: nblock = 0   ! number of named blocks
+        integer :: n      = 0 ! total flat length
+        integer :: nblock = 0 ! number of named blocks
         type(fortnum_av_block_t), allocatable :: blocks(:)
     end type fortnum_active_layout_t
 

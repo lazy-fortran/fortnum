@@ -27,7 +27,7 @@ program test_complex_bessel_ad
     complex(dp), save :: z0   = (0.0_dp, 0.0_dp)
     complex(dp), save :: dir  = (1.0_dp, 0.0_dp)
     integer,     save :: nord = 0
-    integer,     save :: kind_sel = 0   ! 0 J, 1 I, 2 K
+    integer,     save :: kind_sel = 0 ! 0 J, 1 I, 2 K
 
     integer :: nfail
     nfail = 0
@@ -57,7 +57,7 @@ contains
 
         ! Moderate complex z with Re z > 0 (K needs it); covers KiLCA's domain.
         pts = [ (1.0_dp, 1.0_dp), (2.5_dp, -0.8_dp), &
-                (4.0_dp, 1.5_dp), (6.0_dp, -2.0_dp) ]
+            (4.0_dp, 1.5_dp), (6.0_dp, -2.0_dp) ]
         orders = [0, 1, 3]
         x = [0.0_dp]
         v = [1.0_dp]
@@ -85,10 +85,10 @@ contains
         kind_sel = 1
         nord = 2
         if (.not. dot_product_identity("I_adjoint", f_jvp, f_vjp, x, u, v, &
-                tol_adj)) nfail = nfail + 1
+            tol_adj)) nfail = nfail + 1
         kind_sel = 2
         if (.not. dot_product_identity("K_adjoint", f_jvp, f_vjp, x, u, v, &
-                tol_adj)) nfail = nfail + 1
+            tol_adj)) nfail = nfail + 1
     end subroutine adjoint_checks
 
     ! Primal g(s) = B_nord(z0 + s*dir) mapped to R^2 = (Re, Im).

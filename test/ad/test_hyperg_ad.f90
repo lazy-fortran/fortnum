@@ -13,8 +13,8 @@ program test_hyperg_ad
         hyperg_1f1_a1_jvp, hyperg_1f1_a1_vjp
     implicit none
 
-    real(dp), parameter :: tol_fd  = 1.0e-7_dp   ! central-FD (h ~ eps^1/3)
-    real(dp), parameter :: tol_adj = 1.0e-13_dp  ! adjoint identity
+    real(dp), parameter :: tol_fd  = 1.0e-7_dp ! central-FD (h ~ eps^1/3)
+    real(dp), parameter :: tol_adj = 1.0e-13_dp ! adjoint identity
 
     ! b shared with the harness wrappers (inactive parameter of the map).
     complex(dp), save :: b_shared = (1.0_dp, 0.0_dp)
@@ -42,9 +42,9 @@ contains
         logical  :: ok
 
         bvals = [cmplx(2.0_dp, 0.0_dp, dp), cmplx(1.5_dp, 0.5_dp, dp), &
-                 cmplx(3.0_dp, -1.0_dp, dp), cmplx(2.0_dp, 1.0_dp, dp)]
+            cmplx(3.0_dp, -1.0_dp, dp), cmplx(2.0_dp, 1.0_dp, dp)]
         zvals = [cmplx(0.4_dp, 0.0_dp, dp), cmplx(1.0_dp, 0.5_dp, dp), &
-                 cmplx(2.0_dp, -0.3_dp, dp), cmplx(0.8_dp, 0.8_dp, dp)]
+            cmplx(2.0_dp, -0.3_dp, dp), cmplx(0.8_dp, 0.8_dp, dp)]
 
         ! Perturb the real and the imaginary part separately.
         do j = 1, size(bvals)
@@ -71,13 +71,13 @@ contains
         u = [0.7_dp, -1.1_dp]
         v = [1.3_dp, 0.4_dp]
         if (.not. dot_product_identity("hyperg_adjoint", jvp_wrap, vjp_wrap, &
-                z, u, v, tol_adj)) nfail = nfail + 1
+            z, u, v, tol_adj)) nfail = nfail + 1
         b_shared = cmplx(1.5_dp, -0.4_dp, dp)
         z = [2.0_dp, -0.6_dp]
         u = [-0.5_dp, 0.9_dp]
         v = [0.2_dp, 1.7_dp]
         if (.not. dot_product_identity("hyperg_adjoint_2", jvp_wrap, vjp_wrap, &
-                z, u, v, tol_adj)) nfail = nfail + 1
+            z, u, v, tol_adj)) nfail = nfail + 1
     end subroutine test_adjoint
 
     ! Primal map (Re z, Im z) |-> (Re M, Im M) for a = 1, b = b_shared.

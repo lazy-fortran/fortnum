@@ -38,7 +38,7 @@ program test_fortnum_special_complex_bessel_oracle
     end if
 
     open (newunit=unit, file=csv_path(1:arglen), status="old", &
-          action="read", iostat=ios)
+        action="read", iostat=ios)
     if (ios /= 0) then
         write (error_unit, "(a)") "cannot open "//csv_path(1:arglen)
         stop 1

@@ -86,9 +86,9 @@ contains
             allocate (z(n), z0(n))
             call fill_test(z0, n, s)
             z = z0
-            call fft_c2c(z, -1)      ! forward
-            call fft_c2c(z, +1)      ! inverse (unnormalized)
-            z = z/real(n, dp)        ! normalize
+            call fft_c2c(z, -1) ! forward
+            call fft_c2c(z, +1) ! inverse (unnormalized)
+            z = z/real(n, dp) ! normalize
             err = 0.0_dp
             do j = 1, n
                 err = max(err, abs(z(j) - z0(j)))
@@ -130,7 +130,7 @@ contains
         call fill_test(z1, n, 7)
         z2 = z1
         call fft_plan_init(plan, n)
-        call fft_r2c_via_c2c(z1, n)   ! plan-less reference via fft_c2c
+        call fft_r2c_via_c2c(z1, n) ! plan-less reference via fft_c2c
         ! plan-based (exercise the optional plan path of fft_r2c on real data)
         ! re-fill z2, forward with plan
         call fill_test(z2, n, 7)
@@ -177,30 +177,30 @@ contains
         complex(dp), intent(inout) :: z(:)
         integer, intent(in) :: n
         associate (unused_n => n); end associate
-        call fft_c2c(z, -1)
-    end subroutine fft_r2c_via_c2c
+            call fft_c2c(z, -1)
+        end subroutine fft_r2c_via_c2c
 
-    ! Deterministic fill: uses a simple linear congruential pattern.
-    subroutine fill_test(z, n, seed)
-        complex(dp), intent(out) :: z(:)
-        integer, intent(in) :: n, seed
-        integer :: j
-        real(dp) :: s
+        ! Deterministic fill: uses a simple linear congruential pattern.
+        subroutine fill_test(z, n, seed)
+            complex(dp), intent(out) :: z(:)
+            integer, intent(in) :: n, seed
+            integer :: j
+            real(dp) :: s
 
-        s = real(seed, dp)
-        do j = 1, n
-            s = mod(s*1664525.0_dp + 1013904223.0_dp, 2.0_dp**32)
-            z(j) = cmplx(s/2.0_dp**32 - 0.5_dp, &
-                          mod(s*22695477.0_dp, 2.0_dp**32)/2.0_dp**32 - 0.5_dp, dp)
-        end do
-    end subroutine fill_test
+            s = real(seed, dp)
+            do j = 1, n
+                s = mod(s*1664525.0_dp + 1013904223.0_dp, 2.0_dp**32)
+                z(j) = cmplx(s/2.0_dp**32 - 0.5_dp, &
+                    mod(s*22695477.0_dp, 2.0_dp**32)/2.0_dp**32 - 0.5_dp, dp)
+            end do
+        end subroutine fill_test
 
-    subroutine fill_real_test(x, n, seed)
-        real(dp), intent(out) :: x(:)
-        integer, intent(in) :: n, seed
-        complex(dp) :: z(n)
-        call fill_test(z, n, seed)
-        x = real(z, dp)
-    end subroutine fill_real_test
+        subroutine fill_real_test(x, n, seed)
+            real(dp), intent(out) :: x(:)
+            integer, intent(in) :: n, seed
+            complex(dp) :: z(n)
+            call fill_test(z, n, seed)
+            x = real(z, dp)
+        end subroutine fill_real_test
 
-end program test_fortnum_fft
+    end program test_fortnum_fft

@@ -5,11 +5,11 @@ program test_fortnum_integrate
 
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
     use fortnum_status, only: fortnum_status_t, status_ok, &
-                              FORTNUM_OK, FORTNUM_DOMAIN_ERROR, &
-                              FORTNUM_CONVERGENCE_ERROR
+        FORTNUM_OK, FORTNUM_DOMAIN_ERROR, &
+        FORTNUM_CONVERGENCE_ERROR
     use fortnum_integrate, only: integrate, integrate_qag, integrate_qags, &
-                                 integrate_workspace_t, integrate_epstab_t, &
-                                 integrate_result_t
+        integrate_workspace_t, integrate_epstab_t, &
+        integrate_result_t
     implicit none
 
     real(dp), parameter :: PI = 3.14159265358979323846264338327950288_dp
@@ -87,7 +87,7 @@ contains
         w = 1.0e-3_dp
         if (present(ctx)) then
             select type (ctx)
-            type is (real(dp))
+                type is (real(dp))
                 w = ctx
             end select
         end if
@@ -99,7 +99,7 @@ contains
         type(integrate_result_t)    :: res
         type(fortnum_status_t)      :: st
         call integrate_qag(f_poly, 0.0_dp, 2.0_dp, 0.0_dp, 1.0e-10_dp, ws, &
-                           res, st)
+            res, st)
         call check(status_ok(st), "polynomial status ok")
         call check_close(res%value, 14.0_dp, 1.0e-10_dp, "polynomial value")
         call check(res%abserr <= 1.0e-10_dp, "polynomial abserr small")
@@ -125,7 +125,7 @@ contains
         ! absolute tolerance is the correct request for a zero-mean integrand.
         ref = (1.0_dp - cos(10.0_dp*PI))/10.0_dp
         call integrate_qag(f_osc, 0.0_dp, PI, 1.0e-10_dp, 1.0e-10_dp, ws, res, &
-                           st, key=31)
+            st, key=31)
         call check(status_ok(st), "oscillatory status ok")
         call check_close(res%value, ref, 1.0e-9_dp, "oscillatory value")
         call check(res%key == 31, "oscillatory records key 31")
@@ -142,7 +142,7 @@ contains
         c = 0.5_dp
         ref = w*(atan((1.0_dp - c)/w) + atan(c/w))
         call integrate_qags(f_lorentz, 0.0_dp, 1.0_dp, 0.0_dp, 1.0e-8_dp, ws, &
-                            eps, res, st, ctx=w)
+            eps, res, st, ctx=w)
         call check(status_ok(st), "lorentzian qags status ok")
         call check_close(res%value, ref, 1.0e-6_dp, "lorentzian value")
     end subroutine test_lorentzian_qags
@@ -159,7 +159,7 @@ contains
         w = 0.1_dp
         ref = w*(atan((1.0_dp - c)/w) + atan(c/w))
         call integrate_qags(f_lorentz, 0.0_dp, 1.0_dp, 0.0_dp, 1.0e-9_dp, ws, &
-                            eps, res, st, ctx=w)
+            eps, res, st, ctx=w)
         call check_close(res%value, ref, 1.0e-8_dp, "ctx width 0.1 value")
     end subroutine test_ctx_threading
 
@@ -173,7 +173,7 @@ contains
         logical  :: ordered, contiguous_trace
         real(dp) :: s
         call integrate_qag(f_osc, 0.0_dp, PI, 1.0e-10_dp, 1.0e-10_dp, ws, &
-                           res, st)
+            res, st)
         call check(res%nsub >= 1, "trace nsub >= 1")
         ordered = .true.
         contiguous_trace = .true.
@@ -201,12 +201,12 @@ contains
         type(fortnum_status_t)      :: st
         real(dp) :: v1, v2
         call integrate_qag(f_osc, 0.0_dp, PI, 1.0e-10_dp, 1.0e-10_dp, ws, &
-                           res, st)
+            res, st)
         v1 = res%value
         call integrate_qag(f_poly, 0.0_dp, 2.0_dp, 0.0_dp, 1.0e-10_dp, ws, &
-                           res, st)
+            res, st)
         call integrate_qag(f_osc, 0.0_dp, PI, 1.0e-10_dp, 1.0e-10_dp, ws, &
-                           res, st)
+            res, st)
         v2 = res%value
         call check_close(v1, v2, 1.0e-14_dp, "workspace reuse invariant")
     end subroutine test_value_invariant_to_workspace_reuse
@@ -216,9 +216,9 @@ contains
         type(integrate_result_t)    :: res
         type(fortnum_status_t)      :: st
         call integrate_qag(f_poly, 2.0_dp, 0.0_dp, 0.0_dp, 1.0e-8_dp, ws, &
-                           res, st)
+            res, st)
         call check(st%code == FORTNUM_DOMAIN_ERROR, &
-                   "reversed interval is domain error")
+            "reversed interval is domain error")
     end subroutine test_reject_reversed_interval
 
     subroutine test_reject_bad_key()
@@ -226,7 +226,7 @@ contains
         type(integrate_result_t)    :: res
         type(fortnum_status_t)      :: st
         call integrate_qag(f_poly, 0.0_dp, 1.0_dp, 0.0_dp, 1.0e-8_dp, ws, &
-                           res, st, key=7)
+            res, st, key=7)
         call check(st%code == FORTNUM_DOMAIN_ERROR, "bad key is domain error")
     end subroutine test_reject_bad_key
 
@@ -237,9 +237,9 @@ contains
         type(integrate_result_t)    :: res
         type(fortnum_status_t)      :: st
         call integrate_qag(f_lorentz, 0.0_dp, 1.0_dp, 0.0_dp, 1.0e-12_dp, ws, &
-                           res, st, limit=1)
+            res, st, limit=1)
         call check(st%code == FORTNUM_CONVERGENCE_ERROR, &
-                   "limit=1 hard integrand is convergence error")
+            "limit=1 hard integrand is convergence error")
         call check(res%nsub >= 1, "failed run still records a trace")
     end subroutine test_convergence_failure_low_limit
 

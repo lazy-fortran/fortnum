@@ -91,7 +91,7 @@ contains
     ! a is passed as x(2) (inactive, read-only; harness interface uses x(:)).
     ! Convention: x array = [x_val, a_val] so the harness can vary x(1).
     subroutine gamma_lower_jvp(x, v, jv)
-        real(dp), intent(in)  :: x(:)   ! x(1)=limit, x(2)=shape a
+        real(dp), intent(in)  :: x(:) ! x(1)=limit, x(2)=shape a
         real(dp), intent(in)  :: v(:)
         real(dp), intent(out) :: jv(:)
         real(dp) :: xv, av
@@ -261,7 +261,7 @@ contains
         f  = 1.0_dp / x
         f2 = f * f
         psi = psi + log(x) - 0.5_dp * f &
-              - f2 * (1.0_dp/12.0_dp - f2 * (1.0_dp/120.0_dp - f2/252.0_dp))
+            - f2 * (1.0_dp/12.0_dp - f2 * (1.0_dp/120.0_dp - f2/252.0_dp))
     end function digamma
 
 end module fortnum_special_gamma

@@ -37,13 +37,13 @@ program test_fortnum_ode_oracle
     total = 0
 
     call run_case(trim(data_dir)//"/ode_decay.csv",    1, rhs_decay,    &
-                  [1.0_dp],       nfail, total)
+        [1.0_dp],       nfail, total)
     call run_case(trim(data_dir)//"/ode_growth.csv",   1, rhs_growth,   &
-                  [1.0_dp],       nfail, total)
+        [1.0_dp],       nfail, total)
     call run_case(trim(data_dir)//"/ode_harmonic.csv", 2, rhs_harmonic, &
-                  [1.0_dp, 0.0_dp], nfail, total)
+        [1.0_dp, 0.0_dp], nfail, total)
     call run_case(trim(data_dir)//"/ode_linear.csv",   2, rhs_linear,   &
-                  [1.0_dp, 0.0_dp], nfail, total)
+        [1.0_dp, 0.0_dp], nfail, total)
 
     if (nfail > 0) then
         write (error_unit, "(i0,a,i0,a)") nfail, " oracle row(s) failed out of ", &
@@ -61,152 +61,152 @@ contains
         real(dp), intent(out) :: dydt(:)
         class(*), intent(in), optional :: ctx
         associate (unused_t => t); end associate
-        dydt(1) = -y(1)
-    end subroutine rhs_decay
+            dydt(1) = -y(1)
+        end subroutine rhs_decay
 
-    subroutine rhs_growth(t, y, dydt, ctx)
-        real(dp), intent(in)  :: t
-        real(dp), intent(in)  :: y(:)
-        real(dp), intent(out) :: dydt(:)
-        class(*), intent(in), optional :: ctx
-        associate (unused_t => t); end associate
-        dydt(1) = y(1)
-    end subroutine rhs_growth
+        subroutine rhs_growth(t, y, dydt, ctx)
+            real(dp), intent(in)  :: t
+            real(dp), intent(in)  :: y(:)
+            real(dp), intent(out) :: dydt(:)
+            class(*), intent(in), optional :: ctx
+            associate (unused_t => t); end associate
+                dydt(1) = y(1)
+            end subroutine rhs_growth
 
-    subroutine rhs_harmonic(t, y, dydt, ctx)
-        real(dp), intent(in)  :: t
-        real(dp), intent(in)  :: y(:)
-        real(dp), intent(out) :: dydt(:)
-        class(*), intent(in), optional :: ctx
-        associate (unused_t => t); end associate
-        dydt(1) =  y(2)
-        dydt(2) = -y(1)
-    end subroutine rhs_harmonic
-
-    ! y1' = -2*y1 + y2,  y2' = y1 - 3*y2
-    subroutine rhs_linear(t, y, dydt, ctx)
-        real(dp), intent(in)  :: t
-        real(dp), intent(in)  :: y(:)
-        real(dp), intent(out) :: dydt(:)
-        class(*), intent(in), optional :: ctx
-        associate (unused_t => t); end associate
-        dydt(1) = -2.0_dp * y(1) + y(2)
-        dydt(2) =  y(1) - 3.0_dp * y(2)
-    end subroutine rhs_linear
-
-    ! Read CSV, run ode_at, compare each row.
-    subroutine run_case(csv_path, neq, rhs, y0_in, nfail, total)
-        character(len=*), intent(in) :: csv_path
-        integer,          intent(in) :: neq
-        real(dp),         intent(in) :: y0_in(:)
-        integer,       intent(inout) :: nfail, total
-
-        interface
-            subroutine rhs(t, y, dydt, ctx)
-                import :: dp
+            subroutine rhs_harmonic(t, y, dydt, ctx)
                 real(dp), intent(in)  :: t
                 real(dp), intent(in)  :: y(:)
                 real(dp), intent(out) :: dydt(:)
                 class(*), intent(in), optional :: ctx
-            end subroutine rhs
-        end interface
+                associate (unused_t => t); end associate
+                    dydt(1) =  y(2)
+                    dydt(2) = -y(1)
+                end subroutine rhs_harmonic
 
-        ! Maximum output points per case.
-        integer, parameter :: MAX_PTS = 200
+                ! y1' = -2*y1 + y2,  y2' = y1 - 3*y2
+                subroutine rhs_linear(t, y, dydt, ctx)
+                    real(dp), intent(in)  :: t
+                    real(dp), intent(in)  :: y(:)
+                    real(dp), intent(out) :: dydt(:)
+                    class(*), intent(in), optional :: ctx
+                    associate (unused_t => t); end associate
+                        dydt(1) = -2.0_dp * y(1) + y(2)
+                        dydt(2) =  y(1) - 3.0_dp * y(2)
+                    end subroutine rhs_linear
 
-        integer               :: unit, ios, npts, k, j
-        character(len=1024)   :: line
-        real(dp)              :: tbuf(MAX_PTS), ybuf(neq, MAX_PTS)
-        real(dp), allocatable :: t_eval(:), y_out(:,:)
-        type(ode_problem_t)   :: problem
-        type(ode_workspace_t) :: workspace
-        type(fortnum_status_t):: status
+                    ! Read CSV, run ode_at, compare each row.
+                    subroutine run_case(csv_path, neq, rhs, y0_in, nfail, total)
+                        character(len=*), intent(in) :: csv_path
+                        integer,          intent(in) :: neq
+                        real(dp),         intent(in) :: y0_in(:)
+                        integer,       intent(inout) :: nfail, total
 
-        ! Comparison tolerance: fortnum runs at 1e-9/1e-11; expect ~1e-7
-        ! pointwise agreement against the tight scipy reference.
-        real(dp), parameter :: atol = 1.0e-6_dp
-        real(dp), parameter :: rtol = 1.0e-6_dp
-        real(dp) :: ref_y(neq), err, tol
+                        interface
+                            subroutine rhs(t, y, dydt, ctx)
+                                import :: dp
+                                real(dp), intent(in)  :: t
+                                real(dp), intent(in)  :: y(:)
+                                real(dp), intent(out) :: dydt(:)
+                                class(*), intent(in), optional :: ctx
+                            end subroutine rhs
+                        end interface
 
-        open (newunit=unit, file=csv_path, status="old", action="read", &
-              iostat=ios)
-        if (ios /= 0) then
-            write (error_unit, "(a)") "FAIL: cannot open " // trim(csv_path)
-            nfail = nfail + 1
-            return
-        end if
+                        ! Maximum output points per case.
+                        integer, parameter :: MAX_PTS = 200
 
-        npts = 0
-        do
-            read (unit, "(a)", iostat=ios) line
-            if (ios /= 0) exit
-            if (len_trim(line) == 0) cycle
-            if (line(1:1) == "#") cycle
-            npts = npts + 1
-            if (npts > MAX_PTS) then
-                write (error_unit, "(a)") "oracle: too many rows in " // trim(csv_path)
-                stop 1
-            end if
-            call replace_commas(line)
-            read (line, *, iostat=ios) tbuf(npts), (ybuf(k, npts), k = 1, neq)
-            if (ios /= 0) then
-                write (error_unit, "(a,i0)") "oracle: parse error at row ", npts
-                nfail = nfail + 1
-                npts = npts - 1
-            end if
-        end do
-        close (unit)
+                        integer               :: unit, ios, npts, k, j
+                        character(len=1024)   :: line
+                        real(dp)              :: tbuf(MAX_PTS), ybuf(neq, MAX_PTS)
+                        real(dp), allocatable :: t_eval(:), y_out(:,:)
+                        type(ode_problem_t)   :: problem
+                        type(ode_workspace_t) :: workspace
+                        type(fortnum_status_t):: status
 
-        if (npts < 2) then
-            write (error_unit, "(a)") "oracle: too few rows in " // trim(csv_path)
-            nfail = nfail + 1
-            return
-        end if
+                        ! Comparison tolerance: fortnum runs at 1e-9/1e-11; expect ~1e-7
+                        ! pointwise agreement against the tight scipy reference.
+                        real(dp), parameter :: atol = 1.0e-6_dp
+                        real(dp), parameter :: rtol = 1.0e-6_dp
+                        real(dp) :: ref_y(neq), err, tol
 
-        ! Run ode_at at the same output times as the oracle.
-        allocate(t_eval(npts))
-        t_eval = tbuf(1:npts)
+                        open (newunit=unit, file=csv_path, status="old", action="read", &
+                            iostat=ios)
+                        if (ios /= 0) then
+                            write (error_unit, "(a)") "FAIL: cannot open " // trim(csv_path)
+                            nfail = nfail + 1
+                            return
+                        end if
 
-        problem%rhs  => rhs
-        problem%y0   = y0_in
-        problem%rtol = 1.0e-9_dp
-        problem%atol = 1.0e-11_dp
+                        npts = 0
+                        do
+                            read (unit, "(a)", iostat=ios) line
+                            if (ios /= 0) exit
+                            if (len_trim(line) == 0) cycle
+                            if (line(1:1) == "#") cycle
+                            npts = npts + 1
+                            if (npts > MAX_PTS) then
+                                write (error_unit, "(a)") "oracle: too many rows in " // trim(csv_path)
+                                stop 1
+                            end if
+                            call replace_commas(line)
+                            read (line, *, iostat=ios) tbuf(npts), (ybuf(k, npts), k = 1, neq)
+                            if (ios /= 0) then
+                                write (error_unit, "(a,i0)") "oracle: parse error at row ", npts
+                                nfail = nfail + 1
+                                npts = npts - 1
+                            end if
+                        end do
+                        close (unit)
 
-        call ode_at(problem, t_eval, workspace, y_out, status)
-        if (status%code /= FORTNUM_OK) then
-            write (error_unit, "(a,i0,a)") &
-                "FAIL: ode_at returned code=", status%code, &
-                " for " // trim(csv_path)
-            nfail = nfail + 1
-            return
-        end if
+                        if (npts < 2) then
+                            write (error_unit, "(a)") "oracle: too few rows in " // trim(csv_path)
+                            nfail = nfail + 1
+                            return
+                        end if
 
-        do j = 1, npts
-            do k = 1, neq
-                ref_y(k) = ybuf(k, j)
-            end do
-            do k = 1, neq
-                err = abs(y_out(k, j) - ref_y(k))
-                tol = atol + rtol * abs(ref_y(k))
-                if (err > tol) then
-                    write (error_unit, &
-                        "(a,a,a,i0,a,i0,a,es12.4,a,es12.4,a,es12.4)") &
-                        "FAIL ", trim(csv_path), " row=", j, " comp=", k, &
-                        " err=", err, " tol=", tol, " t=", t_eval(j)
-                    nfail = nfail + 1
-                end if
-            end do
-            total = total + neq
-        end do
-        deallocate(t_eval)
-    end subroutine run_case
+                        ! Run ode_at at the same output times as the oracle.
+                        allocate(t_eval(npts))
+                        t_eval = tbuf(1:npts)
 
-    subroutine replace_commas(s)
-        character(len=*), intent(inout) :: s
-        integer :: i
-        do i = 1, len(s)
-            if (s(i:i) == ",") s(i:i) = " "
-        end do
-    end subroutine replace_commas
+                        problem%rhs  => rhs
+                        problem%y0   = y0_in
+                        problem%rtol = 1.0e-9_dp
+                        problem%atol = 1.0e-11_dp
 
-end program test_fortnum_ode_oracle
+                        call ode_at(problem, t_eval, workspace, y_out, status)
+                        if (status%code /= FORTNUM_OK) then
+                            write (error_unit, "(a,i0,a)") &
+                                "FAIL: ode_at returned code=", status%code, &
+                                " for " // trim(csv_path)
+                            nfail = nfail + 1
+                            return
+                        end if
+
+                        do j = 1, npts
+                            do k = 1, neq
+                                ref_y(k) = ybuf(k, j)
+                            end do
+                            do k = 1, neq
+                                err = abs(y_out(k, j) - ref_y(k))
+                                tol = atol + rtol * abs(ref_y(k))
+                                if (err > tol) then
+                                    write (error_unit, &
+                                        "(a,a,a,i0,a,i0,a,es12.4,a,es12.4,a,es12.4)") &
+                                        "FAIL ", trim(csv_path), " row=", j, " comp=", k, &
+                                        " err=", err, " tol=", tol, " t=", t_eval(j)
+                                    nfail = nfail + 1
+                                end if
+                            end do
+                            total = total + neq
+                        end do
+                        deallocate(t_eval)
+                    end subroutine run_case
+
+                    subroutine replace_commas(s)
+                        character(len=*), intent(inout) :: s
+                        integer :: i
+                        do i = 1, len(s)
+                            if (s(i:i) == ",") s(i:i) = " "
+                        end do
+                    end subroutine replace_commas
+
+                end program test_fortnum_ode_oracle

@@ -14,8 +14,8 @@ program test_fortnum_integrate_oracle
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
     use fortnum_status, only: fortnum_status_t
     use fortnum_integrate, only: integrate_qag, integrate_qags, &
-                                 integrate_workspace_t, integrate_epstab_t, &
-                                 integrate_result_t
+        integrate_workspace_t, integrate_epstab_t, &
+        integrate_result_t
     implicit none
 
     character(len=4096) :: qag_path, qags_path
@@ -85,10 +85,10 @@ contains
             active_qags = use_qags
             if (use_qags) then
                 call integrate_qags(dispatch, a, b, 0.0_dp, rtol, ws, eps, &
-                                    res, st, limit=500)
+                    res, st, limit=500)
             else
                 call integrate_qag(dispatch, a, b, 0.0_dp, rtol, ws, res, st, &
-                                   key=21, limit=500)
+                    key=21, limit=500)
             end if
             err = abs(res%value - ref)
             ! Absolute floor mirrors scipy's own attainable accuracy.

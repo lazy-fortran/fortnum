@@ -152,7 +152,7 @@ contains
     ! ierr == 0: converged. 1: max subdivisions reached. 2: roundoff detected.
     ! 3: bad integrand behaviour. 6: invalid input.
     subroutine integrate_gk(f, a, b, epsabs, epsrel, result, abserr, ierr, &
-                            key, limit)
+            key, limit)
         procedure(gk_integrand_t) :: f
         real(dp), intent(in)  :: a, b, epsabs, epsrel
         real(dp), intent(out) :: result, abserr
@@ -170,20 +170,20 @@ contains
         abserr = 0.0_dp
         if (limit_loc < 1 .or. &
             (key_loc /= 15 .and. key_loc /= 21 .and. &
-             key_loc /= 31 .and. key_loc /= 61) .or. &
+            key_loc /= 31 .and. key_loc /= 61) .or. &
             (epsabs <= 0.0_dp .and. &
-             epsrel < max(50.0_dp*epmach, 0.5e-28_dp))) then
+            epsrel < max(50.0_dp*epmach, 0.5e-28_dp))) then
             ierr = 6
             return
         end if
 
         call qag_adapt(f, a, b, epsabs, epsrel, key_loc, limit_loc, result, &
-                       abserr, ierr)
+            abserr, ierr)
     end subroutine integrate_gk
 
     ! Single-level attempt; falls through to bisection if not converged.
     subroutine qag_adapt(f, a, b, epsabs, epsrel, key, limit, result, abserr, &
-                         ierr)
+            ierr)
         procedure(gk_integrand_t) :: f
         real(dp), intent(in)  :: a, b, epsabs, epsrel
         integer,  intent(in)  :: key, limit
@@ -203,13 +203,13 @@ contains
             abserr == 0.0_dp) return
 
         call qag_bisect(f, a, b, epsabs, epsrel, key, limit, result, abserr, &
-                        ierr)
+            ierr)
     end subroutine qag_adapt
 
     ! Adaptive bisection workspace; only reached when the single-panel rule
     ! did not converge, so the allocation cost is not on the fast path.
     subroutine qag_bisect(f, a, b, epsabs, epsrel, key, limit, result, abserr, &
-                          ierr)
+            ierr)
         procedure(gk_integrand_t) :: f
         real(dp), intent(in)    :: a, b, epsabs, epsrel
         integer,  intent(in)    :: key, limit
@@ -283,16 +283,16 @@ contains
         select case (key)
         case (15)
             call gk_rule(f, a, b, 8,  xgk15, wgk15, 4,  wg15, .true.,  &
-                         result, abserr, resabs, resasc)
+                result, abserr, resabs, resasc)
         case (21)
             call gk_rule(f, a, b, 11, xgk21, wgk21, 5,  wg21, .false., &
-                         result, abserr, resabs, resasc)
+                result, abserr, resabs, resasc)
         case (31)
             call gk_rule(f, a, b, 16, xgk31, wgk31, 8,  wg31, .true.,  &
-                         result, abserr, resabs, resasc)
+                result, abserr, resabs, resasc)
         case (61)
             call gk_rule(f, a, b, 31, xgk61, wgk61, 15, wg61, .false., &
-                         result, abserr, resabs, resasc)
+                result, abserr, resabs, resasc)
         end select
     end subroutine gk_apply
 
@@ -301,7 +301,7 @@ contains
     ! (QUADPACK layout). center_gauss marks odd-n rules whose center node
     ! also carries a Gauss weight.
     subroutine gk_rule(f, a, b, nh, xgk, wgk, ngw, wg, center_gauss, &
-                       result, abserr, resabs, resasc)
+            result, abserr, resabs, resasc)
         procedure(gk_integrand_t) :: f
         integer,  intent(in)  :: nh, ngw
         real(dp), intent(in)  :: a, b, xgk(nh), wgk(nh), wg(ngw)

@@ -138,7 +138,7 @@ contains
     pure function fn1(x) result(y)
         real(dp), intent(in) :: x
         real(dp)             :: y
-        y = atan(x) - 0.52359877559829887308_dp   ! pi/6
+        y = atan(x) - 0.52359877559829887308_dp ! pi/6
     end function fn1
 
     ! case 2: x^5 - x - 1 = 0
