@@ -46,6 +46,7 @@ module fortnum_multiroot
 
     public :: multiroot_fdf_t, multiroot_fn_t
     public :: multiroot_hybrid, multiroot_hybrids
+    public :: multiroot_jvp, multiroot_vjp, multiroot_grad
     public :: deriv_fn_t, deriv_central
     public :: argsort
 
@@ -173,6 +174,98 @@ contains
         call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
             "multiroot_hybrids: maximum iterations reached without convergence")
     end subroutine multiroot_hybrids
+
+    ! Implicit-rule derivatives for an n-dim root x*(p) of F(x, p) = 0.
+    !
+    ! Implicit function theorem: differentiating F(x*(p), p) = 0 gives
+    !   J_x dx* + J_p dp = 0   =>   dx*/dp = -J_x^{-1} J_p,
+    ! where J_x = dF/dx (n x n) and J_p = dF/dp (n x m) at the converged root.
+    ! The iteration that found x* is inactive (ad.md §3); only the defining
+    ! equation is differentiated.  The module's Gaussian-elimination solve_linear
+    ! supplies J_x^{-1} actions; a singular J_x reports FORTNUM_DOMAIN_ERROR.
+    !
+    ! Active arguments: jac_x (J_x at root), f_p (J_p at root), and the
+    ! tangent/adjoint vectors.  Inactive: status, solver internals.
+    !
+    ! HVP: deferred.  Second derivatives of x*(p) need d^2F second partials that
+    ! the current callback interface does not provide.
+
+    ! multiroot_jvp: forward product solves J_x dx = -(J_p tp).
+    !   jac_x : J_x at the root (n x n).
+    !   f_p   : J_p at the root (n x m), f_p(i, j) = dF_i/dp_j.
+    !   tp    : tangent in parameter space (length m).
+    !   dx    : output tangent in root space (length n).
+    subroutine multiroot_jvp(jac_x, f_p, tp, dx, status)
+        real(dp),               intent(in)  :: jac_x(:, :)
+        real(dp),               intent(in)  :: f_p(:, :)
+        real(dp),               intent(in)  :: tp(:)
+        real(dp),               intent(out) :: dx(:)
+        type(fortnum_status_t), intent(out) :: status
+
+        real(dp) :: rhs(size(jac_x, 1))
+        integer  :: n, ls_stat
+
+        n = size(jac_x, 1)
+        rhs = -matmul(f_p, tp)
+        call solve_linear(n, jac_x, rhs, dx, ls_stat)
+        if (ls_stat /= 0) then
+            dx = 0.0_dp
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "multiroot_jvp: singular Jacobian; derivative unreliable")
+            return
+        end if
+        call status_set(status, FORTNUM_OK, "")
+    end subroutine multiroot_jvp
+
+    ! multiroot_vjp: reverse product solves J_x^T lambda = u, then jtu = -J_p^T lambda.
+    !   jac_x : J_x at the root (n x n).
+    !   f_p   : J_p at the root (n x m).
+    !   u     : adjoint on the root output x* (length n).
+    !   jtu   : adjoint on the parameter vector (length m).
+    subroutine multiroot_vjp(jac_x, f_p, u, jtu, status)
+        real(dp),               intent(in)  :: jac_x(:, :)
+        real(dp),               intent(in)  :: f_p(:, :)
+        real(dp),               intent(in)  :: u(:)
+        real(dp),               intent(out) :: jtu(:)
+        type(fortnum_status_t), intent(out) :: status
+
+        real(dp) :: lambda(size(jac_x, 1))
+        integer  :: n, ls_stat
+
+        n = size(jac_x, 1)
+        call solve_linear(n, transpose(jac_x), u, lambda, ls_stat)
+        if (ls_stat /= 0) then
+            jtu = 0.0_dp
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "multiroot_vjp: singular Jacobian; derivative unreliable")
+            return
+        end if
+        jtu = -matmul(transpose(f_p), lambda)
+        call status_set(status, FORTNUM_OK, "")
+    end subroutine multiroot_vjp
+
+    ! multiroot_grad: scalar-p case dx*/dp = -J_x^{-1} f_p, solved as J_x dxdp = -f_p.
+    !   jac_x : J_x at the root (n x n).
+    !   f_p   : dF/dp at the root (length n).
+    !   dxdp  : sensitivity of the root (length n).
+    subroutine multiroot_grad(jac_x, f_p, dxdp, status)
+        real(dp),               intent(in)  :: jac_x(:, :)
+        real(dp),               intent(in)  :: f_p(:)
+        real(dp),               intent(out) :: dxdp(:)
+        type(fortnum_status_t), intent(out) :: status
+
+        integer :: n, ls_stat
+
+        n = size(jac_x, 1)
+        call solve_linear(n, jac_x, -f_p, dxdp, ls_stat)
+        if (ls_stat /= 0) then
+            dxdp = 0.0_dp
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "multiroot_grad: singular Jacobian; derivative unreliable")
+            return
+        end if
+        call status_set(status, FORTNUM_OK, "")
+    end subroutine multiroot_grad
 
     ! Resolve optional tolerances and iteration cap to working values.
     pure subroutine resolve_tols(xtol, ftol, max_iter, xt, ft, max_it)
