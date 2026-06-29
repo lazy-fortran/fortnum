@@ -246,22 +246,24 @@ contains
     end subroutine gamma_p_series_sums
 
     ! Digamma psi(a) = d/da log Gamma(a) for a > 0 (DLMF 5.2.2): recurrence
-    ! psi(a) = psi(a+1) - 1/a lifts the argument past 6, then the asymptotic
-    ! series psi(x) ~ ln x - 1/(2x) - 1/(12 x^2) + 1/(120 x^4) - 1/(252 x^6).
+    ! psi(a) = psi(a+1) - 1/a lifts the argument past 10, then the asymptotic
+    ! series psi(x) ~ ln x - 1/(2x) - 1/(12 x^2) + 1/(120 x^4) - 1/(252 x^6)
+    ! + 1/(240 x^8) - 1/(132 x^10), accurate to ~1e-13 once x >= 10.
     pure function digamma(a) result(psi)
         real(dp), intent(in) :: a
         real(dp) :: psi
         real(dp) :: x, f, f2
         psi = 0.0_dp
         x = a
-        do while (x < 6.0_dp)
+        do while (x < 10.0_dp)
             psi = psi - 1.0_dp / x
             x = x + 1.0_dp
         end do
         f  = 1.0_dp / x
         f2 = f * f
-        psi = psi + log(x) - 0.5_dp * f &
-            - f2 * (1.0_dp/12.0_dp - f2 * (1.0_dp/120.0_dp - f2/252.0_dp))
+        psi = psi + log(x) - 0.5_dp * f - f2 * (1.0_dp/12.0_dp &
+            - f2 * (1.0_dp/120.0_dp - f2 * (1.0_dp/252.0_dp &
+            - f2 * (1.0_dp/240.0_dp - f2/132.0_dp))))
     end function digamma
 
 end module fortnum_special_gamma

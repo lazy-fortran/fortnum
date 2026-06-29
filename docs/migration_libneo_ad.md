@@ -18,7 +18,7 @@ primal, never added arguments to it (`ad.md §6`).
 |---|---|---|---|
 | modified Bessel `I_n(x)` | `bessel_in(n, x)` | `bessel_in_jvp(n, x, v, jv)` | NOW (`analytic_rule`) |
 | modified Bessel `K_n(x)` | `bessel_kn(n, x)` | `bessel_kn_jvp(n, x, v, jv)` | NOW (`analytic_rule`) |
-| modified Bessel `I_n(x)` array | `bessel_in_array(nmax, x, values)` | no JVP yet | later (recurrence over array; #TBD) |
+| modified Bessel `I_n(x)` array | `bessel_in_array(nmax, x, values)` | `bessel_in_array_jvp` / `bessel_in_array_vjp` | NOW (`analytic_rule`, recurrence over array) |
 
 Active argument in both JVPs: `x` (the argument). Inactive: `n` (integer
 order, selects branch; `ad.md §3`).
@@ -45,14 +45,18 @@ Active argument: `x`. Analytic rule: `F'(x) = 1 - 2 x F(x)`.
 | libneo backend | fortnum primal | derivative product | status |
 |---|---|---|---|
 | lower incomplete gamma | `gamma_lower(a, x)` | `gamma_lower_jvp(x, v, jv)` | NOW d/dx (`analytic_rule`) |
-| | | d/da | later: requires digamma series (#TBD) |
-| regularized lower incomplete gamma P | `gamma_reg_p(a, x)` | | later (depends on d/da of gamma) |
+| | | `gamma_lower_jvp_da(x, v, jv)` | NOW full [x, a] (`analytic_rule`) |
+| regularized lower incomplete gamma P | `gamma_reg_p(a, x)` | `gamma_reg_p_jvp` / `gamma_reg_p_grad` | NOW (`analytic_rule`, digamma series) |
 
-Active argument for NOW derivative: `x` (integration limit). Shape `a` is
-treated as inactive. The JVP packs `x = [x_val, a_val]` so the harness can
-vary `x(1)` while `a` stays fixed.
+The packed input is `x = [x_val, a_val]`. `gamma_lower_jvp` treats only the
+integration limit `x` as active (shape `a` inactive); `gamma_lower_jvp_da` and
+the `gamma_reg_p_*` products treat both `x` and `a` as active.
 
-Analytic rule: `d/dx gamma_lower(a, x) = x^{a-1} exp(-x)` (DLMF 8.8.1).
+Analytic rules:
+- `d/dx gamma_lower(a, x) = x^{a-1} exp(-x)` (DLMF 8.8.1).
+- `d/da gamma_lower(a, x) = x^a exp(-x) (ln x . S - T)` (the Gamma(a) factor
+  cancels the digamma); `d/da P(a, x) = A[(ln x - psi(a)) S - T]` keeps the
+  digamma `psi(a)` (DLMF 5.2.2), with `S`, `T` the regularized-P series sums.
 
 ---
 
@@ -100,9 +104,9 @@ HVP deferred: needs a caller-defined scalar loss on `y(t1)`.
 | libneo backend / QUADPACK | fortnum primal | derivative product | status |
 |---|---|---|---|
 | adaptive quadrature QAG / `dqag` | `integrate_qag(...)` | `integrate_qag_jvp(dfdp, result, di_dp, st, ctx)` | NOW (`trace_rule`) |
-| adaptive quadrature QAGS / `dqags` | `integrate_qags(...)` | later (#TBD) | |
-| adaptive quadrature QAGP | `integrate_qagp(...)` | later | |
-| adaptive quadrature QAGIU | `integrate_qagiu(...)` | later | |
+| adaptive quadrature QAGS / `dqags` | `integrate_qags(...)` | `integrate_qags_jvp` | NOW (`trace_rule`) |
+| adaptive quadrature QAGP | `integrate_qagp(...)` | `integrate_qagp_jvp` | NOW (`trace_rule`) |
+| adaptive quadrature QAGIU | `integrate_qagiu(...)` | `integrate_qagiu_jvp` | NOW (`trace_rule`) |
 | Single-rule QK panel | `gk_apply(...)` | primal only | |
 
 `integrate_qag_jvp` differentiates at the frozen accepted subdivision recorded
