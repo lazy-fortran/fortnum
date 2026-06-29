@@ -13,8 +13,9 @@ module fortnum_special_gamma
     !           d/da involves the derivative of P w.r.t. a which requires
     !           the derivative of log_gamma; closed-form recurrences exist
     !           and are cheaper/more stable than differentiating the
-    !           iteration branches. Derivative entry points (gamma_lower_grad,
-    !           gamma_reg_p_grad) are reserved; not yet implemented (issue #40).
+    !           iteration branches. Forward products gamma_lower_jvp_da and
+    !           gamma_reg_p_jvp and the reverse product gamma_reg_p_grad
+    !           implement the d/da pieces (issue #40).
     !   Active arguments: a (shape parameter), x (integration limit).
     !   Inactive arguments: none beyond standard control flow.
     !
@@ -27,13 +28,20 @@ module fortnum_special_gamma
 
     public :: gamma_lower
     public :: gamma_reg_p
-    ! analytic_rule derivatives (ad.md §2):
-    !   gamma_lower_jvp: d/dx gamma_lower(a,x) * v = x^{a-1} e^{-x} * v
-    !                    (DLMF 8.8.1; a fixed, x active).
-    !   d/da: deferred. Requires d/da log_gamma (digamma) and a series for
-    !         d/da P(a,x); no trivial closed form. Documented in the module
-    !         header and reserved as gamma_lower_jvp_da for a future issue.
+    ! analytic_rule derivatives (ad.md §2). Packing x = [x_val, a_val],
+    ! v = [dx, da] so the square test harness can vary each input.
+    !   gamma_lower_jvp:    d/dx gamma_lower(a,x) (DLMF 8.8.1; a inactive).
+    !   gamma_lower_jvp_da: full forward product in [x, a]. The a-direction
+    !                       uses d/da gamma_lower = x^a e^{-x} (ln x . S - T)
+    !                       with P-series sums S, T; the Gamma(a) factor
+    !                       cancels psi(a), so no digamma is needed here.
+    !   gamma_reg_p_jvp:    full forward product for P(a,x) = gamma_lower/Gamma(a).
+    !   gamma_reg_p_grad:   reverse product (scalar output) for P.
+    ! d/da P keeps psi(a): dP/da = A[(ln x - psi(a)) S - T], A = x^a e^{-x}/Gamma(a).
     public :: gamma_lower_jvp
+    public :: gamma_lower_jvp_da
+    public :: gamma_reg_p_jvp
+    public :: gamma_reg_p_grad
 
 contains
 
@@ -93,6 +101,66 @@ contains
         jv(1) = xv**(av - 1.0_dp) * exp(-xv) * v(1)
     end subroutine gamma_lower_jvp
 
+    ! Forward product for gamma_lower in both inputs. x = [x_val, a_val],
+    ! v = [dx, da]; jv(1) = d/dx g * dx + d/da g * da.
+    !   d/dx g = x^{a-1} e^{-x}                 (DLMF 8.8.1)
+    !   d/da g = x^a e^{-x} (ln x . S - T)
+    ! with S = sum_n term_n, T = sum_n term_n H_n, term_n = x^n/prod_{k=0}^n(a+k),
+    ! H_n = sum_{k=0}^n 1/(a+k). The Gamma(a) factor of P cancels psi(a) here.
+    subroutine gamma_lower_jvp_da(x, v, jv)
+        real(dp), intent(in)  :: x(:)
+        real(dp), intent(in)  :: v(:)
+        real(dp), intent(out) :: jv(:)
+        real(dp) :: xv, av, s, t, dgdx, dgda
+        xv = x(1)
+        av = x(2)
+        call gamma_p_series_sums(av, xv, s, t)
+        dgdx = xv**(av - 1.0_dp) * exp(-xv)
+        dgda = xv**av * exp(-xv) * (log(xv) * s - t)
+        jv = 0.0_dp
+        jv(1) = dgdx * v(1) + dgda * v(2)
+    end subroutine gamma_lower_jvp_da
+
+    ! Forward product for P(a,x) = gamma_lower(a,x)/Gamma(a). Packing as above.
+    !   d/dx P = x^{a-1} e^{-x} / Gamma(a)
+    !   d/da P = A[(ln x - psi(a)) S - T],  A = x^a e^{-x} / Gamma(a)
+    subroutine gamma_reg_p_jvp(x, v, jv)
+        real(dp), intent(in)  :: x(:)
+        real(dp), intent(in)  :: v(:)
+        real(dp), intent(out) :: jv(:)
+        real(dp) :: dpdx, dpda
+        call gamma_reg_p_partials(x(1), x(2), dpdx, dpda)
+        jv = 0.0_dp
+        jv(1) = dpdx * v(1) + dpda * v(2)
+    end subroutine gamma_reg_p_jvp
+
+    ! Reverse product for the scalar map P(a,x). u in R^1, jtu in R^2:
+    !   jtu(1) = d/dx P * u(1),  jtu(2) = d/da P * u(1).
+    subroutine gamma_reg_p_grad(x, u, jtu)
+        real(dp), intent(in)  :: x(:)
+        real(dp), intent(in)  :: u(:)
+        real(dp), intent(out) :: jtu(:)
+        real(dp) :: dpdx, dpda
+        call gamma_reg_p_partials(x(1), x(2), dpdx, dpda)
+        jtu(1) = dpdx * u(1)
+        jtu(2) = dpda * u(1)
+    end subroutine gamma_reg_p_grad
+
+    ! Partials of P(a,x) at (xv, av) shared by the P forward and reverse
+    ! products. dP/da carries the digamma psi(a) (DLMF 5.2.2) that the
+    ! Gamma(a) normalization introduces.
+    pure subroutine gamma_reg_p_partials(xv, av, dpdx, dpda)
+        real(dp), intent(in)  :: xv, av
+        real(dp), intent(out) :: dpdx, dpda
+        real(dp) :: s, t, ga, psi, a_pref
+        call gamma_p_series_sums(av, xv, s, t)
+        ga = gamma(av)
+        psi = digamma(av)
+        a_pref = xv**av * exp(-xv) / ga
+        dpdx = xv**(av - 1.0_dp) * exp(-xv) / ga
+        dpda = a_pref * ((log(xv) - psi) * s - t)
+    end subroutine gamma_reg_p_partials
+
     ! Series expansion of P(a,x) (DLMF 8.11.4).
     ! Converges for all x but is most efficient for x < a+1.
     pure function gamma_reg_p_series(a, x) result(p)
@@ -148,5 +216,52 @@ contains
         end do
         error stop "gamma_reg_q_contfrac: continued fraction did not converge"
     end function gamma_reg_q_contfrac
+
+    ! Sums driving d/da of the lower incomplete gamma and P (DLMF 8.11.4):
+    !   term_n = x^n / (a(a+1)...(a+n)),  H_n = sum_{k=0}^n 1/(a+k)
+    !   S = sum_n term_n,  T = sum_n term_n H_n.
+    ! Both series converge for all x > 0, a > 0; the terms are positive.
+    pure subroutine gamma_p_series_sums(a, x, s, t)
+        real(dp), intent(in)  :: a, x
+        real(dp), intent(out) :: s, t
+
+        integer,  parameter :: max_iter = 500
+        real(dp) :: term, hsum
+        integer  :: n
+
+        term = 1.0_dp / a
+        hsum = 1.0_dp / a
+        s = term
+        t = term * hsum
+        do n = 1, max_iter
+            term = term * x / (a + real(n, dp))
+            hsum = hsum + 1.0_dp / (a + real(n, dp))
+            s = s + term
+            t = t + term * hsum
+            if (abs(term) < abs(s) * epsilon(1.0_dp)) then
+                if (abs(term * hsum) < abs(t) * epsilon(1.0_dp)) return
+            end if
+        end do
+        error stop "gamma_p_series_sums: series did not converge"
+    end subroutine gamma_p_series_sums
+
+    ! Digamma psi(a) = d/da log Gamma(a) for a > 0 (DLMF 5.2.2): recurrence
+    ! psi(a) = psi(a+1) - 1/a lifts the argument past 6, then the asymptotic
+    ! series psi(x) ~ ln x - 1/(2x) - 1/(12 x^2) + 1/(120 x^4) - 1/(252 x^6).
+    pure function digamma(a) result(psi)
+        real(dp), intent(in) :: a
+        real(dp) :: psi
+        real(dp) :: x, f, f2
+        psi = 0.0_dp
+        x = a
+        do while (x < 6.0_dp)
+            psi = psi - 1.0_dp / x
+            x = x + 1.0_dp
+        end do
+        f  = 1.0_dp / x
+        f2 = f * f
+        psi = psi + log(x) - 0.5_dp * f &
+              - f2 * (1.0_dp/12.0_dp - f2 * (1.0_dp/120.0_dp - f2/252.0_dp))
+    end function digamma
 
 end module fortnum_special_gamma
