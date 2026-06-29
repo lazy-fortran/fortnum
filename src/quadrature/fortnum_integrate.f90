@@ -32,7 +32,8 @@ module fortnum_integrate
     public :: integrate_workspace_t, integrate_epstab_t, integrate_result_t
     public :: integrate_qag, integrate_qags, integrate
     public :: integrate_qagp, integrate_qagiu
-    public :: integrate_qag_jvp
+    public :: integrate_qag_jvp, integrate_qags_jvp, integrate_qagp_jvp
+    public :: integrate_qagiu_jvp
 
     abstract interface
         function integrate_integrand_t(x, ctx) result(fx)
@@ -477,36 +478,7 @@ contains
         type(fortnum_status_t),    intent(out)   :: status
         class(*), intent(in), optional :: ctx
 
-        real(dp) :: panel_r, panel_e, panel_resabs, panel_resasc
-        integer  :: i, key_loc
-
-        di_dp = 0.0_dp
-
-        ! A perturbation that would change the accepted subdivision shows up as
-        ! a non-OK recorded primal status; the frozen-trace derivative is then
-        ! not well-posed. Propagate that verdict and stop (reuse status path).
-        if (result%status%code /= FORTNUM_OK) then
-            status = result%status
-            return
-        end if
-        if (.not. allocated(result%sub_a) .or. result%nsub < 1) then
-            call status_set(status, FORTNUM_DOMAIN_ERROR, &
-                            "integrate_qag_jvp: empty frozen subdivision trace")
-            return
-        end if
-
-        call status_set(status, FORTNUM_OK, "")
-        key_loc = result%key
-
-        ! Re-walk the frozen panels and apply the same GK rule to the tangent.
-        ! gk_apply%result is the per-panel integral estimate; summing it over
-        ! the recorded subdivision is the frozen-trace derivative of I.
-        do i = 1, result%nsub
-            call gk_apply(tangent_f, key_loc, result%sub_a(i), &
-                          result%sub_b(i), panel_r, panel_e, &
-                          panel_resabs, panel_resasc)
-            di_dp = di_dp + panel_r
-        end do
+        call jvp_walk_trace(tangent_f, result, di_dp, status)
 
     contains
 
@@ -520,6 +492,162 @@ contains
         end function tangent_f
 
     end subroutine integrate_qag_jvp
+
+    ! ------------------------------------------------------------------
+    ! integrate_qags_jvp: same frozen-trace forward product for the QAGS path.
+    ! QAGS bisects and extrapolates, but the trace_rule derivative is taken at
+    ! the accepted subdivision the primal froze into `result`; re-walking those
+    ! panels and quadraturing df/dp on each with the recorded GK rule gives
+    ! dI/dp (ad.md sections 1, 4). Active argument: dfdp. The extrapolated
+    ! primal value does not change the per-panel tangent sum: dI/dp is the
+    ! direct sum over the frozen panels.
+    ! ------------------------------------------------------------------
+    subroutine integrate_qags_jvp(dfdp, result, di_dp, status, ctx)
+        procedure(integrate_integrand_t)        :: dfdp
+        type(integrate_result_t),  intent(in)    :: result
+        real(dp),                  intent(out)   :: di_dp
+        type(fortnum_status_t),    intent(out)   :: status
+        class(*), intent(in), optional :: ctx
+
+        call jvp_walk_trace(tangent_f, result, di_dp, status)
+
+    contains
+
+        function tangent_f(x) result(fx)
+            real(dp), intent(in) :: x
+            real(dp) :: fx
+            fx = dfdp(x, ctx)
+        end function tangent_f
+
+    end subroutine integrate_qags_jvp
+
+    ! ------------------------------------------------------------------
+    ! integrate_qagp_jvp: frozen-trace forward product for the QAGP path. The
+    ! user break points are already baked into the accepted subdivision the
+    ! primal recorded, so the derivative is the same per-panel tangent sum over
+    ! `result` as the QAGS path (ad.md sections 1, 4). Active argument: dfdp.
+    ! ------------------------------------------------------------------
+    subroutine integrate_qagp_jvp(dfdp, result, di_dp, status, ctx)
+        procedure(integrate_integrand_t)        :: dfdp
+        type(integrate_result_t),  intent(in)    :: result
+        real(dp),                  intent(out)   :: di_dp
+        type(fortnum_status_t),    intent(out)   :: status
+        class(*), intent(in), optional :: ctx
+
+        call jvp_walk_trace(tangent_f, result, di_dp, status)
+
+    contains
+
+        function tangent_f(x) result(fx)
+            real(dp), intent(in) :: x
+            real(dp) :: fx
+            fx = dfdp(x, ctx)
+        end function tangent_f
+
+    end subroutine integrate_qagp_jvp
+
+    ! ------------------------------------------------------------------
+    ! integrate_qagiu_jvp: frozen-trace forward product for the semi-infinite
+    ! QAGIU path. The recorded subdivision lives in the transformed variable
+    ! t in (0,1] with x = bound + sgn*(1-t)/t and dx = dt/t**2 (the same dqagi
+    ! transform the primal used). The transform is parameter-independent, so
+    !   dI/dp = sum_panels  integral_{sub_a..sub_b} (df/dp)(x(t)) / t**2 dt,
+    ! the frozen-panel tangent sum with the Jacobian folded into the wrapper
+    ! (ad.md sections 1, 4). Active argument: dfdp. Inactive: bound, inf.
+    !
+    ! inf = +2 runs two semi-infinite halves but `result` freezes only one of
+    ! them, so its trace cannot reconstruct the full derivative; that case is
+    ! reported as a domain error rather than a wrong product.
+    ! ------------------------------------------------------------------
+    subroutine integrate_qagiu_jvp(dfdp, bound, inf, result, di_dp, status, ctx)
+        procedure(integrate_integrand_t)        :: dfdp
+        real(dp),                  intent(in)    :: bound
+        integer,                   intent(in)    :: inf
+        type(integrate_result_t),  intent(in)    :: result
+        real(dp),                  intent(out)   :: di_dp
+        type(fortnum_status_t),    intent(out)   :: status
+        class(*), intent(in), optional :: ctx
+
+        integer :: sgn
+
+        di_dp = 0.0_dp
+        if (inf /= -1 .and. inf /= 1) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "integrate_qagiu_jvp: only inf = -1 or +1 has a single frozen "// &
+                "trace; inf = +2 records one half only")
+            return
+        end if
+        sgn = inf
+
+        call jvp_walk_trace(tangent_f, result, di_dp, status)
+
+    contains
+
+        ! Transformed tangent on t in (0,1]: x = bound + sgn*(1-t)/t,
+        ! dx = dt/t**2. d/dp of f(x(t), p)*jac is (df/dp)(x(t))*jac because the
+        ! transform is parameter-free; same wrapper shape as the primal panel_f.
+        function tangent_f(t) result(fx)
+            real(dp), intent(in) :: t
+            real(dp) :: fx, x, jac
+            if (t <= 0.0_dp) then
+                fx = 0.0_dp
+                return
+            end if
+            x   = bound + real(sgn, dp)*(1.0_dp - t)/t
+            jac = 1.0_dp/(t*t)
+            fx  = dfdp(x, ctx)*jac
+        end function tangent_f
+
+    end subroutine integrate_qagiu_jvp
+
+    ! ------------------------------------------------------------------
+    ! Frozen-trace forward product shared by the QAG/QAGS/QAGP/QAGIU JVPs. The
+    ! primal froze an accepted subdivision into `result`; the integral is the
+    ! fixed weighted sum of GK panel values, so dI/dp re-applies the recorded
+    ! per-panel GK rule (result%key) to the supplied tangent panel kernel and
+    ! sums:  dI/dp = sum_panels GK_key[ tangent ]_{sub_a..sub_b}. A non-OK
+    ! recorded primal status means the frozen subdivision is not a valid
+    ! linearization point; propagate it without forming a product.
+    ! ------------------------------------------------------------------
+    subroutine jvp_walk_trace(tangent, result, di_dp, status)
+        procedure(panel_kernel_t)                :: tangent
+        type(integrate_result_t),  intent(in)    :: result
+        real(dp),                  intent(out)   :: di_dp
+        type(fortnum_status_t),    intent(out)   :: status
+
+        real(dp) :: panel_r, panel_e, panel_resabs, panel_resasc
+        integer  :: i, key_loc
+
+        di_dp = 0.0_dp
+
+        ! A perturbation that would change the accepted subdivision shows up as
+        ! a non-OK recorded primal status; the frozen-trace derivative is then
+        ! not well-posed. Propagate that verdict and stop (reuse status path).
+        if (result%status%code /= FORTNUM_OK) then
+            status = result%status
+            return
+        end if
+        if (result%nsub < 1) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                            "integrate_jvp: empty frozen subdivision trace")
+            return
+        end if
+        if (.not. allocated(result%sub_a)) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                            "integrate_jvp: empty frozen subdivision trace")
+            return
+        end if
+
+        call status_set(status, FORTNUM_OK, "")
+        key_loc = result%key
+
+        do i = 1, result%nsub
+            call gk_apply(tangent, key_loc, result%sub_a(i), &
+                          result%sub_b(i), panel_r, panel_e, &
+                          panel_resabs, panel_resasc)
+            di_dp = di_dp + panel_r
+        end do
+    end subroutine jvp_walk_trace
 
     ! ==================================================================
     ! Shared globally adaptive driver. panel_f is the ctx-free integrand
