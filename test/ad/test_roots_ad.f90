@@ -17,10 +17,14 @@ program test_roots_ad
     use fortnum_kinds,  only: dp
     use fortnum_status, only: fortnum_status_t, status_ok, FORTNUM_DOMAIN_ERROR
     use fortnum_roots,  only: root_brent, root_jvp, root_vjp, root_grad
+    use fortnum_multiroot, only: multiroot_hybrid, multiroot_jvp, &
+        multiroot_vjp, multiroot_grad
     implicit none
 
     ! p_solve is shared between solve_x2mp and f_x2mp via host association.
     real(dp) :: p_solve
+    ! p_mr is shared between solve_mr and fdf_mr via host association.
+    real(dp) :: p_mr(2)
 
     integer :: nfail
     nfail = 0
@@ -31,6 +35,10 @@ program test_roots_ad
     call test_dot_product_id(nfail)
     call test_near_multiple_root(nfail)
     call test_vector_p(nfail)
+    call test_multiroot_grad_vs_fd(nfail)
+    call test_multiroot_jvp_vs_fd(nfail)
+    call test_multiroot_dot_product_id(nfail)
+    call test_multiroot_singular(nfail)
 
     if (nfail > 0) then
         write (error_unit, '(i0,a)') nfail, " test(s) failed"
@@ -230,6 +238,168 @@ contains
             nfail = nfail + 1
         end if
     end subroutine test_vector_p
+
+    ! n-dim test system F(x, p) = 0 with p in R^2:
+    !   F1 = x1^2 + x2 - p1
+    !   F2 = x1 + x2^2 - p2
+    ! At p = (2, 2) the root is x* = (1, 1).
+    !   J_x = [[2 x1, 1], [1, 2 x2]] = [[2, 1], [1, 2]] at the root, det = 3.
+    !   J_p = dF/dp = [[-1, 0], [0, -1]] (constant).
+    !   dx*/dp = -J_x^{-1} J_p = J_x^{-1} = (1/3) [[2, -1], [-1, 2]].
+
+    ! Test 7: multiroot_grad (scalar-p, only p1 active) vs central FD.
+    ! f_p = dF/dp1 = [-1, 0]; sensitivity is column 1 of dx*/dp = (1/3)[2, -1].
+    subroutine test_multiroot_grad_vs_fd(nfail)
+        integer, intent(inout) :: nfail
+        real(dp) :: jac_x(2, 2), f_p(2), dxdp(2)
+        real(dp) :: pbase(2), xp(2), xm(2), dxdp_fd(2), h
+        type(fortnum_status_t) :: st
+        integer :: i
+
+        pbase = [2.0_dp, 2.0_dp]
+        jac_x = reshape([2.0_dp, 1.0_dp, 1.0_dp, 2.0_dp], [2, 2])
+        f_p = [-1.0_dp, 0.0_dp]
+
+        call multiroot_grad(jac_x, f_p, dxdp, st)
+        if (.not. status_ok(st)) then
+            write (error_unit, '(a)') "FAIL [mr_grad_fd] unexpected status error"
+            nfail = nfail + 1
+            return
+        end if
+
+        h = 1.0e-5_dp
+        call solve_mr([pbase(1) + h, pbase(2)], xp)
+        call solve_mr([pbase(1) - h, pbase(2)], xm)
+        dxdp_fd = (xp - xm) / (2.0_dp * h)
+
+        do i = 1, 2
+            if (rel_err(dxdp(i), dxdp_fd(i)) > 1.0e-7_dp) then
+                write (error_unit, '(a,i0,a,es24.16,a,es24.16)') &
+                    "FAIL [mr_grad_fd] comp ", i, " analytic=", dxdp(i), &
+                    " fd=", dxdp_fd(i)
+                nfail = nfail + 1
+            end if
+        end do
+    end subroutine test_multiroot_grad_vs_fd
+
+    ! Test 8: multiroot_jvp vs central FD along a parameter tangent.
+    subroutine test_multiroot_jvp_vs_fd(nfail)
+        integer, intent(inout) :: nfail
+        real(dp) :: jac_x(2, 2), f_p(2, 2), tp(2), dx(2)
+        real(dp) :: pbase(2), xp(2), xm(2), dx_fd(2), h
+        type(fortnum_status_t) :: st
+        integer :: i
+
+        pbase = [2.0_dp, 2.0_dp]
+        jac_x = reshape([2.0_dp, 1.0_dp, 1.0_dp, 2.0_dp], [2, 2])
+        f_p = reshape([-1.0_dp, 0.0_dp, 0.0_dp, -1.0_dp], [2, 2])
+        tp = [0.3_dp, -0.5_dp]
+
+        call multiroot_jvp(jac_x, f_p, tp, dx, st)
+        if (.not. status_ok(st)) then
+            write (error_unit, '(a)') "FAIL [mr_jvp_fd] unexpected status error"
+            nfail = nfail + 1
+            return
+        end if
+
+        h = 1.0e-5_dp
+        call solve_mr(pbase + h * tp, xp)
+        call solve_mr(pbase - h * tp, xm)
+        dx_fd = (xp - xm) / (2.0_dp * h)
+
+        do i = 1, 2
+            if (rel_err(dx(i), dx_fd(i)) > 1.0e-7_dp) then
+                write (error_unit, '(a,i0,a,es24.16,a,es24.16)') &
+                    "FAIL [mr_jvp_fd] comp ", i, " jvp=", dx(i), &
+                    " fd=", dx_fd(i)
+                nfail = nfail + 1
+            end if
+        end do
+    end subroutine test_multiroot_jvp_vs_fd
+
+    ! Test 9: adjoint identity u.(M tp) = tp.(M^T u) for multiroot_jvp/vjp.
+    subroutine test_multiroot_dot_product_id(nfail)
+        integer, intent(inout) :: nfail
+        real(dp) :: jac_x(2, 2), f_p(2, 2), tp(2), u(2)
+        real(dp) :: dx(2), jtu(2), lhs, rhs, e
+        type(fortnum_status_t) :: st
+
+        jac_x = reshape([2.0_dp, 1.0_dp, 1.0_dp, 2.0_dp], [2, 2])
+        f_p = reshape([-1.0_dp, 0.0_dp, 0.0_dp, -1.0_dp], [2, 2])
+        tp = [0.3_dp, -0.5_dp]
+        u = [1.7_dp, -0.4_dp]
+
+        call multiroot_jvp(jac_x, f_p, tp, dx, st)
+        call multiroot_vjp(jac_x, f_p, u, jtu, st)
+
+        lhs = dot_product(u, dx)
+        rhs = dot_product(tp, jtu)
+        e = abs(lhs - rhs) / max(abs(lhs), abs(rhs), 1.0_dp)
+
+        if (e > 1.0e-13_dp) then
+            write (error_unit, '(a,es24.16,a,es24.16,a,es12.4)') &
+                "FAIL [mr_dot_product_id] u.(Mv)=", lhs, &
+                " v.(M^T u)=", rhs, " rel_err=", e
+            nfail = nfail + 1
+        end if
+    end subroutine test_multiroot_dot_product_id
+
+    ! Test 10: singular Jacobian guard returns FORTNUM_DOMAIN_ERROR.
+    subroutine test_multiroot_singular(nfail)
+        integer, intent(inout) :: nfail
+        real(dp) :: jac_x(2, 2), f_p(2, 2), f_pv(2), tp(2), u(2)
+        real(dp) :: dx(2), jtu(2), dxdp(2)
+        type(fortnum_status_t) :: st
+
+        jac_x = reshape([1.0_dp, 2.0_dp, 2.0_dp, 4.0_dp], [2, 2])
+        f_p = reshape([-1.0_dp, 0.0_dp, 0.0_dp, -1.0_dp], [2, 2])
+        f_pv = [-1.0_dp, 0.0_dp]
+        tp = [1.0_dp, 0.0_dp]
+        u = [1.0_dp, 0.0_dp]
+
+        call multiroot_jvp(jac_x, f_p, tp, dx, st)
+        if (st%code /= FORTNUM_DOMAIN_ERROR) then
+            write (error_unit, '(a)') &
+                "FAIL [mr_singular_jvp] expected FORTNUM_DOMAIN_ERROR"
+            nfail = nfail + 1
+        end if
+
+        call multiroot_vjp(jac_x, f_p, u, jtu, st)
+        if (st%code /= FORTNUM_DOMAIN_ERROR) then
+            write (error_unit, '(a)') &
+                "FAIL [mr_singular_vjp] expected FORTNUM_DOMAIN_ERROR"
+            nfail = nfail + 1
+        end if
+
+        call multiroot_grad(jac_x, f_pv, dxdp, st)
+        if (st%code /= FORTNUM_DOMAIN_ERROR) then
+            write (error_unit, '(a)') &
+                "FAIL [mr_singular_grad] expected FORTNUM_DOMAIN_ERROR"
+            nfail = nfail + 1
+        end if
+    end subroutine test_multiroot_singular
+
+    ! Internal: solve the n-dim system F(x, p_mr) = 0 via multiroot_hybrid.
+    subroutine solve_mr(pv, xstar)
+        real(dp), intent(in)  :: pv(2)
+        real(dp), intent(out) :: xstar(2)
+        type(fortnum_status_t) :: st
+        p_mr = pv
+        call multiroot_hybrid(fdf_mr, 2, [1.0_dp, 1.0_dp], xstar, st, &
+                              xtol=1.0e-14_dp, ftol=1.0e-14_dp)
+    end subroutine solve_mr
+
+    ! F(x) and analytic Jacobian for the n-dim system; p_mr via host association.
+    subroutine fdf_mr(x, f, jac, ctx)
+        real(dp), intent(in)  :: x(:)
+        real(dp), intent(out) :: f(:)
+        real(dp), intent(out) :: jac(:, :)
+        class(*), intent(in), optional :: ctx
+        f(1) = x(1)**2 + x(2) - p_mr(1)
+        f(2) = x(1) + x(2)**2 - p_mr(2)
+        jac(1, 1) = 2.0_dp * x(1); jac(1, 2) = 1.0_dp
+        jac(2, 1) = 1.0_dp; jac(2, 2) = 2.0_dp * x(2)
+    end subroutine fdf_mr
 
     ! Internal: solve x^2 = p_solve on [0, p_solve+1] via root_brent.
     ! p_solve is set by the caller via host association before calling this.
