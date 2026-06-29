@@ -15,7 +15,9 @@ program test_special_ad
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
     use fortnum_ad_test_utils, only: check_jvp_vs_fd, dot_product_identity
     use fortnum_special_dawson, only: dawson, dawson_jvp, dawson_grad
-    use fortnum_special_gamma,  only: gamma_lower, gamma_lower_jvp
+    use fortnum_special_gamma,  only: gamma_lower, gamma_lower_jvp, &
+                                      gamma_lower_jvp_da, gamma_reg_p, &
+                                      gamma_reg_p_jvp, gamma_reg_p_grad
     use fortnum_special_bessel, only: bessel_in, bessel_kn, &
                                       bessel_in_jvp, bessel_kn_jvp
     implicit none
@@ -33,6 +35,9 @@ program test_special_ad
     call test_dawson_jvp(nfail)
     call test_dawson_grad_adjoint(nfail)
     call test_gamma_lower_jvp(nfail)
+    call test_gamma_lower_jvp_da(nfail)
+    call test_gamma_reg_p_jvp(nfail)
+    call test_gamma_reg_p_grad_adjoint(nfail)
     call test_bessel_in_jvp(nfail)
     call test_bessel_kn_jvp(nfail)
 
@@ -109,6 +114,84 @@ contains
         end do
     end subroutine test_gamma_lower_jvp
 
+    ! ------------------------------------------------------ gamma_lower d/da
+
+    subroutine test_gamma_lower_jvp_da(nfail)
+        ! Full forward product of gamma_lower in [x, a]. Checks d/dx (v=[1,0]),
+        ! d/da (v=[0,1]), and a mixed direction (v=[1,1]) against central FD.
+        integer, intent(inout) :: nfail
+        real(dp) :: x_arr(2), pts(4,2)
+        integer  :: i
+        logical  :: ok
+
+        pts(1,:) = [0.5_dp, 1.5_dp]
+        pts(2,:) = [1.0_dp, 2.0_dp]
+        pts(3,:) = [3.0_dp, 2.5_dp]
+        pts(4,:) = [5.0_dp, 3.5_dp]
+
+        do i = 1, size(pts, 1)
+            x_arr = pts(i,:)
+            ok = check_jvp_vs_fd("gamma_lower_jvp_da_dx", f_gamma_lower_pad, &
+                gamma_lower_jvp_da, x_arr, [1.0_dp, 0.0_dp], tol_fd)
+            if (.not. ok) nfail = nfail + 1
+            ok = check_jvp_vs_fd("gamma_lower_jvp_da_da", f_gamma_lower_pad, &
+                gamma_lower_jvp_da, x_arr, [0.0_dp, 1.0_dp], tol_fd)
+            if (.not. ok) nfail = nfail + 1
+            ok = check_jvp_vs_fd("gamma_lower_jvp_da_mix", f_gamma_lower_pad, &
+                gamma_lower_jvp_da, x_arr, [1.0_dp, 1.0_dp], tol_fd)
+            if (.not. ok) nfail = nfail + 1
+        end do
+    end subroutine test_gamma_lower_jvp_da
+
+    ! ---------------------------------------------------------- gamma_reg_p
+
+    subroutine test_gamma_reg_p_jvp(nfail)
+        ! Forward product of P(a,x) in [x, a]: d/dx, d/da, mixed vs central FD.
+        integer, intent(inout) :: nfail
+        real(dp) :: x_arr(2), pts(4,2)
+        integer  :: i
+        logical  :: ok
+
+        pts(1,:) = [0.5_dp, 1.5_dp]
+        pts(2,:) = [1.0_dp, 2.0_dp]
+        pts(3,:) = [3.0_dp, 2.5_dp]
+        pts(4,:) = [5.0_dp, 3.5_dp]
+
+        do i = 1, size(pts, 1)
+            x_arr = pts(i,:)
+            ok = check_jvp_vs_fd("gamma_reg_p_jvp_dx", f_gamma_reg_p, &
+                gamma_reg_p_jvp, x_arr, [1.0_dp, 0.0_dp], tol_fd)
+            if (.not. ok) nfail = nfail + 1
+            ok = check_jvp_vs_fd("gamma_reg_p_jvp_da", f_gamma_reg_p, &
+                gamma_reg_p_jvp, x_arr, [0.0_dp, 1.0_dp], tol_fd)
+            if (.not. ok) nfail = nfail + 1
+            ok = check_jvp_vs_fd("gamma_reg_p_jvp_mix", f_gamma_reg_p, &
+                gamma_reg_p_jvp, x_arr, [1.0_dp, 1.0_dp], tol_fd)
+            if (.not. ok) nfail = nfail + 1
+        end do
+    end subroutine test_gamma_reg_p_jvp
+
+    subroutine test_gamma_reg_p_grad_adjoint(nfail)
+        ! Adjoint identity u.(Jv) = v.(J^T u) for the scalar map P(a,x), with
+        ! gamma_reg_p_jvp as JVP and gamma_reg_p_grad as VJP. n=2 inputs, m=1.
+        integer, intent(inout) :: nfail
+        real(dp) :: x_arr(2), u(1), v(2)
+
+        x_arr = [3.0_dp, 2.5_dp]
+        u = [0.7_dp]
+        v = [0.9_dp, -1.3_dp]
+        if (.not. dot_product_identity("gamma_reg_p_grad_adjoint", &
+                gamma_reg_p_jvp, gamma_reg_p_grad, x_arr, u, v, tol_adj)) &
+            nfail = nfail + 1
+
+        x_arr = [0.5_dp, 1.5_dp]
+        u = [-1.1_dp]
+        v = [1.4_dp, 0.6_dp]
+        if (.not. dot_product_identity("gamma_reg_p_grad_adjoint2", &
+                gamma_reg_p_jvp, gamma_reg_p_grad, x_arr, u, v, tol_adj)) &
+            nfail = nfail + 1
+    end subroutine test_gamma_reg_p_grad_adjoint
+
     ! ---------------------------------------------------------------- bessel_in
 
     subroutine test_bessel_in_jvp(nfail)
@@ -179,6 +262,23 @@ contains
         real(dp), intent(out) :: jv(:)
         call gamma_lower_jvp(x, v, jv)
     end subroutine gamma_lower_jvp_wrap
+
+    ! gamma_lower primal padded into the square harness: y(2)=0 makes the
+    ! padded output component a deterministic match for the padded JVP.
+    subroutine f_gamma_lower_pad(x, y)
+        real(dp), intent(in)  :: x(:)
+        real(dp), intent(out) :: y(:)
+        y = 0.0_dp
+        y(1) = gamma_lower(x(2), x(1))
+    end subroutine f_gamma_lower_pad
+
+    ! gamma_reg_p primal: x(1)=x limit, x(2)=a shape; padded as above.
+    subroutine f_gamma_reg_p(x, y)
+        real(dp), intent(in)  :: x(:)
+        real(dp), intent(out) :: y(:)
+        y = 0.0_dp
+        y(1) = gamma_reg_p(x(2), x(1))
+    end subroutine f_gamma_reg_p
 
     subroutine f_bessel_in(x, y)
         real(dp), intent(in)  :: x(:)
