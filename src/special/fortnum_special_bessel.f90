@@ -36,6 +36,12 @@ module fortnum_special_bessel
     ! HVP not provided (second-order recurrences involve more orders; deferred).
     public :: bessel_in_jvp
     public :: bessel_kn_jvp
+    ! Whole-array forward/reverse products for bessel_in_array (ad.md §2).
+    !   bessel_in_array_jvp: column Jacobian J_n = dI_n/dx = (I_{n-1}+I_{n+1})/2,
+    !     with I_{-1}=I_1 so J_0 = I_1 (DLMF 10.29.2); reuses bessel_in_array.
+    !   bessel_in_array_vjp: J^T u = sum_n u_n J_n. Active argument: x.
+    public :: bessel_in_array_jvp
+    public :: bessel_in_array_vjp
 
     ! --- I_n parameters ---
     real(dp), parameter :: series_x_max    = 2.0_dp
@@ -231,6 +237,45 @@ contains
         real(dp), intent(out) :: jv   ! directional derivative
         jv = -0.5_dp*(bessel_kn(n - 1, x) + bessel_kn(n + 1, x)) * v
     end subroutine bessel_kn_jvp
+
+    ! Forward product for the I_0..I_nmax array w.r.t. x (nmax inactive).
+    ! Column Jacobian J_n = dI_n/dx = (I_{n-1}(x) + I_{n+1}(x))/2 (DLMF 10.29.2),
+    ! with I_{-1} = I_1 so J_0 = I_1. One extra order from bessel_in_array keeps
+    ! the products consistent with the array primal's recurrence.
+    pure subroutine bessel_in_array_jvp(nmax, x, v, jv)
+        integer,  intent(in)  :: nmax       ! inactive order count
+        real(dp), intent(in)  :: x          ! active argument
+        real(dp), intent(in)  :: v          ! scalar tangent
+        real(dp), intent(out) :: jv(0:nmax) ! directional derivative per order
+
+        real(dp) :: ext(0:nmax + 1)
+        integer  :: n
+
+        call bessel_in_array(nmax + 1, x, ext)
+        jv(0) = ext(1)*v
+        do n = 1, nmax
+            jv(n) = 0.5_dp*(ext(n - 1) + ext(n + 1))*v
+        end do
+    end subroutine bessel_in_array_jvp
+
+    ! Reverse product for the I_0..I_nmax array w.r.t. x (nmax inactive).
+    ! jtu = (J^T u) = sum_n u_n J_n with J_n as in bessel_in_array_jvp, so the
+    ! adjoint identity u.(J v) = v.(J^T u) holds to rounding.
+    pure subroutine bessel_in_array_vjp(nmax, x, u, jtu)
+        integer,  intent(in)  :: nmax      ! inactive order count
+        real(dp), intent(in)  :: x         ! active argument
+        real(dp), intent(in)  :: u(0:nmax) ! output-space adjoint
+        real(dp), intent(out) :: jtu       ! input-space adjoint (scalar)
+
+        real(dp) :: ext(0:nmax + 1)
+        integer  :: n
+
+        call bessel_in_array(nmax + 1, x, ext)
+        jtu = u(0)*ext(1)
+        do n = 1, nmax
+            jtu = jtu + u(n)*0.5_dp*(ext(n - 1) + ext(n + 1))
+        end do
+    end subroutine bessel_in_array_vjp
 
     ! ------------------------------------------------------------------ I_n internals
 
