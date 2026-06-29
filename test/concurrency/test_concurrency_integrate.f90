@@ -9,7 +9,7 @@ program test_concurrency_integrate
     ! PRIMAL concurrency only; derivative-product (frozen-subdivision) integrate
     ! concurrency lands in M6 (#40).
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
-    use fortnum_status, only: fortnum_status_t, status_ok
+    use fortnum_status, only: fortnum_status_t
     use fortnum_quadrature, only: gauss_legendre
     use fortnum_integrate, only: integrate_qag, integrate_qags, &
                                  integrate_qagp, integrate_qagiu, &

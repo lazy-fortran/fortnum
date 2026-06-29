@@ -98,6 +98,7 @@ contains
         real(dp), intent(in)  :: x(:)
         real(dp), intent(in)  :: v(:)
         real(dp), intent(out) :: jv(:)
+        associate (unused_x => x); end associate
         jv = matmul(A, v)
     end subroutine jvp_lin
 
@@ -105,6 +106,7 @@ contains
         real(dp), intent(in)  :: x(:)
         real(dp), intent(in)  :: u(:)
         real(dp), intent(out) :: jtu(:)
+        associate (unused_x => x); end associate
         jtu = matmul(transpose(A), u)
     end subroutine vjp_lin
 
@@ -115,6 +117,7 @@ contains
         real(dp), intent(in)  :: x(:)
         real(dp), intent(in)  :: u(:)
         real(dp), intent(out) :: jtu(:)
+        associate (unused_x => x); end associate
         ! True adjoint is matmul(transpose(A), u); perturb one entry.
         jtu = matmul(transpose(A), u)
         jtu(1) = jtu(1) + 1.0_dp

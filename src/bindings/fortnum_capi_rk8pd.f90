@@ -16,7 +16,6 @@ module fortnum_capi_rk8pd
         c_loc, c_f_pointer, c_f_procpointer, c_null_ptr, c_associated
 
     use fortnum_status, only: fortnum_status_t
-    use fortnum_ode, only: ode_rhs_t
     use fortnum_ode_rk8pd, only: rk8pd_state_t, rk8pd_evolve_init, &
         rk8pd_evolve_apply
 

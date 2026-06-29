@@ -5,7 +5,7 @@ program test_fortnum_roots
     ! sign-check domain error; convergence-error path for a deliberately
     ! underresolved bracket; near-zero-derivative guard in Newton.
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
-    use fortnum_roots, only: root_fn_t, root_fn_df_t, root_bisect, root_newton
+    use fortnum_roots, only: root_bisect, root_newton
     use fortnum_status, only: fortnum_status_t, FORTNUM_OK, &
         FORTNUM_DOMAIN_ERROR, FORTNUM_CONVERGENCE_ERROR
     implicit none
