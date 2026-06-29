@@ -13,13 +13,15 @@ program test_special_ad
     ! bessel_in_jvp / bessel_kn_jvp take an explicit integer order n; harness-
     ! compatible wrappers close over n via internal procedures.
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
-    use fortnum_ad_test_utils, only: check_jvp_vs_fd, dot_product_identity
+    use fortnum_ad_test_utils, only: check_jvp_vs_fd, dot_product_identity, &
+                                     fd_jvp, rel_err
     use fortnum_special_dawson, only: dawson, dawson_jvp, dawson_grad
     use fortnum_special_gamma,  only: gamma_lower, gamma_lower_jvp, &
                                       gamma_lower_jvp_da, gamma_reg_p, &
                                       gamma_reg_p_jvp, gamma_reg_p_grad
-    use fortnum_special_bessel, only: bessel_in, bessel_kn, &
-                                      bessel_in_jvp, bessel_kn_jvp
+    use fortnum_special_bessel, only: bessel_in, bessel_kn, bessel_in_array, &
+                                      bessel_in_jvp, bessel_kn_jvp, &
+                                      bessel_in_array_jvp, bessel_in_array_vjp
     implicit none
 
     real(dp), parameter :: tol_fd = 1.0e-7_dp   ! central-FD tolerance (h ~ eps^1/3)
@@ -28,6 +30,7 @@ program test_special_ad
     ! Shared order variables closed over by the Bessel harness wrappers.
     integer, save :: n_in = 0
     integer, save :: n_kn = 0
+    integer, save :: nmax_arr = 0
 
     integer :: nfail
     nfail = 0
@@ -40,6 +43,8 @@ program test_special_ad
     call test_gamma_reg_p_grad_adjoint(nfail)
     call test_bessel_in_jvp(nfail)
     call test_bessel_kn_jvp(nfail)
+    call test_bessel_in_array_jvp(nfail)
+    call test_bessel_in_array_adjoint(nfail)
 
     if (nfail > 0) then
         write (error_unit, '(i0,a)') nfail, " test(s) failed"
@@ -239,6 +244,60 @@ contains
         end do
     end subroutine test_bessel_kn_jvp
 
+    ! ------------------------------------------------------------ bessel_in_array
+
+    subroutine test_bessel_in_array_jvp(nfail)
+        integer, intent(inout) :: nfail
+        ! Whole-array column Jacobian vs central FD across all orders 0..nmax.
+        real(dp) :: xpts(4), x(1), v(1)
+        real(dp), allocatable :: jv_ad(:), jv_fd(:)
+        real(dp) :: worst
+        integer  :: i, k
+
+        xpts = [0.5_dp, 1.5_dp, 4.0_dp, 8.0_dp]
+        nmax_arr = 5
+        v = [1.0_dp]
+        allocate (jv_ad(nmax_arr + 1), jv_fd(nmax_arr + 1))
+        do i = 1, size(xpts)
+            x(1) = xpts(i)
+            call jvp_bessel_in_array_wrap(x, v, jv_ad)
+            call fd_jvp(f_bessel_in_array, x, v, jv_fd)
+            worst = 0.0_dp
+            do k = 1, nmax_arr + 1
+                worst = max(worst, rel_err(jv_ad(k), jv_fd(k)))
+            end do
+            if (worst > tol_fd) then
+                write (error_unit, '(a,es12.4,a,es12.4)') &
+                    "FAIL [bessel_in_array_jvp] worst rel_err=", worst, &
+                    " tol=", tol_fd
+                nfail = nfail + 1
+            end if
+        end do
+    end subroutine test_bessel_in_array_jvp
+
+    subroutine test_bessel_in_array_adjoint(nfail)
+        ! Adjoint identity u.(J v) = v.(J^T u) for the array column Jacobian.
+        integer, intent(inout) :: nfail
+        real(dp) :: x(1), v(1)
+        real(dp), allocatable :: u(:)
+        integer :: i
+
+        nmax_arr = 5
+        allocate (u(nmax_arr + 1))
+        v = [1.0_dp]
+        do i = 1, nmax_arr + 1
+            u(i) = 0.3_dp*real(i, dp) - 0.5_dp
+        end do
+        x = [1.7_dp]
+        if (.not. dot_product_identity("bessel_in_array_adjoint", &
+                jvp_bessel_in_array_wrap, vjp_bessel_in_array_wrap, &
+                x, u, v, tol_adj)) nfail = nfail + 1
+        x = [4.5_dp]
+        if (.not. dot_product_identity("bessel_in_array_adjoint2", &
+                jvp_bessel_in_array_wrap, vjp_bessel_in_array_wrap, &
+                x, u, v, tol_adj)) nfail = nfail + 1
+    end subroutine test_bessel_in_array_adjoint
+
     ! ---------------------------------------------------------------- primal wrappers
 
     subroutine f_dawson(x, y)
@@ -305,5 +364,31 @@ contains
         real(dp), intent(out) :: jv(:)
         call bessel_kn_jvp(n_kn, x(1), v(1), jv(1))
     end subroutine jvp_bessel_kn_wrap
+
+    subroutine f_bessel_in_array(x, y)
+        real(dp), intent(in)  :: x(:)
+        real(dp), intent(out) :: y(:)
+        real(dp) :: vals(0:nmax_arr)
+        call bessel_in_array(nmax_arr, x(1), vals)
+        y(1:nmax_arr + 1) = vals(0:nmax_arr)
+    end subroutine f_bessel_in_array
+
+    subroutine jvp_bessel_in_array_wrap(x, v, jv)
+        real(dp), intent(in)  :: x(:)
+        real(dp), intent(in)  :: v(:)
+        real(dp), intent(out) :: jv(:)
+        real(dp) :: jvloc(0:nmax_arr)
+        call bessel_in_array_jvp(nmax_arr, x(1), v(1), jvloc)
+        jv(1:nmax_arr + 1) = jvloc(0:nmax_arr)
+    end subroutine jvp_bessel_in_array_wrap
+
+    subroutine vjp_bessel_in_array_wrap(x, u, jtu)
+        real(dp), intent(in)  :: x(:)
+        real(dp), intent(in)  :: u(:)
+        real(dp), intent(out) :: jtu(:)
+        real(dp) :: jtuloc
+        call bessel_in_array_vjp(nmax_arr, x(1), u(1:nmax_arr + 1), jtuloc)
+        jtu(1) = jtuloc
+    end subroutine vjp_bessel_in_array_wrap
 
 end program test_special_ad
