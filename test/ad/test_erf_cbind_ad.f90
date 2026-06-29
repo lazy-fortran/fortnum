@@ -13,8 +13,8 @@ program test_erf_cbind_ad
         fortnum_erf_jvp, fortnum_erfc_jvp, fortnum_erf_grad, fortnum_erfc_grad
     implicit none
 
-    real(dp), parameter :: tol_fd  = 1.0e-7_dp   ! central-FD tolerance (h ~ eps^1/3)
-    real(dp), parameter :: tol_adj = 1.0e-13_dp  ! adjoint identity tolerance
+    real(dp), parameter :: tol_fd  = 1.0e-7_dp ! central-FD tolerance (h ~ eps^1/3)
+    real(dp), parameter :: tol_adj = 1.0e-13_dp ! adjoint identity tolerance
 
     integer :: nfail
     nfail = 0
@@ -72,12 +72,12 @@ contains
         u = [0.7_dp]
         v = [1.0_dp]
         if (.not. dot_product_identity("fortnum_erf_grad_adjoint", &
-                fortnum_erf_jvp, fortnum_erf_grad, x, u, v, tol_adj)) &
+            fortnum_erf_jvp, fortnum_erf_grad, x, u, v, tol_adj)) &
             nfail = nfail + 1
         x = [-0.8_dp]
         u = [-1.3_dp]
         if (.not. dot_product_identity("fortnum_erfc_grad_adjoint", &
-                fortnum_erfc_jvp, fortnum_erfc_grad, x, u, v, tol_adj)) &
+            fortnum_erfc_jvp, fortnum_erfc_grad, x, u, v, tol_adj)) &
             nfail = nfail + 1
     end subroutine test_grad_adjoint
 

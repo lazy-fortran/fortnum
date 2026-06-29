@@ -211,7 +211,7 @@ contains
             term = term * (b - a + real(s, dp)) * (1.0_dp - a + real(s, dp)) &
                 / (real(s + 1, dp) * z)
             mag = abs(term)
-            if (mag > prev_mag) exit          ! optimal-truncation reached
+            if (mag > prev_mag) exit ! optimal-truncation reached
             tail = tail + term
             if (mag <= tol * abs(tail)) then
                 ok = .true.
@@ -284,7 +284,7 @@ contains
     ! d/dz M(1,b,z) = (1/b) M(2,b+1,z) (DLMF 13.3.15); the real Jacobian is the
     ! Cauchy-Riemann matrix [[u_x,-v_x],[v_x,u_x]] with u_x+i v_x = dM/dz.
     subroutine hyperg_1f1_a1_jvp(z, b, v, jv)
-        real(dp), intent(in)  :: z(:)   ! z(1)=Re z, z(2)=Im z
+        real(dp), intent(in)  :: z(:) ! z(1)=Re z, z(2)=Im z
         complex(dp), intent(in) :: b
         real(dp), intent(in)  :: v(:)
         real(dp), intent(out) :: jv(:)

@@ -13,7 +13,7 @@ program test_concurrency_fft
     use fortnum_fft, only: fft_r2c, fft_c2c, fortnum_fft_plan_t, fft_plan_init
     implicit none
 
-    integer, parameter :: n = 96            ! mixed-radix length
+    integer, parameter :: n = 96 ! mixed-radix length
     integer, parameter :: nbatch = 512
     integer :: nfail, j, k
     complex(dp) :: ser_spec(n/2 + 1, nbatch), par_spec(n/2 + 1, nbatch)

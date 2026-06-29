@@ -12,7 +12,7 @@ program test_concurrency_ode
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
     use fortnum_status, only: fortnum_status_t
     use fortnum_ode, only: ode_problem_t, ode_workspace_t, ode_solution_t, &
-                           ode_integrate
+        ode_integrate
     use fortnum_ode_wrapper, only: ode_at
     implicit none
 
@@ -50,115 +50,115 @@ contains
         real(dp), intent(out) :: dydt(:)
         class(*), intent(in), optional :: ctx
         associate (unused_t => t); end associate
-        dydt(1) = -y(1)
-    end subroutine rhs_decay
+            dydt(1) = -y(1)
+        end subroutine rhs_decay
 
-    ! ode_integrate/ode_at call problem%rhs without forwarding a ctx, so the
-    ! per-problem rate cannot ride through ctx here. Encode it instead as a
-    ! per-problem final time: with rhs y'=-y, the state at t1 is exp(-t1), so
-    ! varying t1 = 3*rate gives a distinct integration per j. The point of the
-    ! test is per-thread workspace isolation, not the rate channel.
-    subroutine build_problem(prob, rate)
-        type(ode_problem_t), intent(out) :: prob
-        real(dp),            intent(in)  :: rate
-        prob%rhs  => rhs_decay
-        prob%t0   = 0.0_dp
-        prob%t1   = 3.0_dp * rate
-        prob%y0   = [1.0_dp]
-        prob%rtol = 1.0e-9_dp
-        prob%atol = 1.0e-11_dp
-    end subroutine build_problem
+        ! ode_integrate/ode_at call problem%rhs without forwarding a ctx, so the
+        ! per-problem rate cannot ride through ctx here. Encode it instead as a
+        ! per-problem final time: with rhs y'=-y, the state at t1 is exp(-t1), so
+        ! varying t1 = 3*rate gives a distinct integration per j. The point of the
+        ! test is per-thread workspace isolation, not the rate channel.
+        subroutine build_problem(prob, rate)
+            type(ode_problem_t), intent(out) :: prob
+            real(dp),            intent(in)  :: rate
+            prob%rhs  => rhs_decay
+            prob%t0   = 0.0_dp
+            prob%t1   = 3.0_dp * rate
+            prob%y0   = [1.0_dp]
+            prob%rtol = 1.0e-9_dp
+            prob%atol = 1.0e-11_dp
+        end subroutine build_problem
 
-    subroutine serial_integrate()
-        type(ode_problem_t)    :: prob
-        type(ode_workspace_t)  :: ws
-        type(ode_solution_t)   :: sol
-        type(fortnum_status_t) :: st
-        do j = 1, nprob
-            call build_problem(prob, rates(j))
-            call ode_integrate(prob, ws, sol, st)
-            ser_final(j) = sol%y(1, sol%nsteps)
-        end do
-    end subroutine serial_integrate
-
-    subroutine parallel_integrate()
-        type(ode_problem_t)    :: prob
-        type(ode_workspace_t)  :: ws
-        type(ode_solution_t)   :: sol
-        type(fortnum_status_t) :: st
-        !$omp parallel do default(shared) private(prob, ws, sol, st, j) &
-        !$omp   schedule(static)
-        do j = 1, nprob
-            call build_problem(prob, rates(j))
-            call ode_integrate(prob, ws, sol, st)
-            par_final(j) = sol%y(1, sol%nsteps)
-        end do
-        !$omp end parallel do
-    end subroutine parallel_integrate
-
-    subroutine serial_at()
-        type(ode_problem_t)    :: prob
-        type(ode_workspace_t)  :: ws
-        type(fortnum_status_t) :: st
-        real(dp), allocatable  :: y_out(:,:)
-        real(dp) :: t_eval(11)
-        integer  :: i
-        do j = 1, nprob
-            call build_problem(prob, rates(j))
-            do i = 1, 11
-                t_eval(i) = prob%t1 * real(i - 1, dp) / 10.0_dp
+        subroutine serial_integrate()
+            type(ode_problem_t)    :: prob
+            type(ode_workspace_t)  :: ws
+            type(ode_solution_t)   :: sol
+            type(fortnum_status_t) :: st
+            do j = 1, nprob
+                call build_problem(prob, rates(j))
+                call ode_integrate(prob, ws, sol, st)
+                ser_final(j) = sol%y(1, sol%nsteps)
             end do
-            call ode_at(prob, t_eval, ws, y_out, st)
-            ser_at(:, j) = y_out(1, :)
-        end do
-    end subroutine serial_at
+        end subroutine serial_integrate
 
-    subroutine parallel_at()
-        type(ode_problem_t)    :: prob
-        type(ode_workspace_t)  :: ws
-        type(fortnum_status_t) :: st
-        real(dp), allocatable  :: y_out(:,:)
-        real(dp) :: t_eval(11)
-        integer  :: i
-        !$omp parallel do default(shared) private(prob, ws, st, y_out, t_eval, i, j) &
-        !$omp   schedule(static)
-        do j = 1, nprob
-            call build_problem(prob, rates(j))
-            do i = 1, 11
-                t_eval(i) = prob%t1 * real(i - 1, dp) / 10.0_dp
+        subroutine parallel_integrate()
+            type(ode_problem_t)    :: prob
+            type(ode_workspace_t)  :: ws
+            type(ode_solution_t)   :: sol
+            type(fortnum_status_t) :: st
+            !$omp parallel do default(shared) private(prob, ws, sol, st, j) &
+            !$omp   schedule(static)
+            do j = 1, nprob
+                call build_problem(prob, rates(j))
+                call ode_integrate(prob, ws, sol, st)
+                par_final(j) = sol%y(1, sol%nsteps)
             end do
-            call ode_at(prob, t_eval, ws, y_out, st)
-            par_at(:, j) = y_out(1, :)
-        end do
-        !$omp end parallel do
-    end subroutine parallel_at
+            !$omp end parallel do
+        end subroutine parallel_integrate
 
-    subroutine check_exact1(ref, got, name)
-        real(dp),     intent(in) :: ref(:), got(:)
-        character(*), intent(in) :: name
-        integer :: k
-        do k = 1, size(ref)
-            if (ref(k) /= got(k)) then
-                nfail = nfail + 1
-                write (error_unit, "(a,a,a,i0)") "FAIL: ", name, " at index ", k
-                return
-            end if
-        end do
-    end subroutine check_exact1
+        subroutine serial_at()
+            type(ode_problem_t)    :: prob
+            type(ode_workspace_t)  :: ws
+            type(fortnum_status_t) :: st
+            real(dp), allocatable  :: y_out(:,:)
+            real(dp) :: t_eval(11)
+            integer  :: i
+            do j = 1, nprob
+                call build_problem(prob, rates(j))
+                do i = 1, 11
+                    t_eval(i) = prob%t1 * real(i - 1, dp) / 10.0_dp
+                end do
+                call ode_at(prob, t_eval, ws, y_out, st)
+                ser_at(:, j) = y_out(1, :)
+            end do
+        end subroutine serial_at
 
-    subroutine check_exact2(ref, got, name)
-        real(dp),     intent(in) :: ref(:,:), got(:,:)
-        character(*), intent(in) :: name
-        integer :: a, b
-        do b = 1, size(ref, 2)
-            do a = 1, size(ref, 1)
-                if (ref(a, b) /= got(a, b)) then
+        subroutine parallel_at()
+            type(ode_problem_t)    :: prob
+            type(ode_workspace_t)  :: ws
+            type(fortnum_status_t) :: st
+            real(dp), allocatable  :: y_out(:,:)
+            real(dp) :: t_eval(11)
+            integer  :: i
+            !$omp parallel do default(shared) private(prob, ws, st, y_out, t_eval, i, j) &
+            !$omp   schedule(static)
+            do j = 1, nprob
+                call build_problem(prob, rates(j))
+                do i = 1, 11
+                    t_eval(i) = prob%t1 * real(i - 1, dp) / 10.0_dp
+                end do
+                call ode_at(prob, t_eval, ws, y_out, st)
+                par_at(:, j) = y_out(1, :)
+            end do
+            !$omp end parallel do
+        end subroutine parallel_at
+
+        subroutine check_exact1(ref, got, name)
+            real(dp),     intent(in) :: ref(:), got(:)
+            character(*), intent(in) :: name
+            integer :: k
+            do k = 1, size(ref)
+                if (ref(k) /= got(k)) then
                     nfail = nfail + 1
-                    write (error_unit, "(a,a)") "FAIL: ", name
+                    write (error_unit, "(a,a,a,i0)") "FAIL: ", name, " at index ", k
                     return
                 end if
             end do
-        end do
-    end subroutine check_exact2
+        end subroutine check_exact1
 
-end program test_concurrency_ode
+        subroutine check_exact2(ref, got, name)
+            real(dp),     intent(in) :: ref(:,:), got(:,:)
+            character(*), intent(in) :: name
+            integer :: a, b
+            do b = 1, size(ref, 2)
+                do a = 1, size(ref, 1)
+                    if (ref(a, b) /= got(a, b)) then
+                        nfail = nfail + 1
+                        write (error_unit, "(a,a)") "FAIL: ", name
+                        return
+                    end if
+                end do
+            end do
+        end subroutine check_exact2
+
+    end program test_concurrency_ode

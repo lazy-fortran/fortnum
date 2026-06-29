@@ -20,7 +20,7 @@ program test_enzyme_vs_analytic
     x = [1.0_dp, -2.0_dp, 0.5_dp]
     v = [0.3_dp, 1.1_dp, -0.7_dp]
     if (.not. check_enzyme_vs_analytic("linear", jvp_enzyme, jvp_analytic, &
-            x, v, tol=1.0e-12_dp)) nfail = nfail + 1
+        x, v, tol=1.0e-12_dp)) nfail = nfail + 1
 
     if (nfail > 0) then
         write (error_unit, '(i0,a)') nfail, " test(s) failed"
@@ -37,19 +37,19 @@ contains
         real(dp), intent(in)  :: v(:)
         real(dp), intent(out) :: jv(:)
         associate (unused_x => x); end associate
-        jv(1) = 2.0_dp*v(1) - v(2) + 3.0_dp*v(3)
-        jv(2) = v(1) + 4.0_dp*v(2)
-        jv(3) = -v(1) + 0.5_dp*v(2) + 2.0_dp*v(3)
-    end subroutine jvp_enzyme
+            jv(1) = 2.0_dp*v(1) - v(2) + 3.0_dp*v(3)
+            jv(2) = v(1) + 4.0_dp*v(2)
+            jv(3) = -v(1) + 0.5_dp*v(2) + 2.0_dp*v(3)
+        end subroutine jvp_enzyme
 
-    subroutine jvp_analytic(x, v, jv)
-        real(dp), intent(in)  :: x(:)
-        real(dp), intent(in)  :: v(:)
-        real(dp), intent(out) :: jv(:)
-        associate (unused_x => x); end associate
-        jv(1) = 2.0_dp*v(1) - v(2) + 3.0_dp*v(3)
-        jv(2) = v(1) + 4.0_dp*v(2)
-        jv(3) = -v(1) + 0.5_dp*v(2) + 2.0_dp*v(3)
-    end subroutine jvp_analytic
+        subroutine jvp_analytic(x, v, jv)
+            real(dp), intent(in)  :: x(:)
+            real(dp), intent(in)  :: v(:)
+            real(dp), intent(out) :: jv(:)
+            associate (unused_x => x); end associate
+                jv(1) = 2.0_dp*v(1) - v(2) + 3.0_dp*v(3)
+                jv(2) = v(1) + 4.0_dp*v(2)
+                jv(3) = -v(1) + 0.5_dp*v(2) + 2.0_dp*v(3)
+            end subroutine jvp_analytic
 
-end program test_enzyme_vs_analytic
+        end program test_enzyme_vs_analytic

@@ -111,7 +111,7 @@ contains
             return
         end if
 
-        last_side = 0   ! 0 = first step, -1 = kept a, +1 = kept b
+        last_side = 0 ! 0 = first step, -1 = kept a, +1 = kept b
         side_fa   = fa
         side_fb   = fb
 
@@ -168,7 +168,7 @@ contains
     ! takes over for that step.  At the final root, |f'(x)| < deriv_floor
     ! is reported as a FORTNUM_DOMAIN_ERROR (near-multiple root warning).
     subroutine root_newton(fdf, a, b, x0, x, status, xtol, ftol, &
-                           max_iter, deriv_floor)
+            max_iter, deriv_floor)
         procedure(root_fn_df_t)            :: fdf
         real(dp),               intent(in) :: a, b, x0
         real(dp),               intent(out):: x
@@ -228,7 +228,7 @@ contains
                 x = xc
                 if (abs(dfc) < dfloor) &
                     call status_set(status, FORTNUM_DOMAIN_ERROR, &
-                        "root_newton: near-multiple root; derivative ~0 at root")
+                    "root_newton: near-multiple root; derivative ~0 at root")
                 return
             end if
 
@@ -245,7 +245,7 @@ contains
                 x = xa + 0.5_dp * (xb - xa)
                 if (abs(dfc) < dfloor) &
                     call status_set(status, FORTNUM_DOMAIN_ERROR, &
-                        "root_newton: near-multiple root; derivative ~0 at root")
+                    "root_newton: near-multiple root; derivative ~0 at root")
                 return
             end if
 
@@ -338,8 +338,8 @@ contains
         ! is a secant/bisection step (no IQI yet).
         xc = xa
         fc = fa
-        d  = xb - xa   ! most-recent interpolation step (seed with bracket width)
-        e  = d          ! step before that; bisection guard uses |e|
+        d  = xb - xa ! most-recent interpolation step (seed with bracket width)
+        e  = d ! step before that; bisection guard uses |e|
 
         do it = 1, max_it
             ! Ensure xb is the current best approximation (|fb| <= |fc|).
@@ -351,7 +351,7 @@ contains
 
             ! Convergence tolerance at xb.
             tol1 = 2.0_dp * epsilon(1.0_dp) * abs(xb) + 0.5_dp * xt
-            s    = 0.5_dp * (xc - xb)   ! half-distance to the third point
+            s    = 0.5_dp * (xc - xb) ! half-distance to the third point
 
             if (abs(s) <= tol1 .or. abs(fb) <= ft) then
                 x = xb

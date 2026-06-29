@@ -32,7 +32,7 @@ program test_fortnum_special_gamma_oracle
     end if
 
     open(newunit=unit, file=trim(csv_path), status="old", action="read", &
-         iostat=ios)
+        iostat=ios)
     if (ios /= 0) then
         write(error_unit, "(a)") "FAIL: cannot open " // trim(csv_path)
         stop 1

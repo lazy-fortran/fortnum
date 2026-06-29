@@ -124,8 +124,8 @@ contains
         call gauss_legendre_jvp(w, v, jv)
         call gauss_legendre_vjp(w, u, jtu)
 
-        lhs = u(1) * jv(1)           ! u . (J v)
-        rhs = dot_product(v, jtu)    ! v . (J^T u)
+        lhs = u(1) * jv(1) ! u . (J v)
+        rhs = dot_product(v, jtu) ! v . (J^T u)
 
         e = abs(lhs - rhs) / max(abs(lhs), abs(rhs), 1.0_dp)
         if (e > tol) then

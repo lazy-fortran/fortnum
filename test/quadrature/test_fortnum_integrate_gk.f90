@@ -32,7 +32,7 @@ contains
         real(dp) :: res, err
         integer  :: ierr
         call integrate_gk(f_exp, 0.0_dp, 1.0_dp, 0.0_dp, 1.0e-12_dp, &
-                          res, err, ierr)
+            res, err, ierr)
         if (ierr /= 0 .or. abs(res - (exp(1.0_dp) - 1.0_dp)) > 1.0e-10_dp) then
             write (error_unit, "(a,es14.6,a,i0)") &
                 "FAIL check_exp: res=", res, " ierr=", ierr
@@ -46,7 +46,7 @@ contains
         real(dp) :: res, err
         integer  :: ierr
         call integrate_gk(f_poly, 0.0_dp, 2.0_dp, 0.0_dp, 1.0e-12_dp, &
-                          res, err, ierr)
+            res, err, ierr)
         if (ierr /= 0 .or. abs(res - 14.0_dp) > 1.0e-10_dp) then
             write (error_unit, "(a,es14.6,a,i0)") &
                 "FAIL check_poly: res=", res, " ierr=", ierr
@@ -60,7 +60,7 @@ contains
         real(dp) :: res, err
         integer  :: ierr
         call integrate_gk(f_sin, 0.0_dp, PI, 0.0_dp, 1.0e-12_dp, &
-                          res, err, ierr)
+            res, err, ierr)
         if (ierr /= 0 .or. abs(res - 2.0_dp) > 1.0e-10_dp) then
             write (error_unit, "(a,es14.6,a,i0)") &
                 "FAIL check_sin: res=", res, " ierr=", ierr
@@ -77,7 +77,7 @@ contains
         integer  :: ierr, k
         do k = 1, size(keys)
             call integrate_gk(f_exp, 0.0_dp, 1.0_dp, 0.0_dp, 1.0e-12_dp, &
-                              res, err, ierr, key=keys(k))
+                res, err, ierr, key=keys(k))
             if (ierr /= 0 .or. abs(res - exact) > 1.0e-10_dp) then
                 write (error_unit, "(a,i0,a,es14.6,a,i0)") &
                     "FAIL check_all_keys key=", keys(k), &
@@ -93,7 +93,7 @@ contains
         real(dp) :: res, err
         integer  :: ierr
         call integrate_gk(f_exp, 0.0_dp, 1.0_dp, 0.0_dp, 1.0e-12_dp, &
-                          res, err, ierr, key=99)
+            res, err, ierr, key=99)
         if (ierr /= 6) then
             write (error_unit, "(a,i0)") &
                 "FAIL check_bad_input: expected ierr=6, got ", ierr

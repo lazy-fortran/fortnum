@@ -168,7 +168,7 @@ contains
         h = fd_jvp_step(f, vf)
         call lagrange_weights(n, x, xp, coef)
         jv_fd = dot_product(coef, (f + h*vf)) / (2.0_dp*h) - &
-                dot_product(coef, (f - h*vf)) / (2.0_dp*h)
+            dot_product(coef, (f - h*vf)) / (2.0_dp*h)
 
         if (rel_err(jv_ad, jv_fd) > 1.0e-10_dp) then
             write (error_unit, '(a,es24.16,a,es24.16,a,es12.4)') &
@@ -199,8 +199,8 @@ contains
         call lagrange_fval_jvp(n, x, xp, vf, jv)
         call lagrange_fval_vjp(n, x, xp, u, jtu)
 
-        lhs = u * jv                    ! u . (J vf)   [scalar dot scalar]
-        rhs = dot_product(vf, jtu)      ! vf . (J^T u)
+        lhs = u * jv ! u . (J vf)   [scalar dot scalar]
+        rhs = dot_product(vf, jtu) ! vf . (J^T u)
 
         if (rel_err(lhs, rhs) > 1.0e-13_dp) then
             write (error_unit, '(a,es24.16,a,es24.16,a,es12.4)') &

@@ -51,10 +51,10 @@ contains
         logical, intent(inout) :: ok
         real(dp), parameter :: ref_x(*) = [0.5_dp, 1.0_dp, 5.0_dp, 10.0_dp]
         real(dp), parameter :: ref_f(*) = [ &
-            0.42443638350202226_dp, &   ! scipy.special.dawsn(0.5)
-            0.5380795069127684_dp, &    ! scipy.special.dawsn(1.0)
-            0.10213407442427686_dp, &   ! scipy.special.dawsn(5.0)
-            0.050253847187598542_dp]    ! scipy.special.dawsn(10.0)
+            0.42443638350202226_dp, & ! scipy.special.dawsn(0.5)
+            0.5380795069127684_dp, & ! scipy.special.dawsn(1.0)
+            0.10213407442427686_dp, & ! scipy.special.dawsn(5.0)
+            0.050253847187598542_dp] ! scipy.special.dawsn(10.0)
         real(dp), parameter :: rtol = 1.0e-13_dp
         integer :: i
         real(dp) :: err

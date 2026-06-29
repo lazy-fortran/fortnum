@@ -29,10 +29,10 @@ contains
         real(dp) :: x
         x = 0.7_dp
         if (.not. check_complex_step("sin", f_sin, x, cos(x), &
-                tol=1.0e-14_dp)) nfail = nfail + 1
+            tol=1.0e-14_dp)) nfail = nfail + 1
         x = PI/3.0_dp
         if (.not. check_complex_step("sin_pi3", f_sin, x, cos(x), &
-                tol=1.0e-14_dp)) nfail = nfail + 1
+            tol=1.0e-14_dp)) nfail = nfail + 1
     end subroutine test_sin
 
     subroutine test_exp(nfail)
@@ -40,7 +40,7 @@ contains
         real(dp) :: x
         x = 1.3_dp
         if (.not. check_complex_step("exp", f_exp, x, exp(x), &
-                tol=1.0e-14_dp)) nfail = nfail + 1
+            tol=1.0e-14_dp)) nfail = nfail + 1
     end subroutine test_exp
 
     ! p(x) = 3 x^3 - 2 x + 5, p'(x) = 9 x^2 - 2.
@@ -50,7 +50,7 @@ contains
         x = -1.25_dp
         dwant = 9.0_dp*x*x - 2.0_dp
         if (.not. check_complex_step("poly", f_poly, x, dwant, &
-                tol=1.0e-14_dp)) nfail = nfail + 1
+            tol=1.0e-14_dp)) nfail = nfail + 1
     end subroutine test_poly
 
     ! ----------------------------------------------------- reference kernels

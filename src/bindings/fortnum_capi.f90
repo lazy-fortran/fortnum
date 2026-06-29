@@ -420,7 +420,7 @@ contains
         fx = 0.0_dp
         if (.not. present(ctx)) return
         select type (ctx)
-        type is (scalar_bridge_t)
+            type is (scalar_bridge_t)
             call c_f_procpointer(ctx%fn, cf)
             fx = cf(real(x, c_double), ctx%ctx)
         end select

@@ -17,8 +17,8 @@ program test_fortnum_integrate_singular_oracle
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
     use fortnum_status, only: fortnum_status_t
     use fortnum_integrate, only: integrate_qagp, integrate_qagiu, &
-                                 integrate_workspace_t, integrate_epstab_t, &
-                                 integrate_result_t
+        integrate_workspace_t, integrate_epstab_t, &
+        integrate_result_t
     implicit none
 
     character(len=4096) :: qagp_path, qagiu_path
@@ -95,7 +95,7 @@ contains
             end if
             active_qagp_case = cid
             call integrate_qagp(dispatch_qagp, a, b, pts(1:npts), 0.0_dp, &
-                                req, ws, eps, res, st, limit=500)
+                req, ws, eps, res, st, limit=500)
             err = abs(res%value - ref)
             tol = max(atol*abs(ref), 1.0e-7_dp)
             if (.not. (err <= tol)) then
@@ -137,7 +137,7 @@ contains
             end if
             active_qagiu_case = cid
             call integrate_qagiu(dispatch_qagiu, bound, inf, 0.0_dp, req, &
-                                 ws, eps, res, st, limit=500)
+                ws, eps, res, st, limit=500)
             err = abs(res%value - ref)
             tol = max(atol*abs(ref), 1.0e-7_dp)
             if (.not. (err <= tol)) then
