@@ -116,7 +116,7 @@ contains
         real(dp) :: nz, nf
 
         mm   = 5
-        nz   = 5.0e-8_dp
+        nz   = 1.0e-12_dp
         nf   = 1.0e-14_dp
         mref = 60
         if (present(m_max))     mm   = m_max
@@ -563,14 +563,20 @@ contains
             if (abs(znew - zc) <= nz) then
                 zc = znew
                 call f(zc, fz, ctx)
-                z = zc
-                return
+                ! A small step is not convergence: a box-damped sub-step near a
+                ! cell edge, or a midpoint estimate of an unresolved near-double,
+                ! can stall here with |f| far above the floor. Accept only a
+                ! verified zero; otherwise keep iterating.
+                if (abs(fz) <= nf) then
+                    z = zc
+                    return
+                end if
             end if
             zc = znew
         end do
         z = zc
         call f(zc, fz, ctx)
-        if (abs(fz) > max(nf, 1.0e-8_dp)) &
+        if (abs(fz) > nf) &
             call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
             "complex_region_roots: Newton polish did not converge")
     end subroutine newton_polish

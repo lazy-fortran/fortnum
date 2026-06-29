@@ -214,6 +214,13 @@ add_executable(test_fortnum_roots_multiplicity roots/test_fortnum_roots_multipli
 target_link_libraries(test_fortnum_roots_multiplicity PRIVATE fortnum)
 add_test(NAME fortnum_roots_multiplicity COMMAND test_fortnum_roots_multiplicity)
 
+# A returned region root must be a real zero of f (|f| <= 1e-10), never a
+# midpoint estimate of an unresolved near-double accepted on the step/iteration
+# guard alone.
+add_executable(test_fortnum_region_roots_converge roots/test_fortnum_region_roots_converge.f90)
+target_link_libraries(test_fortnum_region_roots_converge PRIVATE fortnum)
+add_test(NAME fortnum_region_roots_converge COMMAND test_fortnum_region_roots_converge)
+
 # reverse-communication device-style multiroot stepper (matches host hybrid)
 add_executable(test_fortnum_multiroot_rc roots/test_fortnum_multiroot_rc.f90)
 target_link_libraries(test_fortnum_multiroot_rc PRIVATE fortnum)
