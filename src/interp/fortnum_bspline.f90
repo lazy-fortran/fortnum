@@ -20,8 +20,12 @@ module fortnum_bspline
     !   grid_search and is primal_only: crossing a knot is a non-smooth event and
     !   the caller must hold the span fixed (see check_smoothness in the AD test).
     !   The derivative weights are produced by the analytic recurrence in
-    !   bspline_eval_deriv; the JVP/VJP entry points below expose them.
+    !   bspline_eval_deriv; the bspline_eval_jvp/vjp entry points expose them.
     !   Active: x. Inactive: order k, the knot/breakpoint array, nderiv.
+    !
+    !   The value also depends linearly on the coefficients c: s = sum_i c_i
+    !   B_i(x). bspline_eval_coef_jvp/vjp differentiate w.r.t. c (Jacobian B(x)),
+    !   transparent everywhere in c with no span guard since x is inactive there.
     !
     ! Out of fortnum scope: the Taylor extrapolation NEO-2 applies above the last
     ! breakpoint (collop_bspline_taylor) lives in the consumer, not here.
@@ -40,6 +44,8 @@ module fortnum_bspline
     public :: bspline_span_index
     public :: bspline_eval_jvp   ! d/dx [sum_i c_i B_i(x)] . vx   (x active)
     public :: bspline_eval_vjp   ! (d/dx [sum_i c_i B_i(x)])^T . u (x active)
+    public :: bspline_eval_coef_jvp   ! d/dc [sum_i c_i B_i(x)] . vc  (coef active)
+    public :: bspline_eval_coef_vjp   ! (d/dc [sum_i c_i B_i(x)])^T . u (coef active)
 
     ! Caller-owned B-spline state. order, nbreak, ncoef and the augmented knot
     ! vector are filled by bspline_init / bspline_set_knots; no module-level
@@ -383,5 +389,52 @@ contains
         if (status%code /= FORTNUM_OK) return
         jtu = u*dot_product(coef, dvals(1, :))
     end subroutine bspline_eval_vjp
+
+    ! JVP of the spline value s(x) = sum_i c_i B_i(x) w.r.t. the coefficients c.
+    ! The map c -> s is globally linear with Jacobian B(x), so this product is
+    ! transparent everywhere in c with no span guard: only x selects the span,
+    ! and x is inactive here. Active: coef. Inactive: x, knots, order.
+    !
+    ! jv = (d s / d c) . vc = sum_i B_i(x) vc_i
+    subroutine bspline_eval_coef_jvp(ws, x, vc, jv, status)
+        type(bspline_workspace_t), intent(in)  :: ws
+        real(dp),                  intent(in)  :: x
+        real(dp),                  intent(in)  :: vc(:)   ! tangent for coefficients
+        real(dp),                  intent(out) :: jv
+        type(fortnum_status_t),    intent(out) :: status
+
+        real(dp) :: basis(ws%ncoef)
+
+        jv = 0.0_dp
+        if (size(vc) /= ws%ncoef) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, "bspline: vc size /= ncoef")
+            return
+        end if
+        call bspline_eval_basis(ws, x, basis, status)
+        if (status%code /= FORTNUM_OK) return
+        jv = dot_product(basis, vc)
+    end subroutine bspline_eval_coef_jvp
+
+    ! VJP of the scalar spline value s(x) w.r.t. the coefficients c. Scalar
+    ! output makes the VJP the gradient times the output cotangent u:
+    ! jtu_i = u * B_i(x). With u = 1 this returns the gradient d s / d c_i.
+    subroutine bspline_eval_coef_vjp(ws, x, u, jtu, status)
+        type(bspline_workspace_t), intent(in)  :: ws
+        real(dp),                  intent(in)  :: x
+        real(dp),                  intent(in)  :: u         ! output cotangent
+        real(dp),                  intent(out) :: jtu(:)    ! input cotangent for coef
+        type(fortnum_status_t),    intent(out) :: status
+
+        real(dp) :: basis(ws%ncoef)
+
+        jtu = 0.0_dp
+        if (size(jtu) /= ws%ncoef) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, "bspline: jtu size /= ncoef")
+            return
+        end if
+        call bspline_eval_basis(ws, x, basis, status)
+        if (status%code /= FORTNUM_OK) return
+        jtu = u*basis
+    end subroutine bspline_eval_coef_vjp
 
 end module fortnum_bspline
