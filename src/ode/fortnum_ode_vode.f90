@@ -393,6 +393,8 @@ subroutine take_step(rhs, state, relerr, abserr, kflag, ctx)
     integer  :: neq, ncf, nflag, i, j, iback
     real(dp) :: told, dsm, flotl, r, rl1
 
+    associate (unused_abserr => abserr, unused_relerr => relerr); end associate
+
     neq = state%neq
     kflag = 0
     told = state%tn
@@ -589,6 +591,7 @@ subroutine predict(state, neq)
     type(vode_state_t), intent(inout) :: state
     integer, intent(in) :: neq
     integer :: j, k
+    associate (unused_neq => neq); end associate
     do j = 1, state%nq
         do k = state%nq, j, -1
             state%yh(:, k) = state%yh(:, k) + state%yh(:, k + 1)
@@ -604,6 +607,7 @@ subroutine unpredict(state, neq)
     type(vode_state_t), intent(inout) :: state
     integer, intent(in) :: neq
     integer :: jb, c0, k
+    associate (unused_neq => neq); end associate
     do jb = 1, state%nq
         c0 = state%nq + 1 - jb
         do k = c0, state%nq
@@ -620,6 +624,7 @@ subroutine rescale(state, neq)
     integer, intent(in) :: neq
     integer  :: j
     real(dp) :: r
+    associate (unused_neq => neq); end associate
     ! Clamp eta against hmax (HMXI in DVODE).
     if (state%hmax > 0.0_dp) then
         state%eta = state%eta / &
@@ -761,6 +766,8 @@ subroutine dvjust_down(state, neq)
     integer  :: nqm1, nqm2, j, i, iback, jp1
     real(dp) :: hsum, xi
     real(dp) :: elj(VODE_MAX_L)
+
+    associate (unused_neq => neq); end associate
 
     if (state%nq == 2) return
     nqm1 = state%nq - 1
@@ -918,6 +925,8 @@ real(dp) function initial_step(rhs, state, tout, relerr, abserr, ctx) &
     real(dp) :: t0, tdist, tround, hlb, hub, hg, h, t1, hnew, hrat
     real(dp) :: yddnrm, delyi, afi, a, uround
     real(dp), allocatable :: ytmp(:), temp(:)
+
+    associate (unused_relerr => relerr); end associate
 
     neq = state%neq
     t0 = state%tn

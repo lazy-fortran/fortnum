@@ -20,7 +20,7 @@ program test_integrate_ad
     use fortnum_status, only: fortnum_status_t, FORTNUM_OK
     use fortnum_ad_test_utils, only: rel_err, check_smoothness, ad_status_t, &
         AD_SMOOTH, AD_NONSMOOTH
-    use fortnum_integrate, only: integrate_integrand_t, integrate_workspace_t, &
+    use fortnum_integrate, only: integrate_workspace_t, &
         integrate_result_t, integrate_qag, integrate_qag_jvp
     implicit none
 

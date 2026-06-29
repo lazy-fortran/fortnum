@@ -36,6 +36,7 @@ contains
         real(dp), intent(in)  :: x(:)
         real(dp), intent(in)  :: v(:)
         real(dp), intent(out) :: jv(:)
+        associate (unused_x => x); end associate
         jv(1) = 2.0_dp*v(1) - v(2) + 3.0_dp*v(3)
         jv(2) = v(1) + 4.0_dp*v(2)
         jv(3) = -v(1) + 0.5_dp*v(2) + 2.0_dp*v(3)
@@ -45,6 +46,7 @@ contains
         real(dp), intent(in)  :: x(:)
         real(dp), intent(in)  :: v(:)
         real(dp), intent(out) :: jv(:)
+        associate (unused_x => x); end associate
         jv(1) = 2.0_dp*v(1) - v(2) + 3.0_dp*v(3)
         jv(2) = v(1) + 4.0_dp*v(2)
         jv(3) = -v(1) + 0.5_dp*v(2) + 2.0_dp*v(3)

@@ -1130,6 +1130,7 @@ contains
         logical,                     intent(in)    :: extrapolated
         integer :: i, j, n
         integer, allocatable :: ord(:)
+        associate (unused_area => area); end associate
         n = ws%last
         call ensure_trace(result, n)
         ! Sort indices by left endpoint for a left-to-right trace.

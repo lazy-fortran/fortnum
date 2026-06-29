@@ -10,7 +10,7 @@ program test_concurrency_ode
     ! PRIMAL concurrency only; derivative-product ode concurrency (sensitivity
     ! integration) lands in M6 (#40).
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
-    use fortnum_status, only: fortnum_status_t, FORTNUM_OK
+    use fortnum_status, only: fortnum_status_t
     use fortnum_ode, only: ode_problem_t, ode_workspace_t, ode_solution_t, &
                            ode_integrate
     use fortnum_ode_wrapper, only: ode_at
@@ -49,6 +49,7 @@ contains
         real(dp), intent(in)  :: y(:)
         real(dp), intent(out) :: dydt(:)
         class(*), intent(in), optional :: ctx
+        associate (unused_t => t); end associate
         dydt(1) = -y(1)
     end subroutine rhs_decay
 

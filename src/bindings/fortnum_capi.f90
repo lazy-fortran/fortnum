@@ -19,7 +19,7 @@ module fortnum_capi
     use, intrinsic :: iso_c_binding, only: c_int, c_double, c_double_complex, &
         c_funptr, c_ptr, c_f_procpointer
 
-    use fortnum_status, only: fortnum_status_t, FORTNUM_OK, FORTNUM_DOMAIN_ERROR
+    use fortnum_status, only: fortnum_status_t
 
     use fortnum_special_bessel, only: bessel_in, bessel_in_array, bessel_kn
     use fortnum_special_dawson, only: dawson
@@ -513,7 +513,7 @@ contains
         br%fn  = fdf
         br%ctx = ctx
         br%n   = int(n)
-        call multiroot_hybrid(system, int(n), real(x0, dp), xout, status, &
+        call multiroot_hybrid(residual_jacobian, int(n), real(x0, dp), xout, status, &
             xtol=real(xtol, dp), ftol=real(ftol, dp), max_iter=int(max_iter), &
             ctx=br)
         x    = xout
@@ -521,7 +521,7 @@ contains
     contains
         ! Builds the analytic Jacobian by central differences of the C residual
         ! callback, matching the KiLCA "_hybrids" usage on a _hybrid signature.
-        subroutine system(xv, fv, jac, ctx)
+        subroutine residual_jacobian(xv, fv, jac, ctx)
             real(dp), intent(in)  :: xv(:)
             real(dp), intent(out) :: fv(:)
             real(dp), intent(out) :: jac(:, :)
@@ -539,7 +539,7 @@ contains
                 call eval_residual(xm, fm)
                 jac(:, j) = (fp - fm)/(2.0_dp*hh)
             end do
-        end subroutine system
+        end subroutine residual_jacobian
 
         subroutine eval_residual(xv, fv)
             real(dp), intent(in)  :: xv(:)

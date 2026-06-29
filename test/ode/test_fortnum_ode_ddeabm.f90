@@ -38,6 +38,7 @@ contains
         real(dp), intent(in)  :: y(:)
         real(dp), intent(out) :: dydt(:)
         class(*), intent(in), optional :: ctx
+        associate (unused_t => t); end associate
         dydt(1) = -y(1)
     end subroutine rhs_decay
 
@@ -47,6 +48,7 @@ contains
         real(dp), intent(in)  :: y(:)
         real(dp), intent(out) :: dydt(:)
         class(*), intent(in), optional :: ctx
+        associate (unused_t => t); end associate
         dydt(1) = -2.0_dp * y(1) + y(2)
         dydt(2) =  y(1) - 2.0_dp * y(2)
     end subroutine rhs_lin

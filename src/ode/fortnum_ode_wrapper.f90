@@ -18,7 +18,7 @@ module fortnum_ode_wrapper
     use, intrinsic :: iso_fortran_env, only: dp => real64
     use fortnum_status, only: fortnum_status_t, status_set, &
         FORTNUM_OK, FORTNUM_DOMAIN_ERROR
-    use fortnum_ode, only: ode_rhs_t, ode_problem_t, ode_workspace_t, &
+    use fortnum_ode, only: ode_problem_t, ode_workspace_t, &
         ode_solution_t, ode_integrate
     implicit none
     private

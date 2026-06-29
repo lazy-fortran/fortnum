@@ -12,7 +12,7 @@ program test_fortnum_integrate_oracle
     ! near its roundoff floor on the sharpest peak).
 
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
-    use fortnum_status, only: fortnum_status_t, status_ok
+    use fortnum_status, only: fortnum_status_t
     use fortnum_integrate, only: integrate_qag, integrate_qags, &
                                  integrate_workspace_t, integrate_epstab_t, &
                                  integrate_result_t

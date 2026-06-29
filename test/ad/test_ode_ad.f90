@@ -37,6 +37,7 @@ contains
         real(dp), intent(in)  :: y(:)
         real(dp), intent(out) :: dydt(:)
         class(*), intent(in), optional :: ctx
+        associate (unused_t => t); end associate
         dydt = matmul(A2, y)
     end subroutine rhs_lin
 
@@ -47,6 +48,7 @@ contains
         real(dp), intent(in)  :: s(:)
         real(dp), intent(out) :: dsdt(:)
         class(*), intent(in), optional :: ctx
+        associate (unused_t => t, unused_y => y); end associate
         dsdt = matmul(A2, s)
     end subroutine var_lin
 
@@ -57,6 +59,7 @@ contains
         real(dp), intent(in)  :: s(:)
         real(dp), intent(out) :: dsdt(:)
         class(*), intent(in), optional :: ctx
+        associate (unused_t => t, unused_y => y); end associate
         dsdt = matmul(transpose(A2), s)
     end subroutine var_lin_adj
 
@@ -155,6 +158,7 @@ contains
         real(dp), intent(in)  :: y(:)
         real(dp), intent(out) :: dydt(:)
         class(*), intent(in), optional :: ctx
+        associate (unused_t => t); end associate
         dydt = -kpar * y
     end subroutine rhs_scalar
 
@@ -165,6 +169,7 @@ contains
         real(dp), intent(in)  :: s(:)
         real(dp), intent(out) :: dsdt(:)
         class(*), intent(in), optional :: ctx
+        associate (unused_t => t); end associate
         dsdt = -kpar * s - y
     end subroutine var_scalar_k
 

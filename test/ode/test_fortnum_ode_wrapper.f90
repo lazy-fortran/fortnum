@@ -38,6 +38,7 @@ contains
         real(dp), intent(in)  :: y(:)
         real(dp), intent(out) :: dydt(:)
         class(*), intent(in), optional :: ctx
+        associate (unused_t => t); end associate
         dydt(1) = -y(1)
     end subroutine rhs_decay
 
@@ -46,6 +47,7 @@ contains
         real(dp), intent(in)  :: y(:)
         real(dp), intent(out) :: dydt(:)
         class(*), intent(in), optional :: ctx
+        associate (unused_t => t); end associate
         dydt(1) = y(1)
     end subroutine rhs_growth
 
@@ -55,6 +57,7 @@ contains
         real(dp), intent(in)  :: y(:)
         real(dp), intent(out) :: dydt(:)
         class(*), intent(in), optional :: ctx
+        associate (unused_t => t); end associate
         dydt(1) =  y(2)
         dydt(2) = -y(1)
     end subroutine rhs_osc
@@ -179,6 +182,7 @@ contains
         type(fortnum_status_t) :: status
         real(dp), allocatable  :: y_out(:,:)
         real(dp) :: t_eval(1)
+        logical  :: ok
 
         t_eval(1) = 2.0_dp
         problem%rhs  => rhs_decay
@@ -190,7 +194,9 @@ contains
             nfail = nfail + 1
             return
         end if
-        if (size(y_out, 2) /= 1 .or. abs(y_out(1,1) - 3.0_dp) > 0.0_dp) then
+        ok = size(y_out, 2) == 1
+        if (ok) ok = abs(y_out(1, 1) - 3.0_dp) <= 0.0_dp
+        if (.not. ok) then
             write (error_unit, "(a)") "FAIL check_single_point: y0 not preserved"
             nfail = nfail + 1
         end if

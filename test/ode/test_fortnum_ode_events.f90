@@ -42,6 +42,7 @@ contains
         real(dp), intent(in)  :: y(:)
         real(dp), intent(out) :: dydt(:)
         class(*), intent(in), optional :: ctx
+        associate (unused_t => t); end associate
         dydt(1) =  y(2)
         dydt(2) = -y(1)
     end subroutine rhs_osc
@@ -51,6 +52,7 @@ contains
         real(dp), intent(in) :: y(:)
         class(*), intent(in), optional :: ctx
         real(dp) :: g
+        associate (unused_t => t); end associate
         g = y(1)
     end function ev_y1
 
@@ -59,6 +61,7 @@ contains
         real(dp), intent(in) :: y(:)
         class(*), intent(in), optional :: ctx
         real(dp) :: g
+        associate (unused_t => t); end associate
         g = y(1) - 0.5_dp
     end function ev_y1_half
 
@@ -67,6 +70,7 @@ contains
         real(dp), intent(in) :: y(:)
         class(*), intent(in), optional :: ctx
         real(dp) :: g
+        associate (unused_t => t); end associate
         g = y(1) + 2.0_dp   ! cos(t) + 2 >= 1 > 0, never crosses zero
     end function ev_never
 
@@ -78,6 +82,7 @@ contains
         real(dp), intent(in) :: y(:)
         class(*), intent(in), optional :: ctx
         real(dp) :: g
+        associate (unused_t => t); end associate
         g = y(2)**2 - 1.0e-30_dp   ! grazes just below zero near the turning pts
     end function ev_y2_sq
 

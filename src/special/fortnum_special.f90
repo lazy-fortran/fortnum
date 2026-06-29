@@ -12,7 +12,6 @@ module fortnum_special
     ! derivative policy in the originating module; this umbrella merely
     ! re-exports without modification.
 
-    use fortnum_kinds, only: dp
     use fortnum_special_bessel, only: &
         bessel_in, &
         bessel_in_array, &

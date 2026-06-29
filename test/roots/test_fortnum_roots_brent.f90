@@ -5,7 +5,7 @@ program test_fortnum_roots_brent
     ! wide bracket forcing many bisection steps; sign-check domain error;
     ! convergence-error path (max_iter=1); exact zero at endpoint.
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
-    use fortnum_roots, only: root_fn_t, root_brent
+    use fortnum_roots, only: root_brent
     use fortnum_status, only: fortnum_status_t, FORTNUM_OK, &
         FORTNUM_DOMAIN_ERROR, FORTNUM_CONVERGENCE_ERROR
     implicit none
