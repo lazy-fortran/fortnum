@@ -256,6 +256,16 @@ add_executable(test_fortnum_integrate quadrature/test_fortnum_integrate.f90)
 target_link_libraries(test_fortnum_integrate PRIVATE fortnum)
 add_test(NAME fortnum_integrate COMMAND test_fortnum_integrate)
 
+add_executable(test_fortnum_cquad quadrature/test_fortnum_cquad.f90)
+target_link_libraries(test_fortnum_cquad PRIVATE fortnum)
+add_test(NAME fortnum_cquad COMMAND test_fortnum_cquad)
+
+add_executable(test_fortnum_cquad_oracle oracle/test_fortnum_cquad_oracle.f90)
+target_link_libraries(test_fortnum_cquad_oracle PRIVATE fortnum)
+add_test(NAME fortnum_cquad_oracle
+    COMMAND test_fortnum_cquad_oracle
+        ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/cquad.csv)
+
 add_executable(test_fortnum_integrate_oracle oracle/test_fortnum_integrate_oracle.f90)
 target_link_libraries(test_fortnum_integrate_oracle PRIVATE fortnum)
 add_test(NAME fortnum_integrate_oracle

@@ -26,6 +26,7 @@ target_sources(fortnum PRIVATE
     ode/fortnum_ode_rk8pd.f90
     ode/fortnum_ode_vode.f90
     ode/fortnum_ode_wrapper.f90
+    quadrature/fortnum_cquad.f90
     quadrature/fortnum_integrate.f90
     quadrature/fortnum_integrate_gk.f90
     quadrature/fortnum_levin.f90
