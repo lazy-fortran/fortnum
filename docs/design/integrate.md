@@ -233,8 +233,10 @@ end subroutine integrate_qagiu
 
 `key` defaults to 21 and is forwarded to `gk_apply` unchanged; only 15, 21, 31,
 61 are valid. `limit` defaults to 500 and bounds the work-stack capacity.
-QAGS, QAGP, and QAGIU run the GK21 pair on every panel as QUADPACK does, so they
-take no `key`.
+QAGS and QAGP run the GK21 pair on every panel, matching QUADPACK's
+`dqagse`/`dqagpe`. QAGIU runs the GK15 pair, matching QUADPACK's `dqagie`
+(which calls `dqk15i`, not `dqk21`, on the transformed integrand). None of the
+three take a `key`.
 
 `integrate_qagp` reads the interior break points from `points`; entries outside
 `(a, b)` are dropped, the rest seed the initial subdivision so the driver starts
