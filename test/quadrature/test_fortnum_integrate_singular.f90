@@ -212,6 +212,8 @@ contains
             eps, res, st)
         call check(status_ok(st), "qagiu exp decay status ok")
         call check_close(res%value, 1.0_dp, 1.0e-7_dp, "qagiu exp decay value")
+        call check(res%key == 15, &
+            "qagiu uses the GK15 pair, matching QUADPACK dqagie/dqk15i")
     end subroutine test_qagiu_exp_decay
 
     ! integral 1/(1+x^2) on [0,inf) = pi/2.

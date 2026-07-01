@@ -336,7 +336,7 @@ contains
         limit_loc = DEFAULT_LIMIT
         if (present(limit)) limit_loc = limit
 
-        result%key = 21
+        result%key = 15
 
         ! The transformed interval is the finite (0,1]; reuse the finite
         ! validator on it. inf and a non-finite bound are the extra rejects.
@@ -352,7 +352,7 @@ contains
             result%status = status
             return
         end if
-        if (.not. valid_finite(0.0_dp, 1.0_dp, epsabs, epsrel, limit_loc, 21, &
+        if (.not. valid_finite(0.0_dp, 1.0_dp, epsabs, epsrel, limit_loc, 15, &
             status)) then
             result%status = status
             return
@@ -379,17 +379,17 @@ contains
                 call ensure_workspace(ws2, limit_loc)
                 call reset_epstab(eps2)
                 sgn = 1
-                call driver(panel_f, 0.0_dp, 1.0_dp, epsabs, epsrel, 21, &
+                call driver(panel_f, 0.0_dp, 1.0_dp, epsabs, epsrel, 15, &
                     limit_loc, .true., workspace, epstab, result, &
                     status)
                 sgn = -1
-                call driver(panel_f, 0.0_dp, 1.0_dp, epsabs, epsrel, 21, &
+                call driver(panel_f, 0.0_dp, 1.0_dp, epsabs, epsrel, 15, &
                     limit_loc, .true., ws2, eps2, res2, status)
                 result%value  = result%value + res2%value
                 result%abserr = result%abserr + res2%abserr
                 result%neval  = result%neval + res2%neval
             else
-                call driver(panel_f, 0.0_dp, 1.0_dp, epsabs, epsrel, 21, &
+                call driver(panel_f, 0.0_dp, 1.0_dp, epsabs, epsrel, 15, &
                     limit_loc, .true., workspace, epstab, result, &
                     status)
             end if
