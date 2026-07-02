@@ -49,6 +49,21 @@ target_sources(fortnum PRIVATE
 # Consumers find .mod files in the module output directory.
 target_include_directories(fortnum PUBLIC ${CMAKE_Fortran_MODULE_DIRECTORY})
 
+# Adaptive quadrature, root polishing, and the NaN-sample handling depend on
+# IEEE semantics. When fortnum is embedded via add_subdirectory/FetchContent it
+# inherits the parent's directory-scope flags; a parent building with
+# -ffast-math (finite-math-only, reassociation) silently deletes the NaN
+# checks and shifts rule sums. Re-disable fast-math last so it wins on the
+# command line, whatever the parent sets.
+if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(fortnum PRIVATE
+        $<$<COMPILE_LANGUAGE:Fortran>:-fno-fast-math>
+        $<$<COMPILE_LANGUAGE:Fortran>:-ffp-contract=off>)
+elseif(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
+    target_compile_options(fortnum PRIVATE
+        $<$<COMPILE_LANGUAGE:Fortran>:-fp-model=precise>)
+endif()
+
 # roots/fortnum_roots_complex.f90 calls LAPACK ZGGEV; link LAPACK (with BLAS)
 # into the library so every consumer resolves the symbol.
 target_link_libraries(fortnum PUBLIC LAPACK::LAPACK)
