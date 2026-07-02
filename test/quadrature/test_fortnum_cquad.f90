@@ -22,6 +22,18 @@ program test_fortnum_cquad
     ! integral_0^L x^2 exp(-x^2) dx = sqrt(pi)/4 erf(L) - (L/2) exp(-L^2).
     call check("x^2 exp(-x^2) on [0,5]", f_maxw, 0.0_dp, 5.0_dp, &
         0.25_dp*sqrt(PI)*erf(5.0_dp) - 2.5_dp*exp(-25.0_dp), 1.0e-13_dp)
+    ! Estimator-degeneration regression: T40 + c*T44 with c chosen so the
+    ! degree-32 and degree-16 rule sums coincide on the top interval (both
+    ! aliases cancel). A rule-difference error estimate reads zero and accepts
+    ! the first panel with a true error near 1e-2; the coefficient-difference
+    ! estimate keeps bisecting to the true value.
+    call check("T40 + c*T44 aliasing pair", f_alias, -1.0_dp, 1.0_dp, &
+        alias_truth(), 1.0e-12_dp)
+    ! Non-finite sample regression: x*log(x) evaluates to 0*(-inf) = NaN at
+    ! the endpoint node x = 0. The NaN sample must be zeroed (as in GSL CQUAD)
+    ! instead of poisoning the whole result. integral_0^1 x log x dx = -1/4.
+    call check("x*log(x) on [0,1] (NaN at 0)", f_xlogx, 0.0_dp, 1.0_dp, &
+        -0.25_dp, 1.0e-10_dp)
 
     if (nfail == 0) then
         print *, "All tests passed!"
@@ -100,5 +112,43 @@ contains
         real(dp) :: y
         y = x*x*exp(-x*x)
     end function f_maxw
+
+    ! integral of T_k over [-1,1]: 0 for odd k, 2/(1-k^2) for even k.
+    pure function cheb_int(k) result(v)
+        integer, intent(in) :: k
+        real(dp) :: v
+        if (mod(k, 2) == 1) then
+            v = 0.0_dp
+        else
+            v = 2.0_dp/(1.0_dp - real(k, dp)**2)
+        end if
+    end function cheb_int
+
+    ! On the 33-node grid T40 aliases to T24 and T44 to T20; on the 17-node
+    ! subset they alias to T8 and T12. c equates the two rule sums.
+    pure function alias_coeff() result(c)
+        real(dp) :: c
+        c = (cheb_int(24) - cheb_int(8))/(cheb_int(12) - cheb_int(20))
+    end function alias_coeff
+
+    pure function alias_truth() result(v)
+        real(dp) :: v
+        v = cheb_int(40) + alias_coeff()*cheb_int(44)
+    end function alias_truth
+
+    function f_alias(x, ctx) result(y)
+        real(dp), intent(in) :: x
+        class(*), intent(in), optional :: ctx
+        real(dp) :: y, theta
+        theta = acos(max(-1.0_dp, min(1.0_dp, x)))
+        y = cos(40.0_dp*theta) + alias_coeff()*cos(44.0_dp*theta)
+    end function f_alias
+
+    function f_xlogx(x, ctx) result(y)
+        real(dp), intent(in) :: x
+        class(*), intent(in), optional :: ctx
+        real(dp) :: y
+        y = x*log(x)
+    end function f_xlogx
 
 end program test_fortnum_cquad
