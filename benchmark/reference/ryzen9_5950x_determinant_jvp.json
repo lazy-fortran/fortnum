@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "small_determinant",
+  "product": "value_plus_batched_jvp",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1",
+    "build": "Release",
+    "generator": "fortsym c18d803"
+  },
+  "sampling": {
+    "independent_processes": 31,
+    "workloads_per_process": 100000,
+    "runtime_aggregation": "median",
+    "dispersion": "median absolute deviation",
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum",
+    "perf_repetitions": 3
+  },
+  "validation": {
+    "oracle": "central finite difference at h and h/2",
+    "det2_absolute_tolerance": 2e-10,
+    "det3_absolute_tolerance": 2e-9
+  },
+  "primal": [
+    {"matrix_size": 2, "median_ns": 10.794682, "mad_ns": 0.047299},
+    {"matrix_size": 3, "median_ns": 11.500953, "mad_ns": 0.029797}
+  ],
+  "scaling": [
+    {"matrix_size": 2, "active_inputs": 4, "scalar_outputs": 1, "directions": 1, "analytical_median_ns": 15.700090, "analytical_mad_ns": 0.285740, "diagnostic_median_ns": 32.618660, "diagnostic_mad_ns": 0.361690, "analytical_speedup": 2.0776},
+    {"matrix_size": 2, "active_inputs": 4, "scalar_outputs": 1, "directions": 4, "analytical_median_ns": 40.898370, "analytical_mad_ns": 0.822050, "diagnostic_median_ns": 95.733310, "diagnostic_mad_ns": 0.629990, "analytical_speedup": 2.3408},
+    {"matrix_size": 2, "active_inputs": 4, "scalar_outputs": 1, "directions": 16, "analytical_median_ns": 139.727710, "analytical_mad_ns": 4.495180, "diagnostic_median_ns": 389.317550, "diagnostic_mad_ns": 21.657420, "analytical_speedup": 2.7863},
+    {"matrix_size": 2, "active_inputs": 4, "scalar_outputs": 1, "directions": 64, "analytical_median_ns": 533.182450, "analytical_mad_ns": 33.252860, "diagnostic_median_ns": 1423.555520, "diagnostic_mad_ns": 48.960860, "analytical_speedup": 2.6699},
+    {"matrix_size": 3, "active_inputs": 9, "scalar_outputs": 1, "directions": 1, "analytical_median_ns": 27.888160, "analytical_mad_ns": 0.813830, "diagnostic_median_ns": 50.994300, "diagnostic_mad_ns": 0.459970, "analytical_speedup": 1.8285},
+    {"matrix_size": 3, "active_inputs": 9, "scalar_outputs": 1, "directions": 4, "analytical_median_ns": 87.219060, "analytical_mad_ns": 0.987470, "diagnostic_median_ns": 157.684450, "diagnostic_mad_ns": 0.991060, "analytical_speedup": 1.8079},
+    {"matrix_size": 3, "active_inputs": 9, "scalar_outputs": 1, "directions": 16, "analytical_median_ns": 307.999410, "analytical_mad_ns": 1.211180, "diagnostic_median_ns": 567.900680, "diagnostic_mad_ns": 3.794150, "analytical_speedup": 1.8438},
+    {"matrix_size": 3, "active_inputs": 9, "scalar_outputs": 1, "directions": 64, "analytical_median_ns": 1198.339110, "analytical_mad_ns": 10.239190, "diagnostic_median_ns": 2208.371760, "diagnostic_mad_ns": 41.041740, "analytical_speedup": 1.8429}
+  ],
+  "memory": {
+    "matrix_size": 3,
+    "directions": 64,
+    "analytical_peak_rss_bytes": 4288512,
+    "diagnostic_peak_rss_bytes": 4272128,
+    "derivative_workspace_allocations": 0
+  },
+  "perf": {
+    "matrix_size": 3,
+    "directions": 64,
+    "workloads_per_repetition": 1000000,
+    "analytical": {
+      "cycles_per_workload": 5734.211,
+      "instructions_per_workload": 17186.036,
+      "cache_references_per_workload": 5.061,
+      "cache_misses_per_workload": 0.368
+    },
+    "diagnostic": {
+      "cycles_per_workload": 10315.361,
+      "instructions_per_workload": 35876.038,
+      "cache_references_per_workload": 7.172,
+      "cache_misses_per_workload": 0.415
+    }
+  },
+  "unimplemented_candidates": ["autodiff", "hybrid"],
+  "selection": {
+    "selected": "analytical",
+    "criterion": "complete determinant-value-plus-all-JVP-directions wall clock",
+    "matrix_size": 3,
+    "directions": 64,
+    "speedup": 1.8429,
+    "reason": "one generated contracted product replaces two primal evaluations per direction"
+  }
+}

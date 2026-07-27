@@ -16,3 +16,8 @@ source-form = "free"
 name = "gen_dawson_outer"
 source-dir = "app"
 main = "gen_dawson_outer.f90"
+
+[[executable]]
+name = "gen_determinant_jvp"
+source-dir = "app"
+main = "gen_determinant_jvp.f90"

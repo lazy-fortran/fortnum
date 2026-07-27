@@ -91,6 +91,10 @@ add_test(NAME ad_ode_event_driven COMMAND test_ode_event_time_tangent)
 set_tests_properties(ad_ode_event_driven PROPERTIES
     ENVIRONMENT "FORTNUM_EVENT_OUTPUT=state")
 
+add_executable(test_determinant_jvp test_determinant_jvp.f90)
+target_link_libraries(test_determinant_jvp PRIVATE fortnum)
+add_test(NAME ad_determinant_jvp COMMAND test_determinant_jvp)
+
 add_executable(test_ode_continuous_sensitivity
     test_ode_continuous_sensitivity.f90)
 target_link_libraries(test_ode_continuous_sensitivity PRIVATE fortnum)
@@ -186,6 +190,8 @@ if(FORTNUM_ENABLE_ENZYME)
         SOURCES
             ${CMAKE_SOURCE_DIR}/src/fortnum_kinds.f90
             ${CMAKE_SOURCE_DIR}/src/fortnum_status.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_det2_jvp_kernel.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_det3_jvp_kernel.f90
             ${CMAKE_SOURCE_DIR}/src/linalg/fortnum_linalg.f90
             ${CMAKE_SOURCE_DIR}/src/roots/fortnum_multiroot.f90
             ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
@@ -197,6 +203,8 @@ if(FORTNUM_ENABLE_ENZYME)
         SOURCES
             ${CMAKE_SOURCE_DIR}/src/fortnum_kinds.f90
             ${CMAKE_SOURCE_DIR}/src/fortnum_status.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_det2_jvp_kernel.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_det3_jvp_kernel.f90
             ${CMAKE_SOURCE_DIR}/src/linalg/fortnum_linalg.f90
             ${CMAKE_SOURCE_DIR}/src/roots/fortnum_multiroot.f90
             ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
@@ -240,6 +248,8 @@ if(FORTNUM_ENABLE_ENZYME)
         SOURCES
             ${CMAKE_SOURCE_DIR}/src/fortnum_kinds.f90
             ${CMAKE_SOURCE_DIR}/src/fortnum_status.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_det2_jvp_kernel.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_det3_jvp_kernel.f90
             ${CMAKE_SOURCE_DIR}/src/linalg/fortnum_linalg.f90
             ${CMAKE_SOURCE_DIR}/src/ode/fortnum_ode_cash_karp.f90
             ${CMAKE_SOURCE_DIR}/src/ode/fortnum_ode.f90

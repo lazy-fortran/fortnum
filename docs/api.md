@@ -1036,13 +1036,16 @@ I/O: singularity is a return status (`LINALG_OK == 0`, `LINALG_SINGULAR` for the
 closed-form inverses, the failing pivot column `k > 0` for `lu_solve`).
 `LINALG_MAX_N` is the documented upper bound for `lu_solve`.
 
-Policy: `primal_only` for `det2`/`det3`/`inv2`/`inv3`/`jacobian_ok3`;
+Policy: `det2_jvp` and `det3_jvp` are `fortsym`-generated `analytical`
+contracted products. `inv2`/`inv3`/`jacobian_ok3` remain primal-only.
 `lu_solve` realises x = A^{-1} b, whose linear-solve sensitivity belongs to the
 consumer that owns A and b, not to the in-place factorisation.
 
 ```fortran
 pure function det2(a) result(d)            ! real(dp) :: a(2,2)
 pure function det3(a) result(d)            ! real(dp) :: a(3,3)
+pure subroutine det2_jvp(a, va, jv)        ! real(dp) :: a(2,2), va(2,2), jv
+pure subroutine det3_jvp(a, va, jv)        ! real(dp) :: a(3,3), va(3,3), jv
 pure function jacobian_ok3(a) result(ok)   ! logical; near-singular / NaN reject
 
 pure subroutine inv2(a, ainv, info)
