@@ -9,6 +9,8 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 endif()
 
 option(FORTNUM_BUILD_TESTING "Build tests for fortnum" ${FORTNUM_IS_STANDALONE})
+option(FORTNUM_CHECK_GENERATED
+    "Regenerate and byte-compare committed fortsym kernels" OFF)
 
 option(FORTNUM_USE_BENCHMARK_SELECTION
     "Select derivative implementations from committed benchmark records" ON)
@@ -102,6 +104,20 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 set(CMAKE_Fortran_MODULE_DIRECTORY ${PROJECT_BINARY_DIR}/include)
 
 enable_testing()
+
+if(FORTNUM_CHECK_GENERATED)
+    find_program(FORTNUM_FO_EXECUTABLE fo REQUIRED)
+    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../lazy-fortran/fortsym/fpm.toml")
+        message(FATAL_ERROR
+            "FORTNUM_CHECK_GENERATED requires ../lazy-fortran/fortsym")
+    endif()
+    add_test(
+        NAME generated_sources_current
+        COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/tools/codegen/check_generated.sh")
+    set_tests_properties(generated_sources_current PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/tools/codegen"
+        LABELS codegen)
+endif()
 
 # The complex analytic-zero finder (fortnum_roots_complex) solves a small
 # generalized eigenproblem with LAPACK ZGGEV, so the library links LAPACK (and

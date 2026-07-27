@@ -14,6 +14,62 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  generated:
+    name: generated sources are current
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake \
+            g++ \
+            gfortran \
+            libblas-dev \
+            libflint-dev \
+            libgmp-dev \
+            liblapack-dev \
+            libmpfr-dev \
+            libsymengine-dev \
+            ninja-build
+
+      - name: Install fpm and fo
+        run: |
+          set -euo pipefail
+          sudo curl -L -o /usr/local/bin/fpm \
+            https://github.com/fortran-lang/fpm/releases/download/v0.13.0/fpm-0.13.0-linux-x86_64-gcc-12
+          sudo chmod +x /usr/local/bin/fpm
+          git clone --depth 1 https://github.com/lazy-fortran/fo.git /tmp/fo
+          (
+            cd /tmp/fo
+            fpm install --profile release --prefix "$HOME/.local"
+          )
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Checkout locked fortsym revision
+        run: |
+          set -euo pipefail
+          mkdir -p ../lazy-fortran
+          git clone https://github.com/lazy-fortran/fortsym.git \
+            ../lazy-fortran/fortsym
+          git -C ../lazy-fortran/fortsym checkout \
+            "$(cat tools/codegen/fortsym.lock)"
+
+      - name: Register and run CTest drift check
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.local/bin:$PATH"
+          cmake -S . -B build-generated -G Ninja \
+            -DFORTNUM_BUILD_TESTING=OFF \
+            -DFORTNUM_BUILD_EXAMPLES=OFF \
+            -DFORTNUM_CHECK_GENERATED=ON
+          ctest --test-dir build-generated --output-on-failure \
+            -R generated_sources_current
+
   # Primal (non-derivative) build and test with gfortran. Required.
   gfortran:
     name: gfortran ${{ matrix.os }}
