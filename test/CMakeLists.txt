@@ -331,3 +331,9 @@ add_test(NAME capi_smoke COMMAND test_capi_smoke)
 
 # --- M6 AD harness + optional Enzyme path ---
 add_subdirectory(ad)
+
+add_test(
+    NAME benchmark_selection_cmake
+    COMMAND ${CMAKE_COMMAND}
+        -DFORTNUM_SOURCE_DIR=${CMAKE_SOURCE_DIR}
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/test_benchmark_selection.cmake)

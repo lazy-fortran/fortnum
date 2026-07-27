@@ -17,6 +17,7 @@ program test_special_ad
         fd_jvp, rel_err
     use fortnum_special_dawson, only: dawson, dawson_jvp, dawson_grad, &
         dawson_outer_jvp
+    use fortnum_build_selection, only: FORTNUM_DAWSON_OUTER_JVP_CANDIDATE
     use fortnum_special_gamma,  only: gamma_lower, gamma_lower_jvp, &
         gamma_lower_jvp_da, gamma_reg_p, &
         gamma_reg_p_jvp, gamma_reg_p_grad
@@ -104,6 +105,7 @@ contains
         v = [-0.4_dp]
         ok = check_jvp_vs_fd("dawson_outer_generated", f_dawson_outer, &
             dawson_outer_jvp_wrap, x, v, tol_fd)
+        ok = ok .and. FORTNUM_DAWSON_OUTER_JVP_CANDIDATE == "analytical"
         if (.not. ok) nfail = nfail + 1
     end subroutine test_dawson_outer_generated
 

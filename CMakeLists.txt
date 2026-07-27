@@ -10,6 +10,33 @@ endif()
 
 option(FORTNUM_BUILD_TESTING "Build tests for fortnum" ${FORTNUM_IS_STANDALONE})
 
+option(FORTNUM_USE_BENCHMARK_SELECTION
+    "Select derivative implementations from committed benchmark records" ON)
+set(FORTNUM_DAWSON_BENCHMARK_RECORD
+    "${CMAKE_CURRENT_SOURCE_DIR}/benchmark/reference/ryzen9_5950x_dawson_outer.json"
+    CACHE FILEPATH "Benchmark record used for the Dawson outer JVP")
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include(FortnumBenchmarkSelection)
+if(FORTNUM_USE_BENCHMARK_SELECTION)
+    fortnum_read_benchmark_selection(
+        "${FORTNUM_DAWSON_BENCHMARK_RECORD}"
+        FORTNUM_DAWSON_OUTER_JVP_CANDIDATE)
+else()
+    set(FORTNUM_DAWSON_OUTER_JVP_CANDIDATE "analytical")
+endif()
+if(NOT FORTNUM_DAWSON_OUTER_JVP_CANDIDATE STREQUAL "analytical")
+    message(FATAL_ERROR
+        "Dawson outer JVP candidate '${FORTNUM_DAWSON_OUTER_JVP_CANDIDATE}' "
+        "is not available in the production library")
+endif()
+set(FORTNUM_BUILD_SELECTION_SOURCE
+    "${CMAKE_CURRENT_BINARY_DIR}/generated/fortnum_build_selection.f90")
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/fortnum_build_selection.f90.in"
+    "${FORTNUM_BUILD_SELECTION_SOURCE}"
+    @ONLY)
+
 # Enzyme autodiff integration lands in #38; keep the switches inert for now.
 option(FORTNUM_ENABLE_ENZYME "Enable Enzyme-based reverse-mode autodiff" OFF)
 option(FORTNUM_ENZYME_REQUIRED "Fail configure if Enzyme is unavailable" OFF)

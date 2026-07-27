@@ -102,6 +102,7 @@ if(FORTNUM_ENABLE_ENZYME)
         NAME enzyme_dawson_hybrid
         SOURCES
             ${CMAKE_SOURCE_DIR}/src/generated/fortnum_dawson_outer_kernel.f90
+            ${FORTNUM_BUILD_SELECTION_SOURCE}
             ${CMAKE_SOURCE_DIR}/src/special/fortnum_special_dawson.f90
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/dawson_rule.c
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/dawson_outer.f90
