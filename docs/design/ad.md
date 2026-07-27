@@ -233,6 +233,12 @@ kernels to a fresh temporary directory, and byte-compares them with
 check takes 1.33 s and 289,780 KB peak RSS on the reference host. This is
 development tooling and adds no production runtime or memory cost.
 
+CMake registers the check as `generated_sources_current` when
+`FORTNUM_CHECK_GENERATED=ON`. The required CI job installs `fo`, checks out the
+locked `fortsym` revision, and runs that CTest. A warm local CTest invocation
+takes 0.07 s and 46,348 KB peak RSS. Normal consumer configuration leaves the
+option off, so production builds and cache behavior are unchanged.
+
 ## 8. Selection and dispatch
 
 Each product is selected independently. A fast Jacobian implementation does not
