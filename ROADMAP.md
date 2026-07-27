@@ -66,7 +66,7 @@ independent validation plus measured application runtime and peak memory.
 - [x] Add a hybrid scalar-root JVP using forward-mode autodiff residual products.
 - [x] Add a hybrid scalar-root VJP using reverse-mode autodiff residual products.
 - [x] Add a hybrid vector-root JVP using forward-mode autodiff residual products.
-- [ ] Add a hybrid vector-root VJP using reverse-mode autodiff residual products.
+- [x] Add a hybrid vector-root VJP using reverse-mode autodiff residual products.
 - [ ] Reuse converged root Jacobians and factorizations.
 - [ ] Report derivative reliability near singular root Jacobians.
 - [ ] Benchmark analytical implicit, hybrid, autodiff-through-iterations, and
