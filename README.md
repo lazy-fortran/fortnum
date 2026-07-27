@@ -12,8 +12,9 @@ measured application runtime and peak memory select the production candidate.
 
 See `docs/performance_optimal_differentiation.md` for the rationale and
 `docs/design/differentiation_plan.md` for the implementation plan.
-`fortnum` will use the unfinished `../fortsym` library for future symbolic
-algebra and code generation. No integration API is fixed yet.
+`fortnum` uses `fortsym` at build time for symbolic algebra and code
+generation. The first pinned generator is under `tools/codegen/`; generated
+production sources are committed under `src/generated/`.
 
 ## Build
 
@@ -40,6 +41,7 @@ fpm test
 - `benchmark/`: performance benchmarks.
 - `docs/`: documentation, with `design/` for design notes.
 - `cmake/`: CMake helper modules.
+- `tools/codegen/`: isolated `fortsym` build-time generators.
 
 ## License
 

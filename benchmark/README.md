@@ -20,6 +20,11 @@ optimizer, not the routine.
 Output is one row per case: name, repetitions, ns/call, and the
 derivative columns (empty until M6 fills them).
 
+Derivative tournaments that require the Flang/Enzyme pipeline live in the
+Enzyme test build rather than this gfortran-only primal harness. Their
+machine-readable reference runs are committed under `benchmark/reference/`;
+see `docs/design/differentiation_benchmarks.md` for commands and tables.
+
 ## Add a benchmark
 
 A kernel is a function returning `real(dp)`. Return the result so the
@@ -68,12 +73,16 @@ python3 benchmark/gate.py --run run.json --factor 1.5
 ```
 
 The JSON schema is one object per benchmark under `benchmarks`:
-`name`, `reps`, `ns_per_call`, a `backend` tag
+`name`, `reps`, `ns_per_call`, a legacy `backend` tag
 (`analytic | implicit | trace | generated | primal`), and the
 derivative-product fields `deriv_ns_per_call`, `jvp_primal`, `vjp_primal`,
 `grad_primal`, `hvp_primal`. The derivative fields are `null` until M6
 supplies autodiff kernels; the schema reserves them now so the baseline
 format does not change when they arrive.
+
+New derivative evidence uses the public mechanism names `autodiff`,
+`analytical`, and `hybrid`. The legacy field is retained only for compatibility
+with the original primal regression baseline.
 
 Derivative-overhead ratios are checked but non-blocking by default (runner
 noise on those ratios is not yet characterized). Pass `--gate-derivative`

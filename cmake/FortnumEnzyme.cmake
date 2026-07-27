@@ -28,6 +28,11 @@ find_program(FORTNUM_FLANG_EXECUTABLE
     NAMES flang-new flang
     DOC "Flang driver used for LLVM IR emission and final link")
 
+# C helpers are used for Enzyme's custom derivative registration metadata.
+find_program(FORTNUM_CLANG_EXECUTABLE
+    NAMES clang clang-22 clang-21 clang-20 clang-19
+    DOC "Clang driver used for Enzyme custom-rule helper IR")
+
 # --- opt driver that loads the Enzyme pass. ---
 find_program(FORTNUM_LLVM_OPT_EXECUTABLE
     NAMES opt opt-22 opt-21 opt-20 opt-19

@@ -1,7 +1,8 @@
 # Differentiation implementation plan
 
-Status: accepted plan. Normative downstream of `docs/design/ad.md` and
-motivated by `docs/performance_optimal_differentiation.md`.
+Status: implementation in progress. Normative downstream of
+`docs/design/ad.md` and motivated by
+`docs/performance_optimal_differentiation.md`.
 
 ## 1. Goal
 
@@ -38,14 +39,19 @@ The library already contains:
 - finite-difference, complex-step, smoothness, and adjoint-identity test helpers
 - an optional Flang and Enzyme test pipeline with three isolated smoke kernels
 
-The missing architectural pieces are:
+The first implementation slice now also contains:
 
-- production `autodiff` products linked into `fortnum`
-- a `hybrid` custom-rule boundary
-- a candidate registry and benchmark selector
-- combined-active product rules at several interfaces
-- broad second-order products
-- application-level derivative tournaments
+- a real Flang 22 and Enzyme pipeline, including C analytical custom rules
+- a generated, public fused Dawson outer-expression value/JVP kernel
+- a real `hybrid` Dawson boundary whose test proves the custom rule was called
+- deterministic candidate metadata and a pre-loop selector
+- combined-active Lagrange and B-spline product rules
+- analytical implicit linear-solve JVP and VJP products
+- committed runtime, dispersion, memory, validation, hardware, and toolchain
+  evidence for the first tournament
+
+The main remaining pieces are broad module tournaments, factorization reuse,
+application-level selection, and justified second-order products.
 
 ## 3. Terminology
 
@@ -62,14 +68,31 @@ exclusive ownership of a procedure.
 
 ## 4. Symbolic algebra dependency
 
-`fortnum` will use `../fortsym` for symbolic algebra and code generation.
-`fortsym` is unfinished. Work in this repository must not invent or depend on a
-provisional `fortsym` API. Until that interface is stable:
+`fortnum` uses `fortsym` for build-time symbolic algebra and code generation.
+The development dependency is `../lazy-fortran/fortsym`. The first generator
+fixes the currently exercised contract: expression DAGs, differentiation,
+SymEngine-backed simplification, fused kernel emission, operation counting, and
+exact regeneration banners.
 
-- document future symbolic candidates
-- keep handwritten analytical code replaceable
-- do not implement a second symbolic algebra system in `fortnum`
-- defer integration mechanics, interchange formats, and build wiring
+`fortsym` is still evolving. Extend and test it there when a planned candidate
+needs more capability. Do not invent an API in this repository, and do not add a
+runtime dependency on it.
+
+## 4.1 Implementation status
+
+| Plan area | Status | Evidence |
+|---|---|---|
+| terminology and candidate contract | complete | `docs/design/ad.md`, `AGENTS.md` |
+| status/provenance composition | complete | `ad_status_merge` behavioral tests |
+| generated analytical JVP | complete for first slice | `dawson_outer_jvp`, generated source and finite-difference oracle |
+| real `hybrid` boundary | complete for first slice | Enzyme Dawson custom-rule call assertion |
+| candidate registry | complete for static selection | deterministic validation, timing, memory, code-size and ID ordering tests |
+| symbolic generation | complete for first slice | `gen_dawson_outer`, `fortsym` tests, regeneration banner |
+| interpolation interface rules | complete | simultaneous-activity directional and adjoint tests |
+| implicit linear solve | JVP/VJP complete; reuse pending | finite-difference and adjoint tests |
+| roots, integration and ODE hybridization | pending | existing analytical products remain candidates |
+| module/application tournaments | pending except Dawson | first committed table in `differentiation_benchmarks.md` |
+| second order | pending | implement only for demonstrated consumers |
 
 ## 5. Work plan
 
@@ -95,7 +118,7 @@ Difficulty is relative to this repository:
 | 11 | all | module tournaments | Special, interpolation, FFT, quadrature, roots, linear algebra, and ODE candidate tournaments | L | Each selected winner has committed validation and representative benchmark evidence. |
 | 12 | all | downstream mini-applications | Root-constrained objective, parameterized integral, spline fit, FFT objective, and ODE sensitivity benchmarks | L | Selection minimizes complete workload cost, not only isolated derivative latency. |
 | 13 | all | second-order modules | HVP candidates where consumers justify them | L to XL | Independent second-directional or high-precision oracle and memory evidence exist. |
-| 14 | all | `../fortsym` integration, deferred | Symbolic DAG, simplification variants, contracted-product generation, and code generation | Deferred | Begin only after the `fortsym` interface is stable. |
+| 14 | `analytical` and `hybrid` | `fortsym` build-time integration | Symbolic DAG, simplification variants, contracted-product generation, operation counts, and code generation | M to L | Every committed generated kernel records an exact regeneration command and has an independent behavioral oracle. |
 
 ## 6. First vertical slice
 
@@ -178,3 +201,6 @@ Record at least:
 Application-level evidence has priority over isolated kernel latency when the
 application changes optimizer iterations, cache behavior, batching, or memory
 pressure.
+
+The first measured table and its machine-readable record are in
+`docs/design/differentiation_benchmarks.md` and `benchmark/reference/`.

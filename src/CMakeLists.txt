@@ -7,6 +7,7 @@ target_sources(fortnum PRIVATE
     # module sources (alphabetical, one per line; append here)
     ad/fortnum_active_vector.f90
     ad/fortnum_ad_interfaces.f90
+    ad/fortnum_derivative_registry.f90
     bindings/fortnum_capi.f90
     bindings/fortnum_capi_bspline.f90
     bindings/fortnum_capi_rk8pd.f90
@@ -14,6 +15,7 @@ target_sources(fortnum PRIVATE
     fortnum_kinds.f90
     fortnum_status.f90
     fortnum_version.f90
+    generated/fortnum_dawson_outer_kernel.f90
     interp/fortnum_bspline.f90
     interp/fortnum_interp.f90
     interp/fortnum_polynomial.f90

@@ -25,10 +25,6 @@ add_executable(test_dot_products test_dot_products.f90)
 target_link_libraries(test_dot_products PRIVATE fortnum_ad_test_utils)
 add_test(NAME ad_dot_products COMMAND test_dot_products)
 
-add_executable(test_enzyme_vs_analytic test_enzyme_vs_analytic.f90)
-target_link_libraries(test_enzyme_vs_analytic PRIVATE fortnum_ad_test_utils)
-add_test(NAME ad_enzyme_vs_analytic COMMAND test_enzyme_vs_analytic)
-
 # --- #40 module derivative sweep: analytic JVP/VJP/grad, verified by the
 #     harness (finite difference + dot-product adjoint identity) ---
 add_executable(test_special_ad test_special_ad.f90)
@@ -80,10 +76,37 @@ add_executable(test_optimizer_api test_optimizer_api.f90)
 target_link_libraries(test_optimizer_api PRIVATE fortnum_ad_test_utils)
 add_test(NAME ad_optimizer_api COMMAND test_optimizer_api)
 
+add_executable(test_derivative_registry test_derivative_registry.f90)
+target_link_libraries(test_derivative_registry PRIVATE fortnum)
+add_test(NAME ad_derivative_registry COMMAND test_derivative_registry)
+
 # --- #38 Enzyme smoke tests (compiler-AD path; skipped when unavailable) ---
 if(FORTNUM_ENABLE_ENZYME)
     include(FortnumAddEnzymeTest)
-    fortnum_add_enzyme_test(NAME enzyme_square    SOURCES smoke/square.f90      MODE reverse OPT_LEVEL O2)
-    fortnum_add_enzyme_test(NAME enzyme_dot       SOURCES smoke/dot_product.f90 MODE forward OPT_LEVEL O2)
-    fortnum_add_enzyme_test(NAME enzyme_array_sum SOURCES smoke/array_sum.f90   MODE reverse OPT_LEVEL O2)
+    fortnum_add_enzyme_test(
+        NAME enzyme_square
+        SOURCES ${CMAKE_SOURCE_DIR}/cmake/enzyme/smoke/square.f90
+        MODE reverse
+        OPT_LEVEL O2)
+    fortnum_add_enzyme_test(
+        NAME enzyme_dot
+        SOURCES ${CMAKE_SOURCE_DIR}/cmake/enzyme/smoke/dot_product.f90
+        MODE forward
+        OPT_LEVEL O2)
+    fortnum_add_enzyme_test(
+        NAME enzyme_array_sum
+        SOURCES ${CMAKE_SOURCE_DIR}/cmake/enzyme/smoke/array_sum.f90
+        MODE reverse
+        OPT_LEVEL O2)
+    fortnum_add_enzyme_test(
+        NAME enzyme_dawson_hybrid
+        SOURCES
+            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_dawson_outer_kernel.f90
+            ${CMAKE_SOURCE_DIR}/src/special/fortnum_special_dawson.f90
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/dawson_rule.c
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/dawson_outer.f90
+        FORWARD_RULES
+            fortnum_dawson_kernel=fortnum_dawson_kernel_derivative
+        MODE forward
+        OPT_LEVEL O2)
 endif()

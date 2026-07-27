@@ -13,7 +13,8 @@ program test_interp_ad
     ! Grid-boundary non-smoothness is confirmed by check_smoothness.
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
     use fortnum_polynomial, only: lagrange_weights_jvp, lagrange_weights_vjp, &
-        lagrange_fval_jvp, lagrange_fval_vjp, lagrange_weights
+        lagrange_fval_jvp, lagrange_fval_vjp, lagrange_weights, &
+        lagrange_combined_jvp, lagrange_combined_vjp
     use fortnum_ad_test_utils, only: fd_jvp_step, rel_err, &
         check_smoothness, ad_status_t, AD_SMOOTH, AD_NONSMOOTH
     implicit none
@@ -26,6 +27,7 @@ program test_interp_ad
     call test_xvjp_identity(nfail)
     call test_fval_jvp_vs_fd(nfail)
     call test_fval_dotprod_identity(nfail)
+    call test_combined_products(nfail)
     call test_cell_boundary_nonsmooth(nfail)
 
     if (nfail > 0) then
@@ -209,6 +211,44 @@ contains
             nfail = nfail + 1
         end if
     end subroutine test_fval_dotprod_identity
+
+
+    ! Simultaneous x and f activity exercises the product rule at the public
+    ! interpolation boundary. The finite-difference oracle perturbs both inputs.
+    subroutine test_combined_products(nfail)
+        integer, intent(inout) :: nfail
+        integer, parameter :: n = 4
+        real(dp), parameter :: xp(n) = [0.0_dp, 0.3_dp, 0.7_dp, 1.0_dp]
+        real(dp) :: f(n), vf(n), cp(n), cm(n), fbar(n)
+        real(dp) :: x, vx, u, h, jv, fd, xbar, lhs, rhs
+
+        f = [0.2_dp, -0.4_dp, 1.1_dp, 0.7_dp]
+        vf = [0.3_dp, 0.8_dp, -0.2_dp, 0.5_dp]
+        x = 0.43_dp
+        vx = -0.6_dp
+        u = 1.9_dp
+
+        call lagrange_combined_jvp(n, x, xp, f, vx, vf, jv)
+        h = 1.0e-6_dp
+        call lagrange_weights(n, x + h*vx, xp, cp)
+        call lagrange_weights(n, x - h*vx, xp, cm)
+        fd = (dot_product(cp, f + h*vf) - &
+            dot_product(cm, f - h*vf))/(2.0_dp*h)
+        if (rel_err(jv, fd) > 1.0e-8_dp) then
+            write (error_unit, '(a,es24.16,a,es24.16)') &
+                "FAIL [combined_jvp] jv=", jv, " fd=", fd
+            nfail = nfail + 1
+        end if
+
+        call lagrange_combined_vjp(n, x, xp, f, u, xbar, fbar)
+        lhs = u*jv
+        rhs = vx*xbar + dot_product(vf, fbar)
+        if (rel_err(lhs, rhs) > 1.0e-13_dp) then
+            write (error_unit, '(a,es24.16,a,es24.16)') &
+                "FAIL [combined_adjoint] lhs=", lhs, " rhs=", rhs
+            nfail = nfail + 1
+        end if
+    end subroutine test_combined_products
 
 
     ! ------------------------------------------------------------------

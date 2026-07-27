@@ -4,8 +4,8 @@ module fortnum_ad_interfaces
     !
     ! A downstream code consumes a fortnum derivative product through one of
     ! these abstract interfaces without knowing how the product was produced.
-    ! Whether the Jacobian-vector product came from an analytic recurrence, an
-    ! implicit-function rule, a frozen adaptive trace, an Enzyme-generated
+    ! Whether the Jacobian-vector product came from an analytical recurrence,
+    ! an implicit-function rule, a frozen adaptive trace, an autodiff-generated
     ! pass, or a finite-difference fallback is reported through the status, not
     ! through the call shape. The optimizer wires a kernel that matches one of
     ! these signatures and reads the backend and quality fields to decide how
@@ -28,17 +28,29 @@ module fortnum_ad_interfaces
     ! a kernel may use when no exact product exists. The optimizer treats the
     ! product as opaque; the backend tag is advisory metadata for logging,
     ! trust thresholds, and step-acceptance heuristics.
-    integer, parameter, public :: FORTNUM_AD_BACKEND_NONE        = 0
-    integer, parameter, public :: FORTNUM_AD_BACKEND_ANALYTIC    = 1
-    integer, parameter, public :: FORTNUM_AD_BACKEND_IMPLICIT    = 2
-    integer, parameter, public :: FORTNUM_AD_BACKEND_TRACE       = 3
-    integer, parameter, public :: FORTNUM_AD_BACKEND_GENERATED   = 4
-    integer, parameter, public :: FORTNUM_AD_BACKEND_FINITE_DIFF = 5
+    integer, parameter, public :: FORTNUM_AD_BACKEND_NONE = 0
+    integer, parameter, public :: FORTNUM_AD_BACKEND_ANALYTICAL = 1
+    integer, parameter, public :: FORTNUM_AD_BACKEND_AUTODIFF = 2
+    integer, parameter, public :: FORTNUM_AD_BACKEND_HYBRID = 3
+    integer, parameter, public :: FORTNUM_AD_BACKEND_FINITE_DIFFERENCE_REFERENCE = 4
+
+    ! Compatibility aliases. New public code uses autodiff, analytical, and
+    ! hybrid; these names remain so existing downstream sources keep building.
+    integer, parameter, public :: FORTNUM_AD_BACKEND_ANALYTIC = &
+        FORTNUM_AD_BACKEND_ANALYTICAL
+    integer, parameter, public :: FORTNUM_AD_BACKEND_IMPLICIT = &
+        FORTNUM_AD_BACKEND_ANALYTICAL
+    integer, parameter, public :: FORTNUM_AD_BACKEND_TRACE = &
+        FORTNUM_AD_BACKEND_ANALYTICAL
+    integer, parameter, public :: FORTNUM_AD_BACKEND_GENERATED = &
+        FORTNUM_AD_BACKEND_AUTODIFF
+    integer, parameter, public :: FORTNUM_AD_BACKEND_FINITE_DIFF = &
+        FORTNUM_AD_BACKEND_FINITE_DIFFERENCE_REFERENCE
 
     ! ------------------------------------------------------------ quality
     !
     ! How good the product is, independent of the backend. EXACT means correct
-    ! to rounding (analytic, implicit, transparent-on-trace). APPROXIMATE means
+    ! to rounding (analytical, implicit, or frozen-trace). APPROXIMATE means
     ! a controlled truncation error (finite difference, a frozen trace differing
     ! from the true adaptive schedule at the perturbed point). NONSMOOTH flags a
     ! point where the derivative is not defined (a branch or event boundary,
@@ -61,6 +73,7 @@ module fortnum_ad_interfaces
 
     public :: ad_status_set
     public :: ad_status_ok
+    public :: ad_status_merge
 
     ! ----------------------------------------------------- kernel interfaces
     !
@@ -153,5 +166,52 @@ contains
         ad_status_ok = status_ok(s%status) .and. &
             (s%quality /= FORTNUM_AD_QUALITY_NONSMOOTH)
     end function ad_status_ok
+
+    ! Merge provenance and quality when derivative products cross an operator
+    ! boundary. Mixed mechanisms are hybrid. The first primal failure is
+    ! retained, while derivative quality follows an explicit worst-case order:
+    ! nonsmooth, unknown, approximate, exact.
+    pure subroutine ad_status_merge(left, right, merged)
+        use fortnum_status, only: FORTNUM_OK
+        type(fortnum_ad_status_t), intent(in) :: left, right
+        type(fortnum_ad_status_t), intent(out) :: merged
+
+        if (left%status%code /= FORTNUM_OK) then
+            merged%status = left%status
+        else
+            merged%status = right%status
+        end if
+        merged%backend = merge_backend(left%backend, right%backend)
+        if (quality_rank(left%quality) >= quality_rank(right%quality)) then
+            merged%quality = left%quality
+        else
+            merged%quality = right%quality
+        end if
+    end subroutine ad_status_merge
+
+    pure integer function merge_backend(left, right)
+        integer, intent(in) :: left, right
+        if (left == FORTNUM_AD_BACKEND_NONE) then
+            merge_backend = right
+        else if (right == FORTNUM_AD_BACKEND_NONE .or. left == right) then
+            merge_backend = left
+        else
+            merge_backend = FORTNUM_AD_BACKEND_HYBRID
+        end if
+    end function merge_backend
+
+    pure integer function quality_rank(quality)
+        integer, intent(in) :: quality
+        select case (quality)
+        case (FORTNUM_AD_QUALITY_NONSMOOTH)
+            quality_rank = 3
+        case (FORTNUM_AD_QUALITY_UNKNOWN)
+            quality_rank = 2
+        case (FORTNUM_AD_QUALITY_APPROXIMATE)
+            quality_rank = 1
+        case default
+            quality_rank = 0
+        end select
+    end function quality_rank
 
 end module fortnum_ad_interfaces

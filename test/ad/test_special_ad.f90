@@ -15,7 +15,8 @@ program test_special_ad
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
     use fortnum_ad_test_utils, only: check_jvp_vs_fd, dot_product_identity, &
         fd_jvp, rel_err
-    use fortnum_special_dawson, only: dawson, dawson_jvp, dawson_grad
+    use fortnum_special_dawson, only: dawson, dawson_jvp, dawson_grad, &
+        dawson_outer_jvp
     use fortnum_special_gamma,  only: gamma_lower, gamma_lower_jvp, &
         gamma_lower_jvp_da, gamma_reg_p, &
         gamma_reg_p_jvp, gamma_reg_p_grad
@@ -37,6 +38,7 @@ program test_special_ad
 
     call test_dawson_jvp(nfail)
     call test_dawson_grad_adjoint(nfail)
+    call test_dawson_outer_generated(nfail)
     call test_gamma_lower_jvp(nfail)
     call test_gamma_lower_jvp_da(nfail)
     call test_gamma_reg_p_jvp(nfail)
@@ -92,6 +94,18 @@ contains
         if (.not. dot_product_identity("dawson_grad_adjoint_neg", &
             dawson_jvp, dawson_grad, x, u, v, tol_adj)) nfail = nfail + 1
     end subroutine test_dawson_grad_adjoint
+
+    subroutine test_dawson_outer_generated(nfail)
+        integer, intent(inout) :: nfail
+        real(dp) :: x(1), v(1)
+        logical :: ok
+
+        x = [0.7_dp]
+        v = [-0.4_dp]
+        ok = check_jvp_vs_fd("dawson_outer_generated", f_dawson_outer, &
+            dawson_outer_jvp_wrap, x, v, tol_fd)
+        if (.not. ok) nfail = nfail + 1
+    end subroutine test_dawson_outer_generated
 
     ! ---------------------------------------------------------------- gamma_lower
 
@@ -305,6 +319,21 @@ contains
         real(dp), intent(out) :: y(:)
         y(1) = dawson(x(1))
     end subroutine f_dawson
+
+    subroutine f_dawson_outer(x, y)
+        real(dp), intent(in) :: x(:)
+        real(dp), intent(out) :: y(:)
+        real(dp) :: f
+        f = dawson(x(1))
+        y(1) = sin(f) + f*f
+    end subroutine f_dawson_outer
+
+    subroutine dawson_outer_jvp_wrap(x, v, jv)
+        real(dp), intent(in) :: x(:), v(:)
+        real(dp), intent(out) :: jv(:)
+        real(dp) :: value
+        call dawson_outer_jvp(x(1), v(1), value, jv(1))
+    end subroutine dawson_outer_jvp_wrap
 
     ! gamma_lower primal: x(1)=x limit, x(2)=a shape.
     subroutine f_gamma_lower(x, y)

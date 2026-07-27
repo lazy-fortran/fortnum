@@ -81,8 +81,10 @@ The public products remain `foo_jvp`, `foo_vjp`, `foo_grad`, and `foo_hvp`.
 Candidate implementations are independently validated and benchmarked.
 Application runtime and peak memory select the winner for each workload class.
 
-`fortnum` will use `../fortsym` for symbolic algebra and code generation.
-`fortsym` is unfinished, so no integration API is specified yet.
+`fortnum` uses `fortsym` at build time for symbolic algebra and code
+generation. Generators live in the isolated `tools/codegen/` package and
+commit their outputs under `src/generated/`. Only interfaces exercised by
+these generators and covered by `fortsym` tests are relied upon.
 
 ---
 
