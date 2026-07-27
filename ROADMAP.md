@@ -91,7 +91,7 @@ independent validation plus measured application runtime and peak memory.
 - [x] Compose autodiff integrand VJPs with analytical fixed quadrature.
 - [x] Add an analytical frozen-trace adaptive-integration candidate.
 - [x] Add an autodiff frozen-trace adaptive-integration candidate.
-- [ ] Add a hybrid adaptive-integration candidate.
+- [x] Add a hybrid adaptive-integration candidate.
 - [ ] Benchmark fixed quadrature candidates.
 - [ ] Benchmark smooth adaptive-integration candidates.
 - [ ] Benchmark singular adaptive-integration candidates.

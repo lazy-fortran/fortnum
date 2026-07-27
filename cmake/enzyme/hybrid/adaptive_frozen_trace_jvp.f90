@@ -1,5 +1,6 @@
 module adaptive_frozen_trace_kernel
     use, intrinsic :: iso_c_binding, only: c_double, c_funloc, c_funptr
+    use adaptive_integrand_autodiff, only: integrand_jvp
     use fortnum_integrate, only: integrate_workspace_t, integrate_result_t, &
         integrate_qag, integrate_qag_jvp
     use fortnum_kinds, only: dp
@@ -29,7 +30,7 @@ module adaptive_frozen_trace_kernel
         real(dp) :: value
     end type parameter_t
 
-    public :: analytical_value_jvp, autodiff_value_jvp
+    public :: analytical_value_jvp, autodiff_value_jvp, hybrid_value_jvp
     public :: diagnostic_value_jvp, exact_jvp
 
     interface
@@ -40,6 +41,7 @@ module adaptive_frozen_trace_kernel
             real(c_double), value :: p, dp_seed
             real(c_double) :: derivative
         end function enzyme_fwddiff
+
     end interface
 
 contains
@@ -99,6 +101,22 @@ contains
         call require_trace(result, status)
         derivative = enzyme_fwddiff(c_funloc(frozen_trace_value), p, 1.0_dp)
     end function autodiff_value_jvp
+
+    function hybrid_value_jvp(p) result(derivative)
+        real(dp), intent(in) :: p
+        real(dp) :: derivative
+        type(parameter_t) :: parameter
+        type(integrate_workspace_t) :: workspace
+        type(integrate_result_t) :: result
+        type(fortnum_status_t) :: status
+
+        parameter%value = p
+        call build_trace(parameter, workspace, result, status)
+        call require_trace(result, status)
+        call integrate_qag_jvp(autodiff_tangent_integrand, result, derivative, &
+            status, ctx=parameter)
+        if (.not. status_ok(status)) error stop "hybrid trace JVP failed"
+    end function hybrid_value_jvp
 
     function diagnostic_value_jvp(p) result(derivative)
         real(dp), intent(in) :: p
@@ -180,13 +198,26 @@ contains
         end select
     end function tangent_integrand
 
+    function autodiff_tangent_integrand(x, context) result(value)
+        real(dp), intent(in) :: x
+        class(*), intent(in), optional :: context
+        real(dp) :: value
+
+        select type (context)
+            type is (parameter_t)
+            value = integrand_jvp(x, context%value)
+        class default
+            error stop "missing adaptive parameter"
+        end select
+    end function autodiff_tangent_integrand
+
 end module adaptive_frozen_trace_kernel
 
 program enzyme_adaptive_frozen_trace_jvp
     use, intrinsic :: iso_c_binding, only: c_int64_t
     use, intrinsic :: iso_fortran_env, only: dp => real64, int64
     use adaptive_frozen_trace_kernel, only: analytical_value_jvp, &
-        autodiff_value_jvp, diagnostic_value_jvp, exact_jvp
+        autodiff_value_jvp, hybrid_value_jvp, diagnostic_value_jvp, exact_jvp
     implicit none
 
     interface
@@ -198,7 +229,7 @@ program enzyme_adaptive_frozen_trace_jvp
     end interface
 
     character(32) :: argument, candidate
-    real(dp) :: errors(3), reference
+    real(dp) :: errors(4), reference
 
     call get_command_argument(1, argument)
     call get_command_argument(2, candidate)
@@ -210,9 +241,10 @@ program enzyme_adaptive_frozen_trace_jvp
         reference = exact_jvp(12.0_dp)
         errors(1) = abs(analytical_value_jvp(12.0_dp) - reference)
         errors(2) = abs(autodiff_value_jvp(12.0_dp) - reference)
-        errors(3) = abs(diagnostic_value_jvp(12.0_dp) - reference)
-        if (maxval(errors(1:2)) > 1.0e-7_dp .or. &
-            errors(3) > 1.0e-4_dp) then
+        errors(3) = abs(hybrid_value_jvp(12.0_dp) - reference)
+        errors(4) = abs(diagnostic_value_jvp(12.0_dp) - reference)
+        if (maxval(errors(1:3)) > 1.0e-7_dp .or. &
+            errors(4) > 1.0e-4_dp) then
             print *, "adaptive frozen-trace JVP mismatch", errors
             error stop 1
         end if
@@ -252,8 +284,8 @@ contains
         character(*), intent(in) :: name
 
         if ((name /= "analytical") .and. (name /= "autodiff") .and. &
-            (name /= "diagnostic")) then
-            error stop "candidate must be analytical, autodiff, or diagnostic"
+            (name /= "hybrid") .and. (name /= "diagnostic")) then
+            error stop "candidate must be analytical, autodiff, hybrid, or diagnostic"
         end if
     end subroutine validate_candidate
 
@@ -273,6 +305,8 @@ contains
                 sink = sink + analytical_value_jvp(p)
             case ("autodiff")
                 sink = sink + autodiff_value_jvp(p)
+            case ("hybrid")
+                sink = sink + hybrid_value_jvp(p)
             case ("diagnostic")
                 sink = sink + diagnostic_value_jvp(p)
             end select
