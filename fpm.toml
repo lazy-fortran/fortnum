@@ -18,3 +18,41 @@ link = ["lapack", "blas"]
 [fortran]
 implicit-typing = false
 source-form = "free"
+
+[extra.fo.test-args]
+test_oracle_selftest = ["test/oracle/data/gamma.csv"]
+test_fortnum_special_bessel_oracle = ["test/oracle/data/bessel.csv"]
+test_fortnum_special_dawson_oracle = ["test/oracle/data/dawson.csv"]
+test_fortnum_special_complex_bessel_oracle = ["test/oracle/data/complex_bessel.csv"]
+test_fortnum_complex_bessel_halfplane = ["test/oracle/data/complex_bessel_halfplane.csv"]
+test_fortnum_special_erf_cbind_oracle = [
+    "test/oracle/data/erf.csv",
+    "test/oracle/data/erfc.csv",
+]
+test_fortnum_special_hyperg_oracle = ["test/oracle/data/hyperg_1f1.csv"]
+test_fortnum_special_gamma_oracle = ["test/oracle/data/lower_incomplete_gamma.csv"]
+test_fortnum_integrate_gk_oracle = ["test/oracle/data/integrate_gk.csv"]
+test_fortnum_quadrature_oracle = ["test/oracle/data/gauss_legendre.csv"]
+test_fortnum_gen_laguerre_oracle = ["test/oracle/data/gauss_gen_laguerre.csv"]
+test_fortnum_fft_oracle = ["test/oracle/data/fft_c2c.csv"]
+test_fortnum_ode_oracle = ["test/oracle/data"]
+test_fortnum_dop853_oracle = ["test/oracle/data"]
+test_fortnum_roots_oracle = ["test/oracle/data/roots.csv"]
+test_fortnum_roots_brent_oracle = ["test/oracle/data/roots_brent.csv"]
+test_fortnum_multiroot_oracle = [
+    "test/oracle/data/multiroot.csv",
+    "test/oracle/data/deriv_central.csv",
+    "test/oracle/data/argsort.csv",
+]
+test_fortnum_complex_roots_oracle = ["test/oracle/data/complex_roots.csv"]
+test_fortnum_bspline_oracle = ["test/oracle/data/bspline.csv"]
+test_fortnum_cquad_oracle = ["test/oracle/data/cquad.csv"]
+test_fortnum_integrate_oracle = [
+    "test/oracle/data/integrate_qag_smooth.csv",
+    "test/oracle/data/integrate_qags_singular.csv",
+]
+test_fortnum_integrate_singular_oracle = [
+    "test/oracle/data/integrate_qagp_singular.csv",
+    "test/oracle/data/integrate_qagiu_infinite.csv",
+]
+test_fortnum_levin_oracle = ["test/oracle/data/levin_u.csv"]
