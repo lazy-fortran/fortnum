@@ -4,6 +4,12 @@ Committed tables are reference measurements, not portable promises. Production
 selection must be regenerated after a material change in hardware, compiler,
 Enzyme, `fortsym`, primal source, or workload.
 
+Every speedup or slowdown in this document compares two rows in the same table
+for the same derivative operation and workload. A ratio stated as “B is
+`r` times slower than A” means `runtime(B)/runtime(A) = r`; “B is `r` times
+faster than A” means `runtime(A)/runtime(B) = r`. No comparison is against the
+primal operation unless the table explicitly names a primal row.
+
 ## Dawson outer-expression JVP
 
 The workload is
@@ -74,13 +80,15 @@ after three warmups.
 
 | Candidate | Mechanism | Median ns/JVP | MAD ns/JVP | Peak RSS |
 |---|---|---:|---:|---:|
-| refactor each JVP | `analytical` | 4,863.9215 | 82.1883 | 23,453,696 B |
-| reuse primal LU | `analytical` | 813.4458 | 4.2406 | 23,977,984 B |
+| refactor each JVP | `analytical` | 981.8472 | 7.2850 | 12,451,840 B |
+| reuse primal LU | `analytical` | 348.6946 | 0.5354 | 12,378,112 B |
 
-Reusing the factorization is 5.9794 times faster. Its measured peak RSS is
-524,288 bytes higher. Peak RSS was measured with `/usr/bin/time -v` around the
-`fo exec` process tree, so it includes the runner and is a conservative
-end-to-end number, not candidate-private allocation.
+Reusing the factorization is 2.8158 times faster and its maximum observed
+candidate-process RSS is 73,728 bytes lower. Memory is measured inside five
+separately launched processes per candidate with `getrusage(RUSAGE_SELF)`;
+therefore these figures exclude the `fo` runner. The counter is independently
+tested by allocating and touching 16 MiB and requiring the reported high-water
+mark to rise by at least 8 MiB.
 
 The machine-readable record is
 `benchmark/reference/ryzen9_5950x_linear_solve_jvp_reuse.json`.
@@ -92,6 +100,8 @@ cd benchmark
 fo build
 taskset -c 4 fo exec bench_linear_solve_jvp refactor
 taskset -c 4 fo exec bench_linear_solve_jvp reuse
+fo exec bench_linear_solve_jvp refactor --peak-rss
+fo exec bench_linear_solve_jvp reuse --peak-rss
 ```
 
 ## Analytical linear-solve VJP transpose-factorization reuse
