@@ -59,7 +59,7 @@ independent validation plus measured application runtime and peak memory.
 
 - [x] Add a generic analytical implicit tangent boundary for scalar roots.
 - [x] Add a generic analytical implicit adjoint boundary for scalar roots.
-- [ ] Add a generic analytical implicit tangent boundary for vector roots.
+- [x] Add a generic analytical implicit tangent boundary for vector roots.
 - [ ] Add a generic analytical implicit adjoint boundary for vector roots.
 - [ ] Add analytical implicit products for fixed points.
 - [ ] Add hybrid scalar-root candidates using autodiff residual products.

@@ -235,6 +235,56 @@ fo exec bench_scalar_root_adjoint assembled --peak-rss
 fo exec bench_scalar_root_adjoint boundary --peak-rss
 ```
 
+## Generic analytical implicit tangent boundary for vector roots
+
+The vector-root tangent boundary accepts a converged root and a callback that
+returns the state Jacobian `F_x` and contracted residual tangent `F_p*tp`. It
+then solves `F_x*dx = -(F_p*tp)` analytically, without differentiating the
+root-solver iterations. Factorization reuse and additional reliability options
+remain separate ROADMAP items.
+
+The independent oracle uses the nonlinear two-state system
+`F1 = x1^2 + x2 - p1`, `F2 = x1 + x2^2 - p2`. It completely re-solves at
+`p + h*tp` and `p - h*tp` and compares the resulting central-difference
+direction with the boundary JVP.
+
+The benchmark applies 2,000,000 directions per sample to a two-state,
+two-parameter residual. Both rows compute the same vector-root JVP. The
+baseline uses preassembled `F_x` and `F_p`; the candidate evaluates `F_x` and
+the contracted `F_p*tp` through the new callback boundary.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, GNU Fortran 16.1.1, Release build,
+15 samples after three warmups.
+
+| Candidate | Mechanism | Median ns/JVP | MAD ns/JVP | Peak RSS |
+|---|---|---:|---:|---:|
+| preassembled residual Jacobians | `analytical` | 75.6729 | 0.7939 | 12,537,856 B |
+| contracted callback boundary | `analytical` | 107.5941 | 0.8444 | 12,513,280 B |
+
+Here “1.4218 times slower” means
+`107.5941 / 75.6729 = 1.4218`: it compares the callback-boundary row with the
+preassembled row for the same JVP, not with a primal vector-root solve. The
+preassembled path remains the isolated-kernel selection. The boundary costs
+31.9212 ns/JVP while providing the operator interface required for later
+`hybrid` residual products. Its maximum observed self-process RSS is 24,576
+bytes lower.
+
+Peak memory is the maximum across five separately launched processes per
+candidate, measured with `getrusage(RUSAGE_SELF)`. The machine-readable record
+is
+`benchmark/reference/ryzen9_5950x_vector_root_tangent_boundary.json`.
+
+Run the benchmark with:
+
+```bash
+cd benchmark
+fo build
+taskset -c 4 fo exec bench_vector_root_tangent assembled
+taskset -c 4 fo exec bench_vector_root_tangent boundary
+fo exec bench_vector_root_tangent assembled --peak-rss
+fo exec bench_vector_root_tangent boundary --peak-rss
+```
+
 ## Reusable preconditioner hook for implicit products
 
 The multiroot analytical JVP, VJP, and scalar gradient accept an optional
