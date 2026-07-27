@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "scalar_root",
+  "product": "vjp",
+  "workload": "cubic residual, 2 active parameters, 2000000 cotangents per sample",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "gfortran": "16.1.1 20260625",
+    "cmake": "4.4.0",
+    "fortsym_commit": "15636e944b3b932283aff4f313c6a5f459d40692"
+  },
+  "sampling": {
+    "warmup_rounds": 3,
+    "samples": 15,
+    "calls_per_sample": 2000000,
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum"
+  },
+  "validation": {
+    "oracle": "componentwise central difference of u*x*(p) with complete root solves",
+    "absolute_tolerance": 1e-8
+  },
+  "memory_method": "getrusage(RUSAGE_SELF) inside each separately launched candidate",
+  "candidates": [
+    {
+      "id": "assembled_residual_gradient",
+      "mechanism": "analytical",
+      "median_ns_per_call": 15.7552,
+      "mad_ns_per_call": 0.0287,
+      "peak_rss_bytes": 12304384
+    },
+    {
+      "id": "contracted_callback_boundary",
+      "mechanism": "analytical",
+      "median_ns_per_call": 35.6404,
+      "mad_ns_per_call": 0.2652,
+      "peak_rss_bytes": 12521472
+    }
+  ],
+  "selection": {
+    "selected": "assembled_residual_gradient",
+    "runtime_ratio": 2.2621,
+    "reason": "both pass the independent oracle; assembled is 2.2621x faster and uses 217088 fewer bytes of maximum observed candidate-process RSS for the isolated VJP"
+  }
+}
