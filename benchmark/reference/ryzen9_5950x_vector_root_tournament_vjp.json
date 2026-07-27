@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "vector_root",
+  "product": "vjp",
+  "workload": "coupled 2-state residual, 2 parameters, fixed 12-step Newton trace, 100000 varying cotangents per sample",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "flang_llvm": "22.1.8",
+    "enzyme_commit": "c96508349d9f",
+    "build": "Release -O2"
+  },
+  "sampling": {
+    "warmup_rounds": 3,
+    "samples": 15,
+    "calls_per_sample": 100000,
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum"
+  },
+  "validation": {
+    "oracle": "componentwise central difference of u^T*x*(p), using fresh complete coupled-root solves",
+    "absolute_tolerance": 1e-9,
+    "maximum_absolute_error_in_table_order": [
+      3.733735542965633e-11,
+      3.733735542965633e-11,
+      3.733746645195879e-11,
+      1.6653345369377348e-12
+    ]
+  },
+  "memory_method": "getrusage(RUSAGE_SELF) inside each separately launched candidate",
+  "candidates": [
+    {
+      "id": "analytical_implicit",
+      "mechanism": "analytical",
+      "median_ns_per_call": 83.3377,
+      "mad_ns_per_call": 0.8708,
+      "peak_rss_bytes": 2535424
+    },
+    {
+      "id": "enzyme_residual_implicit",
+      "mechanism": "hybrid",
+      "median_ns_per_call": 82.5682,
+      "mad_ns_per_call": 0.5024,
+      "peak_rss_bytes": 2510848
+    },
+    {
+      "id": "enzyme_through_newton_iterations",
+      "mechanism": "autodiff",
+      "median_ns_per_call": 228.8764,
+      "mad_ns_per_call": 1.0845,
+      "peak_rss_bytes": 2457600
+    },
+    {
+      "id": "complete_solve_central_difference",
+      "mechanism": "diagnostic",
+      "median_ns_per_call": 392.2317,
+      "mad_ns_per_call": 3.4115,
+      "peak_rss_bytes": 2437120
+    }
+  ],
+  "selection": {
+    "selected": "enzyme_residual_implicit",
+    "reason": "hybrid has the lowest runtime and uses 24576 fewer peak-RSS bytes than analytical while passing the complete-solve oracle"
+  }
+}

@@ -74,7 +74,7 @@ independent validation plus measured application runtime and peak memory.
 - [x] Report VJP reliability near singular root Jacobians.
 - [x] Benchmark analytical implicit, hybrid, autodiff-through-iterations, and
   finite-difference scalar-root candidates.
-- [ ] Benchmark analytical implicit, hybrid, autodiff-through-iterations, and
+- [x] Benchmark analytical implicit, hybrid, autodiff-through-iterations, and
   finite-difference vector-root candidates.
 
 ## Integration and quadrature

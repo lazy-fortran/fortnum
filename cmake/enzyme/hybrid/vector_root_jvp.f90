@@ -7,6 +7,7 @@ module vector_root_hybrid_kernel
     private
 
     public :: analytical_root_jvp, hybrid_root_jvp
+    public :: autodiff_iterations_root_jvp, finite_difference_root_jvp
     public :: residual_one, residual_two
 
     interface
@@ -38,6 +39,45 @@ contains
         f = x1 + x2*x2 + 0.0_c_double*p1 - p2
     end function residual_two
 
+    pure function newton_root_one(dummy_one, dummy_two, p1, p2) result(root) &
+            bind(c, name="fortnum_vector_newton_root_one")
+        real(c_double), value :: dummy_one, dummy_two, p1, p2
+        real(c_double) :: root
+        real(c_double) :: x1, x2
+
+        call fixed_newton_solve(dummy_one, dummy_two, p1, p2, x1, x2)
+        root = x1
+    end function newton_root_one
+
+    pure function newton_root_two(dummy_one, dummy_two, p1, p2) result(root) &
+            bind(c, name="fortnum_vector_newton_root_two")
+        real(c_double), value :: dummy_one, dummy_two, p1, p2
+        real(c_double) :: root
+        real(c_double) :: x1, x2
+
+        call fixed_newton_solve(dummy_one, dummy_two, p1, p2, x1, x2)
+        root = x2
+    end function newton_root_two
+
+    pure subroutine fixed_newton_solve(dummy_one, dummy_two, p1, p2, x1, x2)
+        real(c_double), intent(in) :: dummy_one, dummy_two, p1, p2
+        real(c_double), intent(out) :: x1, x2
+        real(c_double) :: determinant, f1, f2, step1, step2
+        integer :: iteration
+
+        x1 = 0.8_c_double + 0.0_c_double*dummy_one
+        x2 = 1.1_c_double + 0.0_c_double*dummy_two
+        do iteration = 1, 12
+            f1 = residual_one(x1, x2, p1, p2)
+            f2 = residual_two(x1, x2, p1, p2)
+            determinant = 4.0_c_double*x1*x2 - 1.0_c_double
+            step1 = (-2.0_c_double*x2*f1 + f2)/determinant
+            step2 = (-2.0_c_double*x1*f2 + f1)/determinant
+            x1 = x1 + step1
+            x2 = x2 + step2
+        end do
+    end subroutine fixed_newton_solve
+
     function analytical_root_jvp(x, p, tp) result(dx)
         real(dp), intent(in) :: x(2), p(2), tp(2)
         real(dp) :: dx(2)
@@ -57,6 +97,33 @@ contains
             dx, status)
         if (.not. status_ok(status)) error stop "hybrid vector-root JVP failed"
     end function hybrid_root_jvp
+
+    function autodiff_iterations_root_jvp(p, tp) result(dx)
+        real(dp), intent(in) :: p(2), tp(2)
+        real(dp) :: dx(2)
+
+        dx(1) = enzyme_fwddiff(c_funloc(newton_root_one), &
+            0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, &
+            p(1), tp(1), p(2), tp(2))
+        dx(2) = enzyme_fwddiff(c_funloc(newton_root_two), &
+            0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, &
+            p(1), tp(1), p(2), tp(2))
+    end function autodiff_iterations_root_jvp
+
+    function finite_difference_root_jvp(p, tp) result(dx)
+        real(dp), intent(in) :: p(2), tp(2)
+        real(dp), parameter :: h = 1.0e-5_dp
+        real(dp) :: dx(2)
+
+        dx(1) = (newton_root_one(0.0_dp, 0.0_dp, &
+            p(1) + h*tp(1), p(2) + h*tp(2)) &
+            - newton_root_one(0.0_dp, 0.0_dp, &
+            p(1) - h*tp(1), p(2) - h*tp(2)))/(2.0_dp*h)
+        dx(2) = (newton_root_two(0.0_dp, 0.0_dp, &
+            p(1) + h*tp(1), p(2) + h*tp(2)) &
+            - newton_root_two(0.0_dp, 0.0_dp, &
+            p(1) - h*tp(1), p(2) - h*tp(2)))/(2.0_dp*h)
+    end function finite_difference_root_jvp
 
     subroutine analytical_residual_jvp(x, p, tp, jac_x, f_p_tp, context)
         real(dp), intent(in) :: x(:), p(:), tp(:)
@@ -97,7 +164,8 @@ end module vector_root_hybrid_kernel
 program enzyme_vector_root_hybrid
     use, intrinsic :: iso_c_binding, only: c_int64_t
     use, intrinsic :: iso_fortran_env, only: dp => real64, int64
-    use vector_root_hybrid_kernel, only: analytical_root_jvp, hybrid_root_jvp
+    use vector_root_hybrid_kernel, only: analytical_root_jvp, hybrid_root_jvp, &
+        autodiff_iterations_root_jvp, finite_difference_root_jvp
     implicit none
 
     interface
@@ -111,7 +179,7 @@ program enzyme_vector_root_hybrid
     real(dp), parameter :: h = 1.0e-5_dp
     real(dp) :: p(2), pp(2), pm(2), tp(2), xstar(2), xp(2), xm(2)
     real(dp) :: analytical(2), got(2), reference(2)
-    real(dp) :: analytical_error, hybrid_error
+    real(dp) :: autodiff_iterations(2), diagnostic(2), errors(4)
     character(32) :: argument, candidate
 
     call get_command_argument(1, argument)
@@ -131,18 +199,18 @@ program enzyme_vector_root_hybrid
         reference = (xp - xm)/(2.0_dp*h)
         analytical = analytical_root_jvp(xstar, p, tp)
         got = hybrid_root_jvp(xstar, p, tp)
-        analytical_error = maxval(abs(analytical - reference))
-        hybrid_error = maxval(abs(got - reference))
+        autodiff_iterations = autodiff_iterations_root_jvp(p, tp)
+        diagnostic = finite_difference_root_jvp(p, tp)
+        errors(1) = maxval(abs(analytical - reference))
+        errors(2) = maxval(abs(got - reference))
+        errors(3) = maxval(abs(autodiff_iterations - reference))
+        errors(4) = maxval(abs(diagnostic - reference))
 
-        if (analytical_error > 1.0e-9_dp) then
-            print *, "analytical vector-root JVP mismatch", analytical, reference
+        if (maxval(errors) > 1.0e-9_dp) then
+            print *, "vector-root JVP mismatch", errors
             error stop 1
         end if
-        if (hybrid_error > 1.0e-9_dp) then
-            print *, "hybrid vector-root JVP mismatch", got, reference
-            error stop 1
-        end if
-        print *, "PASS vector-root JVPs", analytical_error, hybrid_error
+        print *, "PASS vector-root JVP tournament errors", errors
     end if
 
 contains
@@ -172,29 +240,37 @@ contains
 
     subroutine run_benchmark()
         integer, parameter :: samples = 15
-        integer(int64), parameter :: reps = 2000000_int64
-        real(dp) :: analytical_times(samples), hybrid_times(samples), sink
+        integer(int64), parameter :: reps = 100000_int64
+        real(dp) :: analytical_times(samples), hybrid_times(samples)
+        real(dp) :: autodiff_times(samples), diagnostic_times(samples), sink
         integer :: sample
 
         do sample = 1, 3
             call time_candidate("analytical", reps/100_int64, sink)
             call time_candidate("hybrid", reps/100_int64, sink)
+            call time_candidate("autodiff", reps/100_int64, sink)
+            call time_candidate("diagnostic", reps/100_int64, sink)
         end do
         do sample = 1, samples
             call time_candidate("analytical", reps, analytical_times(sample))
             call time_candidate("hybrid", reps, hybrid_times(sample))
+            call time_candidate("autodiff", reps, autodiff_times(sample))
+            call time_candidate("diagnostic", reps, diagnostic_times(sample))
         end do
         call report("analytical", analytical_times, reps)
         call report("hybrid", hybrid_times, reps)
+        call report("autodiff", autodiff_times, reps)
+        call report("diagnostic", diagnostic_times, reps)
     end subroutine run_benchmark
 
     subroutine run_peak_rss(name)
         character(*), intent(in) :: name
-        integer(int64), parameter :: reps = 2000000_int64
+        integer(int64), parameter :: reps = 100000_int64
         real(dp) :: elapsed
 
-        if ((name /= "analytical") .and. (name /= "hybrid")) then
-            error stop "usage: --peak-rss analytical|hybrid"
+        if ((name /= "analytical") .and. (name /= "hybrid") .and. &
+                (name /= "autodiff") .and. (name /= "diagnostic")) then
+            error stop "usage: --peak-rss analytical|hybrid|autodiff|diagnostic"
         end if
         call time_candidate(name, reps, elapsed)
         write (*, "(i0)") peak_rss_bytes()
@@ -216,11 +292,16 @@ contains
             parameters(1) = x(1)*x(1) + x(2)
             parameters(2) = x(1) + x(2)*x(2)
             direction(1) = 0.02_dp*real(mod(i, 17_int64) - 8_int64, dp)
-            if (name == "analytical") then
+            select case (name)
+            case ("analytical")
                 dx = analytical_root_jvp(x, parameters, direction)
-            else
+            case ("hybrid")
                 dx = hybrid_root_jvp(x, parameters, direction)
-            end if
+            case ("autodiff")
+                dx = autodiff_iterations_root_jvp(parameters, direction)
+            case ("diagnostic")
+                dx = finite_difference_root_jvp(parameters, direction)
+            end select
             sink = sink + sum(dx)
         end do
         call system_clock(finish)

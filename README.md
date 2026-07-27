@@ -22,10 +22,11 @@ linear-solve products, real autodiff/analytical hybrid Dawson and scalar-root
 JVP/VJP boundaries, hybrid vector-root JVP/VJP candidates using Enzyme residual
 products, reusable converged vector-root Jacobians and JVP/VJP factorizations,
 opt-in vector-root JVP/VJP reliability reporting, and static benchmark-selected
-candidates. The completed scalar-root tournament compares forward and reverse
-autodiff through fixed Newton iterations against analytical implicit, hybrid,
-and finite-difference diagnostic candidates. Measured runtime, dispersion,
-peak memory, validation, hardware, and compiler evidence is committed in
+candidates. The completed scalar- and vector-root tournaments compare forward
+and reverse autodiff through fixed Newton iterations against analytical
+implicit, hybrid, and finite-difference diagnostic candidates. Measured
+runtime, dispersion, peak memory, validation, hardware, and compiler evidence
+is committed in
 `docs/design/differentiation_benchmarks.md` and `benchmark/reference/`.
 `ROADMAP.md` is the authoritative implementation checklist.
 
