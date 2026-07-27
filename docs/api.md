@@ -1344,7 +1344,7 @@ convention: order `k = degree + 1`, `nbreak` breakpoints, end breakpoints
 repeated with multiplicity `k` (clamped basis). The coefficient count is
 `ncoef = nbreak + k - 2`. Cox-de Boor recursion (de Boor 2001; Piegl & Tiller).
 
-Policy: `transparent` inside a fixed knot span; within one span the spline value
+Leading candidate: `analytical` inside a fixed knot span; within one span the spline value
 sum_i c_i B_{i,k}(x) is a fixed polynomial in x. The span index from
 `bspline_span_index` is `primal_only`: crossing a knot is non-smooth, so hold
 the span fixed when differentiating in x. Active: `x`. Inactive: order `k`, the
@@ -1617,10 +1617,13 @@ the resulting value tangents separately.
 ```fortran
 subroutine bspline_eval_jvp(ws, x, coef, vx, jv, status)   ! d/dx [sum c_i B_i(x)] vx
 subroutine bspline_eval_vjp(ws, x, coef, u, jtu, status)   ! (d/dx [sum c_i B_i(x)])^T u
+subroutine bspline_eval_knots_jvp(ws, x, coef, vbreak, jv, status)
+subroutine bspline_eval_knots_vjp(ws, x, coef, u, breakbar, status)
 ```
 
 The spline value is differentiated in `x` at the fixed span; the coefficients
-`coef` are inactive. Crossing a knot is non-smooth, so the caller holds the span
+`coef` are inactive. The knot products differentiate the supplied breakpoints,
+including their clamped endpoint copies. Crossing a knot is non-smooth, so the caller holds the span
 fixed (the AD test checks this). Both directions match the analytic recurrence
 weights from `bspline_eval_deriv`.
 

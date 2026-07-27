@@ -19,7 +19,8 @@ program test_bspline_ad
         bspline_set_knots, bspline_eval_deriv, bspline_eval_jvp, &
         bspline_eval_vjp, bspline_span_index, bspline_eval_basis, &
         bspline_eval_coef_jvp, bspline_eval_coef_vjp, &
-        bspline_eval_combined_jvp, bspline_eval_combined_vjp
+        bspline_eval_combined_jvp, bspline_eval_combined_vjp, &
+        bspline_eval_knots_jvp, bspline_eval_knots_vjp
     use fortnum_status, only: fortnum_status_t, FORTNUM_OK
     use fortnum_ad_test_utils, only: rel_err, fd_jvp_step, &
         check_smoothness, ad_status_t, AD_SMOOTH, AD_NONSMOOTH
@@ -33,6 +34,7 @@ program test_bspline_ad
     call test_dotprod_identity(nfail)
     call test_span_boundary_nonsmooth(nfail)
     call test_coef_products(nfail)
+    call test_knot_products(nfail)
     call test_combined_products(nfail)
 
     if (nfail > 0) then
@@ -233,6 +235,47 @@ contains
             nfail = nfail + 1
         end if
     end subroutine test_coef_products
+
+    subroutine test_knot_products(nfail)
+        integer, intent(inout) :: nfail
+        integer, parameter :: nbreak = 6
+        real(dp), parameter :: brk(nbreak) = [ &
+            0.0_dp, 0.2_dp, 0.45_dp, 0.7_dp, 0.9_dp, 1.0_dp]
+        real(dp), parameter :: vbreak(nbreak) = [ &
+            0.1_dp, -0.2_dp, 0.15_dp, 0.05_dp, -0.1_dp, 0.12_dp]
+        type(bspline_workspace_t) :: ws, wsp, wsm
+        type(fortnum_status_t) :: s
+        real(dp), allocatable :: coef(:), breakbar(:)
+        real(dp) :: bp(nbreak), bm(nbreak), jv, fd, sp, sm, h, u
+
+        call setup(ws, coef)
+        h = 1.0e-6_dp
+        bp = brk + h*vbreak
+        bm = brk - h*vbreak
+        call bspline_init(wsp, 4, nbreak, s)
+        call bspline_set_knots(wsp, bp, s)
+        call bspline_init(wsm, 4, nbreak, s)
+        call bspline_set_knots(wsm, bm, s)
+        call bspline_eval_knots_jvp(ws, 0.53_dp, coef, vbreak, jv, s)
+        call eval_spline(wsp, 0.53_dp, coef, sp)
+        call eval_spline(wsm, 0.53_dp, coef, sm)
+        fd = (sp - sm)/(2.0_dp*h)
+        if (rel_err(jv, fd) > 2.0e-7_dp) then
+            write (error_unit, '(a,es24.16,a,es24.16)') &
+                "FAIL [knot_jvp] jv=", jv, " fd=", fd
+            nfail = nfail + 1
+        end if
+
+        allocate (breakbar(nbreak))
+        u = -1.4_dp
+        call bspline_eval_knots_vjp(ws, 0.53_dp, coef, u, breakbar, s)
+        if (rel_err(u*jv, dot_product(vbreak, breakbar)) > 2.0e-13_dp) then
+            write (error_unit, '(a,es24.16,a,es24.16)') &
+                "FAIL [knot_adjoint] lhs=", u*jv, &
+                " rhs=", dot_product(vbreak, breakbar)
+            nfail = nfail + 1
+        end if
+    end subroutine test_knot_products
 
     subroutine test_combined_products(nfail)
         integer, intent(inout) :: nfail

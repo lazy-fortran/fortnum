@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "product": "fixed-span B-spline value with active breakpoint locations",
+  "selection_criterion": "complete product wall clock",
+  "hardware": "AMD Ryzen 9 5950X, CPU 4 pinned",
+  "compiler": "GNU Fortran 16.1.1, Release",
+  "validation": {
+    "jvp_oracle": "central finite difference of independently rebuilt primal knot vectors",
+    "jvp_relative_error_limit": 2e-7,
+    "vjp_oracle": "adjoint dot-product identity",
+    "vjp_relative_error_limit": 2e-13,
+    "contract": "fixed primal knot span"
+  },
+  "timings": [
+    {"product": "jvp", "breakpoints": 6, "candidate": "analytical", "median_ns": 89.7243, "mad_ns": 0.3275},
+    {"product": "jvp", "breakpoints": 6, "candidate": "diagnostic", "median_ns": 158.9636, "mad_ns": 1.3839},
+    {"product": "jvp", "breakpoints": 10, "candidate": "analytical", "median_ns": 96.2089, "mad_ns": 2.4059},
+    {"product": "jvp", "breakpoints": 10, "candidate": "diagnostic", "median_ns": 187.5671, "mad_ns": 5.7610},
+    {"product": "jvp", "breakpoints": 18, "candidate": "analytical", "median_ns": 99.7070, "mad_ns": 2.0023},
+    {"product": "jvp", "breakpoints": 18, "candidate": "diagnostic", "median_ns": 203.2880, "mad_ns": 1.1119},
+    {"product": "vjp", "breakpoints": 6, "candidate": "analytical", "median_ns": 492.8630, "mad_ns": 8.5623},
+    {"product": "vjp", "breakpoints": 6, "candidate": "diagnostic", "median_ns": 929.0131, "mad_ns": 13.2967},
+    {"product": "vjp", "breakpoints": 10, "candidate": "analytical", "median_ns": 890.7819, "mad_ns": 8.9980},
+    {"product": "vjp", "breakpoints": 10, "candidate": "diagnostic", "median_ns": 1650.0061, "mad_ns": 8.3958},
+    {"product": "vjp", "breakpoints": 18, "candidate": "analytical", "median_ns": 1651.6823, "mad_ns": 24.0977},
+    {"product": "vjp", "breakpoints": 18, "candidate": "diagnostic", "median_ns": 3447.6551, "mad_ns": 46.2107}
+  ],
+  "peak_rss_bytes_at_18_breakpoints": {
+    "analytical_jvp": 4407296,
+    "diagnostic_jvp": 4317184,
+    "analytical_vjp": 4108288,
+    "diagnostic_vjp": 3772416
+  },
+  "perf_stat_per_product_at_18_breakpoints": {
+    "analytical_jvp": {"cycles": 449.500, "instructions": 1525.301, "cache_references": 0.03956, "cache_misses": 0.00776},
+    "diagnostic_jvp": {"cycles": 914.542, "instructions": 2862.603, "cache_references": 2.78719, "cache_misses": 0.01806},
+    "analytical_vjp": {"cycles": 7350.382, "instructions": 21698.304, "cache_references": 0.37347, "cache_misses": 0.02051},
+    "diagnostic_vjp": {"cycles": 15687.215, "instructions": 45484.038, "cache_references": 1.27790, "cache_misses": 0.16123}
+  },
+  "selection": {
+    "jvp": "analytical",
+    "vjp": "analytical",
+    "reason": "lowest complete-product wall clock at every measured breakpoint count"
+  }
+}
