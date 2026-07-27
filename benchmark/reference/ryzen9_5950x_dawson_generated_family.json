@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operation": "Dawson outer generated value/JVP/VJP family",
+  "workload": "one value and one contracted product per scalar call",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1",
+    "compiler_flags": "-O3",
+    "fortsym_revision": "59c2949ecf52887f91248d3e32cde54020e2fca6"
+  },
+  "sampling": {
+    "warmup_rounds": 3,
+    "samples": 31,
+    "calls_per_sample": 10000000
+  },
+  "validation": {
+    "jvp_oracle": "central difference of sin(dawson(x)) + dawson(x)^2",
+    "vjp_oracle": "independent scalar adjoint identity",
+    "points": [0.3, 0.9, 2.5, 11.0],
+    "jvp_tolerance": 1e-7,
+    "adjoint_tolerance": 1e-13
+  },
+  "generated_kernels": [
+    {
+      "id": "value",
+      "structural_operations": 3,
+      "native_symbol_bytes": 51
+    },
+    {
+      "id": "fused_value_jvp",
+      "structural_operations": 12,
+      "native_symbol_bytes": 137
+    },
+    {
+      "id": "jvp",
+      "structural_operations": 9,
+      "native_symbol_bytes": 106
+    },
+    {
+      "id": "fused_value_vjp",
+      "structural_operations": 12,
+      "native_symbol_bytes": 137
+    },
+    {
+      "id": "vjp",
+      "structural_operations": 9,
+      "native_symbol_bytes": 106
+    }
+  ],
+  "candidates": [
+    {
+      "product": "jvp",
+      "candidate": "fused",
+      "median_ns_per_workload": 9.7824,
+      "mad_ns_per_workload": 0.0399,
+      "peak_rss_bytes": 4149248
+    },
+    {
+      "product": "jvp",
+      "candidate": "separate",
+      "median_ns_per_workload": 15.3477,
+      "mad_ns_per_workload": 0.1193,
+      "peak_rss_bytes": 4190208
+    },
+    {
+      "product": "vjp",
+      "candidate": "fused",
+      "median_ns_per_workload": 10.0041,
+      "mad_ns_per_workload": 0.1234,
+      "peak_rss_bytes": 4091904
+    },
+    {
+      "product": "vjp",
+      "candidate": "separate",
+      "median_ns_per_workload": 16.7554,
+      "mad_ns_per_workload": 0.3835,
+      "peak_rss_bytes": 4304896
+    }
+  ],
+  "measured_verdict": {
+    "jvp": "fused is 1.5689 times faster than separate",
+    "vjp": "fused is 1.6749 times faster than separate",
+    "memory": "all variants use fixed scalar storage; process-RSS differences do not measure derivative workspace"
+  }
+}

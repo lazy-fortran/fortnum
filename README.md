@@ -23,7 +23,11 @@ its directory to regenerate into a temporary directory and byte-compare all
 committed numerical kernels. CTest and CI run the same check when
 `FORTNUM_CHECK_GENERATED=ON`. Benchmark records for generated kernels also
 capture compiler flags, native symbol sizes, structural operation counts, and
-the exact `fortsym` revision.
+the exact `fortsym` revision. The Dawson generator now derives value-only,
+contracted JVP/VJP, and fused value/product leaves from one symbolic DAG. On
+the reference CPU the fused complete workload is 1.5689 times faster for JVP
+and 1.6749 times faster for VJP than calling the generated value and product
+leaves separately.
 
 Current derivative infrastructure includes generic analytical implicit JVP and
 VJP boundaries for scalar and vector roots, analytical fixed-point and

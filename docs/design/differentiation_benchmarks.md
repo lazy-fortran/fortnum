@@ -17,11 +17,61 @@ timings.
 
 | Generated kernel | Structural operations | Native symbol bytes |
 |---|---:|---:|
-| Dawson fused value/JVP | 12 | 137 |
+| Dawson value | 3 | 51 |
+| Dawson fused value/JVP / separate JVP | 12 / 9 | 137 / 106 |
+| Dawson fused value/VJP / separate VJP | 12 / 9 | 137 / 106 |
 | Determinant 2x2 JVP / VJP | 9 / 6 | 66 / 82 |
 | Determinant 3x3 JVP / VJP | 54 / 46 | 366 / 356 |
 | Inverse 2x2 JVP / VJP | 60 / 60 | 353 / 366 |
 | Inverse 3x3 JVP / VJP | 315 / 315 | 1,890 / 2,075 |
+
+## Dawson products from one symbolic DAG
+
+`gen_dawson_outer` constructs the outer expression
+\(g(x)=\sin(F(x))+F(x)^2\) once. Dawson's stable numerical approximation
+remains an operator boundary with \(F'(x)=1-2xF(x)\). `fortsym` directly
+contracts the shared expression DAG into a JVP and VJP without materializing a
+Jacobian, then emits value-only, fused value/JVP, separate JVP, fused value/VJP,
+and separate VJP leaves.
+
+The independent JVP oracle centrally differences the complete outer function at
+four points spanning the Dawson implementation's series, sampling, and
+asymptotic regions. The VJP additionally passes the scalar adjoint identity.
+Comparing fused and separate generated results is only corroboration and is not
+used as the oracle.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, GNU Fortran 16.1.1, Release
+`-O3`. Each row is the median of 31 independently timed samples after three
+warmups. Each sample contains 10 million complete value-plus-product workloads.
+
+| Product | Candidate | Median ns | MAD ns | Peak RSS bytes | Measured result |
+|---|---|---:|---:|---:|---|
+| JVP | fused value/JVP | 9.7824 | 0.0399 | 4,149,248 | 1.5689x faster |
+| JVP | value plus separate JVP | 15.3477 | 0.1193 | 4,190,208 | baseline |
+| VJP | fused value/VJP | 10.0041 | 0.1234 | 4,091,904 | 1.6749x faster |
+| VJP | value plus separate VJP | 16.7554 | 0.3835 | 4,304,896 | baseline |
+
+“Faster” compares the two rows for the same product and complete workload.
+Every leaf uses fixed scalar storage and performs no allocation. The
+process-RSS differences do not establish an algorithmic memory advantage. The
+machine-readable record is
+`benchmark/reference/ryzen9_5950x_dawson_generated_family.json`.
+
+Reproduce the generated source, validation, timing, and memory measurements
+with:
+
+```bash
+cd tools/codegen
+fo exec gen_dawson_outer
+cd ../..
+fo test test_special_ad
+cd benchmark
+taskset -c 4 fo exec bench_dawson_generated_family fused jvp
+taskset -c 4 fo exec bench_dawson_generated_family separate jvp
+taskset -c 4 fo exec bench_dawson_generated_family fused vjp
+taskset -c 4 fo exec bench_dawson_generated_family separate vjp
+fo exec bench_dawson_generated_family fused jvp --peak-rss
+```
 
 ## Small determinant JVP
 

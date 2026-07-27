@@ -17,6 +17,15 @@ program test_special_ad
         fd_jvp, rel_err
     use fortnum_special_dawson, only: dawson, dawson_jvp, dawson_grad, &
         dawson_outer_jvp
+    use fortnum_generated_dawson_outer, only: fortnum_dawson_outer_kernel
+    use fortnum_generated_dawson_outer_jvp, only: &
+        fortnum_dawson_outer_jvp_kernel
+    use fortnum_generated_dawson_outer_value, only: &
+        fortnum_dawson_outer_value_kernel
+    use fortnum_generated_dawson_outer_value_vjp, only: &
+        fortnum_dawson_outer_value_vjp_kernel
+    use fortnum_generated_dawson_outer_vjp, only: &
+        fortnum_dawson_outer_vjp_kernel
     use fortnum_build_selection, only: FORTNUM_DAWSON_OUTER_JVP_CANDIDATE
     use fortnum_special_gamma,  only: gamma_lower, gamma_lower_jvp, &
         gamma_lower_jvp_da, gamma_reg_p, &
@@ -98,7 +107,12 @@ contains
 
     subroutine test_dawson_outer_generated(nfail)
         integer, intent(inout) :: nfail
-        real(dp) :: x(1), v(1)
+        real(dp), parameter :: h = 1.0e-6_dp
+        real(dp), parameter :: points(4) = [0.3_dp, 0.9_dp, 2.5_dp, 11.0_dp]
+        real(dp) :: x(1), v(1), f, value, separate_value, value_vjp
+        real(dp) :: fused_jvp, separate_jvp, fused_vjp, separate_vjp
+        real(dp) :: plus(1), minus(1), reference, u
+        integer :: i
         logical :: ok
 
         x = [0.7_dp]
@@ -107,6 +121,35 @@ contains
             dawson_outer_jvp_wrap, x, v, tol_fd)
         ok = ok .and. FORTNUM_DAWSON_OUTER_JVP_CANDIDATE == "analytical"
         if (.not. ok) nfail = nfail + 1
+
+        do i = 1, size(points)
+            x(1) = points(i)
+            v(1) = 0.2_dp*real(i, dp) - 0.7_dp
+            u = 0.3_dp*real(i, dp) + 0.1_dp
+            f = dawson(x(1))
+            call fortnum_dawson_outer_value_kernel(f, separate_value)
+            call fortnum_dawson_outer_kernel(x(1), f, v(1), value, fused_jvp)
+            call fortnum_dawson_outer_jvp_kernel(x(1), f, v(1), separate_jvp)
+            call fortnum_dawson_outer_value_vjp_kernel( &
+                x(1), f, u, value_vjp, fused_vjp)
+            call fortnum_dawson_outer_vjp_kernel(x(1), f, u, separate_vjp)
+            call f_dawson_outer(x + h*v, plus)
+            call f_dawson_outer(x - h*v, minus)
+            reference = (plus(1) - minus(1))/(2.0_dp*h)
+
+            if (abs(value - separate_value) > tol_adj .or. &
+                abs(value_vjp - separate_value) > tol_adj) then
+                nfail = nfail + 1
+            end if
+            if (abs(fused_jvp - separate_jvp) > tol_adj .or. &
+                abs(fused_jvp - reference) > tol_fd) then
+                nfail = nfail + 1
+            end if
+            if (abs(fused_vjp - separate_vjp) > tol_adj .or. &
+                abs(u*fused_jvp - v(1)*fused_vjp) > tol_adj) then
+                nfail = nfail + 1
+            end if
+        end do
     end subroutine test_dawson_outer_generated
 
     ! ---------------------------------------------------------------- gamma_lower
