@@ -103,6 +103,12 @@ elseif(FORTNUM_GPU_BACKEND STREQUAL "OPENMP")
     target_link_libraries(bench_openmp_dawson_offload PRIVATE bench_core)
 endif()
 
+if(NOT FORTNUM_GPU_BACKEND STREQUAL "NONE")
+    add_executable(bench_dawson_gpu_fusion
+        gpu/bench_dawson_gpu_fusion.f90)
+    target_link_libraries(bench_dawson_gpu_fusion PRIVATE bench_core)
+endif()
+
 add_executable(bench_linear_solve_jvp bench_linear_solve_jvp.f90)
 target_link_libraries(bench_linear_solve_jvp PRIVATE bench_core)
 

@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "operation": "generated analytical Dawson fused versus separate GPU products",
+  "workload": {
+    "batch_sizes": [256, 65536, 1048576],
+    "classes": ["launch_bound", "throughput_transition", "resident_throughput_or_transfer_memory_dominated"],
+    "samples": 31,
+    "warmup_samples": 3,
+    "pinned_cpu": 4
+  },
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "gpu": "NVIDIA GeForce RTX 5060 Ti",
+    "gpu_memory_mib": 16311,
+    "driver": "610.43.03"
+  },
+  "toolchain": {
+    "compiler": "NVHPC nvfortran 26.5",
+    "openacc_flags": "-fast -O3 -acc",
+    "openmp_flags": "-fast -O3 -mp=gpu -mp",
+    "fortsym_revision": "bba0d57c3278dce36abb991739e8128d1f3cfc53"
+  },
+  "validation": {
+    "device_paths": "mandatory real NVIDIA execution for OpenACC and OpenMP target",
+    "value_jvp_oracle": "independently evaluated analytical value and JVP",
+    "vjp_oracle": "batched adjoint identity against independently validated JVP",
+    "points": 4096
+  },
+  "comparisons": [
+    {"backend":"openacc","n":256,"residency":"transfer","product":"jvp","fused_ms":0.0410,"fused_mad_ms":0.0009,"separate_ms":0.0480,"separate_mad_ms":0.0010,"speedup":1.1707},
+    {"backend":"openacc","n":256,"residency":"transfer","product":"vjp","fused_ms":0.0441,"fused_mad_ms":0.0003,"separate_ms":0.0510,"separate_mad_ms":0.0019,"speedup":1.1565},
+    {"backend":"openacc","n":256,"residency":"resident","product":"jvp","fused_ms":0.0081,"fused_mad_ms":0.0003,"separate_ms":0.0151,"separate_mad_ms":0.0001,"speedup":1.8642},
+    {"backend":"openacc","n":256,"residency":"resident","product":"vjp","fused_ms":0.0081,"fused_mad_ms":0.0002,"separate_ms":0.0150,"separate_mad_ms":0.0000,"speedup":1.8519},
+    {"backend":"openacc","n":65536,"residency":"transfer","product":"jvp","fused_ms":0.3419,"fused_mad_ms":0.0040,"separate_ms":0.3672,"separate_mad_ms":0.0079,"speedup":1.0740},
+    {"backend":"openacc","n":65536,"residency":"transfer","product":"vjp","fused_ms":0.3500,"fused_mad_ms":0.0069,"separate_ms":0.3579,"separate_mad_ms":0.0057,"speedup":1.0226},
+    {"backend":"openacc","n":65536,"residency":"resident","product":"jvp","fused_ms":0.0210,"fused_mad_ms":0.0001,"separate_ms":0.0329,"separate_mad_ms":0.0002,"speedup":1.5667},
+    {"backend":"openacc","n":65536,"residency":"resident","product":"vjp","fused_ms":0.0210,"fused_mad_ms":0.0000,"separate_ms":0.0331,"separate_mad_ms":0.0002,"speedup":1.5762},
+    {"backend":"openacc","n":1048576,"residency":"transfer","product":"jvp","fused_ms":3.9251,"fused_mad_ms":0.0970,"separate_ms":4.0579,"separate_mad_ms":0.1292,"speedup":1.0338},
+    {"backend":"openacc","n":1048576,"residency":"transfer","product":"vjp","fused_ms":4.0021,"fused_mad_ms":0.0992,"separate_ms":4.0850,"separate_mad_ms":0.0979,"speedup":1.0207},
+    {"backend":"openacc","n":1048576,"residency":"resident","product":"jvp","fused_ms":0.2100,"fused_mad_ms":0.0001,"separate_ms":0.3052,"separate_mad_ms":0.0003,"speedup":1.4533},
+    {"backend":"openacc","n":1048576,"residency":"resident","product":"vjp","fused_ms":0.2100,"fused_mad_ms":0.0002,"separate_ms":0.3052,"separate_mad_ms":0.0003,"speedup":1.4533},
+    {"backend":"openmp","n":256,"residency":"transfer","product":"jvp","fused_ms":0.0410,"fused_mad_ms":0.0010,"separate_ms":0.0480,"separate_mad_ms":0.0002,"speedup":1.1707},
+    {"backend":"openmp","n":256,"residency":"transfer","product":"vjp","fused_ms":0.0410,"fused_mad_ms":0.0000,"separate_ms":0.0489,"separate_mad_ms":0.0010,"speedup":1.1927},
+    {"backend":"openmp","n":256,"residency":"resident","product":"jvp","fused_ms":0.0081,"fused_mad_ms":0.0003,"separate_ms":0.0159,"separate_mad_ms":0.0003,"speedup":1.9630},
+    {"backend":"openmp","n":256,"residency":"resident","product":"vjp","fused_ms":0.0081,"fused_mad_ms":0.0002,"separate_ms":0.0159,"separate_mad_ms":0.0001,"speedup":1.9630},
+    {"backend":"openmp","n":65536,"residency":"transfer","product":"jvp","fused_ms":0.3391,"fused_mad_ms":0.0022,"separate_ms":0.3550,"separate_mad_ms":0.0059,"speedup":1.0469},
+    {"backend":"openmp","n":65536,"residency":"transfer","product":"vjp","fused_ms":0.3419,"fused_mad_ms":0.0053,"separate_ms":0.3519,"separate_mad_ms":0.0019,"speedup":1.0292},
+    {"backend":"openmp","n":65536,"residency":"resident","product":"jvp","fused_ms":0.0210,"fused_mad_ms":0.0001,"separate_ms":0.0329,"separate_mad_ms":0.0000,"speedup":1.5667},
+    {"backend":"openmp","n":65536,"residency":"resident","product":"vjp","fused_ms":0.0209,"fused_mad_ms":0.0001,"separate_ms":0.0332,"separate_mad_ms":0.0003,"speedup":1.5885},
+    {"backend":"openmp","n":1048576,"residency":"transfer","product":"jvp","fused_ms":4.0281,"fused_mad_ms":0.1177,"separate_ms":4.9010,"separate_mad_ms":0.1182,"speedup":1.2167},
+    {"backend":"openmp","n":1048576,"residency":"transfer","product":"vjp","fused_ms":4.4570,"fused_mad_ms":0.1860,"separate_ms":4.7629,"separate_mad_ms":0.4778,"speedup":1.0686},
+    {"backend":"openmp","n":1048576,"residency":"resident","product":"jvp","fused_ms":0.2100,"fused_mad_ms":0.0001,"separate_ms":0.3119,"separate_mad_ms":0.0030,"speedup":1.4852},
+    {"backend":"openmp","n":1048576,"residency":"resident","product":"vjp","fused_ms":0.2101,"fused_mad_ms":0.0003,"separate_ms":0.3071,"separate_mad_ms":0.0010,"speedup":1.4617}
+  ],
+  "peak_rss_bytes_at_n_1048576": [
+    {"backend":"openacc","residency":"transfer","candidate":"fused_jvp","bytes":170471424},
+    {"backend":"openacc","residency":"transfer","candidate":"separate_jvp","bytes":168374272},
+    {"backend":"openacc","residency":"transfer","candidate":"fused_vjp","bytes":170430464},
+    {"backend":"openacc","residency":"transfer","candidate":"separate_vjp","bytes":168284160},
+    {"backend":"openacc","residency":"resident","candidate":"fused_jvp","bytes":153960448},
+    {"backend":"openacc","residency":"resident","candidate":"separate_jvp","bytes":151797760},
+    {"backend":"openacc","residency":"resident","candidate":"fused_vjp","bytes":154001408},
+    {"backend":"openacc","residency":"resident","candidate":"separate_vjp","bytes":153907200},
+    {"backend":"openmp","residency":"transfer","candidate":"fused_jvp","bytes":172670976},
+    {"backend":"openmp","residency":"transfer","candidate":"separate_jvp","bytes":172572672},
+    {"backend":"openmp","residency":"transfer","candidate":"fused_vjp","bytes":174792704},
+    {"backend":"openmp","residency":"transfer","candidate":"separate_vjp","bytes":172691456},
+    {"backend":"openmp","residency":"resident","candidate":"fused_jvp","bytes":158294016},
+    {"backend":"openmp","residency":"resident","candidate":"separate_jvp","bytes":158314496},
+    {"backend":"openmp","residency":"resident","candidate":"fused_vjp","bytes":158314496},
+    {"backend":"openmp","residency":"resident","candidate":"separate_vjp","bytes":158314496}
+  ],
+  "verdict": "fused generated products minimize wall clock in every measured backend, residency, batch-size, and product workload"
+}
