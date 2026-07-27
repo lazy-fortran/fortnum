@@ -106,7 +106,7 @@ independent validation plus measured application runtime and peak memory.
 - [x] Add recomputation-based reverse differentiation as a candidate.
 - [x] Add analytical implicit-stage tangent products.
 - [x] Add analytical implicit-stage adjoint products.
-- [ ] Differentiate event times through the event residual equation.
+- [x] Differentiate event times through the event residual equation.
 - [ ] Document and test the continuous sensitivity contract.
 - [ ] Document and test the discrete sensitivity contract.
 - [ ] Benchmark a short nonstiff trajectory.

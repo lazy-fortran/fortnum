@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "transversal_ode_event_time",
+  "product": "batched_jvp",
+  "workload": "adaptive scalar linear ODE integration, event scan, root location, and all event-time products",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor"
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1",
+    "build": "Release"
+  },
+  "sampling": {
+    "processes": 3,
+    "samples_per_process": 31,
+    "workloads_per_sample": 1000,
+    "runtime_aggregation": "median of process medians",
+    "dispersion_aggregation": "median of within-process MADs",
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum",
+    "perf_repetitions": 3
+  },
+  "validation": {
+    "oracle": "tau=(threshold-y0)/mean(parameters) and its independently derived directional derivative",
+    "absolute_tolerance": 2e-7,
+    "nontransversal_event_rejected": true
+  },
+  "scaling": [
+    {"parameters": 1, "active_inputs": 3, "directions": 1, "analytical_median_ns": 2337.6430, "analytical_mad_ns": 44.1830, "diagnostic_median_ns": 7104.1430, "diagnostic_mad_ns": 221.5670, "analytical_speedup": 3.0390},
+    {"parameters": 4, "active_inputs": 6, "directions": 1, "analytical_median_ns": 2494.3390, "analytical_mad_ns": 53.1400, "diagnostic_median_ns": 7271.3070, "diagnostic_mad_ns": 233.5100, "analytical_speedup": 2.9151},
+    {"parameters": 16, "active_inputs": 18, "directions": 1, "analytical_median_ns": 2456.3370, "analytical_mad_ns": 69.2300, "diagnostic_median_ns": 7108.3210, "diagnostic_mad_ns": 205.8080, "analytical_speedup": 2.8939},
+    {"parameters": 4, "active_inputs": 6, "directions": 4, "analytical_median_ns": 2473.6590, "analytical_mad_ns": 31.0780, "diagnostic_median_ns": 21190.4180, "diagnostic_mad_ns": 647.6800, "analytical_speedup": 8.5664},
+    {"parameters": 4, "active_inputs": 6, "directions": 16, "analytical_median_ns": 2479.6210, "analytical_mad_ns": 61.1360, "diagnostic_median_ns": 77793.7660, "diagnostic_mad_ns": 1486.4090, "analytical_speedup": 31.3732}
+  ],
+  "memory": {
+    "parameters": 16,
+    "directions": 16,
+    "analytical_peak_rss_bytes": 3825664,
+    "diagnostic_peak_rss_bytes": 3866624
+  },
+  "perf": {
+    "parameters": 4,
+    "directions": 16,
+    "workloads_per_repetition": 100000,
+    "analytical": {"cycles": 5023004140, "instructions": 4405929178, "cache_references": 97581453, "cache_misses": 4632983},
+    "diagnostic": {"cycles": 38649970053, "instructions": 102622825684, "cache_references": 2135103178, "cache_misses": 4261565}
+  },
+  "selection": {
+    "selected": "analytical",
+    "criterion": "complete integration-plus-event-location-plus-all-directions wall clock",
+    "reason": "the event residual equation reuses one located crossing instead of perturbing and relocating the event twice per direction"
+  }
+}

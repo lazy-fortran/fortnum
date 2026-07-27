@@ -1145,6 +1145,65 @@ supporting evidence and do not override complete-workload wall clock. The
 machine-readable record is
 `benchmark/reference/ryzen9_5950x_ode_implicit_stage_adjoint.json`.
 
+## Transversal event-time tangent
+
+For a smooth event defined by
+
+\[
+g(\tau(p),y(\tau(p),p),p)=0,
+\]
+
+`ode_event_time_jvp` uses the recorded total derivative along the trajectory:
+
+\[
+\dot\tau =
+-\frac{\left.dg\right|_{\tau\ {\rm fixed}}}
+{g_t+g_y f}.
+\]
+
+It differentiates the residual equation, not the Brent or Illinois
+root-location iterations, and rejects non-transversal crossings. Multiple
+contracted directions reuse one primal crossing.
+
+The independent workload solves \(y'=\operatorname{mean}(p)\) and locates
+\(y-\theta=0\). Its exact event time is
+\(\tau=(\theta-y_0)/\operatorname{mean}(p)\). The timed analytical workload
+includes adaptive integration, event scan and root location, fixed-time
+residual tangents, and all event-time JVPs. The diagnostic includes the same
+base solve plus two complete perturbed integrations and event scans per
+direction. Active inputs are \(y_0\), \(\theta\), and all entries of \(p\).
+Results are medians of three processes, each with 31 samples of 1,000 complete
+workloads. Reference: AMD Ryzen 9 5950X, GNU Fortran 16.1.1, Release.
+
+| Parameters | Active inputs | Directions | Analytical ns | MAD ns | Diagnostic ns | MAD ns | Analytical speedup |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 3 | 1 | 2,337.6430 | 44.1830 | 7,104.1430 | 221.5670 | 3.0390x |
+| 4 | 6 | 1 | 2,494.3390 | 53.1400 | 7,271.3070 | 233.5100 | 2.9151x |
+| 16 | 18 | 1 | 2,456.3370 | 69.2300 | 7,108.3210 | 205.8080 | 2.8939x |
+| 4 | 6 | 4 | 2,473.6590 | 31.0780 | 21,190.4180 | 647.6800 | 8.5664x |
+| 4 | 6 | 16 | 2,479.6210 | 61.1360 | 77,793.7660 | 1,486.4090 | 31.3732x |
+
+Complete-workload wall clock selects `analytical` throughout. At one direction,
+varying the active parameter count from one to sixteen has little effect
+because the residual product is already contracted. At four parameters,
+increasing directions from one to sixteen leaves analytical wall clock
+essentially unchanged at 0.9941 times the one-direction result, while the
+diagnostic grows 10.6987 times.
+
+For sixteen parameters and sixteen directions, candidate-specific peak RSS is
+3,825,664 bytes for analytical and 3,866,624 bytes for the diagnostic. For the
+four-parameter, sixteen-direction workload, `perf stat -r 3` reports:
+
+| Candidate | Cycles | Instructions | Cache references | Cache misses |
+|---|---:|---:|---:|---:|
+| analytical | 5,023,004,140 | 4,405,929,178 | 97,581,453 | 4,632,983 |
+| diagnostic | 38,649,970,053 | 102,622,825,684 | 2,135,103,178 | 4,261,565 |
+
+Cycles, instructions, and cache references corroborate the wall-clock winner.
+Analytical cache-miss dispersion is 40%, so misses are diagnostic only and do
+not override complete-workload wall clock. The machine-readable record is
+`benchmark/reference/ryzen9_5950x_ode_event_time_tangent.json`.
+
 ## Vector-root candidate tournament
 
 The coupled vector tournament uses

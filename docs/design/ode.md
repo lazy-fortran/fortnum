@@ -239,13 +239,15 @@ integration continues and only the first event is reported.
 
 Event derivative rule (ad.md §1, `trace_rule`): an event time and event state
 are differentiable only at a smooth, transversal crossing. Transversal means
-`dg/dt = grad_y g . f` is nonzero at the root, so the implicit function theorem
-gives `d t_event` from `d g = 0`. When the crossing is tangential
+the total derivative `g_t + grad_y g . f` is nonzero at the root, so
+`ode_event_time_jvp` applies the implicit function theorem
+`d t_event = -d g|_t / (g_t + grad_y g . f)`. Its residual tangent is evaluated
+with event time fixed and may include state and parameter directions. Multiple
+directions reuse the same located crossing. When the crossing is tangential
 (`dg/dt` within `event_tol` of zero) or `g` is non-smooth at the root, the event
 time is not a differentiable function of `y0` or the parameters; the integrator
 reports `FORTNUM_DOMAIN_ERROR` with a message naming the non-transversal event,
-and the trace up to the event stays valid as a primal. A derivative product
-under #40 checks transversality before propagating an event sensitivity.
+and the trace up to the event stays valid as a primal.
 
 ## 7. Forward, reverse, and checkpointing
 

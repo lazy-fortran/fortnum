@@ -87,6 +87,11 @@ RHS cotangents through a parameter-VJP callback. With four states, sixteen
 parameters, and one objective it is 20.21 times faster than complete-solve
 finite differences; complete wall clock selects it in every measured regime.
 
+Transversal event times use an `analytical` implicit JVP of the event residual,
+not the root-location iterations. For four parameters and sixteen directions,
+one primal integration plus all event-time products takes 2.48 µs versus
+77.79 µs for complete-solve finite differences, a 31.37× wall-clock win.
+
 ## Build
 
 CMake is the primary build system with CTest integration:
