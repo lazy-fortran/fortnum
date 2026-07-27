@@ -92,6 +92,12 @@ not the root-location iterations. For four parameters and sixteen directions,
 one primal integration plus all event-time products takes 2.48 µs versus
 77.79 µs for complete-solve finite differences, a 31.37× wall-clock win.
 
+The ODE forward sensitivity now has an explicit continuous contract: it
+approximates the variational IVP at fixed terminal time on the primal's frozen
+mesh. Halving the maximum step reduced the closed-form-oracle error from
+`1.41e-6` to `6.40e-11` over four refinements. For sixteen sequential
+directions it is 1.10× faster than complete-solve finite differences.
+
 ## Build
 
 CMake is the primary build system with CTest integration:
