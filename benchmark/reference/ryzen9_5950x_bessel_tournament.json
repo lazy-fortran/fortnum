@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "sin(I0(x)) + I0(x)^2",
+  "products": ["jvp", "vjp"],
+  "active_inputs": 1,
+  "outputs": 1,
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "autodiff": "Enzyme 22",
+    "optimization": "O2"
+  },
+  "candidates": {
+    "analytical": "explicit I0/I1 recurrence plus outer chain rule",
+    "autodiff": "Enzyme through the complete Bessel primal and outer expression",
+    "hybrid": "Enzyme outer derivative with an analytical I0 custom JVP rule"
+  },
+  "sampling": {
+    "independent_processes": 15,
+    "jvp_workloads_per_process": 200000,
+    "vjp_workloads_per_process": 100000,
+    "runtime_aggregation": "median",
+    "dispersion": "median absolute deviation"
+  },
+  "validation": {
+    "oracle": "central difference of the complete outer objective",
+    "regions_checked": ["series", "recurrence", "asymptotic"],
+    "relative_tolerance": 2e-8,
+    "hybrid_provenance": "one analytical I0 custom-rule call asserted per JVP"
+  },
+  "regions": [
+    {
+      "name": "series",
+      "center_x": 1.0,
+      "jvp": [
+        {"directions": 1, "analytical_ns": 61.172365, "analytical_mad_ns": 1.480490, "autodiff_ns": 76.703390, "autodiff_mad_ns": 2.059480, "hybrid_ns": 64.623420, "hybrid_mad_ns": 1.341730},
+        {"directions": 4, "analytical_ns": 231.306225, "analytical_mad_ns": 4.473885, "autodiff_ns": 291.127440, "autodiff_mad_ns": 5.562890, "hybrid_ns": 241.505150, "hybrid_mad_ns": 3.890685},
+        {"directions": 16, "analytical_ns": 917.275660, "analytical_mad_ns": 20.420940, "autodiff_ns": 1131.980080, "autodiff_mad_ns": 16.285350, "hybrid_ns": 979.125890, "hybrid_mad_ns": 18.158980}
+      ],
+      "vjp": [
+        {"cotangents": 1, "analytical_ns": 62.616220, "analytical_mad_ns": 2.465550, "autodiff_ns": 202.876680, "autodiff_mad_ns": 6.327120},
+        {"cotangents": 4, "analytical_ns": 237.867120, "analytical_mad_ns": 3.985010, "autodiff_ns": 835.565540, "autodiff_mad_ns": 19.306690},
+        {"cotangents": 16, "analytical_ns": 929.241600, "analytical_mad_ns": 31.574310, "autodiff_ns": 3222.316490, "autodiff_mad_ns": 60.730560}
+      ]
+    },
+    {
+      "name": "recurrence",
+      "center_x": 4.0,
+      "jvp": [
+        {"directions": 1, "analytical_ns": 371.336030, "analytical_mad_ns": 8.203665, "autodiff_ns": 245.206975, "autodiff_mad_ns": 6.660760, "hybrid_ns": 387.178090, "hybrid_mad_ns": 14.174415},
+        {"directions": 4, "analytical_ns": 1457.045175, "analytical_mad_ns": 18.911305, "autodiff_ns": 968.677025, "autodiff_mad_ns": 4.371395, "hybrid_ns": 1472.164755, "hybrid_mad_ns": 28.109785},
+        {"directions": 16, "analytical_ns": 5763.282255, "analytical_mad_ns": 60.991425, "autodiff_ns": 3788.274910, "autodiff_mad_ns": 40.648010, "hybrid_ns": 5781.133165, "hybrid_mad_ns": 78.905185}
+      ],
+      "vjp": [
+        {"cotangents": 1, "analytical_ns": 379.793520, "analytical_mad_ns": 4.670810, "autodiff_ns": 366.511190, "autodiff_mad_ns": 8.811810},
+        {"cotangents": 4, "analytical_ns": 1449.072740, "analytical_mad_ns": 36.062980, "autodiff_ns": 1427.563000, "autodiff_mad_ns": 31.002830},
+        {"cotangents": 16, "analytical_ns": 5697.044880, "analytical_mad_ns": 50.650380, "autodiff_ns": 5521.690160, "autodiff_mad_ns": 71.182000}
+      ]
+    },
+    {
+      "name": "asymptotic",
+      "center_x": 24.0,
+      "jvp": [
+        {"directions": 1, "analytical_ns": 185.588125, "analytical_mad_ns": 2.595945, "autodiff_ns": 157.625665, "autodiff_mad_ns": 1.903135, "hybrid_ns": 187.396080, "hybrid_mad_ns": 5.586985},
+        {"directions": 4, "analytical_ns": 701.639350, "analytical_mad_ns": 8.718630, "autodiff_ns": 603.229855, "autodiff_mad_ns": 10.523280, "hybrid_ns": 717.184400, "hybrid_mad_ns": 18.237625},
+        {"directions": 16, "analytical_ns": 2784.492675, "analytical_mad_ns": 30.736690, "autodiff_ns": 2400.249025, "autodiff_mad_ns": 83.265840, "hybrid_ns": 2868.690965, "hybrid_mad_ns": 29.129955}
+      ],
+      "vjp": [
+        {"cotangents": 1, "analytical_ns": 185.989250, "analytical_mad_ns": 5.735320, "autodiff_ns": 403.922390, "autodiff_mad_ns": 16.542980},
+        {"cotangents": 4, "analytical_ns": 730.321760, "analytical_mad_ns": 13.090480, "autodiff_ns": 1601.495690, "autodiff_mad_ns": 30.972180},
+        {"cotangents": 16, "analytical_ns": 2774.859240, "analytical_mad_ns": 24.532120, "autodiff_ns": 6063.291490, "autodiff_mad_ns": 65.198220}
+      ]
+    }
+  ],
+  "memory_at_16_products_bytes": {
+    "series": {"analytical_jvp": 2965504, "autodiff_jvp": 3022848, "hybrid_jvp": 2904064, "analytical_vjp": 2949120, "autodiff_vjp": 2711552},
+    "recurrence": {"analytical_jvp": 3039232, "autodiff_jvp": 2768896, "hybrid_jvp": 3072000, "analytical_vjp": 3031040, "autodiff_vjp": 2789376},
+    "asymptotic": {"analytical_jvp": 3018752, "autodiff_jvp": 2920448, "hybrid_jvp": 3133440, "analytical_vjp": 3129344, "autodiff_vjp": 2760704}
+  },
+  "native_code": {
+    "executable_bytes": 2188592,
+    "autodiff_jvp_symbol_bytes": 1377,
+    "autodiff_vjp_symbol_bytes": 3204,
+    "analytical_custom_jvp_rule_bytes": 157
+  },
+  "perf_at_16_products": {
+    "series": {
+      "analytical_jvp": {"cycles": 4176.473, "instructions": 9950.099, "cache_misses": 0.372},
+      "autodiff_jvp": {"cycles": 5267.842, "instructions": 8462.097, "cache_misses": 0.437},
+      "hybrid_jvp": {"cycles": 4318.276, "instructions": 10782.098, "cache_misses": 0.363},
+      "analytical_vjp": {"cycles": 4191.832, "instructions": 10286.137, "cache_misses": 0.381},
+      "autodiff_vjp": {"cycles": 14359.786, "instructions": 53582.125, "cache_misses": 0.377}
+    },
+    "recurrence": {
+      "analytical_jvp": {"cycles": 26257.915, "instructions": 49196.069, "cache_misses": 0.394},
+      "autodiff_jvp": {"cycles": 17282.623, "instructions": 36629.086, "cache_misses": 0.397},
+      "hybrid_jvp": {"cycles": 26707.506, "instructions": 50028.070, "cache_misses": 0.459},
+      "analytical_vjp": {"cycles": 26908.858, "instructions": 49532.107, "cache_misses": 0.880},
+      "autodiff_vjp": {"cycles": 25578.221, "instructions": 68476.415, "cache_misses": 0.436}
+    },
+    "asymptotic": {
+      "analytical_jvp": {"cycles": 12765.174, "instructions": 24774.659, "cache_misses": 0.402},
+      "autodiff_jvp": {"cycles": 10913.733, "instructions": 19446.661, "cache_misses": 0.690},
+      "hybrid_jvp": {"cycles": 13405.539, "instructions": 25606.658, "cache_misses": 0.997},
+      "analytical_vjp": {"cycles": 12875.202, "instructions": 25110.698, "cache_misses": 0.418},
+      "autodiff_vjp": {"cycles": 28140.808, "instructions": 82838.698, "cache_misses": 0.503}
+    }
+  },
+  "selection": {
+    "series_jvp": "analytical",
+    "series_vjp": "analytical",
+    "recurrence_jvp": "autodiff",
+    "recurrence_vjp": "autodiff",
+    "asymptotic_jvp": "autodiff",
+    "asymptotic_vjp": "analytical",
+    "criterion": "complete derivative-product wall clock",
+    "reason": "raw autodiff reuses one primal trace in recurrence/asymptotic JVPs, while reverse-mode overhead loses outside the recurrence VJP"
+  }
+}

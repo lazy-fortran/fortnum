@@ -280,6 +280,60 @@ taskset -c 4 /usr/bin/time -v \
   --benchmark
 ```
 
+## Modified-Bessel outer-expression tournament
+
+The workload `sin(I0(x)) + I0(x)**2` compares an explicit analytical chain
+rule, raw Enzyme through the complete Bessel primal, and a forward `hybrid`
+whose Enzyme outer derivative calls an analytical `I0` JVP rule. Central
+differences of the complete objective independently validate all candidates.
+The JVP test also asserts exactly one custom-rule call. Integer order and
+region selection remain inactive.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, Flang/LLVM 22.1.8, Enzyme 22,
+Release `-O2`, 15 independent processes. Times below are medians for 16
+products; parentheses contain MAD.
+
+| Region (`x`) | Analytical JVP | Autodiff JVP | Hybrid JVP | JVP winner |
+|---|---:|---:|---:|---|
+| series (1) | 917.276 (20.421) ns | 1,131.980 (16.285) ns | 979.126 (18.159) ns | `analytical` |
+| recurrence (4) | 5,763.282 (60.991) ns | 3,788.275 (40.648) ns | 5,781.133 (78.905) ns | `autodiff` |
+| asymptotic (24) | 2,784.493 (30.737) ns | 2,400.249 (83.266) ns | 2,868.691 (29.130) ns | `autodiff` |
+
+| Region (`x`) | Analytical VJP | Reverse-autodiff VJP | VJP winner |
+|---|---:|---:|---|
+| series (1) | 929.242 (31.574) ns | 3,222.316 (60.731) ns | `analytical` |
+| recurrence (4) | 5,697.045 (50.650) ns | 5,521.690 (71.182) ns | `autodiff` |
+| asymptotic (24) | 2,774.859 (24.532) ns | 6,063.291 (65.198) ns | `analytical` |
+
+Raw forward Enzyme is 1.52 times faster in the recurrence region because it
+reuses intermediates from one differentiated primal evaluation; the
+analytical and hybrid formulas separately evaluate `I0` and `I1`. Reverse
+Enzyme has enough tape/adjoint work that it wins only the recurrence VJP, by
+3.2%. This establishes a region- and product-specific forward/reverse
+crossover rather than a global Bessel policy.
+
+Peak RSS remains in the 2.71--3.13 MiB process-baseline band. Cache misses at
+16 products remain below one per complete workload for every candidate.
+Generated native symbol sizes are 1,377 bytes for raw forward Enzyme, 3,204
+bytes for raw reverse Enzyme, and 157 bytes for the analytical custom JVP rule.
+A reverse custom rule is not yet implemented, so reverse differentiation
+through the primal is correctly reported as `autodiff`, not `hybrid`.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_bessel_tournament.json`.
+
+```bash
+ctest --test-dir build-enzyme -R '^enzyme_bessel_tournament$' \
+    --output-on-failure
+env FORTNUM_BESSEL_ACTION=--benchmark \
+    FORTNUM_BESSEL_CANDIDATE=autodiff \
+    FORTNUM_BESSEL_PRODUCT=jvp \
+    FORTNUM_BESSEL_REGION=recurrence \
+    FORTNUM_BESSEL_DIRECTIONS=16 \
+    FORTNUM_BESSEL_ITERATIONS=200000 \
+    ctest --test-dir build-enzyme -V -R '^enzyme_bessel_tournament$'
+```
+
 ## Analytical linear-solve JVP factorization reuse
 
 This workload applies 200,000 JVP directions to one dense 16-by-16 primal

@@ -23,6 +23,7 @@ program plot_differentiation_report
         trim(output_dir)//'/runner_up_slowdown.png')
     call plot_direct_solver_scaling(trim(output_dir))
     call plot_bspline_span_scaling(trim(output_dir))
+    call plot_bessel_regions(trim(output_dir))
 
 contains
 
@@ -180,6 +181,53 @@ contains
             'VJP cotangents (count)', &
             trim(output_path)//'/bspline_fixed_span_vjp_scaling.png')
     end subroutine plot_bspline_span_scaling
+
+    subroutine plot_bessel_regions(output_path)
+        character(len=*), intent(in) :: output_path
+        real(dp), parameter :: regions(3) = [1.0_dp, 2.0_dp, 3.0_dp]
+        character(len=16), parameter :: labels(3) = [character(len=16) :: &
+            'series x=1', 'recurrence x=4', 'asymptotic x=24']
+        real(dp), parameter :: jvp_analytical(3) = [917.275660_dp, &
+            5763.282255_dp, 2784.492675_dp]
+        real(dp), parameter :: jvp_autodiff(3) = [1131.980080_dp, &
+            3788.274910_dp, 2400.249025_dp]
+        real(dp), parameter :: jvp_hybrid(3) = [979.125890_dp, &
+            5781.133165_dp, 2868.690965_dp]
+        real(dp), parameter :: vjp_analytical(3) = [929.241600_dp, &
+            5697.044880_dp, 2774.859240_dp]
+        real(dp), parameter :: vjp_autodiff(3) = [3222.316490_dp, &
+            5521.690160_dp, 6063.291490_dp]
+        real(dp), parameter :: blue(3) = [0.0_dp, 114.0_dp, 178.0_dp]/255.0_dp
+        real(dp), parameter :: orange(3) = [230.0_dp, 159.0_dp, 0.0_dp]/255.0_dp
+        real(dp), parameter :: green(3) = [0.0_dp, 158.0_dp, 115.0_dp]/255.0_dp
+
+        call figure()
+        call plot(regions, jvp_analytical/1000.0_dp, label='analytical', &
+            color=blue, linestyle='-', marker='o', linewidth=2.0_dp)
+        call plot(regions, jvp_autodiff/1000.0_dp, label='autodiff', &
+            color=orange, linestyle='--', marker='s', linewidth=2.0_dp)
+        call plot(regions, jvp_hybrid/1000.0_dp, label='hybrid', color=green, &
+            linestyle=':', marker='x', linewidth=2.0_dp)
+        call set_xticks(regions, labels)
+        call title('Bessel JVP mechanism changes by primal region')
+        call xlabel('I0 primal region')
+        call ylabel('16-product wall clock (microseconds)')
+        call legend()
+        call save_checked(trim(output_path)//'/bessel_jvp_regions.png')
+
+        call figure()
+        call plot(regions, vjp_analytical/1000.0_dp, label='analytical', &
+            color=blue, linestyle='-', marker='o', linewidth=2.0_dp)
+        call plot(regions, vjp_autodiff/1000.0_dp, &
+            label='autodiff (Enzyme reverse)', color=orange, linestyle='--', &
+            marker='s', linewidth=2.0_dp)
+        call set_xticks(regions, labels)
+        call title('Bessel VJP mechanism changes by primal region')
+        call xlabel('I0 primal region')
+        call ylabel('16-product wall clock (microseconds)')
+        call legend()
+        call save_checked(trim(output_path)//'/bessel_vjp_regions.png')
+    end subroutine plot_bessel_regions
 
     subroutine scaling_figure(x, analytical, autodiff, diagnostic, heading, &
             x_label, path)

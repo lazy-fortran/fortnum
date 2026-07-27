@@ -7,7 +7,7 @@ the source records under `benchmark/reference/`.
 
 ## Scope
 
-The cumulative data set contains 26 measured derivative-product tournaments
+The cumulative data set contains 32 measured derivative-product tournaments
 for which competing mechanism timings are committed. It excludes comparisons
 between two implementations of the same mechanism, incomplete selections, and
 reliability-only experiments. Finite differences remain a validation
@@ -23,14 +23,14 @@ measurement noise and the smaller analytical implementation remains selected.
 
 | Mechanism | Selected workloads | Share | Raw fastest workloads |
 |---|---:|---:|---:|
-| `analytical` | 19 | 73.1% | 18 |
-| `autodiff` | 3 | 11.5% | 3 |
-| `hybrid` | 4 | 15.4% | 5 |
+| `analytical` | 22 | 68.8% | 21 |
+| `autodiff` | 6 | 18.8% | 6 |
+| `hybrid` | 4 | 12.5% | 5 |
 | finite-difference diagnostic | 0 | 0.0% | 0 |
 
-Across the 26 workloads, the second-fastest candidate ranges from 1.004x to
-1,224.355x the fastest wall clock. The median ratio is 1.179x and the
-geometric mean is 2.144x. Sixteen workloads are tightly grouped near the
+Across the 32 workloads, the second-fastest candidate ranges from 1.004x to
+1,224.355x the fastest wall clock. The median ratio is 1.215x and the
+geometric mean is 2.021x. Nineteen workloads are tightly grouped near the
 fastest candidate; full finite-difference VJPs of fitted coefficients provide
 the largest separation.
 Consequently, mechanism counts describe only the current measured workload
@@ -62,9 +62,15 @@ is 2.8% faster than analytical, while analytical VJP is 6.6% faster than
 reverse Enzyme. The selected mechanism therefore changes with both derivative
 product and workload shape.
 
+The modified-Bessel outer objective strengthens that conclusion across primal
+regions. At 16 products, analytical wins series JVP/VJP and asymptotic VJP;
+raw Enzyme wins recurrence JVP/VJP and asymptotic JVP. The forward hybrid
+custom rule is validated but does not win because its `I0` and `I1`
+evaluations duplicate work that raw forward Enzyme reuses.
+
 ## Figures
 
-The generator creates six independent PNGs:
+The generator creates eight independent PNGs:
 
 - selected-mechanism workload counts
 - a histogram of
@@ -73,6 +79,8 @@ The generator creates six independent PNGs:
 - complete-wall-clock scaling with reverse VJP cotangents
 - fixed-span B-spline JVP scaling
 - fixed-span B-spline VJP scaling
+- Bessel JVP mechanisms across three primal regions
+- Bessel VJP mechanisms across three primal regions
 
 The scaling figures use microseconds and encode mechanisms with an
 Okabe-Ito-derived color-safe palette plus distinct line styles and markers.
