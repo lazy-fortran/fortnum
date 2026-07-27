@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "multiroot_implicit",
+  "product": "jvp_condition_diagnostic",
+  "workload": "16x16 dense residual Jacobian, 10000 parameter directions per sample",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "gfortran": "16.1.1 20260625",
+    "cmake": "4.4.0"
+  },
+  "sampling": {
+    "warmup_rounds": 3,
+    "samples": 15,
+    "calls_per_sample": 10000
+  },
+  "validation": {
+    "oracle": "analytical reciprocal 1-norm condition numbers for a symmetric 2x2 matrix and a diagonal ill-conditioned matrix",
+    "well_conditioned_expected": 0.3333333333333333,
+    "ill_conditioned_expected": 1e-8
+  },
+  "memory_method": "/usr/bin/time -v around taskset -c 4 fo exec",
+  "candidates": [
+    {
+      "id": "plain_product",
+      "mechanism": "analytical",
+      "median_ns_per_call": 2936.5041,
+      "mad_ns_per_call": 9.2533,
+      "peak_rss_bytes": 23650304
+    },
+    {
+      "id": "product_with_rcond",
+      "mechanism": "analytical",
+      "median_ns_per_call": 46947.1965,
+      "mad_ns_per_call": 928.5938,
+      "peak_rss_bytes": 23453696
+    }
+  ],
+  "selection": {
+    "selected": "plain_product_by_default",
+    "diagnostic_runtime_ratio": 15.9874,
+    "reason": "exact inverse-norm estimation is validated but expensive, so callers request it only when reliability information is required"
+  }
+}

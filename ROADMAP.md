@@ -49,7 +49,7 @@ independent validation plus measured application runtime and peak memory.
 - [x] Add reusable preconditioner hooks for implicit products.
 - [x] Connect committed benchmark records to build-time candidate selection.
 - [x] Generate a static per-workload selection registry.
-- [ ] Add conditioning diagnostics to implicit derivative products.
+- [x] Add conditioning diagnostics to implicit derivative products.
 - [ ] Add derivative-reliability status for ill-conditioned implicit products.
 - [ ] Measure candidate-specific peak memory instead of shared-process RSS.
 

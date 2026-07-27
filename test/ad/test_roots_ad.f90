@@ -45,6 +45,7 @@ program test_roots_ad
     call test_multiroot_dot_product_id(nfail)
     call test_multiroot_singular(nfail)
     call test_multiroot_preconditioner_hook(nfail)
+    call test_multiroot_condition_diagnostic(nfail)
 
     if (nfail > 0) then
         write (error_unit, '(i0,a)') nfail, " test(s) failed"
@@ -361,6 +362,33 @@ contains
             nfail = nfail + 1
         end if
     end subroutine test_multiroot_preconditioner_hook
+
+    subroutine test_multiroot_condition_diagnostic(nfail)
+        integer, intent(inout) :: nfail
+        real(dp) :: jac_x(2, 2), f_p(2, 2), tp(2), dx(2), rcond
+        type(fortnum_status_t) :: st
+
+        f_p = reshape([-1.0_dp, 0.0_dp, 0.0_dp, -1.0_dp], [2, 2])
+        tp = [0.3_dp, -0.5_dp]
+
+        jac_x = reshape([2.0_dp, 1.0_dp, 1.0_dp, 2.0_dp], [2, 2])
+        call multiroot_jvp(jac_x, f_p, tp, dx, st, &
+            reciprocal_condition=rcond)
+        if (abs(rcond - 1.0_dp/3.0_dp) > 2.0e-15_dp) then
+            write (error_unit, '(a,es24.16)') &
+                "FAIL [mr_condition] expected 1/3, got ", rcond
+            nfail = nfail + 1
+        end if
+
+        jac_x = reshape([1.0_dp, 0.0_dp, 0.0_dp, 1.0e-8_dp], [2, 2])
+        call multiroot_jvp(jac_x, f_p, tp, dx, st, &
+            reciprocal_condition=rcond)
+        if (abs(rcond - 1.0e-8_dp) > 1.0e-22_dp) then
+            write (error_unit, '(a,es24.16)') &
+                "FAIL [mr_condition] expected 1e-8, got ", rcond
+            nfail = nfail + 1
+        end if
+    end subroutine test_multiroot_condition_diagnostic
 
     subroutine diagonal_solve(a, b, x, info, context)
         real(dp), intent(in) :: a(:, :), b(:)
