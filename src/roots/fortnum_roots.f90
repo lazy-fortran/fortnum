@@ -35,6 +35,7 @@ module fortnum_roots
     public :: root_bisect, root_newton, root_brent
     public :: root_implicit_jvp, root_implicit_vjp
     public :: root_jvp, root_vjp, root_grad
+    public :: root_scalar_implicit_jvp_core
 
     ! Function whose root is sought: y = f(x).
     abstract interface
@@ -474,20 +475,37 @@ contains
         real(dp), intent(in), optional      :: deriv_floor
 
         real(dp) :: dfloor
+        logical :: reliable
 
         dfloor = 1.0e-14_dp
         if (present(deriv_floor)) dfloor = deriv_floor
 
-        if (abs(f_x) < dfloor) then
-            dx = 0.0_dp
+        call root_scalar_implicit_jvp_core( &
+            f_x, dot_product(f_p, tp), dfloor, dx, reliable)
+        if (.not. reliable) then
             call status_set(status, FORTNUM_DOMAIN_ERROR, &
                 "root_jvp: |f_x| near zero; near-multiple root, derivative unreliable")
             return
         end if
 
-        dx = -dot_product(f_p, tp) / f_x
         call status_set(status, FORTNUM_OK, "")
     end subroutine root_jvp
+
+    pure subroutine root_scalar_implicit_jvp_core( &
+            f_x, f_p_tp, deriv_floor, dx, reliable)
+        !$omp declare target
+        !$acc routine seq
+        real(dp), intent(in) :: f_x, f_p_tp, deriv_floor
+        real(dp), intent(out) :: dx
+        logical, intent(out) :: reliable
+
+        reliable = abs(f_x) >= deriv_floor
+        if (reliable) then
+            dx = -f_p_tp/f_x
+        else
+            dx = 0.0_dp
+        end if
+    end subroutine root_scalar_implicit_jvp_core
 
     ! Generic analytical implicit tangent boundary. residual_jvp evaluates the
     ! local contracted products at the already-converged root; solver iterations
