@@ -13,18 +13,24 @@ Name and domain (e.g. `dop853`, ODE solvers).
 List the algorithms, papers, or standards (DLMF, textbooks) the implementation
 will follow. No reference to GPL/LGPL source code.
 
-## Derivative policy
+## Derivative candidates
 
-Select one per procedure or mark `TBD`. See `docs/design/ad.md` for
-definitions and annotation syntax.
+Select every admissible candidate per derivative product or mark `TBD`. See
+`docs/design/ad.md`.
 
-- [ ] `transparent`
-- [ ] `analytic_rule`
-- [ ] `implicit_rule`
-- [ ] `trace_rule`
+- [ ] `autodiff`
+- [ ] `analytical`
+- [ ] `hybrid`
+- [ ] `finite_difference_reference`
 - [ ] `primal_only` (justify below)
 
 Justification for `primal_only` (if applicable):
+
+Requested products and candidate details:
+
+Validation oracle:
+
+Representative benchmark workloads:
 
 ## Active arguments
 

@@ -1,47 +1,62 @@
 # ADR: Derivative contract for every public module
 
-Status: accepted (issue #37, M6.1). Normative for all later module ADRs and
-implementation issues.
+Status: accepted (issue #37, M6.1), amended by
+`docs/performance_optimal_differentiation.md`. Normative for all later module
+ADRs and implementation issues.
 
 fortnum is primal-first. A routine computes a value, and that value is correct
 on its own, before any derivative exists. But every public procedure is written
 so a derivative can be added later without changing the primal signature or the
 primal behavior. This document fixes the contract that makes "later" cheap: what
-a derivative is called, which arguments carry it, and which policy class governs
-how it is produced.
+a derivative is called, which arguments carry it, and which candidate
+mechanisms may produce it.
 
 The contract is the shared vocabulary. A module ADR does not redefine these
 terms; it cites the section numbers here and fills in the module-specific
-choices. `CONTRIBUTING.md` summarizes the policy-class names for contributors
+choices. `CONTRIBUTING.md` summarizes the candidate terms for contributors
 and names this file as the source of truth. Where the two disagree, this file
 wins.
 
-## 1. Policy classes
+## 1. Candidate mechanisms
 
-Each public procedure is assigned exactly one policy class. The class is
-declared in the module-level doc comment and decides how the derivative is
-produced, not whether one exists.
+A public procedure may have several implementations of the same derivative
+product. The public terminology is:
 
-- `transparent`: Enzyme differentiates the implementation directly. The primal
-  has no branch on an active variable and no hidden state, so source-level
-  automatic differentiation gives the correct derivative with no extra code.
-- `analytic_rule`: fortnum supplies handwritten JVP/VJP/gradient/HVP code. The
-  closed form or recurrence is known and cheaper or more stable than
-  differentiating the primal.
-- `implicit_rule`: the derivative is defined by an implicit equation, not by
-  differentiating the iteration that finds the primal. A root `f(x, p) = 0` and
-  a linear solve `A(p) x = b(p)` both differentiate through the defining
-  equation, not through the solver steps.
-- `trace_rule`: the derivative is defined on a recorded, then frozen, primal
-  trace. Adaptive methods choose step sizes, node counts, or refinement from the
-  data; the derivative is taken at the schedule the primal selected, with that
-  schedule held fixed.
-- `primal_only`: no derivative is mathematically meaningful or supported. RNG
-  draws are the canonical case: the output is not a differentiable function of
-  the seed. A `primal_only` declaration carries a one-line justification.
+- `autodiff`: a compiler or source-transformation backend differentiates a
+  smooth implementation.
+- `analytical`: an explicit expression, recurrence, implicit equation,
+  tangent or adjoint solve, fixed linear operator, or frozen-trace rule supplies
+  the product.
+- `hybrid`: autodiff composes a larger smooth calculation while one or more
+  mathematical operators use analytical custom rules at their interfaces.
 
-The classes are exhaustive and disjoint. A procedure that seems to need two is
-either two procedures, or its class is wrong.
+These terms describe implementations, not exclusive procedure classes. For
+example, `root_jvp` can have an analytical implicit implementation, an autodiff
+implementation that differentiates solver iterations, and a hybrid
+implementation that obtains residual products by autodiff and applies the
+analytical implicit rule at the solver boundary.
+
+Candidate metadata may refine the public terms with mechanisms such as
+`autodiff_forward`, `autodiff_reverse`, `analytical_expression`,
+`analytical_recurrence`, `analytical_implicit_tangent`,
+`analytical_implicit_adjoint`, `analytical_frozen_trace_forward`,
+`analytical_frozen_trace_reverse`, and `hybrid_custom_rule`.
+
+`finite_difference_reference` is a validation or fallback candidate.
+`primal_only` means no derivative is mathematically meaningful for the declared
+active arguments. A `primal_only` declaration carries a one-line
+justification.
+
+For each derivative product, documentation records:
+
+1. every mathematically admissible candidate
+2. the independent validation oracle
+3. the workload classes that affect selection
+4. benchmark evidence for the selected implementation
+
+No candidate wins from its mechanism name. Production selection minimizes
+measured application runtime and peak memory subject to the derivative contract
+and validation tolerance.
 
 ## 2. Naming convention
 
@@ -55,13 +70,12 @@ For a primal routine `foo`, the public derivative entry points are:
 - `foo_ad(...)`: optional combined convenience wrapper over the above.
 
 Not every primal needs every name. A scalar-output routine offers `foo_grad`; a
-vector-output routine offers `foo_jvp` and `foo_vjp`. Add the names the policy
-class and the output shape justify, no more.
+vector-output routine offers `foo_jvp` and `foo_vjp`. Add the names the
+derivative contract and output shape justify, no more.
 
-Enzyme-generated entry points stay internal. Public callers use the `foo_*`
-names above and never call a raw `__enzyme_*` symbol. The internal symbols are
-an implementation detail of the `analytic_rule` and `transparent` paths and may
-change without notice.
+Autodiff-generated entry points stay internal. Public callers use the `foo_*`
+names above and never call a raw `__enzyme_*` symbol. Generated symbols,
+analytical rules, dispatch, and registry data are implementation details.
 
 ## 3. Active argument rules
 
@@ -69,13 +83,13 @@ An argument is active if the derivative flows through it, inactive otherwise.
 The classification is part of the contract and is declared per procedure.
 
 - Active real and complex arrays use contiguous explicit-shape or assumed-size
-  wrappers on the Enzyme path first. The simplest memory layout is the one the
-  AD path is tested against; richer layouts are added only once they have a
-  test.
+  wrappers on the autodiff path first. The simplest memory layout is the one
+  the compiler path is tested against. Add richer layouts only with dedicated
+  tests.
 - Descriptors, allocatables, polymorphism, optional active arguments, and
-  derived-type components are allowed on the AD path only when a dedicated
-  Enzyme test covers that shape. No test, no support; the primal may still use
-  them freely.
+  derived-type components are allowed on an autodiff path only when a dedicated
+  compiler test covers that shape. No test means no autodiff support. The primal
+  may still use them freely.
 - Integers, sizes, orders, keys, branch modes, RNG seeds, status flags, and
   workspace capacities are inactive. They select behavior or report it; they do
   not carry a derivative.
@@ -83,37 +97,39 @@ The classification is part of the contract and is declared per procedure.
 The `fortnum_status_t` object is inactive. Status reporting is a side channel,
 not a differentiable output.
 
-## 4. Per-module policy table
+## 4. Per-module candidate table
 
-Default policy class for each planned module. The default is the expected case;
-an individual procedure may differ when its doc comment says so and gives the
-reason.
+The table lists leading candidates. It does not preselect a winner.
 
-| Module      | Default policy   | Rationale |
-|-------------|------------------|-----------|
-| `special`   | `analytic_rule` (some `transparent`) | Derivatives follow known recurrences and identities (e.g. `Gamma'/Gamma = psi`); use the closed form where it is more stable, fall back to `transparent` for plain polynomial or rational kernels. The complex Bessel functions (`fortnum_special_complex_bessel`) and `hyperg_1f1_a1` use `analytic_rule` with the DLMF order/argument recurrences; the erf/erfc C-ABI provider (`fortnum_special_erf_cbind`) is `transparent`, active argument `x`. |
-| `fft`       | `transparent`    | The transform is linear; its Jacobian is the transform itself, and the straight-line implementation differentiates cleanly. |
-| `quadrature`| `transparent`    | Fixed-rule quadrature is a fixed weighted sum, so it is `transparent` with respect to integrand values; the nodes and weights are inactive parameters. `gauss_legendre` and `gauss_gen_laguerre` both build such a rule; the same `gauss_legendre_jvp`/`vjp`/`grad` products act on either weight vector, since only the integrand values are active. |
-| `levin`     | `primal_only`    | Levin-u acceleration is a nonlinear rational transform of the term sequence and the selected order is data-dependent; no transparent or closed-form rule applies. Active: the terms. |
-| `integrate` | `trace_rule`     | Adaptive integration picks subdivisions from the integrand; differentiate at the frozen subdivision the primal chose. |
-| `ode`       | `trace_rule`     | Adaptive step control makes step sizes data-dependent; record the accepted step schedule and differentiate the frozen trace. The DOP853 integrator (`fortnum_ode_dop853`) shares the policy and the recorded-mesh carriers. |
-| `roots`     | `implicit_rule`  | The root satisfies `f(x, p) = 0`; the implicit function theorem gives the derivative without differentiating the iteration. The n-dimensional solvers (`fortnum_multiroot`) follow the same rule with the Jacobian `J_x`; `deriv_central` and `argsort` in that module are `primal_only`. The complex region finder (`fortnum_roots_complex`, `complex_region_roots`) is `implicit_rule` with `differentiate_through=false`: a zero satisfies `f(z*, p) = 0`, so `dz*/dp = -f_p/f'(z*)` without differentiating the contour integral or the ZGGEV eigensolve, and no consumer differentiates through the region search, so it provides no JVP/VJP. |
-| `interp`    | `transparent` (some `analytic_rule`; `grid_search` is `primal_only`) | Polynomial and spline evaluation is straight-line and `transparent`; a spline whose coefficients come from a solve uses `implicit_rule` or a hand-coded `analytic_rule` for the coefficient sensitivity. `grid_search` returns an integer cell index: it is `primal_only` because the index is inactive control flow (ad.md §3). Smooth derivatives of the interpolant are valid only inside a fixed cell; crossing a cell boundary is a non-smooth event and the caller must hold the index fixed when differentiating with respect to the evaluation point. B-spline evaluation (`fortnum_bspline`) is `transparent` inside a fixed knot span; its `bspline_span_index` is `primal_only`. |
-| `rng`       | `primal_only`    | A pseudorandom draw is not a differentiable function of its seed; gradients of estimators built on draws live in the caller, not here. |
+| Module | Leading candidates | Required operator boundary |
+|---|---|---|
+| `special` | analytical expressions and recurrences, autodiff of the numerical approximation, hybrid custom rules | Preserve argument regions, branch cuts, scaling, and recurrence direction. |
+| `fft` | analytical transform and adjoint transform, autodiff of the implementation, hybrid external-library rule | Treat the transform as a linear operator. |
+| `quadrature` | analytical weighted sum, autodiff of the fixed rule | Nodes and weights are inactive unless their parameter dependence is explicitly requested. |
+| `levin` | analytical rational-transform products, frozen-selection variants, finite-difference reference | The selected order is inactive within a candidate and nonsmooth at a selection change. |
+| `integrate` | analytical differentiation under the integral, analytical frozen trace, autodiff over the frozen trace, hybrid integrand autodiff | Do not make refinement logic the only derivative definition. |
+| `ode` | analytical forward sensitivity, analytical discrete or continuous adjoint, autodiff over a frozen trace, hybrid autodiff RHS products | State whether the derivative contract is discrete or continuous. |
+| `roots` | analytical implicit tangent and adjoint, hybrid autodiff residual products, autodiff of iterations as a measured comparator | Reuse the converged Jacobian, factorization, or preconditioner where possible. |
+| `linalg` | analytical implicit solve rule, factorization-specific rule, autodiff solver comparator, hybrid external-library rule | Use solves and transpose solves, never an explicit inverse by default. |
+| `interp` | analytical basis products, autodiff inside a fixed cell, analytical implicit coefficient solve, hybrid composition | Cell and knot-span selection is inactive. |
+| `rng` | `primal_only` for seed-to-draw kernels | Estimator derivatives belong above the RNG layer. |
 
 ## 5. How module docs reference this contract
 
 A module ADR or an implementation issue is normative downstream of this file. It
 states, for each public procedure:
 
-1. the policy class from section 1,
-2. the active and inactive arguments per section 3,
-3. the derivative entry-point names per section 2 that it provides.
+1. the admissible `autodiff`, `analytical`, and `hybrid` candidates from
+   section 1
+2. the active and inactive arguments per section 3
+3. the derivative entry-point names per section 2
+4. the independent validation oracle
+5. benchmark workload classes and evidence for any selected winner
 
 It cites this document by section number rather than restating the definitions.
-When a procedure departs from its module default in section 4, the doc names the
-procedure and the reason. A reviewer checks the module doc against these
-sections; a mismatch blocks the merge.
+A reviewer checks the module doc against these sections. Missing admissible
+candidates may be recorded as planned work, but a selected production winner
+requires evidence.
 
 ## 6. Adding derivatives without API churn
 
@@ -124,9 +140,8 @@ The primal ships first (M1 through M5); derivative products arrive later (issue
   are added beside the primal, never by adding arguments to it. A caller who
   only wants the value keeps calling `foo` unchanged.
 - Primal routines stay `pure` where the algorithm allows and hold no
-  module-level mutable state. Purity is the precondition for the `transparent`
-  path and keeps the AD wrapper free to call the primal as many times as a
-  product needs.
+  module-level mutable state. Purity supports autodiff and lets derivative
+  wrappers call the primal as many times as a product needs.
 - The reserved derivative slots already exist. `fortnum_status_t` carries the
   status side channel that derivative routines reuse without a new type, and the
   oracle CSV format already reserves a derivative column behind the
@@ -137,3 +152,37 @@ The primal ships first (M1 through M5); derivative products arrive later (issue
 
 Adding a derivative is therefore additive: new names, the same primal, the same
 status type, the same CSV layout.
+
+## 7. Candidate generation and `fortsym`
+
+`fortnum` will use `../fortsym` for symbolic algebra and derivative code
+generation. `fortsym` is unfinished. Until its interface is stable:
+
+- record symbolic-generation work as a planned `analytical` candidate
+- do not invent a `fortsym` API, file format, command line, or build contract
+- do not duplicate a provisional symbolic engine inside `fortnum`
+- keep handwritten implementations replaceable by generated candidates
+
+This rule fixes ownership without prematurely fixing integration details.
+
+## 8. Selection and dispatch
+
+Each product is selected independently. A fast Jacobian implementation does not
+automatically select the fastest JVP, VJP, gradient, or HVP.
+
+Selection may be static at build time, generated from a benchmark registry, or
+explicitly configured. Dynamic selection must be resolved before entering a
+hot loop. Registry evidence records the operator, product, workload class,
+hardware, validation error, runtime, and peak memory.
+
+## 9. Hybrid interface rule
+
+A hybrid boundary corresponds to a mathematical operator. Autodiff may run
+inside the local residual, outside the operator, or both. The operator call uses
+an analytical JVP, VJP, tangent solve, adjoint solve, recurrence, transform, or
+frozen-trace rule.
+
+The first hybrid implementation should use simple interoperable scalar or
+explicit-array arguments. Optional active arguments, polymorphism,
+allocatables, and Fortran descriptors require dedicated compiler tests before
+support.

@@ -1,8 +1,8 @@
 # fortnum architecture
 
 fortnum is a numerical library for Fortran. The design goals are:
-primal-correct values first, no global state, derivative-ready interfaces, and
-a test infrastructure that cross-checks against high-precision Python references.
+primal-correct values first, no global state, derivative-plural interfaces, and
+a test infrastructure that cross-checks against independent references.
 
 ---
 
@@ -61,29 +61,28 @@ No module defines a `save` attribute on a mutable variable, no module-level
 procedure pointer, and no hidden pool. All state lives in caller-owned derived
 types: `fortnum_fft_plan_t`, `integrate_workspace_t`, `ode_workspace_t`,
 `rng_t`, and so on. This property is the precondition for thread safety and for
-the `transparent` derivative path: Enzyme can differentiate the implementation
-only when the implementation has no hidden state.
+reliable autodiff, analytical, and hybrid derivative candidates.
 
 ---
 
-## Derivative-ready design
+## Derivative-plural design
 
-Every public routine carries a derivative policy. The policy vocabulary and the
-naming convention for derivative entry points are defined in
-`docs/design/ad.md`. The short summary:
+The vocabulary and naming convention are defined in `docs/design/ad.md`.
+Each derivative product can have several candidates:
 
-| Policy | Meaning |
-|--------|---------|
-| `transparent` | Enzyme differentiates the implementation directly. |
-| `analytic_rule` | fortnum supplies handwritten JVP/VJP using a closed form or recurrence. |
-| `implicit_rule` | Derivative defined by an implicit equation, not the iteration. |
-| `trace_rule` | Derivative taken at the frozen schedule the adaptive primal chose. |
-| `primal_only` | No derivative is mathematically meaningful; RNG is the canonical case. |
+| Term | Meaning |
+|---|---|
+| `autodiff` | A compiler or source-transformation backend differentiates smooth code. |
+| `analytical` | An expression, recurrence, implicit solve, linear operator, sensitivity model, or frozen trace supplies the product. |
+| `hybrid` | Autodiff composes code across analytical rules at mathematical operator boundaries. |
+| `primal_only` | No derivative is meaningful for the declared active arguments. |
 
-The primal ships first (M1 through M5). Derivative products (`foo_jvp`,
-`foo_vjp`, `foo_grad`, `foo_hvp`) ship in issue #40, added beside the primal
-as new public names without touching existing signatures. The reserved names
-appear in the source comments and in `docs/api.md` but are not yet compiled.
+The public products remain `foo_jvp`, `foo_vjp`, `foo_grad`, and `foo_hvp`.
+Candidate implementations are independently validated and benchmarked.
+Application runtime and peak memory select the winner for each workload class.
+
+`fortnum` will use `../fortsym` for symbolic algebra and code generation.
+`fortsym` is unfinished, so no integration API is specified yet.
 
 ---
 
@@ -132,9 +131,13 @@ Run `fo` with no arguments for the full pipeline.
 Detailed design decisions for individual modules:
 
 - `docs/design/ad.md`: derivative contract (normative for all modules)
+- `docs/design/differentiation_plan.md`: derivative implementation plan
 - `docs/design/integrate.md`: fortnum_integrate API
 - `docs/design/ode.md`: fortnum_ode API
 - `docs/design/rng.md`: fortnum_rng API
+- `docs/design/enzyme_toolchain.md`: optional compiler-autodiff toolchain
+- `docs/design/optimizer_api.md`: backend-independent product interfaces
+- `docs/design/downstream_ad.md`: downstream active-kernel pattern
 
-M6 design files (`enzyme_toolchain.md`, `optimizer_api.md`,
-`downstream_ad.md`) will be linked here when they are written.
+The rationale for candidate generation and measured selection is
+`docs/performance_optimal_differentiation.md`.

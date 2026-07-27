@@ -6,14 +6,17 @@ Closes #
 
 What does this add or change, and why?
 
-## Derivative policy
+## Derivative candidates
 
-For each new public procedure, state the policy declared in the module doc
-comment. See `docs/design/ad.md` for definitions.
+For each new public procedure and product, list the admissible `autodiff`,
+`analytical`, and `hybrid` candidates. Identify `primal_only` operations with a
+justification. See `docs/design/ad.md`.
 
-| Procedure | Policy | Active args |
-|-----------|--------|-------------|
-|           |        |             |
+| Procedure | Product | Candidates | Active args | Validation oracle |
+|---|---|---|---|---|
+| | | | | |
+
+If this PR selects a production winner, link runtime and peak-memory evidence.
 
 ## Verification
 
