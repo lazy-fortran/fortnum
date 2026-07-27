@@ -858,6 +858,62 @@ taskset -c 4 \
     --benchmark
 ```
 
+## Active Lagrange support-node products
+
+For
+
+```text
+p(x, xp, f) = sum_i f_i L_i(x; xp),
+```
+
+the support-node tournament holds `x` and the sampled values `f_i` fixed while
+the node locations `xp_i` are active. The analytical JVP differentiates the
+numerator and denominator product recurrences. The analytical VJP reverses
+those recurrences once per basis. Central differences of the primal weights
+are the independent JVP oracle; the VJP additionally passes the adjoint
+identity to relative error below `2e-13`.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, GNU Fortran 16.1.1, Release,
+15 samples after three warmups. Times are complete product wall clock.
+
+| Product | Nodes | Analytical median (MAD) | Diagnostic median (MAD) | Analytical speedup |
+|---|---:|---:|---:|---:|
+| JVP | 4 | 32.3739 (0.7776) ns | 51.4392 (1.5128) ns | 1.589x |
+| JVP | 8 | 91.6290 (1.7366) ns | 164.0874 (6.4908) ns | 1.791x |
+| JVP | 16 | 323.9990 (5.9951) ns | 747.5676 (13.3641) ns | 2.307x |
+| VJP | 4 | 51.7429 (2.2466) ns | 141.2107 (0.5146) ns | 2.729x |
+| VJP | 8 | 160.2639 (3.6832) ns | 1,135.3916 (9.3532) ns | 7.085x |
+| VJP | 16 | 713.3109 (7.9466) ns | 11,848.1212 (258.2272) ns | 16.610x |
+
+At 16 nodes all four candidates remain within the same process-baseline peak
+RSS band: 11,714,560--11,796,480 bytes. No candidate allocates in its hot loop.
+The analytical products are selected at every measured size.
+
+Pinned `perf stat -r 3` counters at 16 nodes show the wall-clock result is
+supported by CPU work and cache behavior:
+
+| Product | Candidate | Cycles/product | Instructions/product | Cache references/product | Cache misses/product |
+|---|---|---:|---:|---:|---:|
+| JVP | analytical | 1,497 | 6,196 | 0.082 | 0.008 |
+| JVP | diagnostic | 3,468 | 6,715 | 0.187 | 0.012 |
+| VJP | analytical | 3,267 | 10,300 | 0.229 | 0.014 |
+| VJP | diagnostic | 53,592 | 102,081 | 1.656 | 0.145 |
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_lagrange_active_nodes.json`.
+
+Run validation and measurement with:
+
+```bash
+fo test test_interp_ad
+cd benchmark
+fo build
+taskset -c 4 fo exec bench_lagrange_nodes analytical jvp 16
+taskset -c 4 fo exec bench_lagrange_nodes diagnostic jvp 16
+taskset -c 4 fo exec bench_lagrange_nodes analytical vjp 16
+taskset -c 4 fo exec bench_lagrange_nodes diagnostic vjp 16
+```
+
 ## Hybrid fixed-quadrature integrand JVP
 
 This workload applies a reusable 32-point Gauss-Legendre rule on `[0,1]` to

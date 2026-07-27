@@ -8,7 +8,7 @@ module fortnum_polynomial
     !   Active arguments (ad.md §3): nodal values f(1:n) are active when the
     !     caller differentiates through the interpolated result. The evaluation
     !     point x and support nodes xp are active when the caller differentiates
-    !     with respect to position; that path is deferred to issue #40.
+    !     with respect to position.
     !   Inactive: n (size, selects problem dimension).
     !   Derivative entry points (ad.md §2): separate and combined JVP/VJP
     !     products for evaluation point and nodal-value activity.
@@ -40,6 +40,8 @@ module fortnum_polynomial
     public :: lagrange_weights_vjp ! (d p(x)/d x)^T . u   (x active)
     public :: lagrange_fval_jvp ! d p(x)/d f  . v_f   (f values active)
     public :: lagrange_fval_vjp ! (d p(x)/d f)^T . u  (f values active)
+    public :: lagrange_nodes_jvp
+    public :: lagrange_nodes_vjp
     public :: lagrange_combined_jvp
     public :: lagrange_combined_vjp
 
@@ -186,6 +188,78 @@ contains
         call lagrange_weights(n, x, xp, coef)
         jtu = coef * u
     end subroutine lagrange_fval_vjp
+
+
+    ! Analytical JVP with respect to the support-node locations. The product
+    ! recurrence differentiates each Lagrange basis without forming its full
+    ! Jacobian. Nodal values remain fixed as the nodes move.
+    pure subroutine lagrange_nodes_jvp(n, x, xp, f, vxp, jv)
+        integer, intent(in) :: n
+        real(dp), intent(in) :: x, xp(n), f(n), vxp(n)
+        real(dp), intent(out) :: jv
+        real(dp) :: numerator, denominator, dnumerator, ddenominator
+        real(dp) :: old_numerator, old_denominator
+        integer :: i, k
+
+        jv = 0.0_dp
+        do i = 1, n
+            numerator = 1.0_dp
+            denominator = 1.0_dp
+            dnumerator = 0.0_dp
+            ddenominator = 0.0_dp
+            do k = 1, n
+                if (k == i) cycle
+                old_numerator = numerator
+                old_denominator = denominator
+                numerator = old_numerator*(x - xp(k))
+                denominator = old_denominator*(xp(i) - xp(k))
+                dnumerator = dnumerator*(x - xp(k)) - old_numerator*vxp(k)
+                ddenominator = ddenominator*(xp(i) - xp(k)) + &
+                    old_denominator*(vxp(i) - vxp(k))
+            end do
+            jv = jv + f(i)*(dnumerator*denominator - &
+                numerator*ddenominator)/(denominator*denominator)
+        end do
+    end subroutine lagrange_nodes_jvp
+
+
+    ! Analytical VJP corresponding to lagrange_nodes_jvp. Reverse the two
+    ! product recurrences for each basis so one scalar cotangent costs O(n^2).
+    pure subroutine lagrange_nodes_vjp(n, x, xp, f, u, xpbar)
+        integer, intent(in) :: n
+        real(dp), intent(in) :: x, xp(n), f(n), u
+        real(dp), intent(out) :: xpbar(n)
+        real(dp) :: numerator, denominator, numerator_bar, denominator_bar
+        real(dp) :: factor_bar, numerator_before(n), denominator_before(n)
+        integer :: i, k
+
+        xpbar = 0.0_dp
+        do i = 1, n
+            numerator = 1.0_dp
+            denominator = 1.0_dp
+            do k = 1, n
+                if (k == i) cycle
+                numerator_before(k) = numerator
+                denominator_before(k) = denominator
+                numerator = numerator*(x - xp(k))
+                denominator = denominator*(xp(i) - xp(k))
+            end do
+
+            numerator_bar = u*f(i)/denominator
+            denominator_bar = -u*f(i)*numerator/(denominator*denominator)
+            do k = n, 1, -1
+                if (k == i) cycle
+                factor_bar = numerator_bar*numerator_before(k)
+                numerator_bar = numerator_bar*(x - xp(k))
+                xpbar(k) = xpbar(k) - factor_bar
+
+                factor_bar = denominator_bar*denominator_before(k)
+                denominator_bar = denominator_bar*(xp(i) - xp(k))
+                xpbar(i) = xpbar(i) + factor_bar
+                xpbar(k) = xpbar(k) - factor_bar
+            end do
+        end do
+    end subroutine lagrange_nodes_vjp
 
 
     ! Hybrid interface rule for simultaneous activity in the evaluation point

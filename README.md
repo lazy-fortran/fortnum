@@ -28,10 +28,15 @@ implicit, hybrid, and finite-difference diagnostic candidates. Measured
 runtime, dispersion, peak memory, validation, hardware, and compiler evidence
 is committed in
 `docs/design/differentiation_benchmarks.md` and `benchmark/reference/`.
-The cumulative report in `docs/design/differentiation_report.md` summarizes 18
+The cumulative report in `docs/design/differentiation_report.md` summarizes 20
 mechanism tournaments and provides reproducible `fortplot` figure generation
 without committing generated PNGs.
 `ROADMAP.md` is the authoritative implementation checklist.
+
+Lagrange interpolation exposes analytical JVP and VJP products for active
+support-node locations as well as active evaluation points and sampled values.
+At 16 nodes the active-node analytical JVP is 2.31 times faster and the VJP is
+16.61 times faster than complete finite-difference diagnostics.
 
 Fixed-bound parameterized integrals also expose an analytical JVP based on
 differentiation under the integral sign, including the analytical Leibniz term

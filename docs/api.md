@@ -1304,10 +1304,9 @@ O(log2(nmax-nmin)) comparisons.
 
 Lagrange interpolation weights on an arbitrary node set.
 
-Default derivative policy: `analytic_rule` (ad.md §4). Value weights are
-linear in the nodal values; derivative weights are a closed-form analytic rule.
-
-Reserved derivative products for #40: `lagrange_weights_jvp`.
+The leading derivative candidate is `analytical` (ad.md §4). Value weights are
+linear in the nodal values; evaluation-point and support-node products use
+direct product recurrences.
 
 ### `lagrange_weights(n, x, xp, coef)`
 
@@ -1603,11 +1602,15 @@ subroutine lagrange_weights_jvp(n, x, xp, f, vx, jv)   ! d p(x)/dx using derivat
 subroutine lagrange_weights_vjp(n, x, xp, f, u, jtu)
 subroutine lagrange_fval_jvp(n, x, xp, vf, jv)         ! d p(x)/df_i using value weights
 subroutine lagrange_fval_vjp(n, x, xp, u, jtu)
+subroutine lagrange_nodes_jvp(n, x, xp, f, vxp, jv)    ! active support nodes
+subroutine lagrange_nodes_vjp(n, x, xp, f, u, xpbar)
 ```
 
 Derivatives are valid inside a fixed cell. Crossing a cell boundary is a
 non-smooth event; the caller holds the index fixed when differentiating with
-respect to the evaluation point.
+respect to the evaluation point. Support-node products hold the sampled values
+`f` fixed while `xp` moves; callers that define `f_i = f(xp_i)` must compose
+the resulting value tangents separately.
 
 ### fortnum_bspline (`transparent`, fixed span)
 

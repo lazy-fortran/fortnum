@@ -138,7 +138,7 @@ independent validation plus measured application runtime and peak memory.
 
 ## Interpolation and splines
 
-- [ ] Add analytical products for active support-node locations.
+- [x] Add analytical products for active support-node locations.
 - [ ] Add analytical products for active knot locations where defined.
 - [ ] Add analytical implicit differentiation of fitted spline coefficients.
 - [ ] Define derivative status at interpolation-cell crossings.
