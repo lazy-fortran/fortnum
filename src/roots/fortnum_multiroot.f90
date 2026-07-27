@@ -51,7 +51,7 @@ module fortnum_multiroot
     public :: multiroot_hybrid, multiroot_hybrids
     public :: multiroot_implicit_jvp, multiroot_implicit_vjp
     public :: multiroot_jvp, multiroot_jvp_factored
-    public :: multiroot_vjp, multiroot_grad
+    public :: multiroot_vjp, multiroot_vjp_factored, multiroot_grad
     public :: deriv_fn_t, deriv_central
     public :: argsort
 
@@ -374,6 +374,36 @@ contains
         jtu = -matmul(transpose(f_p), lambda)
         call status_set(status, FORTNUM_OK, "")
     end subroutine multiroot_vjp
+
+    ! Analytical VJP using a reusable LU factorization of the converged F_x^T.
+    subroutine multiroot_vjp_factored(transpose_factors, ipiv, f_p, u, &
+            jtu, status)
+        real(dp), contiguous, intent(in) :: transpose_factors(:, :)
+        integer, contiguous, intent(in) :: ipiv(:)
+        real(dp), intent(in) :: f_p(:, :), u(:)
+        real(dp), contiguous, intent(out) :: jtu(:)
+        type(fortnum_status_t), intent(out) :: status
+
+        real(dp) :: lambda(size(u))
+        integer :: i, info, j, n
+
+        n = size(transpose_factors, 1)
+        lambda = u
+        call lu_solve_factored(n, transpose_factors, ipiv, lambda, info)
+        if (info /= LINALG_OK) then
+            jtu = 0.0_dp
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "multiroot_vjp_factored: invalid or singular factorization")
+            return
+        end if
+        jtu = 0.0_dp
+        do j = 1, size(jtu)
+            do i = 1, n
+                jtu(j) = jtu(j) - f_p(i, j)*lambda(i)
+            end do
+        end do
+        call status_set(status, FORTNUM_OK, "")
+    end subroutine multiroot_vjp_factored
 
     ! Generic analytical implicit adjoint boundary. First solve
     ! F_x^T*lambda=u, then evaluate and negate F_p^T*lambda.

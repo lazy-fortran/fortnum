@@ -622,6 +622,51 @@ fo exec bench_multiroot_jvp_factorization refactor --peak-rss
 fo exec bench_multiroot_jvp_factorization reuse --peak-rss
 ```
 
+## Vector-root VJP transpose-factorization reuse
+
+`multiroot_vjp_factored` accepts a compact LU of the transposed converged state
+Jacobian. It solves the analytical adjoint equation and contracts
+`-F_p^T*lambda` without refactorizing `F_x^T` for every root cotangent.
+
+The independent oracle compares the factored VJP with componentwise central
+differences of the complete scalar objective `L(p)=u^T*x*(p)`. Every perturbed
+root is obtained from a complete nonlinear solve. The maximum absolute error
+was `3.7637e-11`.
+
+The benchmark uses a dense 16-state Jacobian and parameter Jacobian. The
+baseline `multiroot_vjp` transposes and factors the same converged Jacobian for
+every cotangent. The reuse candidate factors the transpose once before timing
+and applies those factors to 200,000 varying cotangents per sample.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, GNU Fortran 16.1.1, Release build,
+15 samples after three warmups.
+
+| Candidate | Mechanism | Median ns/VJP | MAD ns/VJP | Peak RSS |
+|---|---|---:|---:|---:|
+| refactor transposed Jacobian per VJP | `analytical` | 1,187.7362 | 17.0501 | 12,320,768 B |
+| reuse transposed Jacobian LU | `analytical` | 398.2992 | 3.2079 | 12,505,088 B |
+
+Here “2.9820 times faster” means
+`1187.7362 / 398.2992 = 2.9820`: factor reuse saves 789.4370 ns for the same
+VJP. Reuse is the isolated runtime winner, while refactorization uses 184,320
+fewer bytes of maximum observed self-process RSS. This microbenchmark
+therefore leaves production selection to the complete roots workload.
+
+Peak memory is the maximum across five separately launched candidates,
+measured with `getrusage(RUSAGE_SELF)`. The machine-readable record is
+`benchmark/reference/ryzen9_5950x_multiroot_vjp_factorization.json`.
+
+Run the benchmark with:
+
+```bash
+cd benchmark
+fo build
+taskset -c 4 fo exec bench_multiroot_vjp_factorization refactor
+taskset -c 4 fo exec bench_multiroot_vjp_factorization reuse
+fo exec bench_multiroot_vjp_factorization refactor --peak-rss
+fo exec bench_multiroot_vjp_factorization reuse --peak-rss
+```
+
 ## Analytical implicit tangent product for fixed points
 
 For a converged fixed point `x = G(x,p)`, the new analytical JVP solves

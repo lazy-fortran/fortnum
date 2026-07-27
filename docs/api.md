@@ -923,6 +923,23 @@ pivots produced by `lu_factor`. It forms the contracted residual tangent
 `F_x`. Reuse one factorization for multiple parameter directions. Invalid or
 singular factors report `FORTNUM_DOMAIN_ERROR`.
 
+#### `multiroot_vjp_factored(transpose_factors, ipiv, f_p, u, jtu, status)`
+
+```fortran
+subroutine multiroot_vjp_factored(transpose_factors, ipiv, f_p, u, jtu, status)
+    real(dp), contiguous, intent(in) :: transpose_factors(:, :)
+    integer, contiguous, intent(in) :: ipiv(:)
+    real(dp), intent(in) :: f_p(:, :), u(:)
+    real(dp), contiguous, intent(out) :: jtu(:)
+    type(fortnum_status_t), intent(out) :: status
+```
+
+Analytical implicit VJP using the compact LU and pivots obtained by factoring
+the converged transpose state Jacobian once. It solves
+`F_x^T*lambda=u`, then contracts `jtu=-F_p^T*lambda`. Reuse one transpose
+factorization for multiple root cotangents. Invalid or singular factors report
+`FORTNUM_DOMAIN_ERROR`.
+
 #### `deriv_central(f, x, h, result, abserr, status [, ctx])`
 
 ```fortran

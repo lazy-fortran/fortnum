@@ -21,7 +21,7 @@ program test_roots_ad
         root_implicit_vjp, root_jvp, root_vjp, root_grad
     use fortnum_multiroot, only: multiroot_hybrid, multiroot_implicit_jvp, &
         multiroot_implicit_vjp, multiroot_jvp, multiroot_jvp_factored, &
-        multiroot_vjp, multiroot_grad
+        multiroot_vjp, multiroot_vjp_factored, multiroot_grad
     implicit none
 
     type :: diagonal_preconditioner_t
@@ -52,6 +52,7 @@ program test_roots_ad
     call test_multiroot_factored_jvp_vs_fd(nfail)
     call test_multiroot_implicit_tangent_boundary(nfail)
     call test_multiroot_implicit_adjoint_boundary(nfail)
+    call test_multiroot_factored_vjp_vs_fd(nfail)
     call test_multiroot_dot_product_id(nfail)
     call test_multiroot_singular(nfail)
     call test_multiroot_preconditioner_hook(nfail)
@@ -567,6 +568,51 @@ contains
             nfail = nfail + 1
         end if
     end subroutine test_multiroot_implicit_adjoint_boundary
+
+    subroutine test_multiroot_factored_vjp_vs_fd(nfail)
+        integer, intent(inout) :: nfail
+        real(dp) :: transpose_factors(2, 2), f_p(2, 2), u(2), jtu(2)
+        real(dp) :: pbase(2), pp(2), pm(2), xp(2), xm(2), reference(2)
+        real(dp) :: h, oracle_error
+        type(fortnum_status_t) :: st
+        integer :: ipiv(2), info, parameter
+
+        pbase = [2.0_dp, 2.0_dp]
+        transpose_factors = transpose(reshape( &
+            [2.0_dp, 1.0_dp, 1.0_dp, 2.0_dp], [2, 2]))
+        f_p = reshape([-1.0_dp, 0.0_dp, 0.0_dp, -1.0_dp], [2, 2])
+        u = [1.3_dp, -0.4_dp]
+        call lu_factor(2, transpose_factors, ipiv, info)
+        if (info /= LINALG_OK) error stop "test transpose factorization failed"
+
+        call multiroot_vjp_factored(transpose_factors, ipiv, f_p, u, jtu, st)
+        h = 1.0e-5_dp
+        do parameter = 1, 2
+            pp = pbase
+            pm = pbase
+            pp(parameter) = pp(parameter) + h
+            pm(parameter) = pm(parameter) - h
+            call solve_mr(pp, xp)
+            call solve_mr(pm, xm)
+            reference(parameter) = dot_product(u, xp - xm)/(2.0_dp*h)
+        end do
+        oracle_error = maxval(abs(jtu - reference))
+
+        if (.not. status_ok(st)) then
+            write (error_unit, '(a)') &
+                "FAIL [mr_factored_vjp_fd] unexpected status error"
+            nfail = nfail + 1
+            return
+        end if
+        if (oracle_error > 1.0e-7_dp) then
+            write (error_unit, '(a,2es24.16)') &
+                "FAIL [mr_factored_vjp_fd] factored=", jtu
+            write (error_unit, '(a,2es24.16)') &
+                "FAIL [mr_factored_vjp_fd] fd=", reference
+            nfail = nfail + 1
+        end if
+        write (*, '(a,es24.16)') "factored VJP oracle maxabs=", oracle_error
+    end subroutine test_multiroot_factored_vjp_vs_fd
 
     subroutine vector_state_jacobian(x, p, jac_x, context)
         real(dp), intent(in) :: x(:), p(:)
