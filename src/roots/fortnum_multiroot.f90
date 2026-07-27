@@ -44,9 +44,10 @@ module fortnum_multiroot
     implicit none
     private
 
-    public :: multiroot_fdf_t, multiroot_fn_t
+    public :: multiroot_fdf_t, multiroot_fn_t, multiroot_residual_jvp_t
     public :: multiroot_preconditioned_solve_t
     public :: multiroot_hybrid, multiroot_hybrids
+    public :: multiroot_implicit_jvp
     public :: multiroot_jvp, multiroot_vjp, multiroot_grad
     public :: deriv_fn_t, deriv_central
     public :: argsort
@@ -73,6 +74,17 @@ module fortnum_multiroot
             real(dp), intent(out) :: f(:)
             class(*), intent(in), optional :: ctx
         end subroutine multiroot_fn_t
+    end interface
+
+    ! Contracted residual tangent products at a converged vector root.
+    abstract interface
+        subroutine multiroot_residual_jvp_t(x, p, tp, jac_x, f_p_tp, context)
+            import :: dp
+            real(dp), intent(in) :: x(:), p(:), tp(:)
+            real(dp), intent(out) :: jac_x(size(x), size(x))
+            real(dp), intent(out) :: f_p_tp(size(x))
+            class(*), intent(inout), optional :: context
+        end subroutine multiroot_residual_jvp_t
     end interface
 
     ! Optional implicit-product solve hook. Implementations may carry and reuse
@@ -246,6 +258,21 @@ contains
         end if
         call status_set(status, FORTNUM_OK, "")
     end subroutine multiroot_jvp
+
+    ! Generic analytical implicit tangent boundary. The callback evaluates F_x
+    ! and the contracted residual tangent F_p*tp at the converged root.
+    subroutine multiroot_implicit_jvp(residual_jvp, x, p, tp, dx, status, context)
+        procedure(multiroot_residual_jvp_t) :: residual_jvp
+        real(dp), intent(in) :: x(:), p(:), tp(:)
+        real(dp), intent(out) :: dx(:)
+        type(fortnum_status_t), intent(out) :: status
+        class(*), intent(inout), optional :: context
+
+        real(dp) :: jac_x(size(x), size(x)), f_p_tp(size(x))
+
+        call residual_jvp(x, p, tp, jac_x, f_p_tp, context)
+        call multiroot_grad(jac_x, f_p_tp, dx, status)
+    end subroutine multiroot_implicit_jvp
 
     ! multiroot_vjp: reverse product solves J_x^T lambda = u, then jtu = -J_p^T lambda.
     !   jac_x : J_x at the root (n x n).

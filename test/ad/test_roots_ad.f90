@@ -18,8 +18,8 @@ program test_roots_ad
     use fortnum_status, only: fortnum_status_t, status_ok, FORTNUM_DOMAIN_ERROR
     use fortnum_roots,  only: root_brent, root_implicit_jvp, &
         root_implicit_vjp, root_jvp, root_vjp, root_grad
-    use fortnum_multiroot, only: multiroot_hybrid, multiroot_jvp, &
-        multiroot_vjp, multiroot_grad
+    use fortnum_multiroot, only: multiroot_hybrid, multiroot_implicit_jvp, &
+        multiroot_jvp, multiroot_vjp, multiroot_grad
     implicit none
 
     type :: diagonal_preconditioner_t
@@ -47,6 +47,7 @@ program test_roots_ad
     call test_implicit_adjoint_boundary(nfail)
     call test_multiroot_grad_vs_fd(nfail)
     call test_multiroot_jvp_vs_fd(nfail)
+    call test_multiroot_implicit_tangent_boundary(nfail)
     call test_multiroot_dot_product_id(nfail)
     call test_multiroot_singular(nfail)
     call test_multiroot_preconditioner_hook(nfail)
@@ -437,6 +438,55 @@ contains
             end if
         end do
     end subroutine test_multiroot_jvp_vs_fd
+
+    subroutine test_multiroot_implicit_tangent_boundary(nfail)
+        integer, intent(inout) :: nfail
+        real(dp) :: p(2), pp(2), pm(2), tp(2)
+        real(dp) :: xstar(2), xp(2), xm(2), dx(2), dx_fd(2), h
+        type(fortnum_status_t) :: st
+
+        p = [2.0_dp, 2.0_dp]
+        tp = [0.3_dp, -0.5_dp]
+        h = 1.0e-5_dp
+        call solve_mr(p, xstar)
+        pp = p + h*tp
+        pm = p - h*tp
+        call solve_mr(pp, xp)
+        call solve_mr(pm, xm)
+
+        call multiroot_implicit_jvp(vector_residual_jvp, xstar, p, tp, &
+            dx, st)
+        dx_fd = (xp - xm)/(2.0_dp*h)
+
+        if (.not. status_ok(st)) then
+            write (error_unit, '(a)') &
+                "FAIL [multiroot_implicit_tangent] unexpected status error"
+            nfail = nfail + 1
+            return
+        end if
+        if (maxval(abs(dx - dx_fd)) > 1.0e-7_dp) then
+            write (error_unit, '(a,2es24.16)') &
+                "FAIL [multiroot_implicit_tangent] implicit=", dx
+            write (error_unit, '(a,2es24.16)') &
+                "FAIL [multiroot_implicit_tangent] fd=", dx_fd
+            nfail = nfail + 1
+        end if
+    end subroutine test_multiroot_implicit_tangent_boundary
+
+    subroutine vector_residual_jvp(x, p, tp, jac_x, f_p_tp, context)
+        real(dp), intent(in) :: x(:), p(:), tp(:)
+        real(dp), intent(out) :: jac_x(size(x), size(x))
+        real(dp), intent(out) :: f_p_tp(size(x))
+        class(*), intent(inout), optional :: context
+
+        if (size(p) /= 2) error stop "vector residual expects two parameters"
+        jac_x(1, 1) = 2.0_dp*x(1)
+        jac_x(1, 2) = 1.0_dp
+        jac_x(2, 1) = 1.0_dp
+        jac_x(2, 2) = 2.0_dp*x(2)
+        f_p_tp(1) = -tp(1)
+        f_p_tp(2) = -tp(2)
+    end subroutine vector_residual_jvp
 
     subroutine test_multiroot_preconditioner_hook(nfail)
         integer, intent(inout) :: nfail
