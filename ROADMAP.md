@@ -110,7 +110,7 @@ independent validation plus measured application runtime and peak memory.
 - [x] Document and test the continuous sensitivity contract.
 - [x] Document and test the discrete sensitivity contract.
 - [x] Benchmark a short nonstiff trajectory.
-- [ ] Benchmark a long nonstiff trajectory.
+- [x] Benchmark a long nonstiff trajectory.
 - [ ] Benchmark a stiff trajectory.
 - [ ] Benchmark a many-parameter trajectory.
 - [ ] Benchmark an event-driven trajectory.

@@ -115,6 +115,14 @@ VJP is 1.74 times faster than reconstruction from two forward sweeps.
 Checkpointing and recomputation reduce retained trace bytes but lose on
 complete wall clock and do not reduce measured application peak RSS.
 
+On the 400-step long nonstiff trajectory, one full-trace analytical reverse VJP
+takes 207.65 µs including the primal. It is 1.71 times faster than two forward
+sweeps, 1.24 times faster than checkpointed reverse, and 42.23 times faster
+than recomputed reverse. Checkpointing and recomputation reduce retained trace
+storage by 56.76% and 59.91%, but maximum observed peak RSS remains within
+12 KB across candidates. Full-trace reverse therefore remains selected by
+complete wall clock.
+
 ## Build
 
 CMake is the primary build system with CTest integration:
