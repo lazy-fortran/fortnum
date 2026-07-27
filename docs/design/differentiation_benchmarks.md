@@ -861,12 +861,12 @@ processes, each with 31 samples of 1,000 workloads. Reference: AMD Ryzen 9
 
 | Candidate | Mechanism | Median ns/primal+VJP | MAD ns | Peak RSS |
 |---|---|---:|---:|---:|
-| one reverse discrete adjoint | `analytical` | 34,270.5560 | 1,023.0970 | 5,345,280 B |
-| two forward tangent sweeps | `analytical` | 58,768.7470 | 1,074.3040 | 5,382,144 B |
-| complete-solve central difference | diagnostic | 62,939.3870 | 1,150.4480 | 5,292,032 B |
+| one reverse discrete adjoint | `analytical` | 20,668.4510 | 487.7800 | 5,341,184 B |
+| two forward tangent sweeps | `analytical` | 35,911.4100 | 1,221.1510 | 5,382,144 B |
+| complete-solve central difference | diagnostic | 38,526.2070 | 941.6840 | 5,292,032 B |
 
 Complete-workload wall clock selects the reverse discrete adjoint. It is
-1.7149 times faster than forward reconstruction and 1.8365 times faster than
+1.7375 times faster than forward reconstruction and 1.8640 times faster than
 finite differences. Peak RSS is equal within 91 KB and does not affect the
 selection.
 
@@ -874,9 +874,9 @@ Linux `perf stat -r 3` over CTest-launched benchmark processes records:
 
 | Candidate | Cycles | Instructions | Cache references | Cache misses |
 |---|---:|---:|---:|---:|
-| reverse `analytical` | 4,926,950,485 | 18,091,883,235 | 22,343,502 | 382,233 |
-| forward reconstruction | 8,317,476,053 | 28,965,614,332 | 23,260,473 | 445,412 |
-| diagnostic | 8,850,465,175 | 30,614,064,380 | 18,595,675 | 411,590 |
+| reverse `analytical` | 2,895,811,348 | 10,991,701,420 | 18,176,085 | 292,015 |
+| forward reconstruction | 5,079,552,126 | 17,087,552,315 | 21,902,057 | 405,576 |
+| diagnostic | 5,436,906,700 | 18,723,541,309 | 5,099,721 | 358,090 |
 
 Cycles and instructions corroborate the wall-clock winner. Cache counters are
 supporting evidence only. This two-input, one-objective workload demonstrates
@@ -949,6 +949,47 @@ complete-gradient wall clock determines selection.
 
 The machine-readable record is
 `benchmark/reference/ryzen9_5950x_ode_parameter_adjoint_scaling.json`.
+
+## Checkpointed Cash–Karp adjoint
+
+`ode_build_checkpoints` retains the accepted time and step-size schedule plus a
+state every \(s\) steps. `ode_integrate_vjp_checkpointed` walks checkpoint
+segments backward, recomputing the primal states within each segment before
+applying the same analytical discrete-adjoint step as the full-trace candidate.
+The test deallocates the original full state trace before reverse evaluation,
+proving that the checkpointed derivative does not read discarded states.
+
+The workload is the same two-state linear system used by the exact
+\(\exp(A^Tt)u\) oracle. Its accepted trace has 41 steps. Timings include primal
+integration, checkpoint construction, compression, recomputation, and the VJP.
+Results are medians of three processes with 31 samples of 1,000 workloads.
+Reference: AMD Ryzen 9 5950X, GNU Fortran 16.1.1, Release.
+
+| Candidate | Median ns/primal+VJP | MAD ns | Retained trace | Peak RSS |
+|---|---:|---:|---:|---:|
+| full trace | 20,668.4510 | 487.7800 | 1,664 B | 5,341,184 B |
+| checkpoint stride 4 | 26,091.4380 | 527.9850 | 904 B | 5,373,952 B |
+| checkpoint stride 16 | 25,406.8980 | 546.0590 | 744 B | 5,410,816 B |
+
+Complete-workload wall clock selects the full trace. Stride 4 is 1.2624 times
+slower and stride 16 is 1.2293 times slower. They reduce retained trace storage
+by 45.67% and 55.29%, respectively, but do not reduce complete-workload peak
+RSS: the current implementation first produces the normal full primal trace,
+then compresses it. A future checkpoint-recording primal would be required for
+that memory saving to affect application peak RSS.
+
+Linux `perf stat -r 3` corroborates the recomputation cost:
+
+| Candidate | Cycles | Instructions | Cache references | Cache misses |
+|---|---:|---:|---:|---:|
+| full trace | 2,895,811,348 | 10,991,701,420 | 18,176,085 | 292,015 |
+| checkpoint stride 4 | 3,765,759,991 | 13,879,097,742 | 25,986,236 | 393,256 |
+| checkpoint stride 16 | 3,625,909,433 | 13,833,570,851 | 25,705,987 | 321,866 |
+
+The mechanism is therefore an available memory/runtime tradeoff, not the
+selected candidate for this short trajectory. Wall clock remains decisive.
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_ode_checkpointed_adjoint.json`.
 
 ## Vector-root candidate tournament
 

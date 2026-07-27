@@ -102,7 +102,7 @@ independent validation plus measured application runtime and peak memory.
 - [x] Add hybrid forward sensitivities using autodiff RHS JVPs.
 - [x] Add an analytical discrete adjoint for one explicit ODE method.
 - [x] Accumulate parameter VJPs in the discrete adjoint.
-- [ ] Add checkpointed reverse differentiation as a candidate.
+- [x] Add checkpointed reverse differentiation as a candidate.
 - [ ] Add recomputation-based reverse differentiation as a candidate.
 - [ ] Add analytical implicit-stage tangent products.
 - [ ] Add analytical implicit-stage adjoint products.
