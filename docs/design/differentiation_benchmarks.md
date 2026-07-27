@@ -1007,3 +1007,68 @@ taskset -c 4 fo exec bench_multiroot_implicit_vjp_reliability reliability
 fo exec bench_multiroot_implicit_vjp_reliability plain --peak-rss
 fo exec bench_multiroot_implicit_vjp_reliability reliability --peak-rss
 ```
+
+## Scalar-root candidate tournament
+
+The scalar tournament compares both derivative directions for the same cubic
+root `x*(p)` defined by `x^3 + p1*x - p2 = 0`:
+
+- `analytical`: explicit residual partials plus the implicit root rule;
+- `hybrid`: Enzyme residual products plus the analytical implicit root rule;
+- `autodiff`: Enzyme differentiates a fixed 12-step Newton solve;
+- finite-difference diagnostic: central differences of complete 12-step
+  Newton solves.
+
+All candidates are checked against central differences of independent
+100-step bisection solves. Maximum absolute errors for the JVP were
+`2.2072e-12`, `2.2072e-12`, `2.2071e-12`, and zero in table order. Maximum
+VJP errors were `1.1891e-11`, `1.1891e-11`, `1.1891e-11`, and `1.4433e-11`.
+The fixed Newton trace is intentionally smooth; these results do not make
+autodiff through branch-dependent solver termination a general default.
+
+The benchmark applies 100,000 varying directions or cotangents per sample.
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, Flang/LLVM 22.1.8, Enzyme
+`c96508349d9f`, Release `-O2`, 15 samples after three warmups.
+
+| JVP candidate | Mechanism | Median ns/JVP | MAD ns/JVP | Peak RSS |
+|---|---|---:|---:|---:|
+| implicit with explicit residual products | `analytical` | 8.6395 | 0.2406 | 2,818,048 B |
+| implicit with Enzyme residual products | `hybrid` | 8.0483 | 0.1378 | 2,797,568 B |
+| Enzyme through 12 Newton steps | `autodiff` | 127.8436 | 0.4421 | 2,793,472 B |
+| complete-solve central difference | diagnostic | 109.3232 | 0.5895 | 2,830,336 B |
+
+The `hybrid` JVP is the measured winner. It is 1.0735 times faster than
+`analytical`, 15.8845 times faster than `autodiff` through the iterations, and
+13.5834 times faster than the finite-difference diagnostic. Its peak RSS is
+20,480 bytes below `analytical`.
+
+| VJP candidate | Mechanism | Median ns/VJP | MAD ns/VJP | Peak RSS |
+|---|---|---:|---:|---:|
+| implicit with explicit residual products | `analytical` | 17.3524 | 0.3155 | 2,830,336 B |
+| implicit with Enzyme residual products | `hybrid` | 16.7265 | 0.0793 | 2,703,360 B |
+| Enzyme through 12 Newton steps | `autodiff` | 177.6881 | 0.9734 | 2,711,552 B |
+| componentwise complete-solve differences | diagnostic | 186.4905 | 0.9139 | 2,834,432 B |
+
+The reverse-mode `hybrid` VJP is also the measured winner. It is 1.0374 times
+faster than `analytical`, 10.6231 times faster than reverse `autodiff` through
+the iterations, and 11.1494 times faster than the finite-difference
+diagnostic. Its peak RSS is 126,976 bytes below `analytical`.
+
+The machine-readable records are
+`benchmark/reference/ryzen9_5950x_scalar_root_tournament_jvp.json` and
+`benchmark/reference/ryzen9_5950x_scalar_root_tournament_vjp.json`.
+
+Run validation and timing with:
+
+```bash
+cmake --build build-enzyme --target enzyme_scalar_root_hybrid_build \
+    enzyme_scalar_root_vjp_hybrid_build
+ctest --test-dir build-enzyme -R '^enzyme_scalar_root(_vjp)?_hybrid$' \
+    --output-on-failure
+taskset -c 4 \
+    build-enzyme/test/ad/enzyme_scalar_root_hybrid.enzyme/enzyme_scalar_root_hybrid \
+    --benchmark
+taskset -c 4 \
+    build-enzyme/test/ad/enzyme_scalar_root_vjp_hybrid.enzyme/enzyme_scalar_root_vjp_hybrid \
+    --benchmark
+```
