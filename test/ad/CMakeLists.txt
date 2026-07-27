@@ -78,6 +78,12 @@ target_link_libraries(test_ode_implicit_stage_tangent PRIVATE fortnum)
 add_test(NAME ad_ode_implicit_stage_tangent
     COMMAND test_ode_implicit_stage_tangent)
 
+add_executable(test_ode_implicit_stage_adjoint
+    test_ode_implicit_stage_adjoint.f90)
+target_link_libraries(test_ode_implicit_stage_adjoint PRIVATE fortnum)
+add_test(NAME ad_ode_implicit_stage_adjoint
+    COMMAND test_ode_implicit_stage_adjoint)
+
 add_executable(test_roots_ad test_roots_ad.f90)
 target_link_libraries(test_roots_ad PRIVATE fortnum_ad_test_utils)
 add_test(NAME ad_roots COMMAND test_roots_ad)

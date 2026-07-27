@@ -1092,6 +1092,59 @@ high dispersion for the analytical run and are diagnostic only; they do not
 override complete-workload wall clock. The machine-readable record is
 `benchmark/reference/ryzen9_5950x_ode_implicit_stage_tangent.json`.
 
+## Analytical implicit-stage adjoint
+
+For the same implicit-stage residual, `ode_implicit_stage_vjp` solves
+
+\[
+(I-\alpha f_Y)^T\lambda=u.
+\]
+
+The base cotangent is \(\bar b=\lambda\). The existing parameter-VJP callback
+receives the contracted RHS cotangent \(\alpha\lambda\) and accumulates
+\(f_p^T(\alpha\lambda)\), so the implementation never forms \(f_p\). Multiple
+stage-cotangent columns represent multiple scalar objectives and reuse one
+transposed factorization.
+
+The independent diagonal-linear oracle evaluates \(\lambda_i =
+u_i/(1+\alpha i)\) and contracts a separately constructed parameter matrix.
+The benchmark has four stage states. Each timed workload contains one primal
+implicit-stage solve plus all requested VJPs. The diagnostic uses two complete
+perturbed primal solves for each active base or parameter input and evaluates
+all objectives on each result. Results are medians of three processes, each
+with 31 samples of 20,000 complete workloads. Reference: AMD Ryzen 9 5950X,
+GNU Fortran 16.1.1, Release.
+
+| Parameters | Active inputs including base | Objectives | Analytical ns | MAD ns | Diagnostic ns | MAD ns | Analytical speedup |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 5 | 1 | 621.4741 | 33.6725 | 3,016.1382 | 142.6969 | 4.8532x |
+| 4 | 8 | 1 | 691.5601 | 30.3732 | 5,462.5404 | 209.1476 | 7.8989x |
+| 16 | 20 | 1 | 1,004.3971 | 25.4694 | 20,294.0726 | 512.8303 | 20.2052x |
+| 4 | 8 | 4 | 1,192.5225 | 47.9639 | 5,731.7321 | 289.9838 | 4.8064x |
+| 4 | 8 | 16 | 3,114.8672 | 149.1485 | 6,230.9748 | 306.9479 | 2.0004x |
+
+Complete-workload wall clock selects `analytical` throughout. From one to
+sixteen parameters at one objective, analytical grows 1.6162 times while the
+diagnostic grows 6.7285 times. From one to sixteen objectives at four
+parameters, analytical grows 4.5041 times because it performs one transpose
+solve and parameter contraction per objective; the diagnostic grows only
+1.1407 times because it reuses perturbed primals across objectives. This is the
+expected reverse-mode tradeoff rather than a universal objective-count win.
+
+At sixteen parameters and sixteen objectives, candidate-specific peak RSS is
+3,612,672 bytes for analytical and 3,592,192 bytes for the diagnostic. For the
+many-input, one-objective workload, `perf stat -r 3` reports:
+
+| Candidate | Cycles | Instructions | Cache references | Cache misses |
+|---|---:|---:|---:|---:|
+| analytical | 9,666,567,310 | 17,216,918,972 | 25,050,375 | 2,682,222 |
+| diagnostic | 92,600,734,504 | 323,131,596,384 | 45,589,454 | 3,800,865 |
+
+Cycles and instructions corroborate the wall-clock winner. Cache counters are
+supporting evidence and do not override complete-workload wall clock. The
+machine-readable record is
+`benchmark/reference/ryzen9_5950x_ode_implicit_stage_adjoint.json`.
+
 ## Vector-root candidate tournament
 
 The coupled vector tournament uses

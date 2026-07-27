@@ -44,7 +44,7 @@ module fortnum_ode
     public :: ode_integrate_parameter_vjp
     public :: ode_build_checkpoints, ode_integrate_vjp_checkpointed
     public :: ode_build_recompute_trace, ode_integrate_vjp_recomputed
-    public :: ode_implicit_stage_jvp
+    public :: ode_implicit_stage_jvp, ode_implicit_stage_vjp
 
     integer, parameter, public :: ODE_EVENT_RISING  =  1
     integer, parameter, public :: ODE_EVENT_FALLING = -1
@@ -269,6 +269,97 @@ contains
             end if
         end do
     end subroutine ode_implicit_stage_jvp
+
+    ! Analytical adjoint of the same implicit-stage residual. For every
+    ! stage-output cotangent u, solve
+    !
+    !     (I - alpha*df/dstage)^T lambda = u.
+    !
+    ! The earlier-stage/base cotangent is lambda. The caller-owned parameter
+    ! callback receives alpha*lambda and accumulates
+    ! (df/dp)^T*(alpha*lambda) without forming the parameter Jacobian.
+    ! One transposed factorization is reused across all objective columns.
+    subroutine ode_implicit_stage_vjp(t, stage, alpha, rhs_jacobian, &
+            parameter_vjp, parameter_count, stage_cotangent, base_cotangent, &
+            parameter_cotangent, status, ctx)
+        real(dp), intent(in) :: t
+        real(dp), intent(in) :: stage(:)
+        real(dp), intent(in) :: alpha
+        real(dp), intent(in) :: rhs_jacobian(:,:)
+        procedure(ode_param_vjp_t) :: parameter_vjp
+        integer, intent(in) :: parameter_count
+        real(dp), intent(in) :: stage_cotangent(:,:)
+        real(dp), allocatable, intent(out) :: base_cotangent(:,:)
+        real(dp), allocatable, intent(out) :: parameter_cotangent(:,:)
+        type(fortnum_status_t), intent(out) :: status
+        class(*), intent(in), optional :: ctx
+
+        integer :: n, nobjective, i, objective, info
+        integer, allocatable :: pivots(:)
+        real(dp), allocatable :: factor(:,:), rhs_cotangent(:)
+
+        call status_set(status, FORTNUM_OK, "")
+        n = size(rhs_jacobian, 1)
+        if (n < 1 .or. n > LINALG_MAX_N) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_implicit_stage_vjp: unsupported state size")
+            return
+        end if
+        if (size(rhs_jacobian, 2) /= n) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_implicit_stage_vjp: Jacobian must be square")
+            return
+        end if
+        if (size(stage) /= n) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_implicit_stage_vjp: stage size mismatch")
+            return
+        end if
+        if (size(stage_cotangent, 1) /= n) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_implicit_stage_vjp: cotangent size mismatch")
+            return
+        end if
+        if (parameter_count < 1) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_implicit_stage_vjp: parameter count must be positive")
+            return
+        end if
+
+        nobjective = size(stage_cotangent, 2)
+        allocate(base_cotangent(n, nobjective))
+        allocate(parameter_cotangent(parameter_count, nobjective))
+        allocate(factor(n, n), pivots(n), rhs_cotangent(n))
+        factor = -alpha*transpose(rhs_jacobian)
+        do i = 1, n
+            factor(i, i) = factor(i, i) + 1.0_dp
+        end do
+        call lu_factor(n, factor, pivots, info)
+        if (info /= LINALG_OK) then
+            base_cotangent = 0.0_dp
+            parameter_cotangent = 0.0_dp
+            call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
+                "ode_implicit_stage_vjp: singular stage Jacobian")
+            return
+        end if
+
+        base_cotangent = stage_cotangent
+        parameter_cotangent = 0.0_dp
+        do objective = 1, nobjective
+            call lu_solve_factored(n, factor, pivots, &
+                base_cotangent(:, objective), info)
+            if (info /= LINALG_OK) then
+                base_cotangent = 0.0_dp
+                parameter_cotangent = 0.0_dp
+                call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
+                    "ode_implicit_stage_vjp: stage adjoint solve failed")
+                return
+            end if
+            rhs_cotangent = alpha*base_cotangent(:, objective)
+            call parameter_vjp(t, stage, rhs_cotangent, &
+                parameter_cotangent(:, objective), ctx)
+        end do
+    end subroutine ode_implicit_stage_vjp
 
     ! Integrate problem%rhs from t0 to t1 with adaptive Cash-Karp RK5(4).
     ! Records the accepted-step mesh into solution. Event detection lands in

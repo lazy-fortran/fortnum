@@ -281,6 +281,12 @@ under #40 checks transversality before propagating an event sensitivity.
   already contracted into the requested directions. Multiple direction
   columns reuse one stage-Jacobian factorization. Step size and tableau
   coefficient `alpha` are inactive.
+- `ode_implicit_stage_vjp` solves the transposed stage system once per
+  stage-output cotangent while reusing one transposed factorization. It returns
+  the base cotangent and passes `alpha * stage_adjoint` to the existing
+  `ode_param_vjp_t` callback, which accumulates contracted parameter
+  cotangents without forming `rhs_parameter_jacobian`. Multiple columns
+  represent multiple scalar objectives.
 
 These names follow ad.md §2 (`foo_jvp`, `foo_vjp`). The primal `ode_integrate`
 and `ode_solve` signatures in sections 4 and 5 remain unchanged.
