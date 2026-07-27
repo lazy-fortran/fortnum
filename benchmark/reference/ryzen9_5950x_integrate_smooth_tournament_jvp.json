@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "smooth_adaptive_qag_frozen_trace",
+  "product": "value_plus_jvp",
+  "workload": "adaptive integral of exp(p*x) on [0,1], p near 12, key 15, verified three-panel trace",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "enzyme_commit": "c96508349d9f",
+    "build": "Release -O2"
+  },
+  "sampling": {
+    "tournament_processes": 3,
+    "samples_per_process": 31,
+    "workloads_per_sample": 2000,
+    "candidate_order": "rotated each sample",
+    "runtime_aggregation": "median of process medians",
+    "dispersion_aggregation": "median of within-process MADs",
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum",
+    "perf_repetitions": 5
+  },
+  "validation": {
+    "oracle": "closed-form derivative of the exactly integrated exponential",
+    "trace_panels": [[0.0, 0.5], [0.5, 0.75], [0.75, 1.0]],
+    "exact_absolute_tolerance": 1e-7,
+    "trace_identity_checked": true
+  },
+  "candidates": [
+    {"id": "generic_explicit_tangent", "mechanism": "analytical", "median_ns": 1668.4775, "mad_ns": 21.3305, "peak_rss_bytes": 2613248},
+    {"id": "compact_explicit_tangent", "mechanism": "analytical", "median_ns": 1308.4690, "mad_ns": 11.0055, "peak_rss_bytes": 2822144, "cycles": 58931246, "instructions": 185458898, "cache_references": 211356, "cache_misses": 17433},
+    {"id": "enzyme_complete_compact_trace", "mechanism": "autodiff", "median_ns": 1329.2185, "mad_ns": 14.5675, "peak_rss_bytes": 2838528, "cycles": 59309240, "instructions": 184308654, "cache_references": 122758, "cache_misses": 16418},
+    {"id": "enzyme_integrand_generic_trace", "mechanism": "hybrid", "median_ns": 1684.0765, "mad_ns": 18.6100, "peak_rss_bytes": 2813952},
+    {"id": "enzyme_integrand_compact_trace", "mechanism": "hybrid", "median_ns": 1345.1885, "mad_ns": 15.1135, "peak_rss_bytes": 2785280, "cycles": 60159688, "instructions": 187224891, "cache_references": 197489, "cache_misses": 16263},
+    {"id": "frozen_trace_central_difference", "mechanism": "diagnostic", "median_ns": 1481.6405, "mad_ns": 18.0085, "peak_rss_bytes": 2801664, "cycles": 65283523, "instructions": 206303406, "cache_references": 278105, "cache_misses": 19196}
+  ],
+  "selection": {
+    "selected": "compact_explicit_tangent",
+    "criterion": "complete value-plus-derivative wall clock",
+    "speedup_over_autodiff": 1.0159,
+    "speedup_over_compact_hybrid": 1.0281,
+    "speedup_over_diagnostic": 1.1323,
+    "reason": "compact analytical passes the independent oracle and has the lowest interleaved complete-workload wall clock"
+  }
+}

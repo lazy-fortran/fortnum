@@ -608,6 +608,62 @@ taskset -c 4 \
     --benchmark hybrid
 ```
 
+## Smooth adaptive-integration tournament
+
+The complete smooth tournament removes the structural mismatch identified
+above. In addition to the generic trace walkers it includes:
+
+- compact `analytical`: explicit integrand tangents in the fixed G7K15 sum;
+- compact `hybrid`: Enzyme integrand JVPs in that same fixed sum;
+- `autodiff`: Enzyme through the complete fixed sum.
+
+Every candidate first constructs and verifies the same three-panel adaptive
+primal trace. All derivative kernels are checked against the independently
+integrated closed form. To reduce host frequency and scheduling bias, each
+tournament run rotates candidate order over 31 interleaved samples of 2,000
+complete value-plus-JVP workloads. The table reports the median of three
+tournament-run medians and the median within-run MAD. Reference: AMD Ryzen 9
+5950X, CPU 4 pinned, Flang/LLVM 22.1.8, Enzyme `c96508349d9f`, Release `-O2`.
+
+| Candidate | Mechanism | Median ns/value+JVP | MAD ns | Peak RSS |
+|---|---|---:|---:|---:|
+| generic explicit-tangent trace replay | `analytical` | 1,668.4775 | 21.3305 | 2,613,248 B |
+| compact explicit-tangent trace replay | `analytical` | 1,308.4690 | 11.0055 | 2,822,144 B |
+| Enzyme through compact fixed trace | `autodiff` | 1,329.2185 | 14.5675 | 2,838,528 B |
+| Enzyme integrand JVP + generic trace | `hybrid` | 1,684.0765 | 18.6100 | 2,813,952 B |
+| Enzyme integrand JVP + compact trace | `hybrid` | 1,345.1885 | 15.1135 | 2,785,280 B |
+| frozen-trace central difference | diagnostic | 1,481.6405 | 18.0085 | 2,801,664 B |
+
+Complete-workload wall clock selects compact `analytical`. It is 1.0159 times
+faster than whole-trace `autodiff`, 1.0281 times faster than compact `hybrid`,
+and 1.1323 times faster than finite differences. The generic analytical and
+hybrid walkers are 1.2751 and 1.2871 times slower because they retain panel
+error-estimate work. Peak RSS is effectively flat and does not select a
+candidate.
+
+Linux `perf stat -r 5` over 10,000 workloads corroborates the compact ranking:
+
+| Candidate | Cycles | Instructions | Cache references | Cache misses | Miss rate |
+|---|---:|---:|---:|---:|---:|
+| compact `analytical` | 58,931,246 | 185,458,898 | 211,356 | 17,433 | 8.2482% |
+| `autodiff` | 59,309,240 | 184,308,654 | 122,758 | 16,418 | 13.3743% |
+| compact `hybrid` | 60,159,688 | 187,224,891 | 197,489 | 16,263 | 8.2349% |
+| diagnostic | 65,283,523 | 206,303,406 | 278,105 | 19,196 | 6.9024% |
+
+Cache-reference dispersion reached 27% for compact analytical and is
+diagnostic only. The wall-clock and cycle results agree on the winner.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_integrate_smooth_tournament_jvp.json`.
+
+Run the interleaved tournament with:
+
+```bash
+taskset -c 4 \
+    build-enzyme/test/ad/enzyme_adaptive_frozen_trace_jvp.enzyme/enzyme_adaptive_frozen_trace_jvp \
+    --tournament
+```
+
 ## Vector-root candidate tournament
 
 The coupled vector tournament uses

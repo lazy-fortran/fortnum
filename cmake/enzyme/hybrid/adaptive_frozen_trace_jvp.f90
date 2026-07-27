@@ -30,7 +30,8 @@ module adaptive_frozen_trace_kernel
         real(dp) :: value
     end type parameter_t
 
-    public :: analytical_value_jvp, autodiff_value_jvp, hybrid_value_jvp
+    public :: analytical_value_jvp, compact_analytical_value_jvp
+    public :: autodiff_value_jvp, hybrid_value_jvp, compact_hybrid_value_jvp
     public :: diagnostic_value_jvp, exact_jvp
 
     interface
@@ -72,6 +73,41 @@ contains
         value = half_length*value
     end function panel_value
 
+    pure function panel_tangent_value(p, a, b) result(value)
+        real(dp), intent(in) :: p, a, b
+        real(dp) :: value, center, half_length, offset, x_minus, x_plus
+        integer :: node
+
+        center = 0.5_dp*(a + b)
+        half_length = 0.5_dp*(b - a)
+        value = wgk(8)*center*exp(p*center)
+        do node = 1, 7
+            offset = half_length*xgk(node)
+            x_minus = center - offset
+            x_plus = center + offset
+            value = value + wgk(node)*( &
+                x_minus*exp(p*x_minus) + x_plus*exp(p*x_plus))
+        end do
+        value = half_length*value
+    end function panel_tangent_value
+
+    function panel_hybrid_tangent_value(p, a, b) result(value)
+        real(dp), intent(in) :: p, a, b
+        real(dp) :: value, center, half_length, offset
+        integer :: node
+
+        center = 0.5_dp*(a + b)
+        half_length = 0.5_dp*(b - a)
+        value = wgk(8)*integrand_jvp(center, p)
+        do node = 1, 7
+            offset = half_length*xgk(node)
+            value = value + wgk(node)*( &
+                integrand_jvp(center - offset, p) + &
+                integrand_jvp(center + offset, p))
+        end do
+        value = half_length*value
+    end function panel_hybrid_tangent_value
+
     function analytical_value_jvp(p) result(derivative)
         real(dp), intent(in) :: p
         real(dp) :: derivative
@@ -87,6 +123,22 @@ contains
             ctx=parameter)
         if (.not. status_ok(status)) error stop "analytical trace JVP failed"
     end function analytical_value_jvp
+
+    function compact_analytical_value_jvp(p) result(derivative)
+        real(dp), intent(in) :: p
+        real(dp) :: derivative
+        type(parameter_t) :: parameter
+        type(integrate_workspace_t) :: workspace
+        type(integrate_result_t) :: result
+        type(fortnum_status_t) :: status
+
+        parameter%value = p
+        call build_trace(parameter, workspace, result, status)
+        call require_trace(result, status)
+        derivative = panel_tangent_value(p, 0.0_dp, 0.5_dp) + &
+            panel_tangent_value(p, 0.5_dp, 0.75_dp) + &
+            panel_tangent_value(p, 0.75_dp, 1.0_dp)
+    end function compact_analytical_value_jvp
 
     function autodiff_value_jvp(p) result(derivative)
         real(dp), intent(in) :: p
@@ -117,6 +169,22 @@ contains
             status, ctx=parameter)
         if (.not. status_ok(status)) error stop "hybrid trace JVP failed"
     end function hybrid_value_jvp
+
+    function compact_hybrid_value_jvp(p) result(derivative)
+        real(dp), intent(in) :: p
+        real(dp) :: derivative
+        type(parameter_t) :: parameter
+        type(integrate_workspace_t) :: workspace
+        type(integrate_result_t) :: result
+        type(fortnum_status_t) :: status
+
+        parameter%value = p
+        call build_trace(parameter, workspace, result, status)
+        call require_trace(result, status)
+        derivative = panel_hybrid_tangent_value(p, 0.0_dp, 0.5_dp) + &
+            panel_hybrid_tangent_value(p, 0.5_dp, 0.75_dp) + &
+            panel_hybrid_tangent_value(p, 0.75_dp, 1.0_dp)
+    end function compact_hybrid_value_jvp
 
     function diagnostic_value_jvp(p) result(derivative)
         real(dp), intent(in) :: p
@@ -217,7 +285,8 @@ program enzyme_adaptive_frozen_trace_jvp
     use, intrinsic :: iso_c_binding, only: c_int64_t
     use, intrinsic :: iso_fortran_env, only: dp => real64, int64
     use adaptive_frozen_trace_kernel, only: analytical_value_jvp, &
-        autodiff_value_jvp, hybrid_value_jvp, diagnostic_value_jvp, exact_jvp
+        compact_analytical_value_jvp, autodiff_value_jvp, hybrid_value_jvp, &
+        compact_hybrid_value_jvp, diagnostic_value_jvp, exact_jvp
     implicit none
 
     interface
@@ -229,22 +298,26 @@ program enzyme_adaptive_frozen_trace_jvp
     end interface
 
     character(32) :: argument, candidate
-    real(dp) :: errors(4), reference
+    real(dp) :: errors(6), reference
 
     call get_command_argument(1, argument)
     call get_command_argument(2, candidate)
-    if (trim(argument) == "--benchmark") then
+    if (trim(argument) == "--tournament") then
+        call run_tournament()
+    else if (trim(argument) == "--benchmark") then
         call run_benchmark(trim(candidate))
     else if (trim(argument) == "--peak-rss") then
         call run_peak_rss(trim(candidate))
     else
         reference = exact_jvp(12.0_dp)
         errors(1) = abs(analytical_value_jvp(12.0_dp) - reference)
-        errors(2) = abs(autodiff_value_jvp(12.0_dp) - reference)
-        errors(3) = abs(hybrid_value_jvp(12.0_dp) - reference)
-        errors(4) = abs(diagnostic_value_jvp(12.0_dp) - reference)
-        if (maxval(errors(1:3)) > 1.0e-7_dp .or. &
-            errors(4) > 1.0e-4_dp) then
+        errors(2) = abs(compact_analytical_value_jvp(12.0_dp) - reference)
+        errors(3) = abs(autodiff_value_jvp(12.0_dp) - reference)
+        errors(4) = abs(hybrid_value_jvp(12.0_dp) - reference)
+        errors(5) = abs(compact_hybrid_value_jvp(12.0_dp) - reference)
+        errors(6) = abs(diagnostic_value_jvp(12.0_dp) - reference)
+        if (maxval(errors(1:5)) > 1.0e-7_dp .or. &
+            errors(6) > 1.0e-4_dp) then
             print *, "adaptive frozen-trace JVP mismatch", errors
             error stop 1
         end if
@@ -252,6 +325,32 @@ program enzyme_adaptive_frozen_trace_jvp
     end if
 
 contains
+
+    subroutine run_tournament()
+        integer, parameter :: candidate_count = 6, samples = 31
+        integer(int64), parameter :: reps = 2000_int64
+        character(20), parameter :: names(candidate_count) = [ &
+            character(20) :: "analytical", "analytical_compact", "autodiff", &
+            "hybrid", "hybrid_compact", "diagnostic"]
+        real(dp) :: elapsed(candidate_count, samples), sink
+        integer :: candidate_index, order_index, sample
+
+        do candidate_index = 1, candidate_count
+            call time_candidate(names(candidate_index), reps/10_int64, sink)
+        end do
+        do sample = 1, samples
+            do order_index = 1, candidate_count
+                candidate_index = 1 + mod(sample + order_index - 2, &
+                    candidate_count)
+                call time_candidate(names(candidate_index), reps, &
+                    elapsed(candidate_index, sample))
+            end do
+        end do
+        do candidate_index = 1, candidate_count
+            call report(names(candidate_index), elapsed(candidate_index, :), &
+                reps)
+        end do
+    end subroutine run_tournament
 
     subroutine run_benchmark(name)
         character(*), intent(in) :: name
@@ -283,9 +382,10 @@ contains
     subroutine validate_candidate(name)
         character(*), intent(in) :: name
 
-        if ((name /= "analytical") .and. (name /= "autodiff") .and. &
-            (name /= "hybrid") .and. (name /= "diagnostic")) then
-            error stop "candidate must be analytical, autodiff, hybrid, or diagnostic"
+        if ((name /= "analytical") .and. (name /= "analytical_compact") .and. &
+            (name /= "autodiff") .and. (name /= "hybrid") .and. &
+            (name /= "hybrid_compact") .and. (name /= "diagnostic")) then
+            error stop "unknown smooth adaptive candidate"
         end if
     end subroutine validate_candidate
 
@@ -303,10 +403,14 @@ contains
             select case (name)
             case ("analytical")
                 sink = sink + analytical_value_jvp(p)
+            case ("analytical_compact")
+                sink = sink + compact_analytical_value_jvp(p)
             case ("autodiff")
                 sink = sink + autodiff_value_jvp(p)
             case ("hybrid")
                 sink = sink + hybrid_value_jvp(p)
+            case ("hybrid_compact")
+                sink = sink + compact_hybrid_value_jvp(p)
             case ("diagnostic")
                 sink = sink + diagnostic_value_jvp(p)
             end select

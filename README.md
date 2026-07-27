@@ -41,8 +41,9 @@ tournament selects `analytical` for both products. Adaptive integration has an
 `analytical` frozen-subdivision JVP for QAG, QAGS, QAGP, and one-sided QAGIU
 traces, a forward-`autodiff` candidate through a fixed accepted trace, and a
 `hybrid` candidate using Enzyme integrand JVPs inside the analytical trace walk.
-Candidate selection prioritizes complete-workload wall clock and records peak
-memory, input/output scaling, and cache behavior where supported.
+The smooth adaptive tournament selects a compact `analytical` frozen-trace
+replay. Candidate selection prioritizes complete-workload wall clock and
+records peak memory, input/output scaling, and cache behavior where supported.
 
 ## Build
 
