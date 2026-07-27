@@ -20,9 +20,9 @@ Current derivative infrastructure includes generic analytical implicit JVP and
 VJP boundaries for scalar and vector roots, analytical fixed-point and
 linear-solve products, real autodiff/analytical hybrid Dawson and scalar-root
 JVP/VJP boundaries, hybrid vector-root JVP/VJP candidates using Enzyme residual
-products, and static benchmark-selected candidates. Measured runtime,
-dispersion, peak memory, validation, hardware, and compiler evidence is
-committed in
+products, reusable converged vector-root Jacobians, and static
+benchmark-selected candidates. Measured runtime, dispersion, peak memory,
+validation, hardware, and compiler evidence is committed in
 `docs/design/differentiation_benchmarks.md` and `benchmark/reference/`.
 `ROADMAP.md` is the authoritative implementation checklist.
 

@@ -136,7 +136,8 @@ contains
     ! x0 is the starting point (length n); the converged root is returned in x.
     ! xtol drives the step-size stop (default 1e-10), ftol the residual stop
     ! (default 1e-10), max_iter caps Newton steps (default 1000).
-    subroutine multiroot_hybrid(fdf, n, x0, x, status, xtol, ftol, max_iter, ctx)
+    subroutine multiroot_hybrid(fdf, n, x0, x, status, xtol, ftol, max_iter, &
+            ctx, jacobian)
         procedure(multiroot_fdf_t)         :: fdf
         integer,                intent(in) :: n
         real(dp),               intent(in) :: x0(n)
@@ -145,6 +146,7 @@ contains
         real(dp), intent(in), optional     :: xtol, ftol
         integer,  intent(in), optional     :: max_iter
         class(*), intent(in), optional     :: ctx
+        real(dp), intent(out), optional    :: jacobian(n, n)
 
         real(dp) :: f(n), jac(n, n), dx(n)
         real(dp) :: xt, ft
@@ -155,23 +157,30 @@ contains
         call resolve_tols(xtol, ftol, max_iter, xt, ft, max_it)
 
         call fdf(x, f, jac, ctx)
-        if (maxval(abs(f)) <= ft) return
+        if (maxval(abs(f)) <= ft) then
+            if (present(jacobian)) jacobian = jac
+            return
+        end if
 
         do it = 1, max_it
             call solve_linear(n, jac, -f, dx, ls_stat)
             if (ls_stat /= 0) then
+                if (present(jacobian)) jacobian = jac
                 call status_set(status, FORTNUM_DOMAIN_ERROR, &
                     "multiroot_hybrid: singular Jacobian in Newton step")
                 return
             end if
             call line_search_fdf(fdf, n, x, f, jac, dx, ctx)
-            if (maxval(abs(f)) <= ft) return
+            if (maxval(abs(f)) <= ft) then
+                if (present(jacobian)) jacobian = jac
+                return
+            end if
             if (maxval(abs(dx)) <= xt * (maxval(abs(x)) + xt)) then
-                if (maxval(abs(f)) <= ft) return
                 exit
             end if
         end do
 
+        if (present(jacobian)) jacobian = jac
         call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
             "multiroot_hybrid: maximum iterations reached without convergence")
     end subroutine multiroot_hybrid

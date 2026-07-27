@@ -529,6 +529,55 @@ fo exec bench_vector_root_adjoint assembled --peak-rss
 fo exec bench_vector_root_adjoint boundary --peak-rss
 ```
 
+## Converged vector-root Jacobian reuse
+
+The analytical-Jacobian vector-root solver can optionally return the Jacobian
+that its callback evaluated with the last accepted iterate. On convergence,
+this is the converged `F_x` required by analytical and hybrid implicit
+derivative products. The implementation copies it only at solver exit, not
+after every Newton step.
+
+The independent behavioral oracle checks the returned matrices for the
+Rosenbrock-gradient, Powell-singular, and circle-line systems against central
+finite differences of residual values at the converged roots. The maximum
+absolute matrix-entry error was `1.0702e-8`.
+
+The complete benchmark workload solves an eight-state dense nonlinear system
+with trigonometric residual terms and an analytical Jacobian. The baseline
+solves and then reevaluates the residual/Jacobian callback at the converged
+root. The reuse candidate requests the already evaluated converged Jacobian
+from the same solve. Each sample contains 5,000 complete solve-plus-Jacobian
+workloads.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, GNU Fortran 16.1.1, Release build,
+15 samples after three warmups.
+
+| Candidate | Mechanism | Median ns/workload | MAD ns/workload | Peak RSS |
+|---|---|---:|---:|---:|
+| solve then reevaluate Jacobian | `analytical` | 2,042.0032 | 18.8718 | 12,521,472 B |
+| return and reuse converged Jacobian | `analytical` | 1,963.0000 | 10.2972 | 12,316,672 B |
+
+Here “1.0402 times faster” means
+`2042.0032 / 1963.0000 = 1.0402`: reuse saves 79.0032 ns for the same complete
+solve-plus-Jacobian workload. It is not a comparison with an isolated
+Jacobian callback. Reuse also lowers maximum observed self-process RSS by
+204,800 bytes and is the measured selection for this workload.
+
+Peak memory is the maximum across five separately launched candidates,
+measured with `getrusage(RUSAGE_SELF)`. The machine-readable record is
+`benchmark/reference/ryzen9_5950x_multiroot_jacobian_reuse.json`.
+
+Run the benchmark with:
+
+```bash
+cd benchmark
+fo build
+taskset -c 4 fo exec bench_multiroot_jacobian_reuse reevaluate
+taskset -c 4 fo exec bench_multiroot_jacobian_reuse reuse
+fo exec bench_multiroot_jacobian_reuse reevaluate --peak-rss
+fo exec bench_multiroot_jacobian_reuse reuse --peak-rss
+```
+
 ## Analytical implicit tangent product for fixed points
 
 For a converged fixed point `x = G(x,p)`, the new analytical JVP solves

@@ -865,10 +865,11 @@ abstract interface
 end interface
 ```
 
-#### `multiroot_hybrid(fdf, n, x0, x, status [, xtol, ftol, max_iter, ctx])`
+#### `multiroot_hybrid(fdf, n, x0, x, status [, xtol, ftol, max_iter, ctx, jacobian])`
 
 ```fortran
-subroutine multiroot_hybrid(fdf, n, x0, x, status, xtol, ftol, max_iter, ctx)
+subroutine multiroot_hybrid(fdf, n, x0, x, status, xtol, ftol, max_iter, &
+        ctx, jacobian)
     procedure(multiroot_fdf_t)         :: fdf
     integer,                intent(in) :: n
     real(dp),               intent(in) :: x0(n)
@@ -877,10 +878,15 @@ subroutine multiroot_hybrid(fdf, n, x0, x, status, xtol, ftol, max_iter, ctx)
     real(dp), intent(in), optional     :: xtol, ftol
     integer,  intent(in), optional     :: max_iter
     class(*), intent(in), optional     :: ctx
+    real(dp), intent(out), optional    :: jacobian(n, n)
 ```
 
 Hybrid solve with an analytic Jacobian supplied by the `fdf` callback
-(`multiroot_fdf_t`); Powell hybrid dogleg with analytic Jacobian.
+(`multiroot_fdf_t`); Powell hybrid dogleg with analytic Jacobian. When
+`jacobian` is present, it receives the Jacobian evaluated with the last
+accepted iterate. On successful convergence, this is the converged Jacobian
+and can be reused by analytical or hybrid implicit derivative products without
+another residual callback.
 
 #### `multiroot_hybrids(fn, n, x0, x, status [, xtol, ftol, max_iter, ctx])`
 

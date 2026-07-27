@@ -66,10 +66,12 @@ contains
 
         integer  :: unit, ios, idx, n, i
         character(len=1024) :: line, buf
-        real(dp) :: vals(64)
+        real(dp) :: vals(64), jacobian_error, maximum_jacobian_error
         real(dp), allocatable :: x0(:), ref(:), x(:), f(:)
+        real(dp), allocatable :: jac(:,:), jac_fd(:,:)
         type(fortnum_status_t) :: s
 
+        maximum_jacobian_error = 0.0_dp
         open (newunit=unit, file=path, status="old", action="read", iostat=ios)
         if (ios /= 0) then
             write (error_unit, "(a)") "FAIL: cannot open " // trim(path)
@@ -92,15 +94,25 @@ contains
                 nfail = nfail + 1
                 cycle
             end if
-            allocate (x0(n), ref(n), x(n), f(n))
+            allocate (x0(n), ref(n), x(n), f(n), jac(n, n), jac_fd(n, n))
             x0  = vals(1:n)
             ref = vals(n + 1:2 * n)
 
             ! Analytic-Jacobian solver.
-            call dispatch_hybrid(idx, n, x0, x, s)
+            call dispatch_hybrid(idx, n, x0, x, s, jac)
             call eval_system(idx, x, f)
             total = total + 1
             call check_one("hybrid", idx, x, ref, f, RES_TOL, ROOT_TOL, s, nfail)
+            call finite_difference_jacobian(idx, x, jac_fd)
+            total = total + 1
+            jacobian_error = maxval(abs(jac - jac_fd))
+            maximum_jacobian_error = max(maximum_jacobian_error, jacobian_error)
+            if (jacobian_error > 1.0e-5_dp) then
+                write (error_unit, "(a,i0,a,es12.4)") &
+                    "FAIL hybrid case ", idx, " returned Jacobian maxabs=", &
+                    jacobian_error
+                nfail = nfail + 1
+            end if
 
             ! Finite-difference-Jacobian solver.
             call dispatch_hybrids(idx, n, x0, x, s)
@@ -108,9 +120,11 @@ contains
             total = total + 1
             call check_one("hybrids", idx, x, ref, f, RES_TOL, ROOT_TOL, s, nfail)
 
-            deallocate (x0, ref, x, f)
+            deallocate (x0, ref, x, f, jac, jac_fd)
         end do
         close (unit)
+        write (*, "(a,es24.16)") "returned Jacobian oracle maxabs=", &
+            maximum_jacobian_error
     end subroutine run_multiroot
 
     subroutine check_one(tag, idx, x, ref, f, res_tol, root_tol, s, nfail)
@@ -144,18 +158,46 @@ contains
         end if
     end subroutine check_one
 
-    subroutine dispatch_hybrid(idx, n, x0, x, s)
+    subroutine dispatch_hybrid(idx, n, x0, x, s, jacobian)
         integer,  intent(in)  :: idx, n
         real(dp), intent(in)  :: x0(n)
         real(dp), intent(out) :: x(n)
         type(fortnum_status_t), intent(out) :: s
+        real(dp), intent(out) :: jacobian(n, n)
         select case (idx)
-        case (0); call multiroot_hybrid(rosen_fdf,  n, x0, x, s, ftol=1.0e-12_dp)
-        case (1); call multiroot_hybrid(powell_fdf, n, x0, x, s, ftol=1.0e-9_dp)
-        case (2); call multiroot_hybrid(circ_fdf,   n, x0, x, s, ftol=1.0e-12_dp)
-        case default; call multiroot_hybrid(circ_fdf, n, x0, x, s)
+        case (0)
+            call multiroot_hybrid(rosen_fdf, n, x0, x, s, &
+                ftol=1.0e-12_dp, jacobian=jacobian)
+        case (1)
+            call multiroot_hybrid(powell_fdf, n, x0, x, s, &
+                ftol=1.0e-9_dp, jacobian=jacobian)
+        case (2)
+            call multiroot_hybrid(circ_fdf, n, x0, x, s, &
+                ftol=1.0e-12_dp, jacobian=jacobian)
+        case default
+            call multiroot_hybrid(circ_fdf, n, x0, x, s, jacobian=jacobian)
         end select
     end subroutine dispatch_hybrid
+
+    subroutine finite_difference_jacobian(idx, x, jacobian)
+        integer, intent(in) :: idx
+        real(dp), intent(in) :: x(:)
+        real(dp), intent(out) :: jacobian(size(x), size(x))
+        real(dp), parameter :: h = 1.0e-6_dp
+        real(dp) :: xp(size(x)), xm(size(x))
+        real(dp) :: fp(size(x)), fm(size(x))
+        integer :: column
+
+        do column = 1, size(x)
+            xp = x
+            xm = x
+            xp(column) = xp(column) + h
+            xm(column) = xm(column) - h
+            call eval_system(idx, xp, fp)
+            call eval_system(idx, xm, fm)
+            jacobian(:, column) = (fp - fm)/(2.0_dp*h)
+        end do
+    end subroutine finite_difference_jacobian
 
     subroutine dispatch_hybrids(idx, n, x0, x, s)
         integer,  intent(in)  :: idx, n

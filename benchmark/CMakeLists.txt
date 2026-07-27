@@ -60,6 +60,9 @@ target_link_libraries(bench_linear_solve_vjp PRIVATE bench_core)
 add_executable(bench_multiroot_preconditioner bench_multiroot_preconditioner.f90)
 target_link_libraries(bench_multiroot_preconditioner PRIVATE bench_core)
 
+add_executable(bench_multiroot_jacobian_reuse bench_multiroot_jacobian_reuse.f90)
+target_link_libraries(bench_multiroot_jacobian_reuse PRIVATE bench_core)
+
 add_executable(bench_multiroot_condition bench_multiroot_condition.f90)
 target_link_libraries(bench_multiroot_condition PRIVATE bench_core)
 
