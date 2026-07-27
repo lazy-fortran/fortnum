@@ -1422,6 +1422,12 @@ pure function bspline_span_index(ws, x) result(span)
 
 Knot span containing `x`, by binary search. `primal_only`.
 
+### `bspline_span_derivative_status(ws, x, vx, probe_step, status)`
+
+Checks the knot spans at `x-probe_step*vx` and `x+probe_step*vx`. Equal spans
+report `FORTNUM_OK`; a changed span reports `FORTNUM_DOMAIN_ERROR` because a
+fixed-span derivative is non-smooth for that probe.
+
 ---
 
 ## fortnum_oracle

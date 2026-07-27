@@ -44,6 +44,7 @@ module fortnum_bspline
     public :: bspline_eval_basis
     public :: bspline_eval_deriv
     public :: bspline_span_index
+    public :: bspline_span_derivative_status
     public :: bspline_eval_jvp ! d/dx [sum_i c_i B_i(x)] . vx   (x active)
     public :: bspline_eval_vjp ! (d/dx [sum_i c_i B_i(x)])^T . u (x active)
     public :: bspline_eval_coef_jvp ! d/dc [sum_i c_i B_i(x)] . vc  (coef active)
@@ -182,6 +183,29 @@ contains
         end do
         span = lo
     end function bspline_span_index
+
+    ! Report whether a symmetric directional probe preserves the primal knot
+    ! span. A changed span makes the fixed-span derivative non-smooth.
+    subroutine bspline_span_derivative_status(ws, x, vx, probe_step, status)
+        type(bspline_workspace_t), intent(in) :: ws
+        real(dp), intent(in) :: x, vx, probe_step
+        type(fortnum_status_t), intent(out) :: status
+        integer :: span_minus, span_plus
+
+        if (.not. ws%knots_set .or. probe_step < 0.0_dp) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "bspline_span_derivative_status: invalid workspace or probe step")
+            return
+        end if
+        span_minus = bspline_span_index(ws, x - probe_step*vx)
+        span_plus = bspline_span_index(ws, x + probe_step*vx)
+        if (span_minus /= span_plus) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "bspline_span_derivative_status: knot-span crossing")
+            return
+        end if
+        call status_set(status, FORTNUM_OK, "")
+    end subroutine bspline_span_derivative_status
 
     ! Evaluate all ncoef basis functions B_{i,k}(x) at x, returning values(ncoef).
     ! Only the k functions whose support contains the active span are nonzero;

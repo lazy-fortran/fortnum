@@ -17,13 +17,14 @@ program test_bspline_ad
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
     use fortnum_bspline, only: bspline_workspace_t, bspline_init, &
         bspline_set_knots, bspline_eval_deriv, bspline_eval_jvp, &
-        bspline_eval_vjp, bspline_span_index, bspline_eval_basis, &
+        bspline_eval_vjp, bspline_span_index, bspline_span_derivative_status, &
+        bspline_eval_basis, &
         bspline_eval_coef_jvp, bspline_eval_coef_vjp, &
         bspline_eval_combined_jvp, bspline_eval_combined_vjp, &
         bspline_eval_knots_jvp, bspline_eval_knots_vjp, &
         bspline_fit_jvp_factored, bspline_fit_vjp_factored
     use fortnum_linalg, only: lu_factor, lu_solve, LINALG_OK
-    use fortnum_status, only: fortnum_status_t, FORTNUM_OK
+    use fortnum_status, only: fortnum_status_t, FORTNUM_OK, FORTNUM_DOMAIN_ERROR
     use fortnum_ad_test_utils, only: rel_err, fd_jvp_step, &
         check_smoothness, ad_status_t, AD_SMOOTH, AD_NONSMOOTH
     implicit none
@@ -150,6 +151,7 @@ contains
     subroutine test_span_boundary_nonsmooth(nfail)
         integer, intent(inout) :: nfail
         type(bspline_workspace_t) :: ws
+        type(fortnum_status_t) :: s
         real(dp), allocatable     :: coef(:)
         real(dp)          :: eps, xk
         integer           :: tag_base, tag_pert
@@ -167,12 +169,25 @@ contains
                 "FAIL [span_boundary] crossing a knot not flagged non-smooth"
             nfail = nfail + 1
         end if
+        call bspline_span_derivative_status(ws, xk, 1.0_dp, eps, s)
+        if (s%code /= FORTNUM_DOMAIN_ERROR) then
+            write (error_unit, '(a)') &
+                "FAIL [span_boundary] public crossing status"
+            nfail = nfail + 1
+        end if
 
         tag_pert = bspline_span_index(ws, xk - 2.0_dp*eps)
         st = check_smoothness(tag_base, tag_pert, expect=AD_SMOOTH)
         if (.not. st%ok) then
             write (error_unit, '(a)') &
                 "FAIL [span_boundary] same span incorrectly flagged non-smooth"
+            nfail = nfail + 1
+        end if
+        call bspline_span_derivative_status(ws, xk - 3.0_dp*eps, 1.0_dp, &
+            eps, s)
+        if (s%code /= FORTNUM_OK) then
+            write (error_unit, '(a)') &
+                "FAIL [span_boundary] public same-span status"
             nfail = nfail + 1
         end if
     end subroutine test_span_boundary_nonsmooth

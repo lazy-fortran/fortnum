@@ -50,6 +50,8 @@ finite-difference diagnostics.
 Interpolation callers can explicitly guard a directional probe with
 `grid_search_derivative_status`; a changed cell reports non-smoothness through
 `FORTNUM_DOMAIN_ERROR` without adding overhead to value-only searches.
+B-spline callers have the matching `bspline_span_derivative_status` guard for
+knot-span crossings.
 
 Fixed-bound parameterized integrals also expose an analytical JVP based on
 differentiation under the integral sign, including the analytical Leibniz term
