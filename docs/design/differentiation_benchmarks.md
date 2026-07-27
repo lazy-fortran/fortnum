@@ -406,6 +406,51 @@ taskset -c 4 env FORTNUM_JVP_MANY_ACTION=--benchmark \
     fo exec --no-build test_linear_solve_jvp_many
 ```
 
+## Multiple-right-hand-side adjoint solves
+
+`linear_solve_vjp_factored_many` accepts several output cotangents and reuses
+one transposed LU factorization. The comparator repeats the scalar factored VJP
+over the same cotangents. Both return every matrix and right-hand-side
+cotangent. Each result is independently validated by a directional central
+difference of the complete contracted primal solve.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, GNU Fortran 16.1.1, Release build.
+Rows are medians of 31 independently launched samples with 20,000 complete
+workloads.
+
+| Cotangents | Repeated scalar ns | MAD ns | Batched ns | MAD ns | Selected |
+|---:|---:|---:|---:|---:|---|
+| 1 | 1,217.7881 | 6.4367 | 1,293.0112 | 5.7855 | repeated scalar |
+| 4 | 4,778.9403 | 53.7197 | 5,189.0145 | 47.7840 | repeated scalar |
+| 16 | 18,924.9462 | 95.5506 | 20,400.6982 | 65.2278 | repeated scalar |
+
+Both paths scale linearly in cotangent count. At 16 cotangents, repeated scalar
+VJPs are 1.0780 times faster. Maximum process RSS across five launches was
+4,308,992 bytes for repeated scalar and 4,206,592 bytes for batched. Both use
+fixed-size caller storage; the process-level difference is not algorithmic.
+
+Linux `perf stat -r 3` over 200,000 sixteen-cotangent workloads measured:
+
+| Candidate | Cycles/workload | Instructions/workload | Cache references/workload | Cache misses/workload |
+|---|---:|---:|---:|---:|
+| repeated scalar | 86,145.217 | 252,561.424 | 475.223 | 12.575 |
+| batched | 93,970.337 | 292,170.429 | 540.485 | 13.022 |
+
+Wall clock selects repeated scalar VJPs. Cache-miss counters were highly
+variable and are supporting evidence only.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_linear_solve_vjp_many.json`. Reproduce one
+sample with:
+
+```bash
+fo test test_linear_solve_vjp_many
+taskset -c 4 env FORTNUM_VJP_MANY_ACTION=--benchmark \
+    FORTNUM_VJP_MANY_CANDIDATE=batched FORTNUM_VJP_MANY_COTANGENTS=16 \
+    FORTNUM_VJP_MANY_ITERATIONS=20000 \
+    fo exec --no-build test_linear_solve_vjp_many
+```
+
 ## Analytical linear-solve VJP transpose-factorization reuse
 
 This workload applies 200,000 cotangents to one dense 16-by-16 primal system.

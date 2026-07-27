@@ -1090,6 +1090,10 @@ pure subroutine linear_solve_jvp_factored_many( &
     n, direction_count, factors, pivots, x, da, db, dx, info)
     ! da(n,n,direction_count), db/dx(n,direction_count)
 
+pure subroutine linear_solve_vjp_factored_many( &
+    n, cotangent_count, transpose_factors, pivots, x, u, abar, bbar, info)
+    ! u/bbar(n,cotangent_count), abar(n,n,cotangent_count)
+
 pure subroutine lu_solve(n, a, b, info)
     integer,  intent(in)    :: n               ! 1 <= n <= LINALG_MAX_N
     real(dp), intent(inout) :: a(n, n)         ! overwritten with LU factors

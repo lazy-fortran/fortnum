@@ -115,6 +115,10 @@ add_executable(test_linear_solve_jvp_many test_linear_solve_jvp_many.f90)
 target_link_libraries(test_linear_solve_jvp_many PRIVATE fortnum)
 add_test(NAME ad_linear_solve_jvp_many COMMAND test_linear_solve_jvp_many)
 
+add_executable(test_linear_solve_vjp_many test_linear_solve_vjp_many.f90)
+target_link_libraries(test_linear_solve_vjp_many PRIVATE fortnum)
+add_test(NAME ad_linear_solve_vjp_many COMMAND test_linear_solve_vjp_many)
+
 add_executable(test_ode_continuous_sensitivity
     test_ode_continuous_sensitivity.f90)
 target_link_libraries(test_ode_continuous_sensitivity PRIVATE fortnum)
