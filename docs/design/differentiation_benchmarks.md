@@ -160,3 +160,30 @@ fo build
 taskset -c 4 fo exec bench_multiroot_preconditioner default
 taskset -c 4 fo exec bench_multiroot_preconditioner preconditioned
 ```
+
+## Build-time consumption of committed selections
+
+The production build reads the selected Dawson outer-JVP candidate from its
+committed tournament record with CMake's native JSON parser. CMake then emits a
+build-local Fortran wrapper, so the selected call is resolved before compilation
+and no registry dispatch remains in the numerical kernel.
+
+An independent CMake fixture verifies parsing with a synthetic `hybrid`
+selection. The existing complete-expression finite-difference test exercises
+the generated production wrapper selected by the real record.
+
+Clean configure measurements disable tests and examples and use a fresh Ninja
+build directory for every sample:
+
+| Configuration | Median ms | MAD ms | Peak RSS |
+|---|---:|---:|---:|
+| committed benchmark record | 680.8280 | 14.0784 | 36,429,824 B |
+| hardcoded fallback | 678.9285 | 4.3068 | 36,442,112 B |
+
+Reading and generating from the committed record adds 1.8995 ms, or 0.28%, to
+median clean-configure time in this sample and does not increase measured peak
+RSS. The committed-record path is selected because it connects benchmark
+evidence to production without adding runtime dispatch.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_build_selection.json`.

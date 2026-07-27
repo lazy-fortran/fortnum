@@ -17,7 +17,7 @@ module fortnum_special_dawson
     ! conformance: 0.0d0 -> _dp.
 
     use, intrinsic :: iso_fortran_env, only: dp => real64
-    use fortnum_generated_dawson_outer, only: fortnum_dawson_outer_kernel
+    use fortnum_build_selection, only: fortnum_selected_dawson_outer_jvp
     implicit none
     private
 
@@ -97,7 +97,7 @@ contains
         real(dp), intent(out) :: value, jvp
         real(dp) :: f
         f = dawson(x)
-        call fortnum_dawson_outer_kernel(x, f, v, value, jvp)
+        call fortnum_selected_dawson_outer_jvp(x, f, v, value, jvp)
     end subroutine dawson_outer_jvp
 
     ! Compiler-stable scalar boundary used by autodiff and hybrid candidates.

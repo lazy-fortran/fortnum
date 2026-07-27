@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "build_configuration",
+  "product": "benchmark_record_selection",
+  "workload": "clean CMake configure, tests and examples disabled",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor"
+  },
+  "toolchain": {
+    "cmake": "4.4.0",
+    "generator": "Ninja",
+    "gfortran": "16.1.1 20260625"
+  },
+  "sampling": {
+    "samples": 15,
+    "fresh_build_directory_per_sample": true
+  },
+  "validation": {
+    "oracle": "independent CMake fixture selects hybrid and the generated analytical Dawson wrapper passes complete-expression finite difference"
+  },
+  "memory_method": "Linux RUSAGE_CHILDREN maximum resident set size for each 15-configure process",
+  "candidates": [
+    {
+      "id": "committed_record",
+      "median_ms_per_configure": 680.8280,
+      "mad_ms_per_configure": 14.0784,
+      "peak_rss_bytes": 36429824
+    },
+    {
+      "id": "hardcoded_fallback",
+      "median_ms_per_configure": 678.9285,
+      "mad_ms_per_configure": 4.3068,
+      "peak_rss_bytes": 36442112
+    }
+  ],
+  "selection": {
+    "selected": "committed_record",
+    "configure_overhead_fraction": 0.0028,
+    "reason": "the 1.8995 ms median configure cost connects measured evidence to production selection; runtime dispatch is resolved at build time"
+  }
+}

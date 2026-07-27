@@ -1,0 +1,23 @@
+module fortnum_build_selection
+    ! Fallback for build systems that do not consume CMake benchmark records.
+    ! CMake compiles its generated module of the same name instead of this file.
+    use, intrinsic :: iso_fortran_env, only: dp => real64
+    use fortnum_generated_dawson_outer, only: fortnum_dawson_outer_kernel
+    implicit none
+    private
+
+    character(*), parameter, public :: FORTNUM_DAWSON_OUTER_JVP_CANDIDATE = &
+        "analytical"
+
+    public :: fortnum_selected_dawson_outer_jvp
+
+contains
+
+    subroutine fortnum_selected_dawson_outer_jvp(x, f, v, value, jvp)
+        real(dp), intent(in) :: x, f, v
+        real(dp), intent(out) :: value, jvp
+
+        call fortnum_dawson_outer_kernel(x, f, v, value, jvp)
+    end subroutine fortnum_selected_dawson_outer_jvp
+
+end module fortnum_build_selection
