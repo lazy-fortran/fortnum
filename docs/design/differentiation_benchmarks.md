@@ -306,23 +306,25 @@ of 10,000 complete workloads after three warmups. Reference: AMD Ryzen 9
 |---:|---|---|---:|---:|---:|
 | 1 | explicit integrand JVP + fixed quadrature | `analytical` | 312.6325 | 4.0857 | 3,035,136 B |
 | 1 | Enzyme integrand JVP + fixed quadrature | `hybrid` | 313.4861 | 1.0931 | 3,047,424 B |
+| 1 | Enzyme through complete fixed quadrature | `autodiff` | 429.6297 | 3.4785 | 2,797,568 B |
 | 1 | two complete quadrature evaluations | diagnostic | 572.1548 | 2.9014 | 3,051,520 B |
 | 2 | explicit integrand JVP + fixed quadrature | `analytical` | 629.2495 | 3.1329 | 2,797,568 B |
 | 2 | Enzyme integrand JVP + fixed quadrature | `hybrid` | 633.8662 | 2.8634 | 2,838,528 B |
+| 2 | Enzyme through complete fixed quadrature | `autodiff` | 867.5331 | 4.9113 | 3,010,560 B |
 | 2 | two complete quadrature evaluations per direction | diagnostic | 1,148.1500 | 4.9874 | 2,789,376 B |
 | 4 | explicit integrand JVP + fixed quadrature | `analytical` | 1,247.7167 | 5.8860 | 2,797,568 B |
 | 4 | Enzyme integrand JVP + fixed quadrature | `hybrid` | 1,263.4433 | 10.5408 | 2,797,568 B |
+| 4 | Enzyme through complete fixed quadrature | `autodiff` | 1,718.8515 | 7.7717 | 3,043,328 B |
 | 4 | two complete quadrature evaluations per direction | diagnostic | 2,316.5791 | 20.7341 | 2,801,664 B |
 
 Complete-workload wall clock selects `analytical` for this integrand, but only
 by 1.0027, 1.0073, and 1.0126 times at one, two, and four directions. The
 `hybrid` path remains 1.8113 to 1.8335 times faster than the diagnostic.
-All candidates scale approximately linearly because each requested forward
-direction repeats the complete JVP: four-direction wall time is 3.9910 times
-the one-direction time for `analytical`, 4.0303 for `hybrid`, and 4.0489 for
-the diagnostic. This scalar-output JVP experiment does not establish the
-forward/reverse crossover; the following VJP item supplies the reverse-side
-composition.
+Whole-operator `autodiff` is 1.3742 times slower than `analytical` at one
+direction, but 1.3317 times faster than the diagnostic. All candidates scale
+approximately linearly because each requested forward direction repeats the
+complete JVP: the four/one ratios are 3.9910 (`analytical`), 4.0303
+(`hybrid`), 4.0008 (`autodiff`), and 4.0489 (diagnostic).
 
 Linux `perf stat -r 5` for 20,000 four-direction workloads gives:
 
@@ -330,6 +332,7 @@ Linux `perf stat -r 5` for 20,000 four-direction workloads gives:
 |---|---:|---:|---:|---:|---:|
 | `analytical` | 113,267,878 | 401,594,792 | 122,880 | 16,090 | 13.0941% |
 | `hybrid` | 114,276,069 | 405,914,614 | 89,225 | 15,535 | 17.4110% |
+| `autodiff` | 156,936,769 | 559,455,522 | 93,053 | 15,705 | 16.8775% |
 | diagnostic | 210,217,773 | 727,036,238 | 174,804 | 18,374 | 10.5112% |
 
 The cycle and instruction counts corroborate the wall-clock verdict.
@@ -377,29 +380,32 @@ Flang/LLVM 22.1.8, Enzyme `c96508349d9f`, Release `-O2`.
 |---:|---|---|---:|---:|---:|
 | 1 | explicit integrand VJP + fixed quadrature | `analytical` | 299.4435 | 1.1752 | 3,051,520 B |
 | 1 | Enzyme integrand VJP + fixed quadrature | `hybrid` | 317.5576 | 5.2910 | 2,797,568 B |
+| 1 | Enzyme through complete fixed quadrature | `autodiff` | 443.6331 | 3.1199 | 2,785,280 B |
 | 1 | eight complete quadrature evaluations | diagnostic | 2,263.7966 | 12.9915 | 2,834,432 B |
 | 2 | explicit integrand VJP + fixed quadrature | `analytical` | 604.4575 | 2.9396 | 2,789,376 B |
 | 2 | Enzyme integrand VJP + fixed quadrature | `hybrid` | 646.4897 | 4.8511 | 2,813,952 B |
+| 2 | Enzyme through complete fixed quadrature | `autodiff` | 897.8271 | 4.7469 | 2,969,600 B |
 | 2 | eight complete evaluations per cotangent | diagnostic | 4,547.2562 | 45.2453 | 2,813,952 B |
 | 4 | explicit integrand VJP + fixed quadrature | `analytical` | 1,213.0276 | 2.8915 | 2,793,472 B |
 | 4 | Enzyme integrand VJP + fixed quadrature | `hybrid` | 1,275.7279 | 4.1718 | 2,826,240 B |
+| 4 | Enzyme through complete fixed quadrature | `autodiff` | 1,804.7173 | 30.2730 | 3,026,944 B |
 | 4 | eight complete evaluations per cotangent | diagnostic | 9,187.4429 | 190.7125 | 2,830,336 B |
 
 Complete-workload wall clock selects `analytical`; it is 1.0517 to 1.0695
-times faster than `hybrid`. The `hybrid` candidate is 7.0338 to 7.2017 times
-faster than finite differences. Batching independent cotangents scales
-linearly: four cotangents cost 4.0509, 4.0173, and 4.0584 times one cotangent
-for `analytical`, `hybrid`, and diagnostic respectively. Peak RSS is
-effectively flat and does not select a candidate.
+times faster than `hybrid` and 1.4815 times faster than whole-operator
+`autodiff` for one cotangent. `Autodiff` is still 5.1029 times faster than
+finite differences. Batching independent cotangents scales linearly:
+four/one ratios are 4.0509 (`analytical`), 4.0173 (`hybrid`), 4.0680
+(`autodiff`), and 4.0584 (diagnostic). Peak RSS does not select a candidate.
 
 The important forward/reverse result uses complete derivative workloads, not
 isolated scalar partials:
 
-| Required derivative | `analytical` wall clock | `hybrid` wall clock | Diagnostic wall clock |
-|---|---:|---:|---:|
-| full four-parameter gradient via four forward JVPs | 1,247.7167 ns | 1,263.4433 ns | 2,316.5791 ns |
-| full four-parameter gradient via one reverse VJP | 299.4435 ns | 317.5576 ns | 2,263.7966 ns |
-| forward/reverse ratio | 4.1668 | 3.9786 | 1.0233 |
+| Required derivative | `analytical` | `hybrid` | `autodiff` | Diagnostic |
+|---|---:|---:|---:|---:|
+| full gradient via four forward JVPs | 1,247.7167 ns | 1,263.4433 ns | 1,718.8515 ns | 2,316.5791 ns |
+| full gradient via one reverse VJP | 299.4435 ns | 317.5576 ns | 443.6331 ns | 2,263.7966 ns |
+| forward/reverse ratio | 4.1668 | 3.9786 | 3.8745 | 1.0233 |
 
 For this one-output, four-input map, reverse mode wins by approximately four
 times because a single VJP returns all input sensitivities, whereas forward
@@ -413,6 +419,7 @@ Linux `perf stat -r 5` for 20,000 single-cotangent workloads gives:
 |---|---:|---:|---:|---:|---:|
 | `analytical` | 28,978,599 | 101,314,668 | 248,437 | 16,004 | 6.4419% |
 | `hybrid` | 29,425,584 | 103,934,596 | 75,711 | 16,438 | 21.7115% |
+| `autodiff` | 41,127,520 | 146,615,438 | 54,478 | 15,764 | 28.9365% |
 | diagnostic | 211,788,713 | 705,696,347 | 510,342 | 27,868 | 5.4607% |
 
 Cycles and instructions corroborate the wall-clock ranking. Cache-reference

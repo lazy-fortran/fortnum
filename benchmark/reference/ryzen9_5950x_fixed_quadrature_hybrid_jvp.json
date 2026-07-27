@@ -63,6 +63,21 @@
       }
     },
     {
+      "id": "enzyme_complete_fixed_quadrature",
+      "mechanism": "autodiff",
+      "measurements": [
+        {"directions": 1, "median_ns_per_workload": 429.6297, "mad_ns_per_workload": 3.4785, "peak_rss_bytes": 2797568},
+        {"directions": 2, "median_ns_per_workload": 867.5331, "mad_ns_per_workload": 4.9113, "peak_rss_bytes": 3010560},
+        {"directions": 4, "median_ns_per_workload": 1718.8515, "mad_ns_per_workload": 7.7717, "peak_rss_bytes": 3043328}
+      ],
+      "perf_at_four_directions": {
+        "cycles": 156936769,
+        "instructions": 559455522,
+        "cache_references": 93053,
+        "cache_misses": 15705
+      }
+    },
+    {
       "id": "complete_quadrature_central_difference",
       "mechanism": "diagnostic",
       "measurements": [
@@ -82,6 +97,6 @@
     "selected": "explicit_integrand_jvp_fixed_quadrature",
     "criterion": "complete-workload wall clock",
     "analytical_over_hybrid_speedup_by_direction_count": [1.0027, 1.0073, 1.0126],
-    "reason": "analytical has the lowest validated complete-workload wall clock at every measured direction count; peak RSS is not materially different"
+    "reason": "analytical has the lowest validated complete-workload wall clock at every measured direction count, including whole-operator autodiff; peak RSS is not materially different"
   }
 }

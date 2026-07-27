@@ -63,6 +63,21 @@
       }
     },
     {
+      "id": "enzyme_complete_fixed_quadrature",
+      "mechanism": "autodiff",
+      "measurements": [
+        {"cotangents": 1, "median_ns_per_workload": 443.6331, "mad_ns_per_workload": 3.1199, "peak_rss_bytes": 2785280},
+        {"cotangents": 2, "median_ns_per_workload": 897.8271, "mad_ns_per_workload": 4.7469, "peak_rss_bytes": 2969600},
+        {"cotangents": 4, "median_ns_per_workload": 1804.7173, "mad_ns_per_workload": 30.2730, "peak_rss_bytes": 3026944}
+      ],
+      "perf_at_one_cotangent": {
+        "cycles": 41127520,
+        "instructions": 146615438,
+        "cache_references": 54478,
+        "cache_misses": 15764
+      }
+    },
+    {
       "id": "complete_quadrature_parameter_central_differences",
       "mechanism": "diagnostic",
       "measurements": [
@@ -84,11 +99,12 @@
     "forward_jvps_for_full_gradient": 4,
     "reverse_vjps_for_full_gradient": 1,
     "analytical_forward_over_reverse_wall_clock": 4.1668,
-    "hybrid_forward_over_reverse_wall_clock": 3.9786
+    "hybrid_forward_over_reverse_wall_clock": 3.9786,
+    "autodiff_forward_over_reverse_wall_clock": 3.8745
   },
   "selection": {
     "selected": "explicit_integrand_vjp_fixed_quadrature",
     "criterion": "complete-workload wall clock",
-    "reason": "analytical has the lowest validated VJP wall clock at every measured cotangent count; one reverse VJP is about four times faster than four forward JVPs for this one-output, four-input workload"
+    "reason": "analytical has the lowest validated VJP wall clock at every measured cotangent count, including whole-operator autodiff; one reverse VJP is about four times faster than four forward JVPs for this one-output, four-input workload"
   }
 }
