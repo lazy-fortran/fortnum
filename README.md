@@ -98,6 +98,15 @@ mesh. Halving the maximum step reduced the closed-form-oracle error from
 `1.41e-6` to `6.40e-11` over four refinements. For sixteen sequential
 directions it is 1.10× faster than complete-solve finite differences.
 
+The same recurrence has an explicit discrete contract: it is the exact tangent
+of the accepted Cash-Karp steps with their schedule fixed. Independent
+fixed-step replay gives maximum JVP and VJP errors of `7.61e-12` and
+`1.25e-11`. For the full 16 by 16 initial-state Jacobian, sixteen analytical
+forward sweeps take 187.99 µs and sixteen analytical reverse sweeps take
+230.68 µs, including the primal trace. Forward is 1.23 times faster on this
+square workload. Peak RSS and cache counters are supporting evidence;
+complete-workload wall clock selects the implementation.
+
 ## Build
 
 CMake is the primary build system with CTest integration:

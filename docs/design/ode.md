@@ -320,5 +320,34 @@ The finite-step recurrence is also the tangent of the frozen discrete
 Cash-Karp map. That discrete identity is a separate contract from convergence
 to the continuous variational solution.
 
+### 7.2 Discrete sensitivity contract
+
+Let `Phi_i` denote one accepted Cash-Karp fifth-order step evaluated at the
+recorded start time and step size. Holding `solution%t` and `solution%h` fixed
+defines the discrete map
+
+```text
+y_(i+1) = Phi_i(y_i),  y_N = Phi_(N-1) o ... o Phi_0(y_0).
+```
+
+`ode_integrate_jvp` applies the exact tangent of this finite composition to one
+input direction. `ode_integrate_vjp` applies its exact transpose to one output
+cotangent. The primal stage states and all product and chain rules inside each
+step are included. Step acceptance, rejection, error estimation, and controller
+decisions are inactive.
+
+The behavioral oracle replays the public fixed-step Cash-Karp kernel at the
+recorded times and step sizes for perturbed initial states. Central differences
+of that independent replay check the JVP and the scalar-objective VJP. The
+adjoint identity checks their composition:
+
+```text
+u^T (J v) = (J^T u)^T v.
+```
+
+This contract is exact for the selected numerical map up to floating-point
+roundoff. It makes no claim about the error between that numerical map and the
+continuous ODE solution; section 7.1 covers that convergence question.
+
 These names follow ad.md §2 (`foo_jvp`, `foo_vjp`). The primal `ode_integrate`
 and `ode_solve` signatures in sections 4 and 5 remain unchanged.
