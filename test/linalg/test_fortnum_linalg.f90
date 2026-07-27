@@ -7,7 +7,7 @@ program test_fortnum_linalg
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
     use fortnum_linalg, only: det2, det3, inv2, inv3, jacobian_ok3, lu_factor, &
         lu_solve, linear_solve_jvp, linear_solve_jvp_factored, linear_solve_vjp, &
-        LINALG_OK, LINALG_SINGULAR, LINALG_MAX_N
+        linear_solve_vjp_factored, LINALG_OK, LINALG_SINGULAR, LINALG_MAX_N
     implicit none
 
     integer :: nfail
@@ -206,7 +206,8 @@ contains
         real(dp) :: a(3, 3), da(3, 3), b(3), db(3), x(3), dx(3), dx_reused(3)
         real(dp) :: xp(3), xm(3), ap(3, 3), am(3, 3), bp(3), bm(3)
         real(dp) :: u(3), abar(3, 3), bbar(3), lhs, rhs, factors(3, 3)
-        integer :: info, ipiv(3)
+        real(dp) :: transpose_factors(3, 3)
+        integer :: info, ipiv(3), transpose_ipiv(3)
 
         a = reshape([4.0_dp, 1.0_dp, -1.0_dp, &
             0.5_dp, 3.0_dp, 0.25_dp, &
@@ -257,6 +258,21 @@ contains
         lhs = dot_product(u, dx_reused)
         rhs = sum(abar*da) + dot_product(bbar, db)
         call check("linear_adjoint", lhs, rhs, 2.0e-14_dp, nfail)
+
+        transpose_factors = transpose(a)
+        call lu_factor(3, transpose_factors, transpose_ipiv, info)
+        call linear_solve_vjp_factored(3, transpose_factors, transpose_ipiv, x, &
+            u, abar, bbar, info)
+        lhs = dot_product(u, (xp - xm)/(2.0_dp*h))
+        rhs = sum(abar*da) + dot_product(bbar, db)
+        call check("linear_vjp_reused_fd_1", lhs, rhs, 2.0e-9_dp, nfail)
+
+        u = [-0.3_dp, 0.8_dp, 0.2_dp]
+        call linear_solve_vjp_factored(3, transpose_factors, transpose_ipiv, x, &
+            u, abar, bbar, info)
+        lhs = dot_product(u, (xp - xm)/(2.0_dp*h))
+        rhs = sum(abar*da) + dot_product(bbar, db)
+        call check("linear_vjp_reused_fd_2", lhs, rhs, 2.0e-9_dp, nfail)
     end subroutine test_linear_solve_products
 
     pure function eye(n) result(m)

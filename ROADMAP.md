@@ -45,7 +45,7 @@ independent validation plus measured application runtime and peak memory.
 ## Core infrastructure
 
 - [x] Add factorization reuse to the analytical linear-solve JVP.
-- [ ] Add transpose-factorization reuse to the analytical linear-solve VJP.
+- [x] Add transpose-factorization reuse to the analytical linear-solve VJP.
 - [ ] Add reusable preconditioner hooks for implicit products.
 - [ ] Connect committed benchmark records to build-time candidate selection.
 - [ ] Generate a static per-workload selection registry.
@@ -111,7 +111,8 @@ independent validation plus measured application runtime and peak memory.
 - [ ] Add a reusable LU factorization object.
 - [ ] Add multiple-right-hand-side tangent solves.
 - [ ] Add multiple-right-hand-side adjoint solves.
-- [ ] Add an autodiff direct-solver comparator.
+- [ ] Add a forward-mode autodiff direct-solver JVP comparator.
+- [ ] Add a reverse-mode autodiff direct-solver VJP comparator.
 - [ ] Add an autodiff iterative-solver comparator where applicable.
 - [ ] Add a hybrid BLAS or LAPACK custom-rule candidate where measurement
   justifies it.

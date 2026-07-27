@@ -43,3 +43,6 @@ target_link_libraries(bench_ad_overheads PRIVATE bench_core)
 
 add_executable(bench_linear_solve_jvp bench_linear_solve_jvp.f90)
 target_link_libraries(bench_linear_solve_jvp PRIVATE bench_core)
+
+add_executable(bench_linear_solve_vjp bench_linear_solve_vjp.f90)
+target_link_libraries(bench_linear_solve_vjp PRIVATE bench_core)

@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "linear_solve",
+  "product": "vjp",
+  "workload": "16x16 dense system, 200000 cotangents per sample, transposed primal LU reusable",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "gfortran": "16.1.1 20260625",
+    "cmake": "4.4.0",
+    "fortsym_commit": "15636e944b3b932283aff4f313c6a5f459d40692"
+  },
+  "sampling": {
+    "warmup_rounds": 3,
+    "samples": 15,
+    "calls_per_sample": 200000
+  },
+  "validation": {
+    "oracle": "central finite difference of cotangent-contracted complete solves in two directions",
+    "absolute_tolerance": 2e-9
+  },
+  "memory_method": "/usr/bin/time -v around taskset -c 4 fo exec",
+  "candidates": [
+    {
+      "id": "refactor_transpose_each_vjp",
+      "mechanism": "analytical",
+      "median_ns_per_call": 5401.6115,
+      "mad_ns_per_call": 55.3969,
+      "peak_rss_bytes": 24080384
+    },
+    {
+      "id": "reuse_transposed_primal_lu",
+      "mechanism": "analytical",
+      "median_ns_per_call": 1207.9997,
+      "mad_ns_per_call": 3.6217,
+      "peak_rss_bytes": 23900160
+    }
+  ],
+  "selection": {
+    "selected": "reuse_transposed_primal_lu",
+    "runtime_speedup": 4.4715,
+    "reason": "validated against the independent oracle, 4.4715x faster, and 180224 bytes lower in runner-inclusive peak RSS"
+  }
+}
