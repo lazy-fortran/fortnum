@@ -45,7 +45,8 @@ module fortnum_linalg
 
     public :: det2, det3, inv2, inv3, jacobian_ok3
     public :: lu_factor, lu_solve_factored, lu_solve
-    public :: linear_solve_jvp, linear_solve_jvp_factored, linear_solve_vjp
+    public :: linear_solve_jvp, linear_solve_jvp_factored
+    public :: linear_solve_vjp, linear_solve_vjp_factored
 
 contains
 
@@ -289,11 +290,29 @@ contains
         real(dp), intent(out) :: abar(n, n), bbar(n)
         integer, intent(out) :: info
         real(dp) :: work_a(n, n)
-        integer :: i, j
+        integer :: ipiv(n)
 
         work_a = transpose(a)
+        call lu_factor(n, work_a, ipiv, info)
+        if (info /= LINALG_OK) then
+            abar = 0.0_dp
+            bbar = 0.0_dp
+            return
+        end if
+        call linear_solve_vjp_factored(n, work_a, ipiv, x, u, abar, bbar, info)
+    end subroutine linear_solve_vjp
+
+    ! Analytical VJP using a reusable factorization of the transposed matrix.
+    pure subroutine linear_solve_vjp_factored(n, at, ipiv, x, u, abar, bbar, info)
+        integer, intent(in) :: n
+        real(dp), intent(in) :: at(n, n), x(n), u(n)
+        integer, intent(in) :: ipiv(n)
+        real(dp), intent(out) :: abar(n, n), bbar(n)
+        integer, intent(out) :: info
+        integer :: i, j
+
         bbar = u
-        call lu_solve(n, work_a, bbar, info)
+        call lu_solve_factored(n, at, ipiv, bbar, info)
         if (info /= LINALG_OK) then
             abar = 0.0_dp
             bbar = 0.0_dp
@@ -304,6 +323,6 @@ contains
                 abar(i, j) = -bbar(i)*x(j)
             end do
         end do
-    end subroutine linear_solve_vjp
+    end subroutine linear_solve_vjp_factored
 
 end module fortnum_linalg

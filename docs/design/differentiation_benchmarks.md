@@ -93,3 +93,35 @@ fo build
 taskset -c 4 fo exec bench_linear_solve_jvp refactor
 taskset -c 4 fo exec bench_linear_solve_jvp reuse
 ```
+
+## Analytical linear-solve VJP transpose-factorization reuse
+
+This workload applies 200,000 cotangents to one dense 16-by-16 primal system.
+It compares refactorizing the transposed primal matrix for every analytical VJP
+with reusing one compact partial-pivoted LU factorization. Two cotangents are
+validated independently by central finite differences of the contracted
+complete solve.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, GNU Fortran 16.1.1, 15 samples
+after three warmups.
+
+| Candidate | Mechanism | Median ns/VJP | MAD ns/VJP | Peak RSS |
+|---|---|---:|---:|---:|
+| refactor transpose each VJP | `analytical` | 5,401.6115 | 55.3969 | 24,080,384 B |
+| reuse transposed primal LU | `analytical` | 1,207.9997 | 3.6217 | 23,900,160 B |
+
+Reusing the transpose factorization is 4.4715 times faster and its measured
+peak RSS is 180,224 bytes lower. As for the JVP benchmark, peak RSS includes the
+`fo exec` runner and is therefore an end-to-end process-tree measurement.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_linear_solve_vjp_reuse.json`.
+
+Run the benchmark with:
+
+```bash
+cd benchmark
+fo build
+taskset -c 4 fo exec bench_linear_solve_vjp refactor
+taskset -c 4 fo exec bench_linear_solve_vjp reuse
+```
