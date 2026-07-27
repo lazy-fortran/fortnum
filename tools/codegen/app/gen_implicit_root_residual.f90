@@ -2,7 +2,7 @@ program gen_implicit_root_residual
     use, intrinsic :: iso_fortran_env, only: output_unit
     use fortsym_string, only: str, chars
     use fortsym_arena, only: arena_t
-    use fortsym_expr, only: expr_t, sym, num, operator(-)
+    use fortsym_expr, only: expr_t, sym, num, operator(-), operator(*)
     use fortsym_products, only: jvp, implicit_tangent_rhs
     use fortsym_kernel, only: kernel_spec_t, emit_kernel, count_operations, &
         operation_count_t, KERNEL_SUBROUTINE
@@ -13,7 +13,9 @@ program gen_implicit_root_residual
     implicit none
 
     type(arena_t), target :: arena
-    type(expr_t) :: x(1), p(1), dp(1), residual(1), residual_x(1)
+    type(expr_t) :: x, p, dp, residual
+    type(expr_t) :: x_variables(1), p_variables(1), parameter_tangent(1)
+    type(expr_t) :: residuals(1), residual_x(1)
     type(expr_t) :: tangent_rhs(1), roots(3)
     type(symengine_engine_t) :: engine
     type(engine_result_t) :: simplified
@@ -24,13 +26,18 @@ program gen_implicit_root_residual
 
     call arena%init()
     engine = make_symengine_engine(arena)
-    x(1) = sym(arena, "x")
-    p(1) = sym(arena, "p")
-    dp(1) = sym(arena, "tp")
-    residual(1) = x(1)**2 - p(1)
-    residual_x = jvp(residual, x, [num(arena, 1)])
-    tangent_rhs = implicit_tangent_rhs(residual, p, dp)
-    roots = [residual(1), residual_x(1), -tangent_rhs(1)]
+    x = sym(arena, "x")
+    p = sym(arena, "p")
+    dp = sym(arena, "tp")
+    residual = x*x - p
+    x_variables(1) = x
+    p_variables(1) = p
+    parameter_tangent(1) = dp
+    residuals(1) = residual
+    residual_x = jvp(residuals, x_variables, [num(arena, 1)])
+    tangent_rhs = implicit_tangent_rhs( &
+        residuals, p_variables, parameter_tangent)
+    roots = [residual, residual_x(1), -tangent_rhs(1)]
     do i = 1, size(roots)
         simplified = engine%simplify(roots(i))
         if (simplified%ok) roots(i) = simplified%value
@@ -62,4 +69,5 @@ program gen_implicit_root_residual
     write (output_unit, "(a)") "wrote "//output
     write (output_unit, "(a,i0)") "post-CSE structural operations: ", &
         operations%total
+
 end program gen_implicit_root_residual

@@ -36,3 +36,8 @@ main = "gen_multi_input_scalar.f90"
 name = "gen_implicit_root_residual"
 source-dir = "app"
 main = "gen_implicit_root_residual.f90"
+
+[[executable]]
+name = "gen_lagrange4_interpolation"
+source-dir = "app"
+main = "gen_lagrange4_interpolation.f90"

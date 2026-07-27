@@ -17,7 +17,7 @@ contains
         real(dp), intent(in) :: x, p, tp
         real(dp), intent(out) :: residual, f_x, f_p_tp
 
-        residual = x**2 - p
+        residual = -p + x**2
         f_x = x*2
         f_p_tp = -tp
 
