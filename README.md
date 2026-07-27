@@ -38,8 +38,9 @@ fixed-quadrature contraction. With four active parameters and one scalar
 output, one reverse VJP is about four times faster than four forward JVPs for
 both `analytical` and `hybrid` mechanisms. Adaptive integration also has an
 `analytical` frozen-subdivision JVP for QAG, QAGS, QAGP, and one-sided QAGIU
-traces. Candidate selection prioritizes complete-workload wall clock and
-records peak memory, input/output scaling, and cache behavior where supported.
+traces, plus a measured forward-`autodiff` candidate through a fixed accepted
+trace. Candidate selection prioritizes complete-workload wall clock and records
+peak memory, input/output scaling, and cache behavior where supported.
 
 ## Build
 

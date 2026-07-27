@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "adaptive_qag_frozen_trace",
+  "product": "value_plus_jvp",
+  "workload": "adaptive integral of exp(p*x) on [0,1], p near 12, key 15, three-panel accepted trace, 10000 varying parameters per sample",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "enzyme_commit": "c96508349d9f",
+    "build": "Release -O2"
+  },
+  "sampling": {
+    "warmup_rounds": 3,
+    "samples": 15,
+    "workloads_per_sample": 10000,
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum",
+    "perf_repetitions": 5
+  },
+  "validation": {
+    "oracle": "closed-form derivative of the exactly integrated exponential",
+    "trace_panels": [[0.0, 0.5], [0.5, 0.75], [0.75, 1.0]],
+    "analytical_and_autodiff_absolute_tolerance": 1e-7,
+    "diagnostic_absolute_tolerance": 1e-4,
+    "trace_identity_checked": true
+  },
+  "timing_scope": "adaptive primal trace construction plus derivative product",
+  "memory_method": "getrusage(RUSAGE_SELF) inside each separately launched candidate",
+  "candidates": [
+    {
+      "id": "generic_explicit_tangent_trace_replay",
+      "mechanism": "analytical",
+      "median_ns_per_value_plus_jvp": 2564.1478,
+      "mad_ns_per_value_plus_jvp": 39.2610,
+      "peak_rss_bytes": 2715648,
+      "cycles": 112671786,
+      "instructions": 221842471,
+      "cache_references": 1047534,
+      "cache_misses": 20034
+    },
+    {
+      "id": "enzyme_fixed_weighted_sum",
+      "mechanism": "autodiff",
+      "median_ns_per_value_plus_jvp": 1306.9523,
+      "mad_ns_per_value_plus_jvp": 2.4366,
+      "peak_rss_bytes": 2547712,
+      "cycles": 59946420,
+      "instructions": 183208458,
+      "cache_references": 445143,
+      "cache_misses": 17227
+    },
+    {
+      "id": "fixed_weighted_sum_central_difference",
+      "mechanism": "diagnostic",
+      "median_ns_per_value_plus_jvp": 1423.0742,
+      "mad_ns_per_value_plus_jvp": 6.0043,
+      "peak_rss_bytes": 2580480,
+      "cycles": 70736217,
+      "instructions": 203712253,
+      "cache_references": 260635,
+      "cache_misses": 21188
+    }
+  ],
+  "selection": {
+    "selected": "enzyme_fixed_weighted_sum",
+    "criterion": "complete value-plus-derivative wall clock",
+    "wall_clock_speedup_over_analytical": 1.9619,
+    "wall_clock_speedup_over_diagnostic": 1.0889,
+    "reason": "autodiff passes the closed-form oracle and minimizes combined primal-plus-derivative wall clock for this accepted trace"
+  }
+}
