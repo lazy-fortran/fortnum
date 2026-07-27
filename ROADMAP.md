@@ -227,7 +227,7 @@ derivatives. CPU Enzyme remains the `autodiff` backend and supplies CPU
   `omp_is_initial_device()==false`.
 - [x] Add persistent-data execution for the Dawson pilot and report
   transfer-inclusive and resident-data wall-clock measurements separately.
-- [ ] Offload a generated analytical VJP leaf and validate it with an
+- [x] Offload a generated analytical VJP leaf and validate it with an
   independent adjoint identity.
 - [ ] Benchmark fused versus separate value/JVP and value/VJP GPU kernels
   across launch-bound, throughput, and memory-bound batch sizes.

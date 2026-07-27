@@ -31,6 +31,8 @@ The identical OpenMP-target pilot also proves non-host execution and is 1.6585
 times faster than its CPU generated-leaf loop in the recorded run.
 Keeping the Dawson batch resident reduces synchronous call time from 3.9251 ms
 to 0.2098 ms with OpenACC and from 3.9800 ms to 0.2101 ms with OpenMP target.
+The generated contracted analytical VJP also passes a batched adjoint identity
+on both devices and takes 0.1690 ms per resident 1,048,576-element call.
 `fortnum` uses `fortsym` at build time for symbolic algebra and code
 generation. The first pinned generator is under `tools/codegen/`; generated
 production sources are committed under `src/generated/`. The
