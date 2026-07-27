@@ -254,7 +254,9 @@ derivatives. CPU Enzyme remains the `autodiff` backend and supplies CPU
 - [x] Expand GPU coverage to special functions with generated Dawson
   value/JVP/VJP leaves, real-device validation, resident and
   transfer-inclusive wall clock, and peak-memory evidence.
-- [ ] Expand GPU coverage to interpolation.
+- [x] Expand GPU coverage to interpolation with generated fixed-cell Lagrange
+  value/JVP/VJP leaves, independent cubic and adjoint oracles, and resident and
+  transfer-inclusive wall-clock and peak-memory evidence.
 - [ ] Expand GPU coverage to fixed quadrature.
 - [ ] Expand GPU coverage to fixed-size linear algebra.
 - [ ] Expand GPU coverage to FFT rules.

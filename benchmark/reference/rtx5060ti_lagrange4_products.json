@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "source_revision": "ae9a2ac1312e2cd2da856d9589258cb06932ed0e",
+  "operation": "fixed-cell four-node Lagrange value/JVP/VJP",
+  "classification": "analytical",
+  "mathematical_problem": "cubic Lagrange interpolation on nodes [-1,0,1,2]",
+  "derivative_contract": "evaluation point and four sampled values are active; cell/span search is absent and inactive",
+  "residency_policy": "transfer-inclusive and resident measured separately",
+  "device_execution_proof": "OpenACC NVIDIA device check and mandatory non-host OpenMP target check",
+  "workload": {
+    "batch_sizes": [256, 65536, 1048576],
+    "samples": 31,
+    "warmup_samples": 3,
+    "pinned_cpu": 4
+  },
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "gpu": "NVIDIA GeForce RTX 5060 Ti",
+    "driver": "610.43.03"
+  },
+  "toolchain": {
+    "compiler": "NVHPC nvfortran 26.5",
+    "openacc_flags": "-fast -O3 -acc",
+    "openmp_flags": "-fast -O3 -mp=gpu -mp",
+    "fortsym_revision": "0e3deee5fa2ed3d30ebfce607cc96794f4b8fed3"
+  },
+  "generation": {
+    "symbolic_sources": 1,
+    "jvp_structural_operations": 101,
+    "vjp_structural_operations": 83,
+    "layout": "batch-first arrays; adjacent device threads access adjacent elements"
+  },
+  "validation": {
+    "points": 4096,
+    "oracle": "independently specified cubic value and directional polynomial plus adjoint identity",
+    "relative_tolerance": 8e-13,
+    "products": ["value+jvp", "value+vjp"]
+  },
+  "median_ms": {
+    "batch_sizes": [256, 65536, 1048576],
+    "jvp": {
+      "cpu": [0.0038, 0.7622, 12.2531],
+      "openacc_resident": [0.0110, 0.0611, 0.8170],
+      "openacc_transfer": [0.0482, 0.6731, 9.3200],
+      "openmp_resident": [0.0110, 0.0620, 0.8171],
+      "openmp_transfer": [0.0491, 0.6710, 10.9048]
+    },
+    "vjp": {
+      "cpu": [0.0020, 0.5150, 8.3771],
+      "openacc_resident": [0.0109, 0.0541, 0.7041],
+      "openacc_transfer": [0.0560, 0.7360, 10.3660],
+      "openmp_resident": [0.0109, 0.0541, 0.7031],
+      "openmp_transfer": [0.0520, 0.7351, 10.6759]
+    }
+  },
+  "mad_ms": {
+    "batch_sizes": [256, 65536, 1048576],
+    "jvp": {
+      "cpu": [0.0003, 0.0029, 0.0611],
+      "openacc_resident": [0.0001, 0.0003, 0.0002],
+      "openacc_transfer": [0.0003, 0.0022, 0.0851],
+      "openmp_resident": [0.0000, 0.0002, 0.0003],
+      "openmp_transfer": [0.0009, 0.0030, 0.2689]
+    },
+    "vjp": {
+      "cpu": [0.0001, 0.0038, 0.0441],
+      "openacc_resident": [0.0003, 0.0002, 0.0013],
+      "openacc_transfer": [0.0028, 0.0050, 0.1562],
+      "openmp_resident": [0.0003, 0.0003, 0.0003],
+      "openmp_transfer": [0.0002, 0.0019, 0.1230]
+    }
+  },
+  "peak_host_rss_bytes_at_n1048576": {
+    "live_numerical_arrays": 100663296,
+    "jvp": {
+      "cpu": 105930752,
+      "openacc_resident": 209022976,
+      "openacc_transfer": 224808960,
+      "openmp_resident": 213368832,
+      "openmp_transfer": 229306368
+    },
+    "vjp": {
+      "cpu": 105967616,
+      "openacc_resident": 173477888,
+      "openacc_transfer": 225390592,
+      "openmp_resident": 177459200,
+      "openmp_transfer": 227434496
+    }
+  },
+  "selection": {
+    "n256": {
+      "jvp": "cpu",
+      "vjp": "cpu"
+    },
+    "n65536": {
+      "jvp_resident": "openacc",
+      "jvp_transfer": "openmp",
+      "vjp_resident": "openacc/openmp tie",
+      "vjp_transfer": "cpu"
+    },
+    "n1048576": {
+      "jvp_resident": "openacc/openmp tie",
+      "jvp_transfer": "openacc",
+      "vjp_resident": "openmp",
+      "vjp_transfer": "cpu"
+    },
+    "reason": "minimum measured complete-workload wall clock; backend differences below three percent are practical ties"
+  },
+  "verdict": "resident GPU wins throughput-scale JVP and VJP; transfer-inclusive GPU wins large JVP but loses VJP because five adjoint arrays must return to the host"
+}
