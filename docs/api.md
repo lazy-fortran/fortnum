@@ -1082,6 +1082,10 @@ pure subroutine inv3_vjp(a, u, ainv, abar, info)
     real(dp), intent(out) :: ainv(3, 3), abar(3, 3)
     integer,  intent(out) :: info
 
+type(lu_factorization_t) :: factorization
+call factorization%factor(a, info)  ! stores factors and pivots
+call factorization%solve(b, info)   ! overwrites b; object remains reusable
+
 pure subroutine lu_solve(n, a, b, info)
     integer,  intent(in)    :: n               ! 1 <= n <= LINALG_MAX_N
     real(dp), intent(inout) :: a(n, n)         ! overwritten with LU factors

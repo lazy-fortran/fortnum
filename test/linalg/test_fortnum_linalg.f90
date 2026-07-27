@@ -8,7 +8,8 @@ program test_fortnum_linalg
     use fortnum_linalg, only: det2, det3, det2_jvp, det3_jvp, inv2, inv3, &
         jacobian_ok3, lu_factor, lu_solve, linear_solve_jvp, &
         linear_solve_jvp_factored, linear_solve_vjp, &
-        linear_solve_vjp_factored, LINALG_OK, LINALG_SINGULAR, LINALG_MAX_N
+        linear_solve_vjp_factored, lu_factorization_t, LINALG_OK, &
+        LINALG_SINGULAR, LINALG_MAX_N
     implicit none
 
     integer :: nfail
@@ -22,6 +23,7 @@ program test_fortnum_linalg
     call test_lu_known(nfail)
     call test_lu_pivot(nfail)
     call test_lu_vs_inv3(nfail)
+    call test_lu_object(nfail)
     call test_singular(nfail)
     call test_linear_solve_products(nfail)
 
@@ -44,6 +46,35 @@ contains
                 abs(got - expected)
         end if
     end subroutine check
+
+    subroutine test_lu_object(nfail)
+        integer, intent(inout) :: nfail
+        type(lu_factorization_t) :: factorization
+        real(dp) :: a(3, 3), b1(3), b2(3), x1(3), x2(3)
+        integer :: i, info, j
+
+        a = reshape([4.0_dp, 1.0_dp, -1.0_dp, 2.0_dp, 5.0_dp, 1.0_dp, &
+            0.5_dp, -2.0_dp, 3.0_dp], [3, 3])
+        x1 = [1.0_dp, -2.0_dp, 0.5_dp]
+        x2 = [-0.25_dp, 0.75_dp, 2.0_dp]
+        b1 = 0.0_dp
+        b2 = 0.0_dp
+        do j = 1, 3
+            do i = 1, 3
+                b1(i) = b1(i) + a(i, j)*x1(j)
+                b2(i) = b2(i) + a(i, j)*x2(j)
+            end do
+        end do
+        call factorization%factor(a, info)
+        if (info /= LINALG_OK) then
+            nfail = nfail + 1
+            return
+        end if
+        call factorization%solve(b1, info)
+        call check("lu_object_rhs1", maxval(abs(b1 - x1)), 0.0_dp, 2.0e-14_dp, nfail)
+        call factorization%solve(b2, info)
+        call check("lu_object_rhs2", maxval(abs(b2 - x2)), 0.0_dp, 2.0e-14_dp, nfail)
+    end subroutine test_lu_object
 
     subroutine check_true(label, cond, nfail)
         character(*), intent(in) :: label
