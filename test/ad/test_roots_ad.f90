@@ -16,7 +16,8 @@ program test_roots_ad
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
     use fortnum_kinds,  only: dp
     use fortnum_status, only: fortnum_status_t, status_ok, FORTNUM_DOMAIN_ERROR
-    use fortnum_roots,  only: root_brent, root_jvp, root_vjp, root_grad
+    use fortnum_roots,  only: root_brent, root_implicit_jvp, root_jvp, &
+        root_vjp, root_grad
     use fortnum_multiroot, only: multiroot_hybrid, multiroot_jvp, &
         multiroot_vjp, multiroot_grad
     implicit none
@@ -30,6 +31,8 @@ program test_roots_ad
     real(dp) :: p_solve
     ! p_mr is shared between solve_mr and fdf_mr via host association.
     real(dp) :: p_mr(2)
+    ! p_tangent_solve is used only by the independent complete-solve oracle.
+    real(dp) :: p_tangent_solve(2)
 
     integer :: nfail
     nfail = 0
@@ -40,6 +43,7 @@ program test_roots_ad
     call test_dot_product_id(nfail)
     call test_near_multiple_root(nfail)
     call test_vector_p(nfail)
+    call test_implicit_tangent_boundary(nfail)
     call test_multiroot_grad_vs_fd(nfail)
     call test_multiroot_jvp_vs_fd(nfail)
     call test_multiroot_dot_product_id(nfail)
@@ -245,6 +249,64 @@ contains
             nfail = nfail + 1
         end if
     end subroutine test_vector_p
+
+    ! Generic boundary vs central difference of complete root solves.
+    ! f(x,p) = x^3 + p1*x - p2 = 0 has one real root for p1 > 0.
+    subroutine test_implicit_tangent_boundary(nfail)
+        integer, intent(inout) :: nfail
+        real(dp) :: p(2), tp(2), xstar, xp, xm, dx, dx_fd, h
+        type(fortnum_status_t) :: st
+
+        p = [0.7_dp, 3.0_dp]
+        tp = [0.4_dp, -0.6_dp]
+        h = 1.0e-5_dp
+        call solve_tangent_root(p, xstar)
+        call solve_tangent_root(p + h*tp, xp)
+        call solve_tangent_root(p - h*tp, xm)
+
+        call root_implicit_jvp(tangent_residual_jvp, xstar, p, tp, dx, st)
+        dx_fd = (xp - xm)/(2.0_dp*h)
+
+        if (.not. status_ok(st)) then
+            write (error_unit, '(a)') &
+                "FAIL [implicit_tangent_boundary] unexpected status error"
+            nfail = nfail + 1
+            return
+        end if
+        if (rel_err(dx, dx_fd) > 1.0e-8_dp) then
+            write (error_unit, '(a,es24.16,a,es24.16,a,es12.4)') &
+                "FAIL [implicit_tangent_boundary] implicit=", dx, &
+                " fd=", dx_fd, " rel_err=", rel_err(dx, dx_fd)
+            nfail = nfail + 1
+        end if
+    end subroutine test_implicit_tangent_boundary
+
+    subroutine tangent_residual_jvp(x, p, tp, f_x, f_p_tp, context)
+        real(dp), intent(in) :: x, p(:), tp(:)
+        real(dp), intent(out) :: f_x, f_p_tp
+        class(*), intent(inout), optional :: context
+
+        f_x = 3.0_dp*x*x + p(1)
+        f_p_tp = x*tp(1) - tp(2)
+    end subroutine tangent_residual_jvp
+
+    subroutine solve_tangent_root(p, x)
+        real(dp), intent(in) :: p(2)
+        real(dp), intent(out) :: x
+        type(fortnum_status_t) :: st
+
+        p_tangent_solve = p
+        call root_brent(tangent_residual, 0.0_dp, 3.0_dp, x, st, &
+            xtol=1.0e-13_dp, ftol=1.0e-14_dp)
+        if (.not. status_ok(st)) error stop "tangent root solve failed"
+    end subroutine solve_tangent_root
+
+    pure function tangent_residual(x) result(f)
+        real(dp), intent(in) :: x
+        real(dp) :: f
+
+        f = x*x*x + p_tangent_solve(1)*x - p_tangent_solve(2)
+    end function tangent_residual
 
     ! n-dim test system F(x, p) = 0 with p in R^2:
     !   F1 = x1^2 + x2 - p1
