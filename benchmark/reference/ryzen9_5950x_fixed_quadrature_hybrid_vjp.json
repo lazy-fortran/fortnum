@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "fixed_gauss_legendre_integral",
+  "product": "vjp",
+  "workload": "32-point reusable Gauss-Legendre rule, four active parameters, one scalar output, 1/2/4 requested cotangents",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "enzyme_commit": "c96508349d9f",
+    "build": "Release -O2"
+  },
+  "sampling": {
+    "warmup_rounds": 3,
+    "samples": 31,
+    "workloads_per_sample": 10000,
+    "candidate_processes": "separate with cooldown between sustained runs",
+    "memory_processes_per_candidate_and_cotangent_count": 5,
+    "memory_aggregation": "maximum",
+    "perf_repetitions": 5,
+    "perf_cotangent_count": 1,
+    "perf_workloads": 20000
+  },
+  "validation": {
+    "oracle": "closed-form derivative of the exactly integrated test integrand",
+    "cotangents_checked": 4,
+    "analytical_and_hybrid_absolute_tolerance": 2e-14,
+    "diagnostic_absolute_tolerance": 2e-10
+  },
+  "memory_method": "getrusage(RUSAGE_SELF) inside each separately launched candidate",
+  "candidates": [
+    {
+      "id": "explicit_integrand_vjp_fixed_quadrature",
+      "mechanism": "analytical",
+      "measurements": [
+        {"cotangents": 1, "median_ns_per_workload": 299.4435, "mad_ns_per_workload": 1.1752, "peak_rss_bytes": 3051520},
+        {"cotangents": 2, "median_ns_per_workload": 604.4575, "mad_ns_per_workload": 2.9396, "peak_rss_bytes": 2789376},
+        {"cotangents": 4, "median_ns_per_workload": 1213.0276, "mad_ns_per_workload": 2.8915, "peak_rss_bytes": 2793472}
+      ],
+      "perf_at_one_cotangent": {
+        "cycles": 28978599,
+        "instructions": 101314668,
+        "cache_references": 248437,
+        "cache_misses": 16004
+      }
+    },
+    {
+      "id": "enzyme_integrand_vjp_fixed_quadrature",
+      "mechanism": "hybrid",
+      "measurements": [
+        {"cotangents": 1, "median_ns_per_workload": 317.5576, "mad_ns_per_workload": 5.2910, "peak_rss_bytes": 2797568},
+        {"cotangents": 2, "median_ns_per_workload": 646.4897, "mad_ns_per_workload": 4.8511, "peak_rss_bytes": 2813952},
+        {"cotangents": 4, "median_ns_per_workload": 1275.7279, "mad_ns_per_workload": 4.1718, "peak_rss_bytes": 2826240}
+      ],
+      "perf_at_one_cotangent": {
+        "cycles": 29425584,
+        "instructions": 103934596,
+        "cache_references": 75711,
+        "cache_misses": 16438
+      }
+    },
+    {
+      "id": "complete_quadrature_parameter_central_differences",
+      "mechanism": "diagnostic",
+      "measurements": [
+        {"cotangents": 1, "median_ns_per_workload": 2263.7966, "mad_ns_per_workload": 12.9915, "peak_rss_bytes": 2834432},
+        {"cotangents": 2, "median_ns_per_workload": 4547.2562, "mad_ns_per_workload": 45.2453, "peak_rss_bytes": 2813952},
+        {"cotangents": 4, "median_ns_per_workload": 9187.4429, "mad_ns_per_workload": 190.7125, "peak_rss_bytes": 2830336}
+      ],
+      "perf_at_one_cotangent": {
+        "cycles": 211788713,
+        "instructions": 705696347,
+        "cache_references": 510342,
+        "cache_misses": 27868
+      }
+    }
+  ],
+  "forward_reverse_comparison": {
+    "active_inputs": 4,
+    "outputs": 1,
+    "forward_jvps_for_full_gradient": 4,
+    "reverse_vjps_for_full_gradient": 1,
+    "analytical_forward_over_reverse_wall_clock": 4.1668,
+    "hybrid_forward_over_reverse_wall_clock": 3.9786
+  },
+  "selection": {
+    "selected": "explicit_integrand_vjp_fixed_quadrature",
+    "criterion": "complete-workload wall clock",
+    "reason": "analytical has the lowest validated VJP wall clock at every measured cotangent count; one reverse VJP is about four times faster than four forward JVPs for this one-output, four-input workload"
+  }
+}
