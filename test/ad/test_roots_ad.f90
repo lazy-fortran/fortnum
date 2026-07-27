@@ -19,7 +19,7 @@ program test_roots_ad
     use fortnum_roots,  only: root_brent, root_implicit_jvp, &
         root_implicit_vjp, root_jvp, root_vjp, root_grad
     use fortnum_multiroot, only: multiroot_hybrid, multiroot_implicit_jvp, &
-        multiroot_jvp, multiroot_vjp, multiroot_grad
+        multiroot_implicit_vjp, multiroot_jvp, multiroot_vjp, multiroot_grad
     implicit none
 
     type :: diagonal_preconditioner_t
@@ -48,6 +48,7 @@ program test_roots_ad
     call test_multiroot_grad_vs_fd(nfail)
     call test_multiroot_jvp_vs_fd(nfail)
     call test_multiroot_implicit_tangent_boundary(nfail)
+    call test_multiroot_implicit_adjoint_boundary(nfail)
     call test_multiroot_dot_product_id(nfail)
     call test_multiroot_singular(nfail)
     call test_multiroot_preconditioner_hook(nfail)
@@ -487,6 +488,67 @@ contains
         f_p_tp(1) = -tp(1)
         f_p_tp(2) = -tp(2)
     end subroutine vector_residual_jvp
+
+    subroutine test_multiroot_implicit_adjoint_boundary(nfail)
+        integer, intent(inout) :: nfail
+        real(dp) :: p(2), pp(2), pm(2), xstar(2), xp(2), xm(2)
+        real(dp) :: u(2), jtu(2), jtu_fd(2), h
+        type(fortnum_status_t) :: st
+        integer :: i
+
+        p = [2.0_dp, 2.0_dp]
+        u = [1.3_dp, -0.4_dp]
+        h = 1.0e-5_dp
+        call solve_mr(p, xstar)
+        call multiroot_implicit_vjp(vector_state_jacobian, &
+            vector_parameter_vjp, xstar, p, u, jtu, st)
+
+        do i = 1, 2
+            pp = p
+            pm = p
+            pp(i) = pp(i) + h
+            pm(i) = pm(i) - h
+            call solve_mr(pp, xp)
+            call solve_mr(pm, xm)
+            jtu_fd(i) = dot_product(u, xp - xm)/(2.0_dp*h)
+        end do
+
+        if (.not. status_ok(st)) then
+            write (error_unit, '(a)') &
+                "FAIL [multiroot_implicit_adjoint] unexpected status error"
+            nfail = nfail + 1
+            return
+        end if
+        if (maxval(abs(jtu - jtu_fd)) > 1.0e-7_dp) then
+            write (error_unit, '(a,2es24.16)') &
+                "FAIL [multiroot_implicit_adjoint] implicit=", jtu
+            write (error_unit, '(a,2es24.16)') &
+                "FAIL [multiroot_implicit_adjoint] fd=", jtu_fd
+            nfail = nfail + 1
+        end if
+    end subroutine test_multiroot_implicit_adjoint_boundary
+
+    subroutine vector_state_jacobian(x, p, jac_x, context)
+        real(dp), intent(in) :: x(:), p(:)
+        real(dp), intent(out) :: jac_x(size(x), size(x))
+        class(*), intent(inout), optional :: context
+
+        if (size(p) /= 2) error stop "vector residual expects two parameters"
+        jac_x(1, 1) = 2.0_dp*x(1)
+        jac_x(1, 2) = 1.0_dp
+        jac_x(2, 1) = 1.0_dp
+        jac_x(2, 2) = 2.0_dp*x(2)
+    end subroutine vector_state_jacobian
+
+    subroutine vector_parameter_vjp(x, p, u, f_p_t_u, context)
+        real(dp), intent(in) :: x(:), p(:), u(:)
+        real(dp), intent(out) :: f_p_t_u(size(p))
+        class(*), intent(inout), optional :: context
+
+        if (size(x) /= 2) error stop "vector residual expects two states"
+        f_p_t_u(1) = -u(1)
+        f_p_t_u(2) = -u(2)
+    end subroutine vector_parameter_vjp
 
     subroutine test_multiroot_preconditioner_hook(nfail)
         integer, intent(inout) :: nfail
