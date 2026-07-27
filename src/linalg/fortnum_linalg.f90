@@ -14,8 +14,9 @@ module fortnum_linalg
     ! LINALG_OK == FORTNUM_OK == 0, so host callers map the flag trivially.
     !
     ! DERIVATIVE POLICY (ad.md S1): det2/det3 have fortsym-generated analytical
-    !   JVP and VJP candidates. inv2/inv3 have fused analytical JVP candidates;
-    !   jacobian_ok3 remains primal-only. lu_solve realises A^{-1} b; the
+    !   JVP and VJP candidates. inv2/inv3 have fused analytical JVP and VJP
+    !   candidates; jacobian_ok3 remains primal-only. lu_solve realises
+    !   A^{-1} b; the
     !   implicit/linear-solve rule (d x = A^{-1}(d b - dA x)) belongs to the
     !   consumer that owns A and b, not to the in-place factorisation here.
     !   Do not differentiate through the elimination.
@@ -29,7 +30,9 @@ module fortnum_linalg
     use fortnum_generated_det3_jvp, only: fortnum_det3_jvp_kernel
     use fortnum_generated_det3_vjp, only: fortnum_det3_vjp_kernel
     use fortnum_generated_inv2_jvp, only: fortnum_inv2_jvp_kernel
+    use fortnum_generated_inv2_vjp, only: fortnum_inv2_vjp_kernel
     use fortnum_generated_inv3_jvp, only: fortnum_inv3_jvp_kernel
+    use fortnum_generated_inv3_vjp, only: fortnum_inv3_vjp_kernel
     implicit none
     private
 
@@ -49,7 +52,7 @@ module fortnum_linalg
     real(dp), parameter :: SING_TOL_REL = 1.0e-8_dp
 
     public :: det2, det3, det2_jvp, det3_jvp, det2_vjp, det3_vjp
-    public :: inv2, inv3, inv2_jvp, inv3_jvp, jacobian_ok3
+    public :: inv2, inv3, inv2_jvp, inv3_jvp, inv2_vjp, inv3_vjp, jacobian_ok3
     public :: lu_factor, lu_solve_factored, lu_solve
     public :: linear_solve_jvp, linear_solve_jvp_factored
     public :: linear_solve_vjp, linear_solve_vjp_factored
@@ -219,6 +222,48 @@ contains
             vainv(1, 2), vainv(2, 2), vainv(3, 2), &
             vainv(1, 3), vainv(2, 3), vainv(3, 3))
     end subroutine inv3_jvp
+
+    ! Guarded inverse value and analytical VJP, sharing the primal inverse.
+    pure subroutine inv2_vjp(a, u, ainv, abar, info)
+        !$acc routine seq
+        real(dp), intent(in) :: a(2, 2), u(2, 2)
+        real(dp), intent(out) :: ainv(2, 2), abar(2, 2)
+        integer, intent(out) :: info
+
+        call inv2(a, ainv, info)
+        if (info /= LINALG_OK) then
+            abar = 0.0_dp
+            return
+        end if
+        call fortnum_inv2_vjp_kernel( &
+            ainv(1, 1), ainv(2, 1), ainv(1, 2), ainv(2, 2), &
+            u(1, 1), u(2, 1), u(1, 2), u(2, 2), &
+            abar(1, 1), abar(2, 1), abar(1, 2), abar(2, 2))
+    end subroutine inv2_vjp
+
+    ! Guarded inverse value and analytical VJP, sharing the primal inverse.
+    pure subroutine inv3_vjp(a, u, ainv, abar, info)
+        !$acc routine seq
+        real(dp), intent(in) :: a(3, 3), u(3, 3)
+        real(dp), intent(out) :: ainv(3, 3), abar(3, 3)
+        integer, intent(out) :: info
+
+        call inv3(a, ainv, info)
+        if (info /= LINALG_OK) then
+            abar = 0.0_dp
+            return
+        end if
+        call fortnum_inv3_vjp_kernel( &
+            ainv(1, 1), ainv(2, 1), ainv(3, 1), &
+            ainv(1, 2), ainv(2, 2), ainv(3, 2), &
+            ainv(1, 3), ainv(2, 3), ainv(3, 3), &
+            u(1, 1), u(2, 1), u(3, 1), &
+            u(1, 2), u(2, 2), u(3, 2), &
+            u(1, 3), u(2, 3), u(3, 3), &
+            abar(1, 1), abar(2, 1), abar(3, 1), &
+            abar(1, 2), abar(2, 2), abar(3, 2), &
+            abar(1, 3), abar(2, 3), abar(3, 3))
+    end subroutine inv3_vjp
 
     ! Compact LU factorization with partial pivoting. A is overwritten by L and
     ! U, while ipiv records each row swap for reuse by subsequent solves.

@@ -23,6 +23,6 @@ source-dir = "app"
 main = "gen_determinant_products.f90"
 
 [[executable]]
-name = "gen_inverse_jvp"
+name = "gen_inverse_products"
 source-dir = "app"
-main = "gen_inverse_jvp.f90"
+main = "gen_inverse_products.f90"
