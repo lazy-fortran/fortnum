@@ -517,7 +517,7 @@ required validate–measure–document–commit cycle independently.
 | Residual kernels | covered pilot | generated scalar-root residual products composed with analytical implicit JVP |
 | Interpolation | covered pilot | generated fixed-cell Lagrange value/JVP/VJP; independent cubic and adjoint oracles; resident and transfer wall clock |
 | Fixed quadrature | covered pilot | arbitrary-order analytical JVP/VJP loops; exact-polynomial and adjoint oracles; resident and transfer wall clock |
-| Fixed-size linear algebra | pending | no validated device pilot |
+| Fixed-size linear algebra | covered pilot | generated 3x3 determinant/inverse JVP/VJP; finite-difference, matrix-product, and adjoint oracles; resident and transfer wall clock |
 | FFT rules | pending | no validated device pilot |
 | Fixed-trace ODE products | pending | no validated device pilot |
 
@@ -596,6 +596,38 @@ The largest live numerical arrays occupy 142,606,464 B. CPU peak host RSS is
 about 147.8 MB; GPU-process host peak RSS ranges from 131,420,160 to
 269,647,872 B. Exact dispersion, all memory values, and provenance are in
 `benchmark/reference/rtx5060ti_fixed_quadrature_products.json`.
+
+### Fixed-size linear-algebra pilot
+
+The fixed-size pilot uses the existing `fortsym` specifications for 3x3
+determinants and inverse products. The generators now emit both OpenACC routine
+and OpenMP `declare target` annotations; no generated leaf is hand-edited.
+Batch-first flattened column-major matrices preserve coalesced access.
+
+Real-device tests validate determinant JVP with a Richardson-extrapolated
+central difference, inverse JVP with independently evaluated `-R V R`, and
+both VJPs with adjoint identities. Complete-workload 31-sample medians at the
+largest batch are:
+
+| Product | CPU ms | OpenACC resident/transfer ms | OpenMP resident/transfer ms | Resident speedup |
+| --- | ---: | ---: | ---: | ---: |
+| determinant JVP | 8.1329 | 0.3782 / 14.0121 | 0.3779 / 13.9019 | 21.52x |
+| determinant VJP | 13.2740 | 0.4151 / 14.2281 | 0.4151 / 14.4489 | 31.98x |
+| inverse JVP | 28.2729 | 0.8461 / 20.9989 | 0.8459 / 20.7321 | 33.42x |
+| inverse VJP | 26.9310 | 0.9188 / 20.3669 | 0.9189 / 20.7181 | 29.31x |
+
+CPU wins all four launch-bound 256-matrix workloads. At throughput scale,
+resident GPU wins every product and OpenACC/OpenMP are practical ties.
+Transfer-inclusive determinant products remain faster on CPU, while inverse
+JVP and VJP are compute-intensive enough for GPU to remain 1.36 and 1.32 times
+faster. Selection therefore depends on operator, product, batch, and residency.
+
+At 1,048,576 matrices, determinant products hold 159,383,552 B of live
+numerical arrays and inverse products hold 226,492,416 B. CPU peak host RSS is
+164.6 MB for determinant and 231.7 MB for inverse. GPU-process host peak RSS
+ranges from 209,076,224 to 356,933,632 B. Exact three-size wall clocks,
+dispersion, memory, structural operation counts, and provenance are in
+`benchmark/reference/rtx5060ti_linalg3_products.json`.
 
 ## Immediate implementation order
 
