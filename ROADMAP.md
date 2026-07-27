@@ -93,7 +93,7 @@ independent validation plus measured application runtime and peak memory.
 - [x] Add an autodiff frozen-trace adaptive-integration candidate.
 - [x] Add a hybrid adaptive-integration candidate.
 - [x] Benchmark fixed quadrature candidates.
-- [ ] Benchmark smooth adaptive-integration candidates.
+- [x] Benchmark smooth adaptive-integration candidates.
 - [ ] Benchmark singular adaptive-integration candidates.
 - [ ] Benchmark batched integration candidates.
 
