@@ -88,7 +88,7 @@ The first pilot is the generated Dawson fused value/JVP leaf:
 2. regenerate the same mathematical leaf with both optional annotations;
    complete, with byte-stable regeneration;
 3. add `FORTNUM_GPU_BACKEND=NONE|OPENACC|OPENMP`, with unavailable selections
-   failing configuration;
+   failing configuration; complete;
 4. add one shared batch-wrapper template;
 5. validate and measure OpenACC and OpenMP-target execution independently; and
 6. retain only paths that pass the acceptance gates.
@@ -96,3 +96,14 @@ The first pilot is the generated Dawson fused value/JVP leaf:
 Coverage then expands by measured kernel family. No general portability
 framework is introduced until at least two real kernels require the same
 abstraction.
+
+### Configuration
+
+`FORTNUM_GPU_BACKEND` defaults to `NONE` and adds no accelerator flags.
+`OPENACC` requires CMake to detect `OpenACC::OpenACC_Fortran` for the selected
+released compiler. `OPENMP` additionally requires explicit
+`FORTNUM_OPENMP_TARGET_FLAGS`; host-only OpenMP is rejected because it cannot
+prove that a target region has a real offload target. The selected backend is
+propagated through the `fortnum` target. This configuration gate establishes
+compiler availability only; a backend remains unsupported until the
+device-execution and performance gates above pass.
