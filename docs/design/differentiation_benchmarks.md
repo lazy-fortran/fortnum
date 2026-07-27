@@ -518,6 +518,66 @@ env FORTNUM_DIRECT_SOLVER_VJP_ACTION=--benchmark \
     ctest --test-dir build-enzyme -V -R '^enzyme_direct_solver_vjp$'
 ```
 
+## Fixed-trace iterative-solver JVP
+
+This comparator differentiates a fixed number of Richardson iterations,
+\(x_{k+1}=x_k+\alpha(b-Ax_k)\), with \(\alpha=0.1\). The derivative contract is
+the executed fixed trace, not the exact converged linear solve. Forward Enzyme
+is compared with the corresponding analytical tangent recurrence and central
+finite differences of the same trace. Validation covers 4 through 64
+iterations and 16 independent directions.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, Flang/LLVM/Enzyme 22, `-O2`.
+Rows are medians of 31 independently launched CTest samples with 5,000 complete
+workloads.
+
+Direction scaling at 32 iterations:
+
+| Directions | Analytical ns | MAD ns | Autodiff ns | MAD ns | Diagnostic ns | MAD ns |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 351.2778 | 15.1746 | 1,319.8524 | 33.6394 | 565.2928 | 22.1476 |
+| 4 | 1,351.6224 | 40.4542 | 5,212.0128 | 128.0750 | 2,185.5594 | 52.8156 |
+| 16 | 5,226.1534 | 98.9104 | 19,764.2356 | 366.5770 | 8,143.1408 | 210.3580 |
+
+Iteration scaling for one direction:
+
+| Iterations | Analytical ns | MAD ns | Autodiff ns | MAD ns | Diagnostic ns | MAD ns |
+|---:|---:|---:|---:|---:|---:|---:|
+| 4 | 53.4508 | 2.3542 | 183.4336 | 12.8202 | 70.8956 | 3.6868 |
+| 16 | 192.7192 | 12.9482 | 672.7934 | 16.5972 | 285.3696 | 12.9024 |
+| 64 | 685.9462 | 18.9836 | 2,581.7358 | 35.2084 | 1,117.1826 | 34.7594 |
+
+Runtime is approximately linear in both dimensions. At 32 iterations and 16
+directions, `analytical` is 3.7818 times faster than `autodiff` and 1.5582
+times faster than the diagnostic.
+
+Maximum process RSS across five launches was 3,014,656 bytes for analytical,
+2,969,600 bytes for autodiff, and 2,981,888 bytes for the diagnostic. No
+direction- or trace-sized storage is retained.
+
+Linux `perf stat -r 3` over 50,000 workloads at 32 iterations and 16 directions:
+
+| Candidate | Cycles/workload | Instructions/workload | Cache references/workload | Cache misses/workload |
+|---|---:|---:|---:|---:|
+| `analytical` | 22,598.105 | 59,397.894 | 22.324 | 3.760 |
+| `autodiff` | 87,828.189 | 252,933.944 | 26.157 | 4.011 |
+| diagnostic | 36,376.767 | 65,381.900 | 24.302 | 4.063 |
+
+Wall clock selects the analytical recurrence. Cache counters are supporting
+evidence only.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_iterative_solver_jvp_enzyme.json`. Validate
+with `ctest --test-dir build-enzyme -R enzyme_iterative_solver_jvp`. Reproduce
+one benchmark sample with:
+
+```bash
+env FORTNUM_ITERATIVE_ACTION=--benchmark \
+    FORTNUM_ITERATIVE_CANDIDATE=autodiff FORTNUM_ITERATIVE_DIRECTIONS=16 \
+    FORTNUM_ITERATIVE_STEPS=32 FORTNUM_ITERATIVE_WORKLOADS=5000 \
+    ctest --test-dir build-enzyme -V -R '^enzyme_iterative_solver_jvp$'
+```
+
 ## Multiple-right-hand-side adjoint solves
 
 `linear_solve_vjp_factored_many` accepts several output cotangents and reuses

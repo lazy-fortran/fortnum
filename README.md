@@ -129,6 +129,10 @@ takes 0.774 µs, finite differences 0.982 µs, and `autodiff` 2.719 µs.
 For the scalar-objective VJP with 20 active solve inputs, reverse Enzyme is much
 more competitive: one cotangent takes 73.50 ns versus 59.40 ns analytically and
 1,025.39 ns by componentwise finite differences.
+A fixed-trace iterative-solver comparator distinguishes the executed iteration
+map from the converged solve. At 32 iterations and 16 directions, the analytical
+tangent recurrence takes 5.226 µs, finite differences 8.143 µs, and forward
+`autodiff` 19.764 µs.
 
 The ODE forward sensitivity now has an explicit continuous contract: it
 approximates the variational IVP at fixed terminal time on the primal's frozen
