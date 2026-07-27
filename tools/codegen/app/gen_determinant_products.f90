@@ -9,7 +9,7 @@ program gen_determinant_products
         operation_count_t, KERNEL_SUBROUTINE
     use fortsym_engine, only: engine_result_t
     use fortsym_engine_symengine, only: symengine_engine_t, make_symengine_engine
-    use fortnum_codegen_provenance, only: fortsym_revision
+    use fortnum_codegen_provenance, only: fortsym_revision, generated_path
     implicit none
 
     type(arena_t), target :: arena
@@ -33,11 +33,11 @@ contains
         call make_symbols(tangent_names, tangents)
         determinant = parsed("a*d - c*b")
         call write_kernel( &
-            "../../src/generated/fortnum_det2_jvp_kernel.f90", &
+            generated_path("fortnum_det2_jvp_kernel.f90"), &
             "fortnum_det2_jvp_kernel", "fortnum_generated_det2_jvp", &
             names, tangent_names, determinant, variables, tangents)
         call write_vjp_kernel( &
-            "../../src/generated/fortnum_det2_vjp_kernel.f90", &
+            generated_path("fortnum_det2_vjp_kernel.f90"), &
             "fortnum_det2_vjp_kernel", "fortnum_generated_det2_vjp", &
             names, bar_names, determinant, variables)
     end subroutine generate_det2
@@ -56,11 +56,11 @@ contains
         determinant = parsed( &
             "a*(f*k-j*g)-d*(b*k-j*c)+h*(b*g-f*c)")
         call write_kernel( &
-            "../../src/generated/fortnum_det3_jvp_kernel.f90", &
+            generated_path("fortnum_det3_jvp_kernel.f90"), &
             "fortnum_det3_jvp_kernel", "fortnum_generated_det3_jvp", &
             names, tangent_names, determinant, variables, tangents)
         call write_vjp_kernel( &
-            "../../src/generated/fortnum_det3_vjp_kernel.f90", &
+            generated_path("fortnum_det3_vjp_kernel.f90"), &
             "fortnum_det3_vjp_kernel", "fortnum_generated_det3_vjp", &
             names, bar_names, determinant, variables)
     end subroutine generate_det3
