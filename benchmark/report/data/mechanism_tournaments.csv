@@ -21,3 +21,5 @@ lagrange_active_nodes_jvp,analytical,analytical,323.9990,747.5676,ryzen9_5950x_l
 lagrange_active_nodes_vjp,analytical,analytical,713.3109,11848.1212,ryzen9_5950x_lagrange_active_nodes.json
 bspline_active_knots_jvp,analytical,analytical,99.7070,203.2880,ryzen9_5950x_bspline_active_knots.json
 bspline_active_knots_vjp,analytical,analytical,1651.6823,3447.6551,ryzen9_5950x_bspline_active_knots.json
+bspline_fit_implicit_jvp,analytical,analytical,422.9037,2073.1364,ryzen9_5950x_bspline_fit_implicit.json
+bspline_fit_implicit_vjp,analytical,analytical,415.9960,509326.8650,ryzen9_5950x_bspline_fit_implicit.json
