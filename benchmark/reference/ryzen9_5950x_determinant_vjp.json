@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "small_determinant",
+  "product": "value_plus_vjp",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1",
+    "build": "Release",
+    "generator": "fortsym c18d803"
+  },
+  "sampling": {
+    "independent_processes": 31,
+    "workloads_per_process": 1000000,
+    "runtime_aggregation": "median",
+    "dispersion": "median absolute deviation",
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum",
+    "perf_repetitions": 3
+  },
+  "validation": {
+    "oracle": "componentwise central finite difference",
+    "secondary_check": "adjoint identity against determinant JVP",
+    "det2_absolute_tolerance": 2e-10,
+    "det3_absolute_tolerance": 2e-9,
+    "adjoint_tolerance": 2e-14
+  },
+  "scaling": [
+    {
+      "matrix_size": 2,
+      "active_inputs": 4,
+      "scalar_outputs": 1,
+      "returned_sensitivities": 4,
+      "primal_median_ns": 11.212900,
+      "primal_mad_ns": 0.072988,
+      "analytical_median_ns": 13.330029,
+      "analytical_mad_ns": 0.055765,
+      "diagnostic_median_ns": 54.574500,
+      "diagnostic_mad_ns": 0.200678,
+      "analytical_speedup": 4.0941
+    },
+    {
+      "matrix_size": 3,
+      "active_inputs": 9,
+      "scalar_outputs": 1,
+      "returned_sensitivities": 9,
+      "primal_median_ns": 11.831084,
+      "primal_mad_ns": 0.203383,
+      "analytical_median_ns": 29.013223,
+      "analytical_mad_ns": 0.158689,
+      "diagnostic_median_ns": 159.540497,
+      "diagnostic_mad_ns": 0.510883,
+      "analytical_speedup": 5.4989
+    }
+  ],
+  "memory": {
+    "matrix_size": 3,
+    "analytical_peak_rss_bytes": 4255744,
+    "diagnostic_peak_rss_bytes": 4268032,
+    "derivative_workspace_allocations": 0
+  },
+  "perf": {
+    "matrix_size": 3,
+    "workloads_per_repetition": 10000000,
+    "analytical": {
+      "cycles_per_workload": 128.803,
+      "instructions_per_workload": 502.399,
+      "cache_references_per_workload": 0.020,
+      "cache_misses_per_workload": 0.005
+    },
+    "diagnostic": {
+      "cycles_per_workload": 749.721,
+      "instructions_per_workload": 2474.399,
+      "cache_references_per_workload": 0.096,
+      "cache_misses_per_workload": 0.021
+    }
+  },
+  "unimplemented_candidates": ["autodiff", "hybrid"],
+  "selection": {
+    "selected": "analytical",
+    "criterion": "complete determinant-value-plus-VJP wall clock",
+    "matrix_size": 3,
+    "speedup": 5.4989,
+    "reason": "one reverse-shaped cofactor sweep returns all input sensitivities"
+  }
+}

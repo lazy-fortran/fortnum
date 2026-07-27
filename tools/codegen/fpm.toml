@@ -18,6 +18,6 @@ source-dir = "app"
 main = "gen_dawson_outer.f90"
 
 [[executable]]
-name = "gen_determinant_jvp"
+name = "gen_determinant_products"
 source-dir = "app"
-main = "gen_determinant_jvp.f90"
+main = "gen_determinant_products.f90"

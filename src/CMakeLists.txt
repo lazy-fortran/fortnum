@@ -18,7 +18,9 @@ target_sources(fortnum PRIVATE
     fortnum_version.f90
     generated/fortnum_dawson_outer_kernel.f90
     generated/fortnum_det2_jvp_kernel.f90
+    generated/fortnum_det2_vjp_kernel.f90
     generated/fortnum_det3_jvp_kernel.f90
+    generated/fortnum_det3_vjp_kernel.f90
     interp/fortnum_bspline.f90
     interp/fortnum_interp.f90
     interp/fortnum_polynomial.f90
