@@ -126,6 +126,9 @@ factorization. At 16 cotangents, repeated scalar VJPs take 18.925 µs versus
 A real forward-Enzyme comparator differentiates a 4×4 direct elimination
 kernel. For 16 value-plus-JVP directions, analytical implicit differentiation
 takes 0.774 µs, finite differences 0.982 µs, and `autodiff` 2.719 µs.
+For the scalar-objective VJP with 20 active solve inputs, reverse Enzyme is much
+more competitive: one cotangent takes 73.50 ns versus 59.40 ns analytically and
+1,025.39 ns by componentwise finite differences.
 
 The ODE forward sensitivity now has an explicit continuous contract: it
 approximates the variational IVP at fixed terminal time on the primal's frozen
