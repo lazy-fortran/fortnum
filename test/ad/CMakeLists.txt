@@ -162,6 +162,7 @@ if(FORTNUM_ENABLE_ENZYME)
             ${CMAKE_SOURCE_DIR}/src/fortnum_kinds.f90
             ${CMAKE_SOURCE_DIR}/src/quadrature/fortnum_quadrature.f90
             ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/fixed_quadrature_full_jvp.f90
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/fixed_quadrature_jvp.f90
         MODE forward
         OPT_LEVEL O2)
@@ -171,6 +172,7 @@ if(FORTNUM_ENABLE_ENZYME)
             ${CMAKE_SOURCE_DIR}/src/fortnum_kinds.f90
             ${CMAKE_SOURCE_DIR}/src/quadrature/fortnum_quadrature.f90
             ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/fixed_quadrature_full_vjp.f90
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/fixed_quadrature_vjp.f90
         MODE reverse
         OPT_LEVEL O2)

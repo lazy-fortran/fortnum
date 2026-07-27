@@ -1,12 +1,18 @@
 module fixed_quadrature_hybrid_kernel
     use, intrinsic :: iso_c_binding, only: c_double, c_funloc, c_funptr
+    use fixed_quadrature_full_jvp_autodiff, only: full_quadrature_jvp
     use fortnum_kinds, only: dp
     use fortnum_quadrature, only: gauss_legendre_jvp
     implicit none
     private
 
-    public :: analytical_integral_jvp, hybrid_integral_jvp
+    integer, parameter :: kernel_rule_size = 32
+    real(dp), save :: kernel_nodes(kernel_rule_size)
+    real(dp), save :: kernel_weights(kernel_rule_size)
+
+    public :: analytical_integral_jvp, autodiff_integral_jvp, hybrid_integral_jvp
     public :: diagnostic_integral_jvp, exact_integral_jvp
+    public :: configure_quadrature_kernel
 
     interface
         function enzyme_fwddiff(f, x, dx, p1, dp1, p2, dp2, p3, dp3, &
@@ -29,6 +35,26 @@ contains
         value = exp(p1*x) + sin(p2*x) + p3*x*x + p4*x*x*x
     end function integrand
 
+    subroutine configure_quadrature_kernel(nodes, weights)
+        real(dp), intent(in) :: nodes(kernel_rule_size), weights(kernel_rule_size)
+
+        kernel_nodes = nodes
+        kernel_weights = weights
+    end subroutine configure_quadrature_kernel
+
+    function quadrature_kernel(p1, p2, p3, p4) result(value) &
+            bind(c, name="fortnum_fixed_quadrature_jvp_kernel")
+        real(c_double), value :: p1, p2, p3, p4
+        real(c_double) :: value
+        integer :: i
+
+        value = 0.0_dp
+        do i = 1, kernel_rule_size
+            value = value + kernel_weights(i)*integrand(kernel_nodes(i), &
+                p1, p2, p3, p4)
+        end do
+    end function quadrature_kernel
+
     function analytical_integral_jvp(nodes, weights, parameters, direction) &
             result(jvp)
         real(dp), intent(in) :: nodes(:), weights(:), parameters(4), direction(4)
@@ -40,6 +66,13 @@ contains
         call gauss_legendre_jvp(weights, tangent_values, contracted)
         jvp = contracted(1)
     end function analytical_integral_jvp
+
+    function autodiff_integral_jvp(parameters, direction) result(jvp)
+        real(dp), intent(in) :: parameters(4), direction(4)
+        real(dp) :: jvp
+
+        jvp = full_quadrature_jvp(parameters, direction)
+    end function autodiff_integral_jvp
 
     function hybrid_integral_jvp(nodes, weights, parameters, direction) &
             result(jvp)
@@ -98,14 +131,15 @@ program enzyme_fixed_quadrature_jvp_hybrid
     use, intrinsic :: iso_c_binding, only: c_int64_t
     use, intrinsic :: iso_fortran_env, only: dp => real64, int64
     use fixed_quadrature_hybrid_kernel, only: analytical_integral_jvp, &
-        hybrid_integral_jvp, diagnostic_integral_jvp, exact_integral_jvp
+        autodiff_integral_jvp, hybrid_integral_jvp, diagnostic_integral_jvp, &
+        exact_integral_jvp, configure_quadrature_kernel
     use fortnum_quadrature, only: gauss_legendre_ab
     implicit none
 
     integer, parameter :: rule_size = 32
     integer, parameter :: max_directions = 4
     real(dp) :: nodes(rule_size), weights(rule_size)
-    real(dp) :: parameters(4), directions(4, max_directions), errors(3)
+    real(dp) :: parameters(4), directions(4, max_directions), errors(4)
     character(32) :: argument, candidate, direction_argument
     integer :: direction_count
 
@@ -140,6 +174,7 @@ contains
 
     subroutine initialize_workload()
         call gauss_legendre_ab(rule_size, 0.0_dp, 1.0_dp, nodes, weights)
+        call configure_quadrature_kernel(nodes, weights)
         parameters = [0.7_dp, 1.1_dp, -0.3_dp, 0.2_dp]
         directions(:, 1) = [0.4_dp, -0.6_dp, 0.2_dp, 0.7_dp]
         directions(:, 2) = [-0.3_dp, 0.1_dp, 0.8_dp, -0.2_dp]
@@ -148,22 +183,24 @@ contains
     end subroutine initialize_workload
 
     subroutine validate_candidates()
-        real(dp) :: analytical, hybrid, diagnostic, reference
+        real(dp) :: analytical, autodiff, hybrid, diagnostic, reference
         integer :: direction
 
         do direction = 1, max_directions
             reference = exact_integral_jvp(parameters, directions(:, direction))
             analytical = analytical_integral_jvp(nodes, weights, parameters, &
                 directions(:, direction))
+            autodiff = autodiff_integral_jvp(parameters, directions(:, direction))
             hybrid = hybrid_integral_jvp(nodes, weights, parameters, &
                 directions(:, direction))
             diagnostic = diagnostic_integral_jvp(nodes, weights, parameters, &
                 directions(:, direction))
             errors(1) = abs(analytical - reference)
-            errors(2) = abs(hybrid - reference)
-            errors(3) = abs(diagnostic - reference)
-            if (maxval(errors(1:2)) > 2.0e-14_dp .or. &
-                errors(3) > 2.0e-10_dp) then
+            errors(2) = abs(autodiff - reference)
+            errors(3) = abs(hybrid - reference)
+            errors(4) = abs(diagnostic - reference)
+            if (maxval(errors(1:3)) > 2.0e-14_dp .or. &
+                errors(4) > 2.0e-10_dp) then
                 print *, "fixed-quadrature JVP mismatch", direction, errors
                 error stop 1
             end if
@@ -177,6 +214,7 @@ contains
 
         do count_index = 1, size(counts)
             call run_single_benchmark("analytical", counts(count_index))
+            call run_single_benchmark("autodiff", counts(count_index))
             call run_single_benchmark("hybrid", counts(count_index))
             call run_single_benchmark("diagnostic", counts(count_index))
         end do
@@ -215,9 +253,9 @@ contains
         character(*), intent(in) :: name
         integer, intent(in) :: count
 
-        if ((name /= "analytical") .and. (name /= "hybrid") .and. &
-            (name /= "diagnostic")) then
-            error stop "candidate must be analytical, hybrid, or diagnostic"
+        if ((name /= "analytical") .and. (name /= "autodiff") .and. &
+            (name /= "hybrid") .and. (name /= "diagnostic")) then
+            error stop "candidate must be analytical, autodiff, hybrid, or diagnostic"
         end if
         if ((count /= 1) .and. (count /= 2) .and. (count /= 4)) then
             error stop "direction count must be 1, 2, or 4"
@@ -244,6 +282,9 @@ contains
                 case ("analytical")
                     sink = sink + analytical_integral_jvp(nodes, weights, &
                         varied_parameters, directions(:, direction))
+                case ("autodiff")
+                    sink = sink + autodiff_integral_jvp(varied_parameters, &
+                        directions(:, direction))
                 case ("hybrid")
                     sink = sink + hybrid_integral_jvp(nodes, weights, &
                         varied_parameters, directions(:, direction))

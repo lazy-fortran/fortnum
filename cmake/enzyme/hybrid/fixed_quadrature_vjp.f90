@@ -1,16 +1,22 @@
 module fixed_quadrature_vjp_hybrid_kernel
     use, intrinsic :: iso_c_binding, only: c_double, c_funloc, c_funptr
+    use fixed_quadrature_full_vjp_autodiff, only: full_quadrature_vjp
     use fortnum_kinds, only: dp
     use fortnum_quadrature, only: gauss_legendre_vjp
     implicit none
     private
 
+    integer, parameter :: kernel_rule_size = 32
+    real(dp), save :: kernel_nodes(kernel_rule_size)
+    real(dp), save :: kernel_weights(kernel_rule_size)
+
     type, bind(c) :: integrand_gradient_t
         real(c_double) :: values(5)
     end type integrand_gradient_t
 
-    public :: analytical_integral_vjp, hybrid_integral_vjp
+    public :: analytical_integral_vjp, autodiff_integral_vjp, hybrid_integral_vjp
     public :: diagnostic_integral_vjp, exact_integral_vjp
+    public :: configure_quadrature_kernel
 
     interface
         function enzyme_autodiff(f, x, p1, p2, p3, p4) result(gradient) &
@@ -32,6 +38,26 @@ contains
         value = exp(p1*x) + sin(p2*x) + p3*x*x + p4*x*x*x
     end function integrand
 
+    subroutine configure_quadrature_kernel(nodes, weights)
+        real(dp), intent(in) :: nodes(kernel_rule_size), weights(kernel_rule_size)
+
+        kernel_nodes = nodes
+        kernel_weights = weights
+    end subroutine configure_quadrature_kernel
+
+    function quadrature_kernel(p1, p2, p3, p4) result(value) &
+            bind(c, name="fortnum_fixed_quadrature_vjp_kernel")
+        real(c_double), value :: p1, p2, p3, p4
+        real(c_double) :: value
+        integer :: i
+
+        value = 0.0_dp
+        do i = 1, kernel_rule_size
+            value = value + kernel_weights(i)*integrand(kernel_nodes(i), &
+                p1, p2, p3, p4)
+        end do
+    end function quadrature_kernel
+
     pure function analytical_integral_vjp(nodes, weights, parameters, &
             cotangent) result(vjp)
         real(dp), intent(in) :: nodes(:), weights(:), parameters(4), cotangent
@@ -50,6 +76,13 @@ contains
             vjp(4) = vjp(4) + node_cotangents(i)*nodes(i)*nodes(i)*nodes(i)
         end do
     end function analytical_integral_vjp
+
+    function autodiff_integral_vjp(parameters, cotangent) result(vjp)
+        real(dp), intent(in) :: parameters(4), cotangent
+        real(dp) :: vjp(4)
+
+        vjp = full_quadrature_vjp(parameters, cotangent)
+    end function autodiff_integral_vjp
 
     function hybrid_integral_vjp(nodes, weights, parameters, cotangent) &
             result(vjp)
@@ -119,7 +152,8 @@ program enzyme_fixed_quadrature_vjp_hybrid
     use, intrinsic :: iso_c_binding, only: c_int64_t
     use, intrinsic :: iso_fortran_env, only: dp => real64, int64
     use fixed_quadrature_vjp_hybrid_kernel, only: analytical_integral_vjp, &
-        hybrid_integral_vjp, diagnostic_integral_vjp, exact_integral_vjp
+        autodiff_integral_vjp, hybrid_integral_vjp, diagnostic_integral_vjp, &
+        exact_integral_vjp, configure_quadrature_kernel
     use fortnum_quadrature, only: gauss_legendre_ab
     implicit none
 
@@ -160,28 +194,31 @@ contains
 
     subroutine initialize_workload()
         call gauss_legendre_ab(rule_size, 0.0_dp, 1.0_dp, nodes, weights)
+        call configure_quadrature_kernel(nodes, weights)
         parameters = [0.7_dp, 1.1_dp, -0.3_dp, 0.2_dp]
         cotangents = [1.3_dp, -0.4_dp, 0.7_dp, -1.1_dp]
     end subroutine initialize_workload
 
     subroutine validate_candidates()
-        real(dp) :: analytical(4), hybrid(4), diagnostic(4), reference(4)
-        real(dp) :: errors(3)
+        real(dp) :: analytical(4), autodiff(4), hybrid(4), diagnostic(4)
+        real(dp) :: reference(4), errors(4)
         integer :: cotangent
 
         do cotangent = 1, max_cotangents
             reference = exact_integral_vjp(parameters, cotangents(cotangent))
             analytical = analytical_integral_vjp(nodes, weights, parameters, &
                 cotangents(cotangent))
+            autodiff = autodiff_integral_vjp(parameters, cotangents(cotangent))
             hybrid = hybrid_integral_vjp(nodes, weights, parameters, &
                 cotangents(cotangent))
             diagnostic = diagnostic_integral_vjp(nodes, weights, parameters, &
                 cotangents(cotangent))
             errors(1) = maxval(abs(analytical - reference))
-            errors(2) = maxval(abs(hybrid - reference))
-            errors(3) = maxval(abs(diagnostic - reference))
-            if (maxval(errors(1:2)) > 2.0e-14_dp .or. &
-                errors(3) > 2.0e-10_dp) then
+            errors(2) = maxval(abs(autodiff - reference))
+            errors(3) = maxval(abs(hybrid - reference))
+            errors(4) = maxval(abs(diagnostic - reference))
+            if (maxval(errors(1:3)) > 2.0e-14_dp .or. &
+                errors(4) > 2.0e-10_dp) then
                 print *, "fixed-quadrature VJP mismatch", cotangent, errors
                 error stop 1
             end if
@@ -195,6 +232,7 @@ contains
 
         do count_index = 1, size(counts)
             call run_single_benchmark("analytical", counts(count_index))
+            call run_single_benchmark("autodiff", counts(count_index))
             call run_single_benchmark("hybrid", counts(count_index))
             call run_single_benchmark("diagnostic", counts(count_index))
         end do
@@ -233,9 +271,9 @@ contains
         character(*), intent(in) :: name
         integer, intent(in) :: count
 
-        if ((name /= "analytical") .and. (name /= "hybrid") .and. &
-            (name /= "diagnostic")) then
-            error stop "candidate must be analytical, hybrid, or diagnostic"
+        if ((name /= "analytical") .and. (name /= "autodiff") .and. &
+            (name /= "hybrid") .and. (name /= "diagnostic")) then
+            error stop "candidate must be analytical, autodiff, hybrid, or diagnostic"
         end if
         if ((count /= 1) .and. (count /= 2) .and. (count /= 4)) then
             error stop "cotangent count must be 1, 2, or 4"
@@ -262,6 +300,9 @@ contains
                 case ("analytical")
                     result = analytical_integral_vjp(nodes, weights, &
                         varied_parameters, cotangents(cotangent))
+                case ("autodiff")
+                    result = autodiff_integral_vjp(varied_parameters, &
+                        cotangents(cotangent))
                 case ("hybrid")
                     result = hybrid_integral_vjp(nodes, weights, &
                         varied_parameters, cotangents(cotangent))

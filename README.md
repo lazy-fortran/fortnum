@@ -36,7 +36,8 @@ for an active lower or upper bound. Measured `hybrid` candidates use Enzyme
 forward or reverse mode for integrand products and the corresponding analytical
 fixed-quadrature contraction. With four active parameters and one scalar
 output, one reverse VJP is about four times faster than four forward JVPs for
-both `analytical` and `hybrid` mechanisms. Adaptive integration also has an
+`analytical`, `autodiff`, and `hybrid` mechanisms; the completed fixed-rule
+tournament selects `analytical` for both products. Adaptive integration has an
 `analytical` frozen-subdivision JVP for QAG, QAGS, QAGP, and one-sided QAGIU
 traces, a forward-`autodiff` candidate through a fixed accepted trace, and a
 `hybrid` candidate using Enzyme integrand JVPs inside the analytical trace walk.
