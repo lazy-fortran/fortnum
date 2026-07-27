@@ -133,7 +133,7 @@ independent validation plus measured application runtime and peak memory.
 
 ## Evidence report
 
-- [ ] Add cumulative `analytical`, finite-difference diagnostic, `autodiff`,
+- [x] Add cumulative `analytical`, finite-difference diagnostic, `autodiff`,
   and `hybrid` statistics with reproducible `fortplot` figure generators.
 
 ## Interpolation and splines
