@@ -25,6 +25,21 @@ Enzyme test build rather than this gfortran-only primal harness. Their
 machine-readable reference runs are committed under `benchmark/reference/`;
 see `docs/design/differentiation_benchmarks.md` for commands and tables.
 
+The cumulative differentiation report normalizes mechanism-level tournaments
+and generates figures with a pinned `fortplot`:
+
+```bash
+mkdir -p /tmp/fortnum-differentiation-report
+cd benchmark/report
+fo exec plot_differentiation_report \
+  data/mechanism_tournaments.csv /tmp/fortnum-differentiation-report
+```
+
+Only the generator and its normalized source data are committed; generated
+PNGs remain outside the repository. See
+`docs/design/differentiation_report.md` for the inclusion rule and overall
+statistics.
+
 ## Add a benchmark
 
 A kernel is a function returning `real(dp)`. Return the result so the

@@ -1,0 +1,21 @@
+name = "fortnum-differentiation-report"
+version = "0.1.0"
+license = "MIT"
+
+[build]
+auto-executables = false
+auto-tests = false
+auto-examples = false
+
+[fortran]
+implicit-typing = false
+implicit-external = false
+source-form = "free"
+
+[dependencies]
+fortplot = { git = "https://github.com/lazy-fortran/fortplot.git", rev = "c6567bdd5cea32052d0f2e922419ad8d6f086082" }
+
+[[executable]]
+name = "plot_differentiation_report"
+source-dir = "app"
+main = "plot_differentiation_report.f90"

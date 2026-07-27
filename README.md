@@ -28,6 +28,9 @@ implicit, hybrid, and finite-difference diagnostic candidates. Measured
 runtime, dispersion, peak memory, validation, hardware, and compiler evidence
 is committed in
 `docs/design/differentiation_benchmarks.md` and `benchmark/reference/`.
+The cumulative report in `docs/design/differentiation_report.md` summarizes 18
+mechanism tournaments and provides reproducible `fortplot` figure generation
+without committing generated PNGs.
 `ROADMAP.md` is the authoritative implementation checklist.
 
 Fixed-bound parameterized integrals also expose an analytical JVP based on
