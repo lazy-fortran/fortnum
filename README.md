@@ -136,6 +136,10 @@ tangent recurrence takes 5.226 µs, finite differences 8.143 µs, and forward
 No hybrid BLAS/LAPACK custom rule is selected yet: the measured analytical
 direct-solver JVP and VJP already beat Enzyme by 3.51× and 1.28× respectively,
 so an extra external-rule boundary is not currently justified.
+The completed linear-algebra tournament covers 12 product or interface
+workloads. Analytical implementations win all 12 by complete-workload wall
+clock; the closest mechanism contest is the direct-solver VJP, where analytical
+is 1.28× faster than reverse Enzyme.
 
 The ODE forward sensitivity now has an explicit continuous contract: it
 approximates the variational IVP at fixed terminal time on the primal's frozen

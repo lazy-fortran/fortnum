@@ -518,6 +518,44 @@ env FORTNUM_DIRECT_SOLVER_VJP_ACTION=--benchmark \
     ctest --test-dir build-enzyme -V -R '^enzyme_direct_solver_vjp$'
 ```
 
+## Linear-algebra tournament summary
+
+All implemented linear-algebra derivative products and reusable-interface
+variants now have committed validation, wall-clock, memory, scaling, and cache
+evidence. Timings below describe different complete workloads and must not be
+averaged across rows.
+
+| Workload | Scale | Selected | Selected ns | Runner-up | Runner-up ns | Speedup |
+|---|---|---|---:|---|---:|---:|
+| determinant JVP | 3x3, 64 directions | analytical generated product | 1,198.339 | diagnostic | 2,208.372 | 1.843x |
+| determinant VJP | 3x3, 9 sensitivities | analytical generated product | 29.013 | diagnostic | 159.540 | 5.499x |
+| inverse JVP | 3x3 | analytical identity | 125.082 | diagnostic | 160.003 | 1.279x |
+| inverse VJP | 3x3, 9 sensitivities | analytical identity | 113.428 | diagnostic | 929.101 | 8.191x |
+| LU ownership interface | 16x16 | raw factored arrays | 1,103.597 | factorization object | 1,117.586 | 1.013x |
+| linear-solve JVP factor reuse | 16x16 | reuse primal LU | 348.695 | refactor | 981.847 | 2.816x |
+| linear-solve VJP factor reuse | 16x16 | reuse transposed LU | 341.594 | refactor | 1,001.494 | 2.932x |
+| multiple JVP interface | 16 directions | repeated scalar | 12,834.573 | batched | 22,583.638 | 1.760x |
+| multiple VJP interface | 16 cotangents | repeated scalar | 18,924.946 | batched | 20,400.698 | 1.078x |
+| direct solve JVP | 16 directions | analytical implicit | 773.706 | diagnostic | 982.276 | 1.270x |
+| direct solve VJP | 16 cotangents | analytical adjoint | 852.922 | reverse autodiff | 1,089.863 | 1.278x |
+| iterative fixed-trace JVP | 32 steps, 16 directions | analytical recurrence | 5,226.153 | diagnostic | 8,143.141 | 1.558x |
+
+Analytical implementations win all 12 measured workloads. This does not imply
+a policy preference: it is the outcome for the current small dense kernels,
+compiler, hardware, and contracts. Reverse autodiff is the closest mechanism
+competitor for the scalar-objective direct-solver VJP. Forward autodiff loses
+when the scalar interoperable boundary requires separate sweeps to recover a
+vector JVP.
+
+Peak RSS never changes enough to overturn a wall-clock winner. The detailed
+records state where process-level RSS differences are measurement noise and
+where reusable storage differs. Cache counters support the instruction and
+runtime results but remain too variable to select a different candidate.
+
+The aggregate machine-readable record is
+`benchmark/reference/ryzen9_5950x_linear_algebra_tournament.json`; every row
+links to its detailed source record and independent oracle.
+
 ## Hybrid BLAS/LAPACK custom-rule decision
 
 The roadmap requires a hybrid BLAS or LAPACK custom rule only where measurement
