@@ -55,6 +55,7 @@ add_library(bench_core STATIC
     ${FORTNUM_CORE_DIR}/roots/fortnum_fixed_point.f90
     ${FORTNUM_CORE_DIR}/roots/fortnum_multiroot.f90
     ${FORTNUM_CORE_DIR}/roots/fortnum_roots.f90
+    gpu/fortnum_gpu_batch_wrappers.f90
     fortnum_benchmark.f90
     fortnum_benchmark_memory.f90
     peak_rss.c
@@ -71,6 +72,10 @@ target_link_libraries(bench_ad_overheads PRIVATE bench_core)
 add_executable(bench_dawson_generated_family
     bench_dawson_generated_family.f90)
 target_link_libraries(bench_dawson_generated_family PRIVATE bench_core)
+
+add_executable(bench_gpu_batch_wrapper
+    gpu/bench_gpu_batch_wrapper.f90)
+target_link_libraries(bench_gpu_batch_wrapper PRIVATE bench_core)
 
 add_executable(bench_linear_solve_jvp bench_linear_solve_jvp.f90)
 target_link_libraries(bench_linear_solve_jvp PRIVATE bench_core)

@@ -217,7 +217,7 @@ derivatives. CPU Enzyme remains the `autodiff` backend and supplies CPU
 - [x] Add the build-time choice
   `FORTNUM_GPU_BACKEND=NONE|OPENACC|OPENMP`, defaulting to `NONE`; selecting an
   unavailable backend must fail configuration instead of falling back.
-- [ ] Add one shared benchmark-only batch-wrapper template whose numerical
+- [x] Add one shared benchmark-only batch-wrapper template whose numerical
   loop body is identical for OpenACC and OpenMP target.
 - [ ] Offload the generated analytical Dawson fused value/JVP through OpenACC
   with a released `nvfortran`; prove NVIDIA-device execution and validate

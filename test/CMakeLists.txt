@@ -12,6 +12,13 @@ add_test(
         "-DTEST_BINARY_ROOT=${PROJECT_BINARY_DIR}/gpu-backend-configure"
         -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/test_gpu_backend_configure.cmake")
 
+add_executable(
+    test_gpu_batch_wrappers
+    "${PROJECT_SOURCE_DIR}/benchmark/gpu/fortnum_gpu_batch_wrappers.f90"
+    "${PROJECT_SOURCE_DIR}/benchmark/gpu/test_gpu_batch_wrappers.f90")
+target_link_libraries(test_gpu_batch_wrappers PRIVATE fortnum)
+add_test(NAME gpu_batch_wrappers COMMAND test_gpu_batch_wrappers)
+
 add_executable(test_fortnum_smoke test_fortnum_smoke.f90)
 target_link_libraries(test_fortnum_smoke PRIVATE fortnum)
 add_test(NAME fortnum_smoke COMMAND test_fortnum_smoke)

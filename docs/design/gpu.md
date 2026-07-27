@@ -79,6 +79,29 @@ The production candidate minimizes validated complete-workload wall clock,
 subject to peak-memory constraints. Kernel-only timing, operation count, or a
 mechanism name cannot select the winner.
 
+## Shared batch-wrapper pilot
+
+`benchmark/gpu/fortnum_gpu_batch_wrappers.f90` contains one Dawson fused
+value/JVP loop body. OpenACC `parallel loop` and OpenMP
+`target teams distribute parallel do` annotate that same loop; both call the
+same generated numerical leaf. The wrapper owns scheduling only and contains
+no derivative expression.
+
+The CPU check establishes that this boundary does not add overhead before GPU
+work begins. On an AMD Ryzen 9 5950X, GNU Fortran 16.1.1 `-O3`, CPU 4 pinned,
+31 samples of 100 batches with 65,536 elements each:
+
+| Candidate | Median ns/element | MAD ns | Peak RSS |
+| --- | ---: | ---: | ---: |
+| Shared wrapper | 9.1550 | 0.0573 | 12,578,816 B |
+| Direct reference loop | 9.6499 | 0.0621 | 11,771,904 B |
+
+The wrapper was 1.0541 times faster in this run; the evidence supports “no
+measured CPU overhead,” not a general speedup claim. The independent oracle
+evaluates the value and JVP formulas separately at 17 points. Machine-readable
+evidence is in
+`benchmark/reference/ryzen9_5950x_gpu_batch_wrapper_cpu.json`.
+
 ## Immediate implementation order
 
 The first pilot is the generated Dawson fused value/JVP leaf:
@@ -89,7 +112,7 @@ The first pilot is the generated Dawson fused value/JVP leaf:
    complete, with byte-stable regeneration;
 3. add `FORTNUM_GPU_BACKEND=NONE|OPENACC|OPENMP`, with unavailable selections
    failing configuration; complete;
-4. add one shared batch-wrapper template;
+4. add one shared batch-wrapper template; complete for fused Dawson value/JVP;
 5. validate and measure OpenACC and OpenMP-target execution independently; and
 6. retain only paths that pass the acceptance gates.
 
