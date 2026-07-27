@@ -13,8 +13,9 @@ module fortnum_ode_events
     !   function theorem turns dg = 0 into dt_event. A tangential crossing
     !   (|dg/dt| <= event_tol) or a non-smooth g at the root has no such
     !   derivative; ode_event_scan then sets FORTNUM_DOMAIN_ERROR naming the
-    !   non-transversal event, while the primal root it returns stays valid. The
-    !   #40 event sensitivity checks transversal_ok before propagating.
+    !   non-transversal event, while the primal root it returns stays valid.
+    !   ode_event_time_jvp applies the residual-equation tangent only after
+    !   checking the recorded transversality flag.
     !   Active: y0, ctx parameters, the frozen trace. Inactive: event_direction,
     !   event_tol, the bracket index, transversal_ok, status.
     !
@@ -38,7 +39,7 @@ module fortnum_ode_events
     implicit none
     private
 
-    public :: ode_event_scan
+    public :: ode_event_scan, ode_event_time_jvp
     public :: ode_event_result_t
 
     integer, parameter :: BRENT_MAX_ITER = 200
@@ -60,6 +61,36 @@ module fortnum_ode_events
     end type ode_event_result_t
 
 contains
+
+    ! Differentiate the defining event equation
+    !
+    !     g(t_event, y(t_event, p), p) = 0
+    !
+    ! without differentiating the root-location iterations. residual_tangent
+    ! is the directional derivative of g with event time held fixed; result's
+    ! g_dot is the total derivative along the primal trajectory, including any
+    ! explicit time dependence. Multiple directions share the same crossing.
+    subroutine ode_event_time_jvp(result, residual_tangent, time_tangent, status)
+        type(ode_event_result_t), intent(in) :: result
+        real(dp), intent(in) :: residual_tangent(:)
+        real(dp), allocatable, intent(out) :: time_tangent(:)
+        type(fortnum_status_t), intent(out) :: status
+
+        call status_set(status, FORTNUM_OK, "")
+        if (.not. result%found) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_event_time_jvp: event not found")
+            return
+        end if
+        if (.not. result%transversal) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_event_time_jvp: non-transversal event")
+            return
+        end if
+
+        allocate(time_tangent(size(residual_tangent)))
+        time_tangent = -residual_tangent/result%g_dot
+    end subroutine ode_event_time_jvp
 
     ! Scan the accepted-step trace in solution for the first event consistent
     ! with direction, then locate it to event_tol. The caller supplies the same
