@@ -205,7 +205,7 @@ application data residency. GPU work initially supplies `analytical`
 derivatives. CPU Enzyme remains the `autodiff` backend and supplies CPU
 `hybrid` composition.
 
-- [ ] Document the supported CPU/GPU differentiation matrix and the minimal
+- [x] Document the supported CPU/GPU differentiation matrix and the minimal
   device-leaf contract: pure procedures, explicit contiguous data, and no
   allocation, I/O, mutable global state, polymorphism, procedure pointers, or
   unsupported descriptors.

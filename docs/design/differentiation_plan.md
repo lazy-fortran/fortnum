@@ -92,7 +92,16 @@ exact regeneration banners.
 needs more capability. Do not invent an API in this repository, and do not add a
 runtime dependency on it.
 
-## 4.1 Implementation status
+## 4.1 CPU and GPU scope
+
+The normative support matrix, minimal device-leaf ABI, device-execution proof,
+and measurement gates are in [gpu.md](gpu.md). CPU supports selective
+`autodiff`, `analytical`, and `hybrid` candidates. GPU paths initially admit
+only individually validated generated `analytical` leaves; GPU `autodiff` and
+`hybrid` are not supported. A requested unavailable backend must fail rather
+than silently run on the host.
+
+## 4.2 Implementation status
 
 | Plan area | Status | Evidence |
 |---|---|---|
