@@ -80,10 +80,13 @@ declared as `bind(c)` interfaces inside the test wrapper only. They never
 appear in the public API; public callers use the `foo_jvp` / `foo_vjp` /
 `foo_grad` / `foo_hvp` names (ad.md sec. 2).
 
-The scalar-root hybrid test stays inside this subset: Enzyme differentiates
-only the scalar `bind(c)` residual. The resulting residual JVPs are passed to
-the normal Fortran analytical implicit boundary. Enzyme does not differentiate
-the root solver or its assumed-shape callback interface.
+The scalar-root hybrid tests stay inside this subset: Enzyme differentiates
+only the scalar `bind(c)` residual. Forward mode returns contracted residual
+JVPs. Reverse mode returns a C-interoperable three-scalar gradient containing
+the root and two parameter partials, which is contracted with the root
+cotangent. Both are passed to the normal Fortran analytical implicit boundary.
+Enzyme does not differentiate the root solver or its assumed-shape callback
+interface.
 
 ### Argument activity in the wrapper
 
