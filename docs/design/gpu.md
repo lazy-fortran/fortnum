@@ -213,6 +213,46 @@ the GPU paths by another 17.4089 and 16.6160 times, respectively.
 Machine-readable evidence is in
 `benchmark/reference/rtx5060ti_dawson_vjp.json`.
 
+## GPU fusion tournament
+
+The value, contracted JVP, contracted VJP, fused value/JVP, and fused value/VJP
+leaves all come from the same symbolic DAG. The tournament compares one fused
+launch with two separate launches; it does not duplicate any expression.
+Independent analytical and adjoint oracles validate every wrapper on both
+devices.
+
+Three batch regimes are measured:
+
+- 256 elements: launch dominated;
+- 65,536 elements: throughput transition; and
+- 1,048,576 elements: sustained throughput when resident and
+  transfer/memory dominated when copied for every call.
+
+The tables show fused/separate median milliseconds, followed by the speedup
+from fusion. Each cell is based on 31 samples after warmup.
+
+| Backend | Elements | Residency | Value/JVP ms | Speedup | Value/VJP ms | Speedup |
+| --- | ---: | --- | ---: | ---: | ---: | ---: |
+| OpenACC | 256 | transfer | 0.0410 / 0.0480 | 1.1707x | 0.0441 / 0.0510 | 1.1565x |
+| OpenACC | 256 | resident | 0.0081 / 0.0151 | 1.8642x | 0.0081 / 0.0150 | 1.8519x |
+| OpenACC | 65,536 | transfer | 0.3419 / 0.3672 | 1.0740x | 0.3500 / 0.3579 | 1.0226x |
+| OpenACC | 65,536 | resident | 0.0210 / 0.0329 | 1.5667x | 0.0210 / 0.0331 | 1.5762x |
+| OpenACC | 1,048,576 | transfer | 3.9251 / 4.0579 | 1.0338x | 4.0021 / 4.0850 | 1.0207x |
+| OpenACC | 1,048,576 | resident | 0.2100 / 0.3052 | 1.4533x | 0.2100 / 0.3052 | 1.4533x |
+| OpenMP target | 256 | transfer | 0.0410 / 0.0480 | 1.1707x | 0.0410 / 0.0489 | 1.1927x |
+| OpenMP target | 256 | resident | 0.0081 / 0.0159 | 1.9630x | 0.0081 / 0.0159 | 1.9630x |
+| OpenMP target | 65,536 | transfer | 0.3391 / 0.3550 | 1.0469x | 0.3419 / 0.3519 | 1.0292x |
+| OpenMP target | 65,536 | resident | 0.0210 / 0.0329 | 1.5667x | 0.0209 / 0.0332 | 1.5885x |
+| OpenMP target | 1,048,576 | transfer | 4.0281 / 4.9010 | 1.2167x | 4.4570 / 4.7629 | 1.0686x |
+| OpenMP target | 1,048,576 | resident | 0.2100 / 0.3119 | 1.4852x | 0.2101 / 0.3071 | 1.4617x |
+
+At the largest batch, host peak RSS ranges from 151,797,760 to 174,792,704 B
+across the 16 backend, residency, and fusion candidates; there is no
+fusion-memory winner independent of backend and residency. Fused execution is
+the wall-clock winner in every measured workload. Machine-readable medians,
+MADs, and candidate-specific peak RSS are in
+`benchmark/reference/rtx5060ti_dawson_fusion.json`.
+
 ## Immediate implementation order
 
 The first pilot is the generated Dawson fused value/JVP leaf:

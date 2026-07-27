@@ -229,7 +229,7 @@ derivatives. CPU Enzyme remains the `autodiff` backend and supplies CPU
   transfer-inclusive and resident-data wall-clock measurements separately.
 - [x] Offload a generated analytical VJP leaf and validate it with an
   independent adjoint identity.
-- [ ] Benchmark fused versus separate value/JVP and value/VJP GPU kernels
+- [x] Benchmark fused versus separate value/JVP and value/VJP GPU kernels
   across launch-bound, throughput, and memory-bound batch sizes.
 - [ ] Offload a generated multi-input scalar-output kernel and measure
   analytical JVP and VJP scaling over active inputs, derivative directions,

@@ -33,6 +33,9 @@ Keeping the Dawson batch resident reduces synchronous call time from 3.9251 ms
 to 0.2098 ms with OpenACC and from 3.9800 ms to 0.2101 ms with OpenMP target.
 The generated contracted analytical VJP also passes a batched adjoint identity
 on both devices and takes 0.1690 ms per resident 1,048,576-element call.
+Generated value/product fusion wins all 24 Dawson GPU comparisons across
+launch-, throughput-, and transfer/memory-dominated batches. Resident fusion
+is 1.45 to 1.96 times faster than two separate generated-kernel launches.
 `fortnum` uses `fortsym` at build time for symbolic algebra and code
 generation. The first pinned generator is under `tools/codegen/`; generated
 production sources are committed under `src/generated/`. The
