@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "uniform_cubic_bspline_fixed_span",
+  "products": ["jvp", "vjp"],
+  "active_inputs": ["evaluation_point", "four_local_coefficients"],
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "autodiff": "Enzyme 22",
+    "optimization": "O2"
+  },
+  "sampling": {
+    "independent_processes": 15,
+    "workloads_per_process": 1000000,
+    "runtime_aggregation": "median",
+    "dispersion": "median absolute deviation"
+  },
+  "validation": {
+    "jvp_oracle": "central difference of the fixed-span primal",
+    "vjp_oracle": "adjoint dot-product identity",
+    "directions_checked": 16,
+    "absolute_tolerance": 2e-10
+  },
+  "jvp_scaling": [
+    {
+      "directions": 1,
+      "analytical_median_ns": 17.818276,
+      "analytical_mad_ns": 0.163357,
+      "autodiff_median_ns": 17.569297,
+      "autodiff_mad_ns": 0.229314
+    },
+    {
+      "directions": 4,
+      "analytical_median_ns": 47.715964,
+      "analytical_mad_ns": 0.669433,
+      "autodiff_median_ns": 42.261756,
+      "autodiff_mad_ns": 1.297127
+    },
+    {
+      "directions": 16,
+      "analytical_median_ns": 145.199818,
+      "analytical_mad_ns": 2.251236,
+      "autodiff_median_ns": 141.266038,
+      "autodiff_mad_ns": 2.342248
+    }
+  ],
+  "vjp_scaling": [
+    {
+      "cotangents": 1,
+      "analytical_median_ns": 17.387243,
+      "analytical_mad_ns": 0.340382,
+      "autodiff_median_ns": 17.484877,
+      "autodiff_mad_ns": 0.496517
+    },
+    {
+      "cotangents": 4,
+      "analytical_median_ns": 43.595300,
+      "analytical_mad_ns": 0.798737,
+      "autodiff_median_ns": 42.066517,
+      "autodiff_mad_ns": 0.722342
+    },
+    {
+      "cotangents": 16,
+      "analytical_median_ns": 132.050065,
+      "analytical_mad_ns": 1.990043,
+      "autodiff_median_ns": 140.726378,
+      "autodiff_mad_ns": 1.791708
+    }
+  ],
+  "memory": {
+    "directions": 16,
+    "analytical_jvp_peak_rss_bytes": 2846720,
+    "autodiff_jvp_peak_rss_bytes": 2699264,
+    "analytical_vjp_peak_rss_bytes": 2961408,
+    "autodiff_vjp_peak_rss_bytes": 2703360,
+    "interpretation": "all values are within process-baseline noise"
+  },
+  "perf": {
+    "directions": 16,
+    "workloads_per_repetition": 5000000,
+    "analytical_jvp": {
+      "cycles_per_workload": 660.043,
+      "instructions_per_workload": 3197.297,
+      "cache_references_per_workload": 0.221,
+      "cache_misses_per_workload": 0.036
+    },
+    "autodiff_jvp": {
+      "cycles_per_workload": 646.685,
+      "instructions_per_workload": 2861.297,
+      "cache_references_per_workload": 0.241,
+      "cache_misses_per_workload": 0.036
+    },
+    "analytical_vjp": {
+      "cycles_per_workload": 589.801,
+      "instructions_per_workload": 2941.296,
+      "cache_references_per_workload": 0.217,
+      "cache_misses_per_workload": 0.037
+    },
+    "autodiff_vjp": {
+      "cycles_per_workload": 647.986,
+      "instructions_per_workload": 2573.297,
+      "cache_references_per_workload": 0.221,
+      "cache_misses_per_workload": 0.037
+    }
+  },
+  "selection": {
+    "jvp_16_directions": "autodiff",
+    "vjp_16_cotangents": "analytical",
+    "criterion": "complete derivative-product wall clock",
+    "reason": "the measured winner changes with product and direction count; neither mechanism replaces the other globally"
+  }
+}

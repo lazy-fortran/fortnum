@@ -1158,6 +1158,45 @@ taskset -c 4 fo exec bench_bspline_combined separate vjp 16
 taskset -c 4 fo exec bench_bspline_combined fused vjp 16
 ```
 
+## Fixed-span B-spline analytical versus autodiff products
+
+This tournament resolves knot-span selection before differentiation and
+compares a uniform cubic local basis kernel. Both the evaluation point and four
+local coefficients are active. The `autodiff` candidates are real Enzyme
+forward JVP and reverse VJP transforms; the `analytical` candidates evaluate
+the basis and its derivative explicitly.
+
+| Product | Products | Analytical median (MAD) | Enzyme median (MAD) | Measured winner |
+|---|---:|---:|---:|---|
+| JVP | 1 | 17.8183 (0.1634) ns | 17.5693 (0.2293) ns | `autodiff`, 1.4% |
+| JVP | 4 | 47.7160 (0.6694) ns | 42.2618 (1.2971) ns | `autodiff`, 11.4% |
+| JVP | 16 | 145.1998 (2.2512) ns | 141.2660 (2.3422) ns | `autodiff`, 2.8% |
+| VJP | 1 | 17.3872 (0.3404) ns | 17.4849 (0.4965) ns | tie |
+| VJP | 4 | 43.5953 (0.7987) ns | 42.0665 (0.7223) ns | `autodiff`, 3.5% |
+| VJP | 16 | 132.0501 (1.9900) ns | 140.7264 (1.7917) ns | `analytical`, 6.6% |
+
+At 16 products, JVP cache misses are 0.036 per workload for both candidates;
+VJP cache misses are 0.037. Peak RSS is 2.70--2.96 MiB, below the resolution
+needed to distinguish these allocation-free kernels. Wall clock therefore
+selects forward `autodiff` for the measured JVP workload and `analytical` for
+the measured 16-cotangent VJP. This is direct evidence that forward and reverse
+mode require separate selection.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_bspline_fixed_span_enzyme.json`. The pinned
+`fortplot` report generator produces both scaling figures; generated PNG files
+remain ignored and are not committed.
+
+```bash
+env FORTNUM_BSPLINE_SPAN_ACTION=--benchmark \
+    FORTNUM_BSPLINE_SPAN_CANDIDATE=autodiff \
+    FORTNUM_BSPLINE_SPAN_PRODUCT=jvp \
+    FORTNUM_BSPLINE_SPAN_DIRECTIONS=16 \
+    FORTNUM_BSPLINE_SPAN_ITERATIONS=1000000 \
+    ctest --test-dir build-enzyme -V \
+    -R '^enzyme_bspline_fixed_span_products$'
+```
+
 ## Hybrid fixed-quadrature integrand JVP
 
 This workload applies a reusable 32-point Gauss-Legendre rule on `[0,1]` to
