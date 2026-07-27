@@ -80,8 +80,11 @@ VJP. With transfers included, GPU still wins JVP by 1.31 times, while CPU wins
 VJP by 1.24 times because five adjoint arrays must return to the host. Fixed
 quadrature is also covered: at 1,048,576 order-16 rules the best resident GPU
 is 28.5 times faster for JVP and 26.7 times faster for VJP, but CPU wins when
-transfers are included. Fixed-size linear algebra, FFT rules, and fixed-trace
-ODE products remain explicit unchecked roadmap items.
+transfers are included. Generated 3x3 determinant and inverse products cover
+fixed-size linear algebra: resident GPU is 21.5 to 33.4 times faster at
+1,048,576 matrices. Transfers keep determinant products on CPU, while inverse
+products remain 1.32 to 1.36 times faster on GPU. FFT rules and fixed-trace ODE
+products remain explicit unchecked roadmap items.
 `fortnum` uses `fortsym` at build time for symbolic algebra and code
 generation. The first pinned generator is under `tools/codegen/`; generated
 production sources are committed under `src/generated/`. The

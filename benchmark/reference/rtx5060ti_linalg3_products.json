@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "source_revision": "4d4e76e389c78bb69e22520951c7ef2b1e1c2cde",
+  "operation": "generated 3x3 determinant and inverse JVP/VJP",
+  "classification": "analytical",
+  "derivative_contract": {
+    "determinant_jvp": "directional derivative of det(A)",
+    "determinant_vjp": "u times the determinant gradient",
+    "inverse_jvp": "-A_inverse V A_inverse",
+    "inverse_vjp": "-A_inverse_transpose U A_inverse_transpose"
+  },
+  "residency_policy": "transfer-inclusive and resident measured separately",
+  "device_execution_proof": "OpenACC NVIDIA device check and mandatory non-host OpenMP target check",
+  "workload": {
+    "matrix_order": 3,
+    "batch_sizes": [256, 65536, 1048576],
+    "samples": 31,
+    "warmup_samples": 3,
+    "pinned_cpu": 4,
+    "small_batch_repetitions": "ceil(65536/batch_size), reported per call"
+  },
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "gpu": "NVIDIA GeForce RTX 5060 Ti",
+    "driver": "610.43.03"
+  },
+  "toolchain": {
+    "compiler": "NVHPC nvfortran 26.5",
+    "openacc_flags": "-fast -O3 -acc",
+    "openmp_flags": "-fast -O3 -mp=gpu -mp",
+    "fortsym_revision": "0e3deee5fa2ed3d30ebfce607cc96794f4b8fed3"
+  },
+  "generation": {
+    "determinant_jvp_structural_operations": 54,
+    "determinant_vjp_structural_operations": 52,
+    "inverse_jvp_structural_operations": 315,
+    "inverse_vjp_structural_operations": 315,
+    "layout": "batch-first flattened column-major matrices"
+  },
+  "validation": {
+    "points": 4096,
+    "determinant_oracle": "Richardson-extrapolated central finite difference and adjoint identity",
+    "inverse_oracle": "independent matrix multiplications for -R V R and adjoint identity",
+    "relative_tolerance": 2e-11
+  },
+  "median_ms": {
+    "batch_sizes": [256, 65536, 1048576],
+    "determinant_jvp": {
+      "cpu": [0.001563, 0.429800, 8.132900],
+      "openacc_resident": [0.008289, 0.019100, 0.378200],
+      "openacc_transfer": [0.030867, 0.850900, 14.012100],
+      "openmp_resident": [0.008414, 0.019100, 0.377900],
+      "openmp_transfer": [0.029832, 0.850000, 13.901900]
+    },
+    "determinant_vjp": {
+      "cpu": [0.001621, 0.819200, 13.274000],
+      "openacc_resident": [0.008547, 0.022000, 0.415100],
+      "openacc_transfer": [0.031222, 0.955100, 14.228100],
+      "openmp_resident": [0.008618, 0.022800, 0.415100],
+      "openmp_transfer": [0.030801, 0.952900, 14.448900]
+    },
+    "inverse_jvp": {
+      "cpu": [0.006145, 1.669800, 28.272900],
+      "openacc_resident": [0.011516, 0.063900, 0.846100],
+      "openacc_transfer": [0.034754, 1.300100, 20.998900],
+      "openmp_resident": [0.011530, 0.063900, 0.845900],
+      "openmp_transfer": [0.034938, 1.300100, 20.732100]
+    },
+    "inverse_vjp": {
+      "cpu": [0.006200, 1.606300, 26.931000],
+      "openacc_resident": [0.011769, 0.068200, 0.918800],
+      "openacc_transfer": [0.035102, 1.305100, 20.366900],
+      "openmp_resident": [0.011840, 0.068900, 0.918900],
+      "openmp_transfer": [0.035020, 1.415000, 20.718100]
+    }
+  },
+  "mad_ms": {
+    "batch_sizes": [256, 65536, 1048576],
+    "determinant_jvp": {
+      "cpu": [0.000021, 0.001900, 0.110200],
+      "openacc_resident": [0.000024, 0.000300, 0.000800],
+      "openacc_transfer": [0.000645, 0.002100, 0.129200],
+      "openmp_resident": [0.000081, 0.000100, 0.000300],
+      "openmp_transfer": [0.000305, 0.002900, 0.097900]
+    },
+    "determinant_vjp": {
+      "cpu": [0.000019, 0.005200, 0.054100],
+      "openacc_resident": [0.000027, 0.000100, 0.001000],
+      "openacc_transfer": [0.000554, 0.008100, 0.096400],
+      "openmp_resident": [0.000011, 0.000400, 0.000700],
+      "openmp_transfer": [0.000066, 0.003200, 0.315000]
+    },
+    "inverse_jvp": {
+      "cpu": [0.000039, 0.005300, 0.059000],
+      "openacc_resident": [0.000074, 0.000000, 0.000700],
+      "openacc_transfer": [0.000242, 0.006900, 0.547800],
+      "openmp_resident": [0.000030, 0.000200, 0.000200],
+      "openmp_transfer": [0.000090, 0.003100, 0.323200]
+    },
+    "inverse_vjp": {
+      "cpu": [0.000077, 0.004700, 0.105900],
+      "openacc_resident": [0.000011, 0.000300, 0.000700],
+      "openacc_transfer": [0.000258, 0.010000, 0.128100],
+      "openmp_resident": [0.000043, 0.000300, 0.000800],
+      "openmp_transfer": [0.000040, 0.050100, 0.232200]
+    }
+  },
+  "peak_host_rss_bytes_at_n1048576": {
+    "determinant_live_numerical_arrays": 159383552,
+    "inverse_live_numerical_arrays": 226492416,
+    "determinant_jvp": {
+      "cpu": 164642816,
+      "openacc_resident": 275935232,
+      "openacc_transfer": 283308032,
+      "openmp_resident": 281993216,
+      "openmp_transfer": 287920128
+    },
+    "determinant_vjp": {
+      "cpu": 164630528,
+      "openacc_resident": 209076224,
+      "openacc_transfer": 282869760,
+      "openmp_resident": 214048768,
+      "openmp_transfer": 290000896
+    },
+    "inverse_jvp": {
+      "cpu": 231747584,
+      "openacc_resident": 276402176,
+      "openacc_transfer": 350916608,
+      "openmp_resident": 280547328,
+      "openmp_transfer": 356933632
+    },
+    "inverse_vjp": {
+      "cpu": 231747584,
+      "openacc_resident": 273838080,
+      "openacc_transfer": 352063488,
+      "openmp_resident": 280432640,
+      "openmp_transfer": 356933632
+    }
+  },
+  "selection": {
+    "n256": "CPU for all products",
+    "throughput_resident": "GPU for all products; OpenACC and OpenMP are practical ties",
+    "throughput_transfer": "CPU for determinant JVP/VJP; GPU for inverse JVP/VJP",
+    "reason": "minimum measured complete-workload wall clock; transfer cost is amortized only by the more compute-intensive inverse products"
+  },
+  "verdict": "resident GPU wins all throughput-scale products by 21.5 to 33.4 times; transfer-inclusive determinant stays on CPU while transfer-inclusive inverse uses GPU"
+}
