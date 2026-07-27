@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operation": "generated analytical Dawson fused value/JVP OpenACC offload",
+  "workload": {
+    "batch_size": 1048576,
+    "samples": 31,
+    "warmup_samples": 3,
+    "pinned_cpu": 4,
+    "residency": "three copyin and two copyout arrays per sample"
+  },
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "gpu": "NVIDIA GeForce RTX 5060 Ti",
+    "gpu_memory_mib": 16311,
+    "driver": "610.43.03"
+  },
+  "toolchain": {
+    "compiler": "NVHPC nvfortran 26.5",
+    "compiler_flags": "-fast -O3 -acc",
+    "gpu_backend": "OPENACC",
+    "fortsym_revision": "349bc6257a22b416093624bd04dd1ed8a83852d0"
+  },
+  "validation": {
+    "device_proof": "acc_on_device(acc_device_nvidia) true inside device region",
+    "runtime_trace": "NVCOMPILER_ACC_NOTIFY reported CUDA kernels on device 0",
+    "oracle": "independently evaluated sin(f)+f*f and v*(1-2*x*f)*(cos(f)+2*f)",
+    "points": 4096,
+    "absolute_tolerance": 2e-14
+  },
+  "candidates": [
+    {
+      "candidate": "openacc_transfer_inclusive",
+      "median_ms": 4.0772,
+      "mad_ms": 0.1452,
+      "host_peak_rss_bytes": 158973952
+    },
+    {
+      "candidate": "cpu_generated_leaf_loop",
+      "median_ms": 8.1771,
+      "mad_ms": 0.0571,
+      "host_peak_rss_bytes": 47403008
+    }
+  ],
+  "verdict": "transfer-inclusive OpenACC is 2.006 times faster for this batch; resident-data timing and peak device allocation are not measured by this item"
+}

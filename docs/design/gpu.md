@@ -14,7 +14,7 @@ must not silently behave as a supported one.
 | Target | `autodiff` | `analytical` | `hybrid` |
 | --- | --- | --- | --- |
 | Serial and parallel CPU | Supported selectively through the pinned Flang/Enzyme pipeline | Supported | Supported selectively as Enzyme composition with analytical custom rules |
-| OpenACC GPU | Not supported | Planned, one generated leaf at a time | Not supported |
+| OpenACC GPU | Not supported | Dawson fused value/JVP pilot | Not supported |
 | OpenMP-target GPU | Not supported | Planned, one generated leaf at a time | Not supported |
 
 CPU remains the complete feature path. Initial GPU work supports only explicit
@@ -102,6 +102,29 @@ evaluates the value and JVP formulas separately at 17 points. Machine-readable
 evidence is in
 `benchmark/reference/ryzen9_5950x_gpu_batch_wrapper_cpu.json`.
 
+## OpenACC Dawson pilot
+
+The generated analytical Dawson fused value/JVP is validated on a real NVIDIA
+device by `test_openacc_dawson_offload`. A device-side
+`acc_on_device(acc_device_nvidia)` check makes host fallback a test failure.
+The independent CPU oracle evaluates
+`sin(f) + f*f` and
+`v*(1 - 2*x*f)*(cos(f) + 2*f)` at 4,096 points.
+
+On an NVIDIA GeForce RTX 5060 Ti with driver 610.43.03, NVHPC 26.5
+`nvfortran -fast -O3 -acc`, CPU 4 pinned, 31 samples of 1,048,576 elements:
+
+| Complete workload | Median ms | MAD ms | Host peak RSS |
+| --- | ---: | ---: | ---: |
+| OpenACC, transfers included | 4.0772 | 0.1452 | 158,973,952 B |
+| CPU generated-leaf loop | 8.1771 | 0.0571 | 47,403,008 B |
+
+The transfer-inclusive OpenACC workload was 2.006 times faster for this batch.
+This result includes three host-to-device arrays and two device-to-host arrays
+on every sample. It does not measure resident-data kernel time or peak device
+allocation; those belong to later checklist items. Machine-readable evidence
+is in `benchmark/reference/rtx5060ti_openacc_dawson_transfer.json`.
+
 ## Immediate implementation order
 
 The first pilot is the generated Dawson fused value/JVP leaf:
@@ -113,7 +136,8 @@ The first pilot is the generated Dawson fused value/JVP leaf:
 3. add `FORTNUM_GPU_BACKEND=NONE|OPENACC|OPENMP`, with unavailable selections
    failing configuration; complete;
 4. add one shared batch-wrapper template; complete for fused Dawson value/JVP;
-5. validate and measure OpenACC and OpenMP-target execution independently; and
+5. validate and measure OpenACC and OpenMP-target execution independently;
+   OpenACC is complete for the Dawson fused value/JVP pilot; and
 6. retain only paths that pass the acceptance gates.
 
 Coverage then expands by measured kernel family. No general portability

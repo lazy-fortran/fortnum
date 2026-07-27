@@ -219,7 +219,7 @@ derivatives. CPU Enzyme remains the `autodiff` backend and supplies CPU
   unavailable backend must fail configuration instead of falling back.
 - [x] Add one shared benchmark-only batch-wrapper template whose numerical
   loop body is identical for OpenACC and OpenMP target.
-- [ ] Offload the generated analytical Dawson fused value/JVP through OpenACC
+- [x] Offload the generated analytical Dawson fused value/JVP through OpenACC
   with a released `nvfortran`; prove NVIDIA-device execution and validate
   against an independent CPU analytical oracle.
 - [ ] Offload the identical Dawson leaf, layout, and workload through OpenMP

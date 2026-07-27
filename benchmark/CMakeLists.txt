@@ -16,6 +16,9 @@ project(fortnum_benchmark LANGUAGES Fortran C)
 
 enable_testing()
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../cmake")
+include(FortnumGpuBackend)
+
 set(CMAKE_Fortran_STANDARD 2018)
 set(CMAKE_Fortran_STANDARD_REQUIRED ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
@@ -60,6 +63,7 @@ add_library(bench_core STATIC
     fortnum_benchmark_memory.f90
     peak_rss.c
 )
+target_link_libraries(bench_core PUBLIC fortnum_gpu_backend)
 
 add_executable(bench_main bench_main.f90)
 target_link_libraries(bench_main PRIVATE bench_core)
@@ -76,6 +80,18 @@ target_link_libraries(bench_dawson_generated_family PRIVATE bench_core)
 add_executable(bench_gpu_batch_wrapper
     gpu/bench_gpu_batch_wrapper.f90)
 target_link_libraries(bench_gpu_batch_wrapper PRIVATE bench_core)
+
+if(FORTNUM_GPU_BACKEND STREQUAL "OPENACC")
+    add_executable(test_openacc_dawson_offload
+        gpu/test_openacc_dawson_offload.f90)
+    target_link_libraries(test_openacc_dawson_offload PRIVATE bench_core)
+    add_test(NAME openacc_dawson_offload
+        COMMAND test_openacc_dawson_offload)
+
+    add_executable(bench_openacc_dawson_offload
+        gpu/bench_openacc_dawson_offload.f90)
+    target_link_libraries(bench_openacc_dawson_offload PRIVATE bench_core)
+endif()
 
 add_executable(bench_linear_solve_jvp bench_linear_solve_jvp.f90)
 target_link_libraries(bench_linear_solve_jvp PRIVATE bench_core)

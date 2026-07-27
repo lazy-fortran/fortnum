@@ -22,7 +22,11 @@ unavailable selection fails configuration. OpenMP offload also requires
 compiler-specific `FORTNUM_OPENMP_TARGET_FLAGS`, so host-only OpenMP cannot be
 mistaken for GPU support.
 The benchmark pilot uses one shared Dawson batch loop for OpenACC and OpenMP
-target; both schedules call the same generated `analytical` leaf.
+target; both schedules call the same generated `analytical` leaf. The OpenACC
+path now has proven NVIDIA execution and independent CPU validation. On the
+reference RTX 5060 Ti its transfer-inclusive 1,048,576-element workload is
+2.006 times faster than the CPU generated-leaf loop; resident-data timing is
+still pending and this pilot is not a general GPU-support claim.
 `fortnum` uses `fortsym` at build time for symbolic algebra and code
 generation. The first pinned generator is under `tools/codegen/`; generated
 production sources are committed under `src/generated/`. The
