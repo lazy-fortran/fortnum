@@ -58,6 +58,12 @@ The GPU evidence also has a pinned `fortplot` generator for batch and
 active-input scaling, CPU/GPU crossover, achieved bandwidth, and peak device
 allocation. Its normalized CSV inputs and Fortran source are committed under
 `benchmark/report/`; generated PNGs remain ignored and are never committed.
+For the measured eight-input workloads, OpenACC and OpenMP target are tied
+within the three-percent timing threshold. A benchmark-level pre-launch lookup
+therefore selects OpenACC using its 73,658-byte lower peak device allocation;
+unmeasured workload keys return unavailable instead of guessing. Selection
+occurs before choosing the separately compiled backend executable, never
+inside the launch loop.
 `fortnum` uses `fortsym` at build time for symbolic algebra and code
 generation. The first pinned generator is under `tools/codegen/`; generated
 production sources are committed under `src/generated/`. The

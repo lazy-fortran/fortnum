@@ -437,6 +437,31 @@ executable and evidence; the profile record points to the selected-layout
 source it measured. These identifiers describe the measured state rather than
 the later documentation-only commit that added normalized provenance keys.
 
+## Backend selection
+
+OpenACC and OpenMP target remain separately compiled candidates; mixing their
+compiler modes into one runtime binary would add complexity without improving
+the numerical kernel. The benchmark-level
+`select_multi_input_gpu_backend` lookup therefore resolves the backend before
+the application chooses an executable and before any launch loop.
+
+The lookup contains only the 12 measured combinations of JVP/VJP,
+transfer/resident data, and 256/65,536/1,048,576 points. An unknown key returns
+unavailable; it is never rounded to a nearby size and never silently defaults.
+Both candidates have passed the same independent formulas and real-device
+tests.
+
+All measured backend wall clocks are tied within the existing three-percent
+timing threshold after the repeated large-transfer sample. The deterministic
+secondary comparison selects OpenACC because its profiled peak device
+allocation is 153,051,422 B versus 153,125,080 B for OpenMP target. Thus the
+winner follows measured time and memory, not the backend name or the
+`analytical` mechanism shared by both candidates.
+
+The exact workload table and selection rule are in
+`benchmark/reference/rtx5060ti_gpu_backend_selection.json`. Real-device tests
+exercise every measured lookup and prove that an unmeasured size is rejected.
+
 ## Immediate implementation order
 
 The first pilot is the generated Dawson fused value/JVP leaf:
