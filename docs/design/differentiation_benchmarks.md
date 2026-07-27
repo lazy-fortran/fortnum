@@ -1198,6 +1198,60 @@ Machine-readable evidence is in
 `benchmark/reference/ryzen9_5950x_ode_checkpointed_adjoint.json`, and
 `benchmark/reference/ryzen9_5950x_ode_recomputed_adjoint.json`.
 
+## Long nonstiff trajectory tournament
+
+The long workload uses the same stable two-state linear system as the short
+adjoint benchmark, extended to 400 accepted Cash-Karp steps of size 0.05. The
+requested product is the gradient of one scalar terminal objective with
+respect to the two initial-state inputs. The exact oracle is
+\(\exp(A^Tt_1)u\). All analytical candidates agree with it within
+`1.4131e-10`; complete-solve central differences agree within `1.5863e-10`.
+
+Every timing includes the primal trajectory and the complete two-component
+gradient. Full reverse stores the accepted trace. Forward reconstruction runs
+one tangent per input. Checkpointed reverse retains every sixteenth state and
+recomputes each segment. Recomputation retains only the schedule and initial
+state, then rebuilds every prefix. The diagnostic uses two complete perturbed
+primal solves per input.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, GNU Fortran 16.1.1, Release build.
+Each result is the median of three process medians. Each process collected 21
+samples after three warmups. The recomputation samples contain 10 complete
+workloads; all other samples contain 200.
+
+| Candidate | Mechanism | Median ns/primal+gradient | MAD ns | Relative to full reverse | Peak RSS |
+|---|---|---:|---:|---:|---:|
+| full-trace discrete adjoint | `analytical` reverse | 207,652.1000 | 1,122.8150 | selected | 3,825,664 B |
+| two tangent sweeps | `analytical` forward | 354,738.6850 | 1,805.4550 | 1.7083x slower | 3,821,568 B |
+| checkpoint stride 16 | `analytical` reverse | 257,708.3150 | 6,008.2700 | 1.2411x slower | 3,829,760 B |
+| recompute every prefix | `analytical` reverse | 8,768,573.4000 | 129,912.8000 | 42.2272x slower | 3,825,664 B |
+| complete-solve central difference | diagnostic | 316,902.8450 | 3,546.2300 | 1.5261x slower | 3,829,760 B |
+
+Complete-workload wall clock selects full-trace reverse. The full trace retains
+16,024 bytes of time, state, step, and error arrays. Checkpointing retains 6,928
+bytes and recomputation retains 6,424 bytes, reductions of 56.76% and 59.91%.
+The maximum observed process RSS differs by only 8,192 bytes, so the retained
+array reduction does not change application peak memory on this workload.
+
+Normalized `perf stat -r 3` counts per complete workload are:
+
+| Candidate | Cycles | Instructions | Cache references | Cache misses |
+|---|---:|---:|---:|---:|
+| full reverse | 1,202,298 | 3,843,838 | 19,728 | 2,591 |
+| two forward sweeps | 1,800,685 | 5,760,263 | 18,693 | 2,491 |
+| checkpoint stride 16 | 1,484,999 | 4,710,810 | 22,544 | 2,836 |
+| recompute every prefix | 43,223,230 | 180,966,629 | 279,133 | 44,582 |
+| diagnostic | 1,708,625 | 5,118,553 | 22,869 | 2,612 |
+
+Forward has slightly fewer measured cache misses than full reverse but executes
+49.75% more cycles. Recomputation increases cache misses 17.21 times and cycles
+35.95 times. Counter dispersion reaches 44% for recomputation cache misses, so
+the counters remain explanatory evidence. Complete-workload wall clock selects
+full reverse.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_ode_long_nonstiff.json`.
+
 ## Analytical implicit-stage tangent
 
 For a converged implicit stage

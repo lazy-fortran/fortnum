@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "cash_karp_long_nonstiff_trajectory",
+  "product": "two-input_scalar_objective_vjp",
+  "workload": "400-step two-state stable linear ODE, complete primal plus gradient",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1",
+    "build": "Release"
+  },
+  "sampling": {
+    "processes": 3,
+    "samples_per_process": 21,
+    "warmups": 3,
+    "standard_workloads_per_sample": 200,
+    "recompute_workloads_per_sample": 10,
+    "runtime_aggregation": "median of process medians",
+    "dispersion_aggregation": "median of within-process MADs",
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum",
+    "perf_repetitions": 3
+  },
+  "validation": {
+    "accepted_steps": 400,
+    "oracle": "exp(transpose(A)*t1)*terminal_cotangent",
+    "analytical_maximum_absolute_error": 1.4130441261528404e-10,
+    "diagnostic_maximum_absolute_error": 1.5862910984765222e-10
+  },
+  "candidates": [
+    {
+      "id": "full_trace_reverse",
+      "mechanism": "analytical",
+      "mode": "reverse",
+      "median_ns": 207652.1000,
+      "mad_ns": 1122.8150,
+      "peak_rss_bytes": 3825664,
+      "retained_trace_bytes": 16024,
+      "perf_workloads": 1000,
+      "cycles_per_workload": 1202298.286,
+      "instructions_per_workload": 3843838.340,
+      "cache_references_per_workload": 19728.041,
+      "cache_misses_per_workload": 2591.374
+    },
+    {
+      "id": "forward_reconstruction",
+      "mechanism": "analytical",
+      "mode": "forward",
+      "median_ns": 354738.6850,
+      "mad_ns": 1805.4550,
+      "peak_rss_bytes": 3821568,
+      "perf_workloads": 1000,
+      "cycles_per_workload": 1800684.717,
+      "instructions_per_workload": 5760263.111,
+      "cache_references_per_workload": 18693.364,
+      "cache_misses_per_workload": 2490.648
+    },
+    {
+      "id": "checkpoint_stride_16",
+      "mechanism": "analytical",
+      "mode": "reverse",
+      "median_ns": 257708.3150,
+      "mad_ns": 6008.2700,
+      "peak_rss_bytes": 3829760,
+      "retained_trace_bytes": 6928,
+      "perf_workloads": 1000,
+      "cycles_per_workload": 1484998.832,
+      "instructions_per_workload": 4710810.074,
+      "cache_references_per_workload": 22544.238,
+      "cache_misses_per_workload": 2835.676
+    },
+    {
+      "id": "recompute_every_prefix",
+      "mechanism": "analytical",
+      "mode": "reverse",
+      "median_ns": 8768573.4000,
+      "mad_ns": 129912.8000,
+      "peak_rss_bytes": 3825664,
+      "retained_trace_bytes": 6424,
+      "perf_workloads": 100,
+      "cycles_per_workload": 43223229.870,
+      "instructions_per_workload": 180966629.160,
+      "cache_references_per_workload": 279132.750,
+      "cache_misses_per_workload": 44581.650
+    },
+    {
+      "id": "complete_solve_central_difference",
+      "mechanism": "diagnostic",
+      "median_ns": 316902.8450,
+      "mad_ns": 3546.2300,
+      "peak_rss_bytes": 3829760,
+      "perf_workloads": 1000,
+      "cycles_per_workload": 1708624.658,
+      "instructions_per_workload": 5118552.833,
+      "cache_references_per_workload": 22868.677,
+      "cache_misses_per_workload": 2611.715
+    }
+  ],
+  "selection": {
+    "selected": "full_trace_reverse",
+    "criterion": "complete primal-plus-gradient wall clock",
+    "speedup_over_forward": 1.7083,
+    "speedup_over_checkpoint": 1.2411,
+    "speedup_over_recompute": 42.2272,
+    "speedup_over_diagnostic": 1.5261,
+    "reason": "full-trace analytical reverse has the lowest measured complete-workload wall clock"
+  }
+}
