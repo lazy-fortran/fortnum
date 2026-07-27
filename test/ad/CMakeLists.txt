@@ -156,4 +156,13 @@ if(FORTNUM_ENABLE_ENZYME)
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/vector_root_vjp.f90
         MODE reverse
         OPT_LEVEL O2)
+    fortnum_add_enzyme_test(
+        NAME enzyme_fixed_quadrature_jvp_hybrid
+        SOURCES
+            ${CMAKE_SOURCE_DIR}/src/fortnum_kinds.f90
+            ${CMAKE_SOURCE_DIR}/src/quadrature/fortnum_quadrature.f90
+            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/fixed_quadrature_jvp.f90
+        MODE forward
+        OPT_LEVEL O2)
 endif()

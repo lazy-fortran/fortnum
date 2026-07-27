@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "fixed_gauss_legendre_integral",
+  "product": "jvp",
+  "workload": "32-point reusable Gauss-Legendre rule, four active parameters, one scalar output, 1/2/4 requested directions",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "enzyme_commit": "c96508349d9f",
+    "build": "Release -O2"
+  },
+  "sampling": {
+    "warmup_rounds": 3,
+    "samples": 31,
+    "workloads_per_sample": 10000,
+    "candidate_processes": "separate",
+    "memory_processes_per_candidate_and_direction_count": 5,
+    "memory_aggregation": "maximum",
+    "perf_repetitions": 5,
+    "perf_direction_count": 4,
+    "perf_workloads": 20000
+  },
+  "validation": {
+    "oracle": "closed-form derivative of the exactly integrated test integrand",
+    "directions_checked": 4,
+    "analytical_and_hybrid_absolute_tolerance": 2e-14,
+    "diagnostic_absolute_tolerance": 2e-10
+  },
+  "memory_method": "getrusage(RUSAGE_SELF) inside each separately launched candidate",
+  "candidates": [
+    {
+      "id": "explicit_integrand_jvp_fixed_quadrature",
+      "mechanism": "analytical",
+      "measurements": [
+        {"directions": 1, "median_ns_per_workload": 312.6325, "mad_ns_per_workload": 4.0857, "peak_rss_bytes": 3035136},
+        {"directions": 2, "median_ns_per_workload": 629.2495, "mad_ns_per_workload": 3.1329, "peak_rss_bytes": 2797568},
+        {"directions": 4, "median_ns_per_workload": 1247.7167, "mad_ns_per_workload": 5.8860, "peak_rss_bytes": 2797568}
+      ],
+      "perf_at_four_directions": {
+        "cycles": 113267878,
+        "instructions": 401594792,
+        "cache_references": 122880,
+        "cache_misses": 16090
+      }
+    },
+    {
+      "id": "enzyme_integrand_jvp_fixed_quadrature",
+      "mechanism": "hybrid",
+      "measurements": [
+        {"directions": 1, "median_ns_per_workload": 313.4861, "mad_ns_per_workload": 1.0931, "peak_rss_bytes": 3047424},
+        {"directions": 2, "median_ns_per_workload": 633.8662, "mad_ns_per_workload": 2.8634, "peak_rss_bytes": 2838528},
+        {"directions": 4, "median_ns_per_workload": 1263.4433, "mad_ns_per_workload": 10.5408, "peak_rss_bytes": 2797568}
+      ],
+      "perf_at_four_directions": {
+        "cycles": 114276069,
+        "instructions": 405914614,
+        "cache_references": 89225,
+        "cache_misses": 15535
+      }
+    },
+    {
+      "id": "complete_quadrature_central_difference",
+      "mechanism": "diagnostic",
+      "measurements": [
+        {"directions": 1, "median_ns_per_workload": 572.1548, "mad_ns_per_workload": 2.9014, "peak_rss_bytes": 3051520},
+        {"directions": 2, "median_ns_per_workload": 1148.1500, "mad_ns_per_workload": 4.9874, "peak_rss_bytes": 2789376},
+        {"directions": 4, "median_ns_per_workload": 2316.5791, "mad_ns_per_workload": 20.7341, "peak_rss_bytes": 2801664}
+      ],
+      "perf_at_four_directions": {
+        "cycles": 210217773,
+        "instructions": 727036238,
+        "cache_references": 174804,
+        "cache_misses": 18374
+      }
+    }
+  ],
+  "selection": {
+    "selected": "explicit_integrand_jvp_fixed_quadrature",
+    "criterion": "complete-workload wall clock",
+    "analytical_over_hybrid_speedup_by_direction_count": [1.0027, 1.0073, 1.0126],
+    "reason": "analytical has the lowest validated complete-workload wall clock at every measured direction count; peak RSS is not materially different"
+  }
+}
