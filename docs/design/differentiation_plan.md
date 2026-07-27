@@ -104,7 +104,7 @@ runtime dependency on it.
 | symbolic generation | complete for first slice | `gen_dawson_outer`, `fortsym` tests, regeneration banner |
 | interpolation interface rules | complete | simultaneous-activity directional and adjoint tests |
 | implicit linear solve | JVP/VJP and factorization reuse complete | finite-difference, adjoint, and reuse benchmarks |
-| roots and fixed points | analytical boundaries, scalar/vector hybrid JVP/VJP, Jacobian/factor reuse, and implicit-JVP reliability complete; VJP reliability and tournament pending | complete-solve finite-difference, exact-condition, Jacobian, and scalar-objective oracles |
+| roots and fixed points | analytical boundaries, scalar/vector hybrid JVP/VJP, Jacobian/factor reuse, and implicit JVP/VJP reliability complete; tournament pending | complete-solve finite-difference, exact-condition, Jacobian, and scalar-objective oracles |
 | integration and ODE hybridization | pending | existing analytical products remain candidates |
 | module/application tournaments | pending except Dawson | first committed table in `differentiation_benchmarks.md` |
 | second order | pending | implement only for demonstrated consumers |
