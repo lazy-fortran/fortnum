@@ -1,6 +1,9 @@
 {
   "schema_version": 1,
   "date": "2026-07-27",
+  "source_revision": "c6d1bd8650b6046c58019c6f566cbed50fb8d550",
+  "residency_policy": "transfer-inclusive",
+  "device_execution_proof": "acc_on_device(acc_device_nvidia) true inside device region",
   "operation": "generated analytical Dawson fused value/JVP OpenACC offload",
   "workload": {
     "batch_size": 1048576,

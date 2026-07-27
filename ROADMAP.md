@@ -240,7 +240,7 @@ derivatives. CPU Enzyme remains the `autodiff` backend and supplies CPU
   use, and spills with released profiling tools.
 - [x] Add reproducible GPU tables and `fortplot` source generators for runtime,
   scaling, memory, bandwidth, and backend crossovers; commit no PNG files.
-- [ ] Record GPU compiler, device, flags, driver, `fortsym` revision, source
+- [x] Record GPU compiler, device, flags, driver, `fortsym` revision, source
   revision, residency policy, and device-execution proof in benchmark records.
 - [ ] Select OpenACC or OpenMP target per measured workload before entering
   the launch loop; neither backend name nor derivative mechanism selects a

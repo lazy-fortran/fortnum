@@ -1,6 +1,9 @@
 {
   "schema_version": 1,
   "date": "2026-07-28",
+  "source_revision": "a21cc39292fe859500a5774cd7f259c31be1852b",
+  "residency_policy": "transfer-inclusive and resident measured separately",
+  "device_execution_proof": "mandatory real NVIDIA execution for OpenACC and OpenMP target",
   "operation": "fortsym-generated multi-input scalar-output analytical JVP and VJP",
   "mathematical_kernel": "f(x)=sum(sin(x_k))+0.5*sum(x_k)^2",
   "workload": {
