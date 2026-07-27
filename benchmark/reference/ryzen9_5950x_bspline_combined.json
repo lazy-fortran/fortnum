@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operation": "separate versus fused combined-active B-spline products",
+  "hardware": "AMD Ryzen 9 5950X, CPU 4 pinned",
+  "compiler": "GNU Fortran 16.1.1, Release",
+  "validation": "existing combined JVP central-difference and VJP adjoint tests",
+  "timings": [
+    {"product": "jvp", "coefficients": 4, "candidate": "separate", "median_ns": 118.8003, "mad_ns": 2.2049},
+    {"product": "jvp", "coefficients": 4, "candidate": "fused", "median_ns": 80.0236, "mad_ns": 1.9091},
+    {"product": "jvp", "coefficients": 8, "candidate": "separate", "median_ns": 144.3235, "mad_ns": 3.8062},
+    {"product": "jvp", "coefficients": 8, "candidate": "fused", "median_ns": 88.4504, "mad_ns": 1.3137},
+    {"product": "jvp", "coefficients": 16, "candidate": "separate", "median_ns": 156.7805, "mad_ns": 2.0708},
+    {"product": "jvp", "coefficients": 16, "candidate": "fused", "median_ns": 101.5131, "mad_ns": 2.1066},
+    {"product": "vjp", "coefficients": 4, "candidate": "separate", "median_ns": 115.4465, "mad_ns": 2.5599},
+    {"product": "vjp", "coefficients": 4, "candidate": "fused", "median_ns": 74.5651, "mad_ns": 1.8176},
+    {"product": "vjp", "coefficients": 8, "candidate": "separate", "median_ns": 131.1213, "mad_ns": 1.4884},
+    {"product": "vjp", "coefficients": 8, "candidate": "fused", "median_ns": 83.3298, "mad_ns": 1.2245},
+    {"product": "vjp", "coefficients": 16, "candidate": "separate", "median_ns": 151.2180, "mad_ns": 2.0806},
+    {"product": "vjp", "coefficients": 16, "candidate": "fused", "median_ns": 104.2594, "mad_ns": 1.7177}
+  ],
+  "peak_rss_bytes_at_16_coefficients": {
+    "separate_jvp": 4182016,
+    "fused_jvp": 4116480,
+    "separate_vjp": 4120576,
+    "fused_vjp": 3887104
+  },
+  "perf_stat_per_product_at_16_coefficients": {
+    "separate_jvp": {"cycles": 728.115, "instructions": 2307.306, "cache_references": 0.08363, "cache_misses": 0.01148},
+    "fused_jvp": {"cycles": 469.093, "instructions": 1675.306, "cache_references": 0.08503, "cache_misses": 0.01271},
+    "separate_vjp": {"cycles": 712.085, "instructions": 2208.306, "cache_references": 0.13736, "cache_misses": 0.01321},
+    "fused_vjp": {"cycles": 449.670, "instructions": 1576.306, "cache_references": 0.07779, "cache_misses": 0.01200}
+  },
+  "decision": "select fused JVP and VJP for simultaneous evaluation-point and coefficient activity"
+}
