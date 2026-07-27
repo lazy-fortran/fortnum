@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "cash_karp_stiff_trajectory",
+  "product": "two-input_scalar_objective_vjp",
+  "workload": "two-state forced system with eigenvalues -1 and -1000, complete explicit primal plus gradient",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1",
+    "build": "Release"
+  },
+  "sampling": {
+    "processes": 3,
+    "samples_per_process": 21,
+    "warmups": 3,
+    "standard_workloads_per_sample": 200,
+    "recompute_workloads_per_sample": 10,
+    "runtime_aggregation": "median of process medians",
+    "dispersion_aggregation": "median of within-process MADs",
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum",
+    "perf_repetitions": 3
+  },
+  "validation": {
+    "accepted_steps": 338,
+    "oracle": "exact triangular exp(transpose(A)*t1)*terminal_cotangent",
+    "analytical_maximum_absolute_error": 2.4421725752787893e-10,
+    "diagnostic_maximum_absolute_error": 7.3149819534989993e-9
+  },
+  "limitations": {
+    "differentiable_stiff_primal_available": false,
+    "measured_primal": "adaptive explicit Cash-Karp fallback",
+    "autodiff_full_trajectory_candidate_available": false,
+    "hybrid_reverse_candidate_available": false
+  },
+  "candidates": [
+    {
+      "id": "full_trace_reverse",
+      "mechanism": "analytical",
+      "mode": "reverse",
+      "median_ns": 177728.3800,
+      "mad_ns": 1311.9800,
+      "peak_rss_bytes": 3829760,
+      "retained_trace_bytes": 13544,
+      "perf_workloads": 1000,
+      "cycles_per_workload": 1017443.629,
+      "instructions_per_workload": 3321281.326,
+      "cache_references_per_workload": 17803.871,
+      "cache_misses_per_workload": 2219.822
+    },
+    {
+      "id": "forward_reconstruction",
+      "mechanism": "analytical",
+      "mode": "forward",
+      "median_ns": 304927.6850,
+      "mad_ns": 1587.6400,
+      "peak_rss_bytes": 3817472,
+      "perf_workloads": 1000,
+      "cycles_per_workload": 1725454.588,
+      "instructions_per_workload": 4939355.033,
+      "cache_references_per_workload": 19936.384,
+      "cache_misses_per_workload": 2555.230
+    },
+    {
+      "id": "checkpoint_stride_16",
+      "mechanism": "analytical",
+      "mode": "reverse",
+      "median_ns": 214058.7350,
+      "mad_ns": 2013.2450,
+      "peak_rss_bytes": 3833856,
+      "retained_trace_bytes": 5876,
+      "perf_workloads": 1000,
+      "cycles_per_workload": 1239938.187,
+      "instructions_per_workload": 4053384.824,
+      "cache_references_per_workload": 20360.886,
+      "cache_misses_per_workload": 2462.341
+    },
+    {
+      "id": "recompute_every_prefix",
+      "mechanism": "analytical",
+      "mode": "reverse",
+      "median_ns": 6508305.1000,
+      "mad_ns": 301881.2000,
+      "peak_rss_bytes": 3821568,
+      "retained_trace_bytes": 5432,
+      "perf_workloads": 100,
+      "cycles_per_workload": 30271525.130,
+      "instructions_per_workload": 127761480.010,
+      "cache_references_per_workload": 187294.780,
+      "cache_misses_per_workload": 25395.910
+    },
+    {
+      "id": "complete_solve_central_difference",
+      "mechanism": "diagnostic",
+      "median_ns": 258271.4500,
+      "mad_ns": 1446.8800,
+      "peak_rss_bytes": 3829760,
+      "perf_workloads": 1000,
+      "cycles_per_workload": 1386180.601,
+      "instructions_per_workload": 4411815.297,
+      "cache_references_per_workload": 21901.381,
+      "cache_misses_per_workload": 2406.121
+    }
+  ],
+  "selection": {
+    "selected_among_available": "full_trace_reverse",
+    "criterion": "complete explicit-primal-plus-gradient wall clock",
+    "speedup_over_forward": 1.7157,
+    "speedup_over_checkpoint": 1.2044,
+    "speedup_over_recompute": 36.6194,
+    "speedup_over_diagnostic": 1.4532,
+    "production_stiff_selection_complete": false,
+    "reason": "full-trace analytical reverse is fastest among available explicit candidates, but no differentiable stiff primal was available to benchmark"
+  }
+}

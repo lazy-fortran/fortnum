@@ -8,12 +8,16 @@ program test_ode_long_nonstiff
     use fortnum_status, only: fortnum_status_t, status_ok
     implicit none
 
-    real(dp), parameter :: system_matrix(2, 2) = reshape([ &
+    real(dp), parameter :: nonstiff_matrix(2, 2) = reshape([ &
         -0.3_dp, 0.7_dp, -1.1_dp, 0.2_dp], [2, 2])
-    real(dp), parameter :: final_time = 20.0_dp
-    real(dp), parameter :: fixed_step = 0.05_dp
-    character(32) :: action, candidate
+    real(dp), parameter :: stiff_rate = 1000.0_dp
+    real(dp) :: system_matrix(2, 2) = nonstiff_matrix
+    real(dp) :: final_time = 20.0_dp
+    real(dp) :: fixed_step = 0.05_dp
+    logical :: stiff_workload = .false.
+    character(32) :: action, candidate, workload
 
+    call configure_workload()
     call get_environment_variable("FORTNUM_LONG_ODE_ACTION", action)
     call get_environment_variable("FORTNUM_LONG_ODE_CANDIDATE", candidate)
     if (trim(action) == "--benchmark") then
@@ -27,6 +31,21 @@ program test_ode_long_nonstiff
     end if
 
 contains
+
+    subroutine configure_workload()
+        character(32) :: requested
+
+        workload = "long_nonstiff"
+        call get_environment_variable("FORTNUM_ODE_TRAJECTORY", requested)
+        if (trim(requested) == "stiff") then
+            workload = "stiff"
+            stiff_workload = .true.
+            system_matrix = reshape([ &
+                -1.0_dp, stiff_rate, 0.0_dp, -stiff_rate], [2, 2])
+            final_time = 1.0_dp
+            fixed_step = 0.0_dp
+        end if
+    end subroutine configure_workload
 
     subroutine primal_rhs(t, y, dydt, ctx)
         real(dp), intent(in) :: t, y(:)
@@ -69,10 +88,15 @@ contains
         problem%t0 = 0.0_dp
         problem%t1 = final_time
         problem%y0 = y0
-        problem%h0 = fixed_step
-        problem%hmax = fixed_step
-        problem%rtol = 1.0_dp
-        problem%atol = 1.0_dp
+        if (fixed_step > 0.0_dp) then
+            problem%h0 = fixed_step
+            problem%hmax = fixed_step
+            problem%rtol = 1.0_dp
+            problem%atol = 1.0_dp
+        else
+            problem%rtol = 1.0e-8_dp
+            problem%atol = 1.0e-10_dp
+        end if
     end subroutine make_problem
 
     subroutine integrate_primal(y0, problem, solution)
@@ -191,6 +215,15 @@ contains
         real(dp) :: vjp(2), trace, determinant, discriminant
         real(dp) :: mean, frequency, scale, c0, c1
 
+        if (stiff_workload) then
+            scale = exp(-final_time)
+            c1 = exp(-stiff_rate*final_time)
+            c0 = stiff_rate*(scale - c1)/(stiff_rate - 1.0_dp)
+            vjp(1) = scale*cotangent(1) + c0*cotangent(2)
+            vjp(2) = c1*cotangent(2)
+            return
+        end if
+
         trace = system_matrix(1, 1) + system_matrix(2, 2)
         determinant = system_matrix(1, 1)*system_matrix(2, 2) - &
             system_matrix(1, 2)*system_matrix(2, 1)
@@ -219,9 +252,16 @@ contains
         integer :: candidate_index
 
         call integrate_primal(y0, problem, solution)
-        if (solution%nsteps < 390) then
-            print *, "long trajectory has too few steps", solution%nsteps
-            error stop 1
+        if (stiff_workload) then
+            if (solution%nsteps < 100) then
+                print *, "stiff trajectory has too few steps", solution%nsteps
+                error stop 1
+            end if
+        else
+            if (solution%nsteps < 390) then
+                print *, "long trajectory has too few steps", solution%nsteps
+                error stop 1
+            end if
         end if
         reference = exact_vjp(cotangent)
         values(:, 1) = full_reverse(y0, cotangent)
@@ -235,17 +275,27 @@ contains
                 maxval(abs(values(:, candidate_index) - reference)))
         end do
         diagnostic_error = maxval(abs(diagnostic - reference))
-        if (derivative_error > 2.0e-8_dp) then
+        if (derivative_error > candidate_tolerance()) then
             print *, "long ODE derivative error", derivative_error
             error stop 1
         end if
-        if (diagnostic_error > 2.0e-7_dp) then
+        if (diagnostic_error > diagnostic_tolerance()) then
             print *, "long ODE diagnostic error", diagnostic_error
             error stop 1
         end if
-        print *, "PASS long nonstiff ODE", solution%nsteps, &
+        print *, "PASS ODE trajectory", trim(workload), solution%nsteps, &
             derivative_error, diagnostic_error
     end subroutine validate_candidates
+
+    pure real(dp) function candidate_tolerance() result(tolerance)
+        tolerance = 2.0e-8_dp
+        if (stiff_workload) tolerance = 2.0e-7_dp
+    end function candidate_tolerance
+
+    pure real(dp) function diagnostic_tolerance() result(tolerance)
+        tolerance = 2.0e-7_dp
+        if (stiff_workload) tolerance = 5.0e-7_dp
+    end function diagnostic_tolerance
 
     subroutine validate_name(name)
         character(*), intent(in) :: name
