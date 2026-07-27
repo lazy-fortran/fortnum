@@ -278,6 +278,73 @@ taskset -c 4 \
     --benchmark
 ```
 
+## Vector-root candidate tournament
+
+The coupled vector tournament uses
+
+```text
+F1 = x1^2 + x2 - p1
+F2 = x1 + x2^2 - p2
+```
+
+and compares the same four mechanisms as the scalar tournament. The
+`analytical` and `hybrid` candidates differentiate the residual equation and
+solve the implicit tangent or adjoint system. The `autodiff` candidate uses
+Enzyme on a fixed 12-step coupled Newton trace. The finite-difference
+diagnostic differences complete fixed-step solves.
+
+Every candidate is checked against fresh complete solves at independently
+perturbed parameters. Maximum JVP errors were `9.7185e-12` for the first three
+candidates and zero for the diagnostic. Maximum VJP errors were `3.7337e-11`,
+`3.7337e-11`, `3.7337e-11`, and `1.6653e-12`, respectively.
+
+The benchmark applies 100,000 varying directions or cotangents per sample.
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, Flang/LLVM 22.1.8, Enzyme
+`c96508349d9f`, Release `-O2`, 15 samples after three warmups.
+
+| JVP candidate | Mechanism | Median ns/JVP | MAD ns/JVP | Peak RSS |
+|---|---|---:|---:|---:|
+| implicit with explicit residual products | `analytical` | 80.7424 | 0.4353 | 2,424,832 B |
+| implicit with Enzyme residual products | `hybrid` | 80.4377 | 0.3774 | 2,224,128 B |
+| Enzyme through 12 Newton steps | `autodiff` | 230.2933 | 1.7658 | 2,465,792 B |
+| complete-solve central difference | diagnostic | 386.5402 | 1.9719 | 2,273,280 B |
+
+The `hybrid` JVP has the lowest median runtime and uses 200,704 fewer bytes of
+maximum observed RSS than `analytical`. It is 1.0038 times faster than
+`analytical`, 2.8630 times faster than `autodiff` through the iterations, and
+4.8055 times faster than the finite-difference diagnostic.
+
+| VJP candidate | Mechanism | Median ns/VJP | MAD ns/VJP | Peak RSS |
+|---|---|---:|---:|---:|
+| implicit with explicit residual products | `analytical` | 83.3377 | 0.8708 | 2,535,424 B |
+| implicit with Enzyme residual products | `hybrid` | 82.5682 | 0.5024 | 2,510,848 B |
+| Enzyme through 12 Newton steps | `autodiff` | 228.8764 | 1.0845 | 2,457,600 B |
+| componentwise complete-solve differences | diagnostic | 392.2317 | 3.4115 | 2,437,120 B |
+
+The reverse-mode `hybrid` VJP has the lowest median runtime and uses 24,576
+fewer bytes of maximum observed RSS than `analytical`. It is 1.0093 times
+faster than `analytical`, 2.7720 times faster than reverse `autodiff` through
+the iterations, and 4.7504 times faster than the diagnostic.
+
+The machine-readable records are
+`benchmark/reference/ryzen9_5950x_vector_root_tournament_jvp.json` and
+`benchmark/reference/ryzen9_5950x_vector_root_tournament_vjp.json`.
+
+Run validation and timing with:
+
+```bash
+cmake --build build-enzyme --target enzyme_vector_root_hybrid_build \
+    enzyme_vector_root_vjp_hybrid_build
+ctest --test-dir build-enzyme -R '^enzyme_vector_root(_vjp)?_hybrid$' \
+    --output-on-failure
+taskset -c 4 \
+    build-enzyme/test/ad/enzyme_vector_root_hybrid.enzyme/enzyme_vector_root_hybrid \
+    --benchmark
+taskset -c 4 \
+    build-enzyme/test/ad/enzyme_vector_root_vjp_hybrid.enzyme/enzyme_vector_root_vjp_hybrid \
+    --benchmark
+```
+
 ## Hybrid vector-root JVP
 
 This comparison computes the same two-component JVP of the converged root for
