@@ -18,9 +18,10 @@ production sources are committed under `src/generated/`.
 
 Current derivative infrastructure includes generic analytical implicit JVP and
 VJP boundaries for scalar and vector roots, analytical fixed-point and
-linear-solve products, a real autodiff/analytical hybrid Dawson boundary, and
-static benchmark-selected candidates. Measured runtime, dispersion, peak
-memory, validation, hardware, and compiler evidence is committed in
+linear-solve products, real autodiff/analytical hybrid Dawson and scalar-root
+JVP boundaries, and static benchmark-selected candidates. Measured runtime,
+dispersion, peak memory, validation, hardware, and compiler evidence is
+committed in
 `docs/design/differentiation_benchmarks.md` and `benchmark/reference/`.
 `ROADMAP.md` is the authoritative implementation checklist.
 
