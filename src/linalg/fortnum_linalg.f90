@@ -66,6 +66,7 @@ module fortnum_linalg
     public :: linear_solve_jvp, linear_solve_jvp_factored
     public :: linear_solve_jvp_factored_many
     public :: linear_solve_vjp, linear_solve_vjp_factored
+    public :: linear_solve_vjp_factored_many
 
 contains
 
@@ -539,5 +540,32 @@ contains
             end do
         end do
     end subroutine linear_solve_vjp_factored
+
+    ! Batched analytical VJPs sharing one transposed primal factorization.
+    pure subroutine linear_solve_vjp_factored_many( &
+            n, cotangent_count, at, ipiv, x, u, abar, bbar, info)
+        integer, intent(in) :: n, cotangent_count
+        real(dp), intent(in) :: at(n, n), x(n), u(n, cotangent_count)
+        integer, intent(in) :: ipiv(n)
+        real(dp), intent(out) :: abar(n, n, cotangent_count)
+        real(dp), intent(out) :: bbar(n, cotangent_count)
+        integer, intent(out) :: info
+        integer :: cotangent, i, j
+
+        do cotangent = 1, cotangent_count
+            bbar(:, cotangent) = u(:, cotangent)
+            call lu_solve_factored(n, at, ipiv, bbar(:, cotangent), info)
+            if (info /= LINALG_OK) then
+                abar = 0.0_dp
+                bbar = 0.0_dp
+                return
+            end if
+            do j = 1, n
+                do i = 1, n
+                    abar(i, j, cotangent) = -bbar(i, cotangent)*x(j)
+                end do
+            end do
+        end do
+    end subroutine linear_solve_vjp_factored_many
 
 end module fortnum_linalg

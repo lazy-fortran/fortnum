@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "linear_solve",
+  "product": "multiple_vjp",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1",
+    "build": "Release"
+  },
+  "sampling": {
+    "independent_processes": 31,
+    "workloads_per_process": 20000,
+    "runtime_aggregation": "median",
+    "dispersion": "median absolute deviation",
+    "memory_processes_per_candidate": 5,
+    "perf_repetitions": 3
+  },
+  "validation": {
+    "oracle": "directional central differences of complete contracted solves",
+    "cotangents_checked": 16,
+    "absolute_tolerance": 3e-9
+  },
+  "scaling": [
+    {
+      "cotangents": 1,
+      "scalar_median_ns": 1217.788100,
+      "scalar_mad_ns": 6.436650,
+      "batched_median_ns": 1293.011200,
+      "batched_mad_ns": 5.785450
+    },
+    {
+      "cotangents": 4,
+      "scalar_median_ns": 4778.940250,
+      "scalar_mad_ns": 53.719700,
+      "batched_median_ns": 5189.014450,
+      "batched_mad_ns": 47.784000
+    },
+    {
+      "cotangents": 16,
+      "scalar_median_ns": 18924.946200,
+      "scalar_mad_ns": 95.550600,
+      "batched_median_ns": 20400.698200,
+      "batched_mad_ns": 65.227800
+    }
+  ],
+  "memory": {
+    "cotangents": 16,
+    "scalar_peak_rss_bytes": 4308992,
+    "batched_peak_rss_bytes": 4206592
+  },
+  "perf": {
+    "cotangents": 16,
+    "workloads_per_repetition": 200000,
+    "scalar": {
+      "cycles_per_workload": 86145.217,
+      "instructions_per_workload": 252561.424,
+      "cache_references_per_workload": 475.223,
+      "cache_misses_per_workload": 12.575
+    },
+    "batched": {
+      "cycles_per_workload": 93970.337,
+      "instructions_per_workload": 292170.429,
+      "cache_references_per_workload": 540.485,
+      "cache_misses_per_workload": 13.022
+    }
+  },
+  "selection": {
+    "selected": "repeated_scalar",
+    "criterion": "complete workload wall clock",
+    "cotangents": 16,
+    "speedup": 1.0780,
+    "reason": "the existing compact scalar VJP has lower loop and interface overhead"
+  }
+}

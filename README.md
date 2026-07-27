@@ -120,6 +120,9 @@ Analytical linear-solve JVPs also accept multiple directions over one reused
 factorization. On the 16×16 workload, repeated scalar products remain faster:
 12.835 µs versus 22.584 µs for 16 directions, so batching is a convenience
 interface rather than the selected hot-loop implementation.
+The matching multiple-cotangent adjoint interface reuses one transposed
+factorization. At 16 cotangents, repeated scalar VJPs take 18.925 µs versus
+20.401 µs batched, so repeated scalar remains selected by wall clock.
 
 The ODE forward sensitivity now has an explicit continuous contract: it
 approximates the variational IVP at fixed terminal time on the primal's frozen
