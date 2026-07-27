@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "fixed_point",
+  "product": "jvp",
+  "workload": "2-state nonlinear map, 2 active parameters, reusable converged state and map derivatives",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "gfortran": "16.1.1 20260625",
+    "cmake": "4.4.0",
+    "fortsym_commit": "15636e944b3b932283aff4f313c6a5f459d40692"
+  },
+  "sampling": {
+    "warmup_rounds": 3,
+    "samples": 15,
+    "calls_per_sample": {
+      "analytical_implicit": 2000000,
+      "complete_resolve_reference": 50000
+    },
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum"
+  },
+  "validation": {
+    "oracle": "central finite difference of complete converged fixed-point solves at p+h*tp and p-h*tp",
+    "absolute_tolerance": 1e-9
+  },
+  "memory_method": "getrusage(RUSAGE_SELF) inside each separately launched candidate",
+  "candidates": [
+    {
+      "id": "analytical_implicit",
+      "mechanism": "analytical",
+      "median_ns_per_call": 97.8032,
+      "mad_ns_per_call": 2.4065,
+      "peak_rss_bytes": 12554240,
+      "reusable_primal_state": "converged fixed point, G_x, and G_p"
+    },
+    {
+      "id": "complete_resolve_reference",
+      "mechanism": "reference",
+      "median_ns_per_call": 1224.4016,
+      "mad_ns_per_call": 10.1642,
+      "peak_rss_bytes": 12550144,
+      "reusable_primal_state": "none; two complete solves per direction"
+    }
+  ],
+  "selection": {
+    "selected": "analytical_implicit",
+    "runtime_speedup": 12.5190,
+    "reason": "both pass the independent oracle; analytical is 12.5190x faster while using 4096 more bytes of maximum observed candidate-process RSS"
+  }
+}

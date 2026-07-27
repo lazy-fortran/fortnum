@@ -335,6 +335,56 @@ fo exec bench_vector_root_adjoint assembled --peak-rss
 fo exec bench_vector_root_adjoint boundary --peak-rss
 ```
 
+## Analytical implicit tangent product for fixed points
+
+For a converged fixed point `x = G(x,p)`, the new analytical JVP solves
+`(I - G_x)*dx = G_p*tp`. It treats the fixed-point iterations as inactive and
+reuses the converged state plus local map derivatives supplied by the caller.
+
+The independent oracle iterates the nonlinear map
+
+```text
+G1 = tanh(0.2*x1 + 0.1*x2 + p1)
+G2 = tanh(0.05*x1 + 0.25*x2 + p2)
+```
+
+to convergence at `p + h*tp` and `p - h*tp`. Its central difference is
+compared with the implicit JVP.
+
+The benchmark compares that same two-state, two-parameter JVP. The analytical
+row uses a reusable converged fixed point and map derivatives. The reference
+row performs two complete fixed-point solves for every direction. Analytical
+uses 2,000,000 directions per sample; the slower reference uses 50,000.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, GNU Fortran 16.1.1, Release build,
+15 samples after three warmups.
+
+| Candidate | Kind | Median ns/JVP | MAD ns/JVP | Peak RSS |
+|---|---|---:|---:|---:|
+| analytical implicit solve | `analytical` | 97.8032 | 2.4065 | 12,554,240 B |
+| two complete re-solves | reference oracle | 1,224.4016 | 10.1642 | 12,550,144 B |
+
+Here “12.5190 times faster” means
+`1224.4016 / 97.8032 = 12.5190`: it compares the analytical row with the
+complete-re-solve reference for the same JVP, not with a standalone primal
+iteration. Analytical saves 1,126.5984 ns/JVP and is the runtime selection; its
+maximum observed self-process RSS is 4,096 bytes higher.
+
+Peak memory is the maximum across five separately launched processes per
+candidate, measured with `getrusage(RUSAGE_SELF)`. The machine-readable record
+is `benchmark/reference/ryzen9_5950x_fixed_point_tangent.json`.
+
+Run the benchmark with:
+
+```bash
+cd benchmark
+fo build
+taskset -c 4 fo exec bench_fixed_point_tangent analytical
+taskset -c 4 fo exec bench_fixed_point_tangent reference
+fo exec bench_fixed_point_tangent analytical --peak-rss
+fo exec bench_fixed_point_tangent reference --peak-rss
+```
+
 ## Reusable preconditioner hook for implicit products
 
 The multiroot analytical JVP, VJP, and scalar gradient accept an optional
