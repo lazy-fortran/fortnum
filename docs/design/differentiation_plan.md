@@ -58,6 +58,8 @@ The first implementation slice now also contains:
   residual products
 - optional reuse of the converged analytical vector-root Jacobian and its LU
   or transposed-LU factorization across JVP directions or VJP cotangents
+- reciprocal-condition reporting and threshold rejection on the vector-root
+  implicit JVP boundary
 - committed runtime, dispersion, memory, validation, hardware, and toolchain
   evidence for the first tournament
 
@@ -102,7 +104,7 @@ runtime dependency on it.
 | symbolic generation | complete for first slice | `gen_dawson_outer`, `fortsym` tests, regeneration banner |
 | interpolation interface rules | complete | simultaneous-activity directional and adjoint tests |
 | implicit linear solve | JVP/VJP and factorization reuse complete | finite-difference, adjoint, and reuse benchmarks |
-| roots and fixed points | analytical boundaries, scalar/vector hybrid JVP/VJP, converged-Jacobian reuse, and JVP/VJP factor reuse complete; reliability and tournament pending | complete-solve finite-difference, Jacobian, and scalar-objective oracles |
+| roots and fixed points | analytical boundaries, scalar/vector hybrid JVP/VJP, Jacobian/factor reuse, and implicit-JVP reliability complete; VJP reliability and tournament pending | complete-solve finite-difference, exact-condition, Jacobian, and scalar-objective oracles |
 | integration and ODE hybridization | pending | existing analytical products remain candidates |
 | module/application tournaments | pending except Dawson | first committed table in `differentiation_benchmarks.md` |
 | second order | pending | implement only for demonstrated consumers |

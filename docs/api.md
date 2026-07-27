@@ -923,6 +923,16 @@ pivots produced by `lu_factor`. It forms the contracted residual tangent
 `F_x`. Reuse one factorization for multiple parameter directions. Invalid or
 singular factors report `FORTNUM_DOMAIN_ERROR`.
 
+#### `multiroot_implicit_jvp(... [, reciprocal_condition, minimum_reciprocal_condition])`
+
+The callback-based analytical or hybrid implicit JVP accepts two opt-in
+reliability arguments. `reciprocal_condition` returns the estimated reciprocal
+1-norm condition of the converged state Jacobian. When
+`minimum_reciprocal_condition` is present and the estimate is smaller, `dx` is
+zeroed and `status` reports `FORTNUM_DOMAIN_ERROR`. Condition estimation is
+substantially more expensive than one product; request it at solver or
+optimization boundaries rather than for every direction.
+
 #### `multiroot_vjp_factored(transpose_factors, ipiv, f_p, u, jtu, status)`
 
 ```fortran

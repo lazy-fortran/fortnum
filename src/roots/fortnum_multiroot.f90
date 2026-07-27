@@ -319,17 +319,22 @@ contains
 
     ! Generic analytical implicit tangent boundary. The callback evaluates F_x
     ! and the contracted residual tangent F_p*tp at the converged root.
-    subroutine multiroot_implicit_jvp(residual_jvp, x, p, tp, dx, status, context)
+    subroutine multiroot_implicit_jvp(residual_jvp, x, p, tp, dx, status, &
+            context, reciprocal_condition, minimum_reciprocal_condition)
         procedure(multiroot_residual_jvp_t) :: residual_jvp
         real(dp), intent(in) :: x(:), p(:), tp(:)
         real(dp), intent(out) :: dx(:)
         type(fortnum_status_t), intent(out) :: status
         class(*), intent(inout), optional :: context
+        real(dp), intent(out), optional :: reciprocal_condition
+        real(dp), intent(in), optional :: minimum_reciprocal_condition
 
         real(dp) :: jac_x(size(x), size(x)), f_p_tp(size(x))
 
         call residual_jvp(x, p, tp, jac_x, f_p_tp, context)
-        call multiroot_grad(jac_x, f_p_tp, dx, status)
+        call multiroot_grad(jac_x, f_p_tp, dx, status, &
+            reciprocal_condition=reciprocal_condition, &
+            minimum_reciprocal_condition=minimum_reciprocal_condition)
     end subroutine multiroot_implicit_jvp
 
     ! multiroot_vjp: reverse product solves J_x^T lambda = u, then jtu = -J_p^T lambda.

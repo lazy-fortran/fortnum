@@ -919,3 +919,47 @@ fo build
 taskset -c 4 fo exec bench_multiroot_condition plain
 taskset -c 4 fo exec bench_multiroot_condition reliability
 ```
+
+## Reliability status at the implicit JVP boundary
+
+The callback-based `multiroot_implicit_jvp` now forwards an optional reciprocal
+condition output and minimum acceptable reciprocal condition to its analytical
+implicit solve. An independently known diagonal Jacobian with reciprocal
+condition `1e-8` is reported within `1e-22`, rejected by a `1e-6` threshold,
+and accepted by a `1e-9` threshold. Rejection zeroes the JVP and reports
+`FORTNUM_DOMAIN_ERROR`.
+
+The benchmark applies 10,000 directions per sample to a dense 16-state
+callback residual. Both rows evaluate the same residual products and implicit
+JVP. The reliability row additionally requests the exact inverse-norm-based
+condition estimate and applies a passing threshold.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, GNU Fortran 16.1.1, Release build,
+15 samples after three warmups.
+
+| Candidate | Mechanism | Median ns/JVP | MAD ns/JVP | Peak RSS |
+|---|---|---:|---:|---:|
+| plain implicit JVP boundary | `analytical` | 1,336.6043 | 8.3176 | 12,488,704 B |
+| boundary plus reliability check | `analytical` | 16,699.6221 | 185.5896 | 12,537,856 B |
+
+Here “12.4941 times slower” means
+`16699.6221 / 1336.6043 = 12.4941`: reliability checking adds 15,363.0178 ns
+to the same JVP. It also adds 49,152 bytes of maximum observed self-process
+RSS. The plain product remains the repeated-direction selection; reliability
+is an explicit boundary diagnostic that callers should evaluate or cache
+outside hot loops.
+
+Peak memory is the maximum across five separately launched candidates,
+measured with `getrusage(RUSAGE_SELF)`. The machine-readable record is
+`benchmark/reference/ryzen9_5950x_multiroot_implicit_jvp_reliability.json`.
+
+Run the benchmark with:
+
+```bash
+cd benchmark
+fo build
+taskset -c 4 fo exec bench_multiroot_implicit_jvp_reliability plain
+taskset -c 4 fo exec bench_multiroot_implicit_jvp_reliability reliability
+fo exec bench_multiroot_implicit_jvp_reliability plain --peak-rss
+fo exec bench_multiroot_implicit_jvp_reliability reliability --peak-rss
+```
