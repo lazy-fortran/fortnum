@@ -28,6 +28,20 @@ Work through this file one checkbox at a time.
 9. Commit the implementation, tests, evidence, and checklist update together.
 10. Push the commit to `main`.
 11. Only after the push succeeds, select the next unchecked item.
+12. Keep one mathematical source of truth for value, JVP, VJP, and fused
+    products. Generate mechanical derivatives and wrappers instead of manually
+    duplicating expressions.
+13. Keep backend selection and derivative-candidate selection outside hot
+    loops. OpenMP target and OpenACC must execute the same numerical leaf.
+14. Treat silent GPU-to-host fallback as a failure. Transfer-inclusive
+    complete-workload wall clock is the primary GPU metric; also report
+    resident-kernel time, peak device memory, bandwidth, occupancy, registers,
+    and spills where reliable tools expose them.
+15. Preserve stable floating-point semantics by default. Reassociation,
+    approximate math, and relaxed contraction require an explicit numerical
+    contract, an independent accuracy oracle, and a complete-workload win.
+16. Do not build speculative portability frameworks. Add a shared abstraction
+    only after at least two real kernels need the same behavior.
 
 Do not combine several checklist items into one implementation cycle. If an item
 turns out to contain several independent changes, split it into smaller
@@ -35,6 +49,17 @@ checkboxes before writing code.
 
 A mechanism name never selects a winner. Production selection requires
 independent validation plus measured application runtime and peak memory.
+
+The initial target matrix is deliberately asymmetric:
+
+| Target | `autodiff` | `analytical` | `hybrid` |
+| --- | --- | --- | --- |
+| CPU | Enzyme forward and reverse | generated or hand-written | Enzyme composition with analytical custom rules |
+| GPU | not initially supported | supported incrementally | not initially supported |
+
+An analytical residual product followed by an analytical implicit tangent or
+adjoint solve remains `analytical`. The public term `hybrid` requires autodiff
+composition with at least one analytical rule.
 
 ## Completed foundation
 
@@ -165,12 +190,101 @@ independent validation plus measured application runtime and peak memory.
   structural operation counts in relevant benchmark records.
 - [ ] Generate fused value/JVP, fused value/VJP, separate JVP/VJP, and
   contracted products from one symbolic DAG.
+
+## Reliable performance-portable GPU execution
+
+This tranche starts immediately after the preceding single-DAG item. It adopts
+the useful Kokkos-like separation of mathematical kernels, execution schedule,
+and data layout without implementing containers, execution spaces, a task
+graph, a memory manager, or a runtime dispatch framework.
+
+One pure Fortran numerical leaf must serve serial CPU, CPU parallel, OpenMP
+target, and OpenACC builds wherever the compiler supports it. `fortsym` owns
+explicit mathematical generation; `fortnum` owns small execution wrappers and
+application data residency. GPU work initially supplies `analytical`
+derivatives. CPU Enzyme remains the `autodiff` backend and supplies CPU
+`hybrid` composition.
+
+- [ ] Document the supported CPU/GPU differentiation matrix and the minimal
+  device-leaf contract: pure procedures, explicit contiguous data, and no
+  allocation, I/O, mutable global state, polymorphism, procedure pointers, or
+  unsupported descriptors.
+- [ ] Extend and test `fortsym` device-leaf emission in its own repository,
+  limited to optional OpenMP `declare target` and OpenACC `routine seq`
+  annotations; add no scheduling or GPU runtime abstraction.
+- [ ] Pin the tested `fortsym` revision in `fortnum`, regenerate the Dawson
+  leaf with device annotations, and prove byte-stable regeneration.
+- [ ] Add the build-time choice
+  `FORTNUM_GPU_BACKEND=NONE|OPENACC|OPENMP`, defaulting to `NONE`; selecting an
+  unavailable backend must fail configuration instead of falling back.
+- [ ] Add one shared benchmark-only batch-wrapper template whose numerical
+  loop body is identical for OpenACC and OpenMP target.
+- [ ] Offload the generated analytical Dawson fused value/JVP through OpenACC
+  with a released `nvfortran`; prove NVIDIA-device execution and validate
+  against an independent CPU analytical oracle.
+- [ ] Offload the identical Dawson leaf, layout, and workload through OpenMP
+  target with the same released compiler; require
+  `omp_is_initial_device()==false`.
+- [ ] Add persistent-data execution for the Dawson pilot and report
+  transfer-inclusive and resident-data wall-clock measurements separately.
+- [ ] Offload a generated analytical VJP leaf and validate it with an
+  independent adjoint identity.
+- [ ] Benchmark fused versus separate value/JVP and value/VJP GPU kernels
+  across launch-bound, throughput, and memory-bound batch sizes.
+- [ ] Offload a generated multi-input scalar-output kernel and measure
+  analytical JVP and VJP scaling over active inputs, derivative directions,
+  output cotangents where applicable, and batch sizes.
+- [ ] Compare admissible array layouts by complete-workload wall clock and
+  select one coalesced layout without exposing a general layout framework.
+- [ ] Record peak device allocation, achieved bandwidth, occupancy, register
+  use, and spills with released profiling tools.
+- [ ] Add reproducible GPU tables and `fortplot` source generators for runtime,
+  scaling, memory, bandwidth, and backend crossovers; commit no PNG files.
+- [ ] Record GPU compiler, device, flags, driver, `fortsym` revision, source
+  revision, residency policy, and device-execution proof in benchmark records.
+- [ ] Select OpenACC or OpenMP target per measured workload before entering
+  the launch loop; neither backend name nor derivative mechanism selects a
+  winner.
+- [ ] Add released Flang/OpenMP-target as a supported compiler combination only
+  after it passes the same device-execution, oracle, memory, and wall-clock
+  gates.
+- [ ] Add one analytical GPU implicit-composition pilot using generated local
+  residual products and the existing analytical tangent or adjoint boundary;
+  classify the complete candidate as `analytical`.
+- [ ] Expand GPU coverage one family at a time: special functions,
+  interpolation, fixed quadrature, fixed-size linear algebra, FFT rules,
+  residual kernels, and fixed-trace ODE products.
+- [ ] Run an application-level GPU benchmark with persistent data and select
+  candidates from end-to-end wall clock and peak memory rather than isolated
+  kernel latency.
+
+### GPU source ownership and exclusions
+
+The symbolic input, selected generated leaf, provenance, regeneration test, and
+benchmark evidence are committed. Temporary algebraic variants, generated
+Enzyme wrappers, and generated batch wrappers remain reproducible build-tree
+artifacts. OpenACC and OpenMP target may have distinct compiler configuration
+and scheduling directives, but never distinct copies of a mathematical body.
+
+Do not implement direct Enzyme differentiation of GPU kernels or offload
+regions, Enzyme integration into `nvfortran`/OpenACC, custom MLIR, a
+CUDA-specific derivative branch, or a Kokkos replacement. Do not add a
+CPU-Enzyme outer derivative that launches an analytical GPU custom rule until
+persistent-device semantics are proven and an application benchmark requires
+that boundary. Reconsider these exclusions only when a released upstream
+toolchain supports the complete path reliably and a concrete consumer
+justifies the complexity.
+
 - [ ] Generate several algebraic variants, prove them equivalent, and rank
-  them by post-CSE operation count before native benchmarking.
+  them by post-CSE operation count before native CPU, OpenACC, and OpenMP-target
+  benchmarking.
 - [ ] Commit only the measured production kernel and the generator inputs
   needed to reproduce temporary losing variants.
 
-## Shared Enzyme infrastructure
+## Shared CPU Enzyme infrastructure
+
+This section removes CPU fixture duplication. It does not imply GPU Enzyme
+support.
 
 - [ ] Record a machine-readable baseline for Enzyme fixture duplication,
   build time, runtime, peak RSS, and native code size.
