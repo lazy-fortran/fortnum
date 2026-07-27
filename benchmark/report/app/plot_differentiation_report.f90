@@ -22,6 +22,7 @@ program plot_differentiation_report
     call plot_slowdown(fastest_ns(:n_rows), runner_up_ns(:n_rows), &
         trim(output_dir)//'/runner_up_slowdown.png')
     call plot_direct_solver_scaling(trim(output_dir))
+    call plot_bspline_span_scaling(trim(output_dir))
 
 contains
 
@@ -158,6 +159,28 @@ contains
             trim(output_path)//'/direct_solver_vjp_scaling.png')
     end subroutine plot_direct_solver_scaling
 
+    subroutine plot_bspline_span_scaling(output_path)
+        character(len=*), intent(in) :: output_path
+        real(dp), parameter :: products(3) = [1.0_dp, 4.0_dp, 16.0_dp]
+        real(dp), parameter :: jvp_analytical(3) = [17.818276_dp, &
+            47.715964_dp, 145.199818_dp]
+        real(dp), parameter :: jvp_autodiff(3) = [17.569297_dp, &
+            42.261756_dp, 141.266038_dp]
+        real(dp), parameter :: vjp_analytical(3) = [17.387243_dp, &
+            43.595300_dp, 132.050065_dp]
+        real(dp), parameter :: vjp_autodiff(3) = [17.484877_dp, &
+            42.066517_dp, 140.726378_dp]
+
+        call two_candidate_scaling_figure(products, jvp_analytical, &
+            jvp_autodiff, 'Fixed-span B-spline JVP scaling', &
+            'JVP directions (count)', &
+            trim(output_path)//'/bspline_fixed_span_jvp_scaling.png')
+        call two_candidate_scaling_figure(products, vjp_analytical, &
+            vjp_autodiff, 'Fixed-span B-spline VJP scaling', &
+            'VJP cotangents (count)', &
+            trim(output_path)//'/bspline_fixed_span_vjp_scaling.png')
+    end subroutine plot_bspline_span_scaling
+
     subroutine scaling_figure(x, analytical, autodiff, diagnostic, heading, &
             x_label, path)
         real(dp), contiguous, intent(in) :: x(:)
@@ -185,6 +208,26 @@ contains
         call legend()
         call save_checked(path)
     end subroutine scaling_figure
+
+    subroutine two_candidate_scaling_figure(x, analytical, autodiff, heading, &
+            x_label, path)
+        real(dp), contiguous, intent(in) :: x(:)
+        real(dp), intent(in) :: analytical(:), autodiff(:)
+        character(len=*), intent(in) :: heading, x_label, path
+        real(dp), parameter :: blue(3) = [0.0_dp, 114.0_dp, 178.0_dp]/255.0_dp
+        real(dp), parameter :: orange(3) = [230.0_dp, 159.0_dp, 0.0_dp]/255.0_dp
+
+        call figure()
+        call plot(x, analytical, label='analytical', color=blue, &
+            linestyle='-', marker='o', linewidth=2.0_dp)
+        call plot(x, autodiff, label='autodiff (Enzyme)', color=orange, &
+            linestyle='--', marker='s', linewidth=2.0_dp)
+        call title(heading)
+        call xlabel(x_label)
+        call ylabel('complete product wall clock (nanoseconds)')
+        call legend()
+        call save_checked(path)
+    end subroutine two_candidate_scaling_figure
 
     subroutine save_checked(path)
         character(len=*), intent(in) :: path

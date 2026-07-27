@@ -320,4 +320,11 @@ if(FORTNUM_ENABLE_ENZYME)
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/ode_forward_sensitivity_jvp.f90
         MODE forward
         OPT_LEVEL O2)
+    fortnum_add_enzyme_test(
+        NAME enzyme_bspline_fixed_span_products
+        SOURCES
+            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/bspline_fixed_span_products.f90
+        MODE forward
+        OPT_LEVEL O2)
 endif()

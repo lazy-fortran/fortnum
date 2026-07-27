@@ -7,7 +7,7 @@ the source records under `benchmark/reference/`.
 
 ## Scope
 
-The cumulative data set contains 24 measured derivative-product tournaments
+The cumulative data set contains 26 measured derivative-product tournaments
 for which competing mechanism timings are committed. It excludes comparisons
 between two implementations of the same mechanism, incomplete selections, and
 reliability-only experiments. Finite differences remain a validation
@@ -23,14 +23,14 @@ measurement noise and the smaller analytical implementation remains selected.
 
 | Mechanism | Selected workloads | Share | Raw fastest workloads |
 |---|---:|---:|---:|
-| `analytical` | 18 | 75.0% | 17 |
-| `autodiff` | 2 | 8.3% | 2 |
-| `hybrid` | 4 | 16.7% | 5 |
+| `analytical` | 19 | 73.1% | 18 |
+| `autodiff` | 3 | 11.5% | 3 |
+| `hybrid` | 4 | 15.4% | 5 |
 | finite-difference diagnostic | 0 | 0.0% | 0 |
 
-Across the 24 workloads, the second-fastest candidate ranges from 1.004x to
-1,224.360x the fastest wall clock. The median ratio is 1.274x and the
-geometric mean is 2.276x. Fourteen workloads are tightly grouped near the
+Across the 26 workloads, the second-fastest candidate ranges from 1.004x to
+1,224.355x the fastest wall clock. The median ratio is 1.179x and the
+geometric mean is 2.144x. Sixteen workloads are tightly grouped near the
 fastest candidate; full finite-difference VJPs of fitted coefficients provide
 the largest separation.
 Consequently, mechanism counts describe only the current measured workload
@@ -56,15 +56,23 @@ than reverse autodiff, while it is 3.514x faster than forward autodiff. This
 does not establish a universal forward/reverse crossover; it shows why the two
 products need separate tournaments as input and output dimensions change.
 
+The fixed-span cubic B-spline comparison provides a smaller interpolation
+kernel where neither mechanism dominates. At 16 products, forward Enzyme JVP
+is 2.8% faster than analytical, while analytical VJP is 6.6% faster than
+reverse Enzyme. The selected mechanism therefore changes with both derivative
+product and workload shape.
+
 ## Figures
 
-The generator creates four independent PNGs:
+The generator creates six independent PNGs:
 
 - selected-mechanism workload counts
 - a histogram of
   `log10(second-fastest wall clock / fastest wall clock)`
 - complete-wall-clock scaling with forward JVP directions
 - complete-wall-clock scaling with reverse VJP cotangents
+- fixed-span B-spline JVP scaling
+- fixed-span B-spline VJP scaling
 
 The scaling figures use microseconds and encode mechanisms with an
 Okabe-Ito-derived color-safe palette plus distinct line styles and markers.

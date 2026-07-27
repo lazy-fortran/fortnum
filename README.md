@@ -28,7 +28,7 @@ implicit, hybrid, and finite-difference diagnostic candidates. Measured
 runtime, dispersion, peak memory, validation, hardware, and compiler evidence
 is committed in
 `docs/design/differentiation_benchmarks.md` and `benchmark/reference/`.
-The cumulative report in `docs/design/differentiation_report.md` summarizes 24
+The cumulative report in `docs/design/differentiation_report.md` summarizes 26
 mechanism tournaments and provides reproducible `fortplot` figure generation
 without committing generated PNGs.
 `ROADMAP.md` is the authoritative implementation checklist.
@@ -59,6 +59,10 @@ simultaneous evaluation-point and value activity is natural.
 For B-splines, the fused combined-active implementation shares one basis pass
 and is selected: at 16 coefficients it is 1.54 times faster for JVP and 1.45
 times faster for VJP.
+Inside a fixed cubic B-spline span, analytical and Enzyme products are both
+competitive. At 16 products, forward Enzyme is 2.8% faster for JVP while the
+analytical VJP is 6.6% faster than reverse Enzyme, so selection remains
+product- and workload-specific.
 
 Fixed-bound parameterized integrals also expose an analytical JVP based on
 differentiation under the integral sign, including the analytical Leibniz term

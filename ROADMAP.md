@@ -145,7 +145,7 @@ independent validation plus measured application runtime and peak memory.
 - [x] Define derivative status at knot crossings.
 - [x] Benchmark separate and fused combined-active Lagrange products.
 - [x] Benchmark separate and fused combined-active B-spline products.
-- [ ] Compare analytical basis products with fixed-span autodiff candidates.
+- [x] Compare analytical basis products with fixed-span autodiff candidates.
 
 ## Special functions
 
