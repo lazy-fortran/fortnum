@@ -222,7 +222,7 @@ derivatives. CPU Enzyme remains the `autodiff` backend and supplies CPU
 - [x] Offload the generated analytical Dawson fused value/JVP through OpenACC
   with a released `nvfortran`; prove NVIDIA-device execution and validate
   against an independent CPU analytical oracle.
-- [ ] Offload the identical Dawson leaf, layout, and workload through OpenMP
+- [x] Offload the identical Dawson leaf, layout, and workload through OpenMP
   target with the same released compiler; require
   `omp_is_initial_device()==false`.
 - [ ] Add persistent-data execution for the Dawson pilot and report

@@ -27,6 +27,8 @@ path now has proven NVIDIA execution and independent CPU validation. On the
 reference RTX 5060 Ti its transfer-inclusive 1,048,576-element workload is
 2.006 times faster than the CPU generated-leaf loop; resident-data timing is
 still pending and this pilot is not a general GPU-support claim.
+The identical OpenMP-target pilot also proves non-host execution and is 1.6585
+times faster than its CPU generated-leaf loop in the recorded run.
 `fortnum` uses `fortsym` at build time for symbolic algebra and code
 generation. The first pinned generator is under `tools/codegen/`; generated
 production sources are committed under `src/generated/`. The
