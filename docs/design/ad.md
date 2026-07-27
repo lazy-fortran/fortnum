@@ -219,6 +219,14 @@ determinant, and inverse takes 0.01 s, 0.01 s, and 0.02 s, with peak RSS of
 42,276 KB, 45,296 KB, and 45,196 KB. Generated numerical statements, runtime,
 peak memory, and native instructions are unchanged.
 
+The normalized generators emit module wrappers, pure procedures, lines within
+the Fortran 132-column limit, and `fo exec` regeneration commands. The
+post-CSE structural operation totals are 12 for Dawson, 9 and 6 for the 2 by 2
+determinant JVP and VJP, 54 and 46 for the 3 by 3 determinant products, and 60
+and 315 for each 2 by 2 and 3 by 3 inverse product. Warm regeneration takes
+0.01 s per generator group with 43,364 KB to 44,240 KB peak RSS. The
+normalization changes no arithmetic statements.
+
 ## 8. Selection and dispatch
 
 Each product is selected independently. A fast Jacobian implementation does not

@@ -100,7 +100,7 @@ contains
         spec%generator = str("gen_inverse_products")
         spec%generator_revision = str(fortsym_revision())
         spec%regenerate_command = str( &
-            "fpm run -C tools/codegen --target gen_inverse_products")
+            "cd tools/codegen && fo exec gen_inverse_products")
         spec%openacc_routine_seq = .true.
         spec%pure_procedure = .true.
         allocate (spec%args(2*n*n), spec%outputs(n*n))

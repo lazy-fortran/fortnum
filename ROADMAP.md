@@ -156,7 +156,7 @@ independent validation plus measured application runtime and peak memory.
   the emitter needs capabilities beyond its current public interface.
 - [x] Add a `fortsym` revision lock and emit the exact revision in every
   generated numerical-kernel banner.
-- [ ] Regenerate Dawson, determinant, and inverse kernels with current module,
+- [x] Regenerate Dawson, determinant, and inverse kernels with current module,
   purity, line-wrapping, operation-count, and `fo` regeneration metadata.
 - [ ] Add a temporary-directory regeneration check that byte-compares every
   committed generated numerical kernel.
