@@ -65,6 +65,9 @@ target_link_libraries(bench_multiroot_condition PRIVATE bench_core)
 add_executable(bench_scalar_root_tangent bench_scalar_root_tangent.f90)
 target_link_libraries(bench_scalar_root_tangent PRIVATE bench_core)
 
+add_executable(bench_scalar_root_adjoint bench_scalar_root_adjoint.f90)
+target_link_libraries(bench_scalar_root_adjoint PRIVATE bench_core)
+
 add_executable(bench_static_registry bench_static_registry.f90)
 target_link_libraries(bench_static_registry PRIVATE bench_core)
 

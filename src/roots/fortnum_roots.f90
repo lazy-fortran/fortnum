@@ -30,9 +30,11 @@ module fortnum_roots
     implicit none
     private
 
-    public :: root_fn_t, root_fn_df_t, root_residual_jvp_t
+    public :: root_fn_t, root_fn_df_t
+    public :: root_residual_jvp_t, root_residual_vjp_t
     public :: root_bisect, root_newton, root_brent
-    public :: root_implicit_jvp, root_jvp, root_vjp, root_grad
+    public :: root_implicit_jvp, root_implicit_vjp
+    public :: root_jvp, root_vjp, root_grad
 
     ! Function whose root is sought: y = f(x).
     abstract interface
@@ -63,6 +65,16 @@ module fortnum_roots
             real(dp), intent(out) :: f_x, f_p_tp
             class(*), intent(inout), optional :: context
         end subroutine root_residual_jvp_t
+    end interface
+
+    ! Contracted residual adjoint products at a converged scalar root.
+    abstract interface
+        subroutine root_residual_vjp_t(x, p, u, f_x, f_p_t_u, context)
+            import :: dp
+            real(dp), intent(in) :: x, p(:), u
+            real(dp), intent(out) :: f_x, f_p_t_u(size(p))
+            class(*), intent(inout), optional :: context
+        end subroutine root_residual_vjp_t
     end interface
 
 contains
@@ -525,6 +537,23 @@ contains
         jtu = -(f_p / f_x) * u
         call status_set(status, FORTNUM_OK, "")
     end subroutine root_vjp
+
+    ! Generic analytical implicit adjoint boundary. residual_vjp evaluates the
+    ! residual VJP with the root cotangent; the boundary applies -1/f_x.
+    subroutine root_implicit_vjp(residual_vjp, x, p, u, jtu, status, &
+            context, deriv_floor)
+        procedure(root_residual_vjp_t) :: residual_vjp
+        real(dp), intent(in) :: x, p(:), u
+        real(dp), intent(out) :: jtu(:)
+        type(fortnum_status_t), intent(out) :: status
+        class(*), intent(inout), optional :: context
+        real(dp), intent(in), optional :: deriv_floor
+
+        real(dp) :: f_x, f_p_t_u(size(p))
+
+        call residual_vjp(x, p, u, f_x, f_p_t_u, context)
+        call root_vjp(f_x, f_p_t_u, 1.0_dp, jtu, status, deriv_floor)
+    end subroutine root_implicit_vjp
 
     ! root_grad: scalar-p case: dx*/dp = -f_p / f_x.
     !   Convenience wrapper for the 1-D parameter case.

@@ -16,8 +16,8 @@ program test_roots_ad
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
     use fortnum_kinds,  only: dp
     use fortnum_status, only: fortnum_status_t, status_ok, FORTNUM_DOMAIN_ERROR
-    use fortnum_roots,  only: root_brent, root_implicit_jvp, root_jvp, &
-        root_vjp, root_grad
+    use fortnum_roots,  only: root_brent, root_implicit_jvp, &
+        root_implicit_vjp, root_jvp, root_vjp, root_grad
     use fortnum_multiroot, only: multiroot_hybrid, multiroot_jvp, &
         multiroot_vjp, multiroot_grad
     implicit none
@@ -44,6 +44,7 @@ program test_roots_ad
     call test_near_multiple_root(nfail)
     call test_vector_p(nfail)
     call test_implicit_tangent_boundary(nfail)
+    call test_implicit_adjoint_boundary(nfail)
     call test_multiroot_grad_vs_fd(nfail)
     call test_multiroot_jvp_vs_fd(nfail)
     call test_multiroot_dot_product_id(nfail)
@@ -254,15 +255,17 @@ contains
     ! f(x,p) = x^3 + p1*x - p2 = 0 has one real root for p1 > 0.
     subroutine test_implicit_tangent_boundary(nfail)
         integer, intent(inout) :: nfail
-        real(dp) :: p(2), tp(2), xstar, xp, xm, dx, dx_fd, h
+        real(dp) :: p(2), pp(2), pm(2), tp(2), xstar, xp, xm, dx, dx_fd, h
         type(fortnum_status_t) :: st
 
         p = [0.7_dp, 3.0_dp]
         tp = [0.4_dp, -0.6_dp]
         h = 1.0e-5_dp
         call solve_tangent_root(p, xstar)
-        call solve_tangent_root(p + h*tp, xp)
-        call solve_tangent_root(p - h*tp, xm)
+        pp = p + h*tp
+        pm = p - h*tp
+        call solve_tangent_root(pp, xp)
+        call solve_tangent_root(pm, xm)
 
         call root_implicit_jvp(tangent_residual_jvp, xstar, p, tp, dx, st)
         dx_fd = (xp - xm)/(2.0_dp*h)
@@ -289,6 +292,55 @@ contains
         f_x = 3.0_dp*x*x + p(1)
         f_p_tp = x*tp(1) - tp(2)
     end subroutine tangent_residual_jvp
+
+    ! Scalar-objective gradient from the adjoint boundary vs complete re-solves.
+    subroutine test_implicit_adjoint_boundary(nfail)
+        integer, intent(inout) :: nfail
+        real(dp) :: p(2), pp(2), pm(2), xstar, xp, xm
+        real(dp) :: u, jtu(2), jtu_fd(2), h
+        type(fortnum_status_t) :: st
+        integer :: i
+
+        p = [0.7_dp, 3.0_dp]
+        u = 1.3_dp
+        h = 1.0e-5_dp
+        call solve_tangent_root(p, xstar)
+        call root_implicit_vjp(adjoint_residual_vjp, xstar, p, u, jtu, st)
+
+        do i = 1, 2
+            pp = p
+            pm = p
+            pp(i) = pp(i) + h
+            pm(i) = pm(i) - h
+            call solve_tangent_root(pp, xp)
+            call solve_tangent_root(pm, xm)
+            jtu_fd(i) = u*(xp - xm)/(2.0_dp*h)
+        end do
+
+        if (.not. status_ok(st)) then
+            write (error_unit, '(a)') &
+                "FAIL [implicit_adjoint_boundary] unexpected status error"
+            nfail = nfail + 1
+            return
+        end if
+        if (maxval(abs(jtu - jtu_fd)) > 1.0e-8_dp) then
+            write (error_unit, '(a,2es24.16)') &
+                "FAIL [implicit_adjoint_boundary] implicit=", jtu
+            write (error_unit, '(a,2es24.16)') &
+                "FAIL [implicit_adjoint_boundary] fd=", jtu_fd
+            nfail = nfail + 1
+        end if
+    end subroutine test_implicit_adjoint_boundary
+
+    subroutine adjoint_residual_vjp(x, p, u, f_x, f_p_t_u, context)
+        real(dp), intent(in) :: x, p(:), u
+        real(dp), intent(out) :: f_x, f_p_t_u(size(p))
+        class(*), intent(inout), optional :: context
+
+        f_x = 3.0_dp*x*x + p(1)
+        f_p_t_u(1) = x*u
+        f_p_t_u(2) = -u
+    end subroutine adjoint_residual_vjp
 
     subroutine solve_tangent_root(p, x)
         real(dp), intent(in) :: p(2)
