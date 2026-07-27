@@ -15,18 +15,24 @@ Link or citation: library, file, function name, version or commit.
 Note any license restrictions. fortnum is MIT; the port must be a
 clean-room reimplementation if the source is GPL or LGPL.
 
-## Derivative policy
+## Derivative candidates
 
-Select one per procedure or mark `TBD`. See `docs/design/ad.md` for
-definitions and annotation syntax.
+Select every admissible candidate per derivative product or mark `TBD`. See
+`docs/design/ad.md`.
 
-- [ ] `transparent`
-- [ ] `analytic_rule`
-- [ ] `implicit_rule`
-- [ ] `trace_rule`
+- [ ] `autodiff`
+- [ ] `analytical`
+- [ ] `hybrid`
+- [ ] `finite_difference_reference`
 - [ ] `primal_only` (justify below)
 
 Justification for `primal_only` (if applicable):
+
+Requested products and candidate details:
+
+Validation oracle:
+
+Representative benchmark workloads:
 
 ## Active arguments
 
