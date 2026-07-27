@@ -10,7 +10,7 @@
   "toolchain": {
     "compiler": "GNU Fortran 16.1.1",
     "compiler_flags": "-O3",
-    "fortsym_revision": "59c2949ecf52887f91248d3e32cde54020e2fca6"
+    "fortsym_revision": "349bc6257a22b416093624bd04dd1ed8a83852d0"
   },
   "sampling": {
     "warmup_rounds": 3,
@@ -55,35 +55,35 @@
     {
       "product": "jvp",
       "candidate": "fused",
-      "median_ns_per_workload": 9.7824,
-      "mad_ns_per_workload": 0.0399,
-      "peak_rss_bytes": 4149248
+      "median_ns_per_workload": 9.7304,
+      "mad_ns_per_workload": 0.0178,
+      "peak_rss_bytes": 12611584
     },
     {
       "product": "jvp",
       "candidate": "separate",
-      "median_ns_per_workload": 15.3477,
-      "mad_ns_per_workload": 0.1193,
-      "peak_rss_bytes": 4190208
+      "median_ns_per_workload": 15.2758,
+      "mad_ns_per_workload": 0.1186,
+      "peak_rss_bytes": 12292096
     },
     {
       "product": "vjp",
       "candidate": "fused",
-      "median_ns_per_workload": 10.0041,
-      "mad_ns_per_workload": 0.1234,
-      "peak_rss_bytes": 4091904
+      "median_ns_per_workload": 9.7754,
+      "mad_ns_per_workload": 0.0152,
+      "peak_rss_bytes": 12275712
     },
     {
       "product": "vjp",
       "candidate": "separate",
-      "median_ns_per_workload": 16.7554,
-      "mad_ns_per_workload": 0.3835,
-      "peak_rss_bytes": 4304896
+      "median_ns_per_workload": 16.4021,
+      "mad_ns_per_workload": 0.1732,
+      "peak_rss_bytes": 11866112
     }
   ],
   "measured_verdict": {
-    "jvp": "fused is 1.5689 times faster than separate",
-    "vjp": "fused is 1.6749 times faster than separate",
+    "jvp": "fused is 1.5699 times faster than separate",
+    "vjp": "fused is 1.6779 times faster than separate",
     "memory": "all variants use fixed scalar storage; process-RSS differences do not measure derivative workspace"
   }
 }

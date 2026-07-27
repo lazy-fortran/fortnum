@@ -29,8 +29,8 @@ committed numerical kernels. CTest and CI run the same check when
 capture compiler flags, native symbol sizes, structural operation counts, and
 the exact `fortsym` revision. The Dawson generator now derives value-only,
 contracted JVP/VJP, and fused value/product leaves from one symbolic DAG. On
-the reference CPU the fused complete workload is 1.5689 times faster for JVP
-and 1.6749 times faster for VJP than calling the generated value and product
+the reference CPU the fused complete workload is 1.5699 times faster for JVP
+and 1.6779 times faster for VJP than calling the generated value and product
 leaves separately.
 
 Current derivative infrastructure includes generic analytical implicit JVP and
