@@ -143,7 +143,7 @@ independent validation plus measured application runtime and peak memory.
 - [x] Add analytical implicit differentiation of fitted spline coefficients.
 - [x] Define derivative status at interpolation-cell crossings.
 - [x] Define derivative status at knot crossings.
-- [ ] Benchmark separate and fused combined-active Lagrange products.
+- [x] Benchmark separate and fused combined-active Lagrange products.
 - [ ] Benchmark separate and fused combined-active B-spline products.
 - [ ] Compare analytical basis products with fixed-span autodiff candidates.
 

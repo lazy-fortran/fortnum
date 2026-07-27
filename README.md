@@ -53,6 +53,10 @@ Interpolation callers can explicitly guard a directional probe with
 B-spline callers have the matching `bspline_span_derivative_status` guard for
 knot-span crossings.
 
+Separate and fused combined-active Lagrange products are performance ties over
+4--16 nodes; both APIs remain available, and callers use the fused form when
+simultaneous evaluation-point and value activity is natural.
+
 Fixed-bound parameterized integrals also expose an analytical JVP based on
 differentiation under the integral sign, including the analytical Leibniz term
 for an active lower or upper bound. Measured `hybrid` candidates use Enzyme
