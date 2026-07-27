@@ -1252,6 +1252,70 @@ full reverse.
 The machine-readable record is
 `benchmark/reference/ryzen9_5950x_ode_long_nonstiff.json`.
 
+## Stiff trajectory tournament
+
+The stiff workload is
+
+\[
+y_1'=-y_1,\qquad
+y_2'=-1000(y_2-y_1),
+\]
+
+with eigenvalues \(-1\) and \(-1000\). The fast state is forced by the slow
+state and remains dynamically relevant. Cash-Karp takes 338 accepted steps to
+reach \(t=1\) at relative tolerance `1e-8` and absolute tolerance `1e-10`.
+The requested product is one scalar terminal-objective gradient with respect
+to the two initial-state inputs.
+
+The exact triangular matrix exponential provides the primary VJP oracle. All
+analytical candidates agree within `2.4422e-10`; complete-solve central
+differences agree within `7.3150e-9`. This test exercises the library's current
+differentiable explicit fallback. `fortnum_ode_vode` is a nonstiff Adams method
+and is primal-only. The library has no differentiable stiff primal to enter in
+this tournament.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, GNU Fortran 16.1.1, Release build.
+Each result is the median of three process medians. Each process collected 21
+samples after three warmups. Recomputation uses 10 workloads per sample; all
+other candidates use 200.
+
+| Candidate | Mechanism | Median ns/primal+gradient | MAD ns | Relative to full reverse | Peak RSS |
+|---|---|---:|---:|---:|---:|
+| full-trace discrete adjoint | `analytical` reverse | 177,728.3800 | 1,311.9800 | selected | 3,829,760 B |
+| two tangent sweeps | `analytical` forward | 304,927.6850 | 1,587.6400 | 1.7157x slower | 3,817,472 B |
+| checkpoint stride 16 | `analytical` reverse | 214,058.7350 | 2,013.2450 | 1.2044x slower | 3,833,856 B |
+| recompute every prefix | `analytical` reverse | 6,508,305.1000 | 301,881.2000 | 36.6194x slower | 3,821,568 B |
+| complete-solve central difference | diagnostic | 258,271.4500 | 1,446.8800 | 1.4532x slower | 3,829,760 B |
+
+Complete-workload wall clock selects full-trace reverse among the available
+candidates. The full trace retains 13,544 bytes. Checkpointing retains 5,876
+bytes and recomputation retains 5,432 bytes, reductions of 56.62% and 59.89%.
+The maximum process RSS differs by only 16,384 bytes, so neither storage
+strategy changes measured application peak memory.
+
+Normalized `perf stat -r 3` counts per complete workload are:
+
+| Candidate | Cycles | Instructions | Cache references | Cache misses |
+|---|---:|---:|---:|---:|
+| full reverse | 1,017,444 | 3,321,281 | 17,804 | 2,220 |
+| two forward sweeps | 1,725,455 | 4,939,355 | 19,936 | 2,555 |
+| checkpoint stride 16 | 1,239,938 | 4,053,385 | 20,361 | 2,462 |
+| recompute every prefix | 30,271,525 | 127,761,480 | 187,295 | 25,396 |
+| diagnostic | 1,386,181 | 4,411,815 | 21,901 | 2,406 |
+
+Forward executes 1.70 times as many cycles as full reverse. Recomputation
+executes 29.75 times as many cycles and records 11.44 times as many cache
+misses. These counters support the timing result. Complete wall clock remains
+the selection criterion.
+
+No `autodiff` or `hybrid` full-trajectory candidate exists for this derivative
+product. The existing Enzyme ODE boundary supplies forward RHS JVPs only. A
+future stiff-primal item must register and benchmark its forward and reverse
+products before changing this selection.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_ode_stiff.json`.
+
 ## Analytical implicit-stage tangent
 
 For a converged implicit stage

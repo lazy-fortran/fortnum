@@ -123,6 +123,14 @@ storage by 56.76% and 59.91%, but maximum observed peak RSS remains within
 12 KB across candidates. Full-trace reverse therefore remains selected by
 complete wall clock.
 
+For the current explicit fallback on a stiff system with eigenvalues `-1` and
+`-1000`, Cash-Karp requires 338 accepted steps to reach `t=1`. A full-trace
+analytical reverse gradient takes 177.73 µs including the primal. It is 1.72
+times faster than two analytical forward sweeps and 1.45 times faster than
+finite differences. This measures the available differentiable path; fortnum
+still needs a differentiable stiff primal before it can claim an
+application-optimal stiff solution.
+
 ## Build
 
 CMake is the primary build system with CTest integration:
