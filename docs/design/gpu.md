@@ -516,7 +516,7 @@ required validate–measure–document–commit cycle independently.
 | Special functions | covered pilot | generated Dawson value/JVP/VJP; real-device formula and adjoint oracles; resident and transfer wall clock |
 | Residual kernels | covered pilot | generated scalar-root residual products composed with analytical implicit JVP |
 | Interpolation | covered pilot | generated fixed-cell Lagrange value/JVP/VJP; independent cubic and adjoint oracles; resident and transfer wall clock |
-| Fixed quadrature | pending | no validated device pilot |
+| Fixed quadrature | covered pilot | arbitrary-order analytical JVP/VJP loops; exact-polynomial and adjoint oracles; resident and transfer wall clock |
 | Fixed-size linear algebra | pending | no validated device pilot |
 | FFT rules | pending | no validated device pilot |
 | Fixed-trace ODE products | pending | no validated device pilot |
@@ -562,6 +562,40 @@ CPU peak host RSS is about 106 MB. GPU-process host peak RSS ranges from
 Exact dispersion, all peak-RSS values, source/toolchain provenance, and the
 selection table are in
 `benchmark/reference/rtx5060ti_lagrange4_products.json`.
+
+### Fixed-quadrature pilot
+
+The fixed-quadrature pilot retains the existing arbitrary-order analytical
+operator rather than generating a specialized formula. With inactive weights
+and active sampled values, JVP is one weighted reduction and VJP scales the
+weight vector by one cotangent. A symbolic generator would only specialize and
+duplicate these two loops. Batch-first arrays keep adjacent batch entries
+contiguous across GPU threads.
+
+Real-device tests use an order-16 Gauss-Legendre rule to integrate `x^4` plus a
+batch-dependent constant. The exact JVP is `2/5 + 2*constant`; VJP additionally
+passes the adjoint identity. Complete-workload 31-sample medians are:
+
+| Product | Rules | CPU ms | OpenACC resident/transfer ms | OpenMP resident/transfer ms |
+| --- | ---: | ---: | ---: | ---: |
+| JVP | 256 | 0.000856 | 0.008968 / 0.027817 | 0.009356 / 0.028558 |
+| JVP | 65,536 | 0.6509 | 0.3751 / 1.1220 | 0.0140 / 0.7689 |
+| JVP | 1,048,576 | 9.9230 | 5.8789 / 19.5530 | 0.3479 / 13.8359 |
+| VJP | 256 | 0.000351 | 0.006664 / 0.027520 | 0.007250 / 0.028735 |
+| VJP | 65,536 | 0.1609 | 0.0189 / 1.0260 | 0.0250 / 0.9520 |
+| VJP | 1,048,576 | 8.9522 | 0.3409 / 13.2890 | 0.3349 / 13.1220 |
+
+CPU wins the launch-bound batch. At 1,048,576 rules, the best resident GPU is
+28.52 times faster for JVP and 26.73 times faster for VJP. CPU wins all
+transfer-inclusive workloads because each rule consumes or produces sixteen
+values. OpenMP target is 16.9 times faster than OpenACC for the largest
+resident JVP reduction on this compiler, while resident VJP is a practical
+backend tie. Backend selection must therefore remain product-specific.
+
+The largest live numerical arrays occupy 142,606,464 B. CPU peak host RSS is
+about 147.8 MB; GPU-process host peak RSS ranges from 131,420,160 to
+269,647,872 B. Exact dispersion, all memory values, and provenance are in
+`benchmark/reference/rtx5060ti_fixed_quadrature_products.json`.
 
 ## Immediate implementation order
 
