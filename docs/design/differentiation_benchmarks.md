@@ -1091,6 +1091,40 @@ taskset -c 4 fo exec bench_bspline_span_status plain 4096
 taskset -c 4 fo exec bench_bspline_span_status status 4096
 ```
 
+## Separate versus fused combined-active Lagrange products
+
+The analytical combined product can be called once or reconstructed from the
+separate evaluation-point and nodal-value products. Existing central-difference
+and adjoint tests validate both paths.
+
+| Product | Nodes | Separate median (MAD) | Fused median (MAD) | Faster |
+|---|---:|---:|---:|---|
+| JVP | 4 | 84.1192 (3.0545) ns | 84.8123 (3.4629) ns | tie |
+| JVP | 8 | 357.9146 (7.9873) ns | 370.4678 (5.9087) ns | tie |
+| JVP | 16 | 2,594.6824 (48.9016) ns | 2,569.6503 (20.0528) ns | tie |
+| VJP | 4 | 77.6631 (1.7749) ns | 75.6742 (0.6463) ns | tie |
+| VJP | 8 | 359.1055 (12.2311) ns | 350.3213 (2.4093) ns | tie |
+| VJP | 16 | 2,588.2872 (38.0653) ns | 2,616.3457 (33.2204) ns | tie |
+
+Differences remain below 3.6% and change sign by size and product. At 16 nodes
+all peak-RSS values are within 82 KiB. Hardware counters also show nearly equal
+cycles and instructions; cache events are too sparse and variable to justify
+a global selector. Both public interfaces remain, with fused preferred only
+when it matches the caller's natural combined contract.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_lagrange_combined.json`.
+
+```bash
+fo test test_interp_ad
+cd benchmark
+fo build
+taskset -c 4 fo exec bench_lagrange_combined separate jvp 16
+taskset -c 4 fo exec bench_lagrange_combined fused jvp 16
+taskset -c 4 fo exec bench_lagrange_combined separate vjp 16
+taskset -c 4 fo exec bench_lagrange_combined fused vjp 16
+```
+
 ## Hybrid fixed-quadrature integrand JVP
 
 This workload applies a reusable 32-point Gauss-Legendre rule on `[0,1]` to

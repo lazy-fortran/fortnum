@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operation": "separate versus fused combined-active Lagrange products",
+  "hardware": "AMD Ryzen 9 5950X, CPU 4 pinned",
+  "compiler": "GNU Fortran 16.1.1, Release",
+  "validation": "existing combined JVP central-difference and VJP adjoint tests",
+  "timings": [
+    {"product": "jvp", "nodes": 4, "candidate": "separate", "median_ns": 84.1192, "mad_ns": 3.0545},
+    {"product": "jvp", "nodes": 4, "candidate": "fused", "median_ns": 84.8123, "mad_ns": 3.4629},
+    {"product": "jvp", "nodes": 8, "candidate": "separate", "median_ns": 357.9146, "mad_ns": 7.9873},
+    {"product": "jvp", "nodes": 8, "candidate": "fused", "median_ns": 370.4678, "mad_ns": 5.9087},
+    {"product": "jvp", "nodes": 16, "candidate": "separate", "median_ns": 2594.6824, "mad_ns": 48.9016},
+    {"product": "jvp", "nodes": 16, "candidate": "fused", "median_ns": 2569.6503, "mad_ns": 20.0528},
+    {"product": "vjp", "nodes": 4, "candidate": "separate", "median_ns": 77.6631, "mad_ns": 1.7749},
+    {"product": "vjp", "nodes": 4, "candidate": "fused", "median_ns": 75.6742, "mad_ns": 0.6463},
+    {"product": "vjp", "nodes": 8, "candidate": "separate", "median_ns": 359.1055, "mad_ns": 12.2311},
+    {"product": "vjp", "nodes": 8, "candidate": "fused", "median_ns": 350.3213, "mad_ns": 2.4093},
+    {"product": "vjp", "nodes": 16, "candidate": "separate", "median_ns": 2588.2872, "mad_ns": 38.0653},
+    {"product": "vjp", "nodes": 16, "candidate": "fused", "median_ns": 2616.3457, "mad_ns": 33.2204}
+  ],
+  "peak_rss_bytes_at_16_nodes": {
+    "separate_jvp": 3895296,
+    "fused_jvp": 3833856,
+    "separate_vjp": 3891200,
+    "fused_vjp": 3915776
+  },
+  "perf_stat_per_product_at_16_nodes": {
+    "separate_jvp": {"cycles": 11918.165, "instructions": 39456.532, "cache_references": 1.46284, "cache_misses": 0.10307},
+    "fused_jvp": {"cycles": 11872.526, "instructions": 39564.529, "cache_references": 0.97301, "cache_misses": 0.07507},
+    "separate_vjp": {"cycles": 11809.064, "instructions": 39337.528, "cache_references": 0.87889, "cache_misses": 0.06231},
+    "fused_vjp": {"cycles": 12099.657, "instructions": 39398.532, "cache_references": 2.35898, "cache_misses": 0.12317}
+  },
+  "decision": "retain both APIs; use fused when the caller naturally requests simultaneous activity, without a global performance claim"
+}
