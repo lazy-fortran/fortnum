@@ -16,6 +16,14 @@ See `docs/performance_optimal_differentiation.md` for the rationale and
 generation. The first pinned generator is under `tools/codegen/`; generated
 production sources are committed under `src/generated/`.
 
+Current derivative infrastructure includes generic analytical implicit JVP and
+VJP boundaries for scalar and vector roots, analytical fixed-point and
+linear-solve products, a real autodiff/analytical hybrid Dawson boundary, and
+static benchmark-selected candidates. Measured runtime, dispersion, peak
+memory, validation, hardware, and compiler evidence is committed in
+`docs/design/differentiation_benchmarks.md` and `benchmark/reference/`.
+`ROADMAP.md` is the authoritative implementation checklist.
+
 ## Build
 
 CMake is the primary build system with CTest integration:

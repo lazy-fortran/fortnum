@@ -35,6 +35,8 @@ The library already contains:
 - analytical FFT and fixed-quadrature linear products
 - analytical frozen-trace products for adaptive integration and ODE integration
 - analytical implicit products for scalar and vector roots
+- generic analytical root tangent and adjoint callback boundaries
+- analytical implicit fixed-point tangent and adjoint products
 - analytical interpolation and B-spline products
 - finite-difference, complex-step, smoothness, and adjoint-identity test helpers
 - an optional Flang and Enzyme test pipeline with three isolated smoke kernels
@@ -47,11 +49,15 @@ The first implementation slice now also contains:
 - deterministic candidate metadata and a pre-loop selector
 - combined-active Lagrange and B-spline product rules
 - analytical implicit linear-solve JVP and VJP products
+- reusable linear-solve JVP and transposed-VJP factorizations
+- generic scalar-root and vector-root tangent and adjoint boundaries
+- analytical fixed-point JVP and VJP products
 - committed runtime, dispersion, memory, validation, hardware, and toolchain
   evidence for the first tournament
 
-The main remaining pieces are broad module tournaments, factorization reuse,
-application-level selection, and justified second-order products.
+The main remaining pieces are hybrid residual products, root-factorization
+reuse, broad module tournaments, application-level selection, and justified
+second-order products.
 
 ## 3. Terminology
 
@@ -89,8 +95,9 @@ runtime dependency on it.
 | candidate registry | complete for static selection | deterministic validation, timing, memory, code-size and ID ordering tests |
 | symbolic generation | complete for first slice | `gen_dawson_outer`, `fortsym` tests, regeneration banner |
 | interpolation interface rules | complete | simultaneous-activity directional and adjoint tests |
-| implicit linear solve | JVP/VJP complete; reuse pending | finite-difference and adjoint tests |
-| roots, integration and ODE hybridization | pending | existing analytical products remain candidates |
+| implicit linear solve | JVP/VJP and factorization reuse complete | finite-difference, adjoint, and reuse benchmarks |
+| roots and fixed points | analytical boundaries complete; hybrid roots pending | complete-solve finite-difference and scalar-objective oracles |
+| integration and ODE hybridization | pending | existing analytical products remain candidates |
 | module/application tournaments | pending except Dawson | first committed table in `differentiation_benchmarks.md` |
 | second order | pending | implement only for demonstrated consumers |
 
