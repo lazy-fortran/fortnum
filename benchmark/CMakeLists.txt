@@ -67,6 +67,10 @@ add_executable(bench_multiroot_jvp_factorization
     bench_multiroot_jvp_factorization.f90)
 target_link_libraries(bench_multiroot_jvp_factorization PRIVATE bench_core)
 
+add_executable(bench_multiroot_vjp_factorization
+    bench_multiroot_vjp_factorization.f90)
+target_link_libraries(bench_multiroot_vjp_factorization PRIVATE bench_core)
+
 add_executable(bench_multiroot_condition bench_multiroot_condition.f90)
 target_link_libraries(bench_multiroot_condition PRIVATE bench_core)
 
