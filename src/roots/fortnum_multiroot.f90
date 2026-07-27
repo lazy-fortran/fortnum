@@ -45,6 +45,7 @@ module fortnum_multiroot
     private
 
     public :: multiroot_fdf_t, multiroot_fn_t
+    public :: multiroot_preconditioned_solve_t
     public :: multiroot_hybrid, multiroot_hybrids
     public :: multiroot_jvp, multiroot_vjp, multiroot_grad
     public :: deriv_fn_t, deriv_central
@@ -72,6 +73,19 @@ module fortnum_multiroot
             real(dp), intent(out) :: f(:)
             class(*), intent(in), optional :: ctx
         end subroutine multiroot_fn_t
+    end interface
+
+    ! Optional implicit-product solve hook. Implementations may carry and reuse
+    ! a preconditioner through context; the default remains the internal dense
+    ! direct solve.
+    abstract interface
+        subroutine multiroot_preconditioned_solve_t(a, b, x, info, context)
+            import :: dp
+            real(dp), intent(in) :: a(:, :), b(:)
+            real(dp), intent(out) :: x(:)
+            integer, intent(out) :: info
+            class(*), intent(inout), optional :: context
+        end subroutine multiroot_preconditioned_solve_t
     end interface
 
     ! Scalar function for deriv_central: y = f(x), ctx carries parameters.
@@ -195,19 +209,23 @@ contains
     !   f_p   : J_p at the root (n x m), f_p(i, j) = dF_i/dp_j.
     !   tp    : tangent in parameter space (length m).
     !   dx    : output tangent in root space (length n).
-    subroutine multiroot_jvp(jac_x, f_p, tp, dx, status)
+    subroutine multiroot_jvp(jac_x, f_p, tp, dx, status, &
+            preconditioned_solve, preconditioner_context)
         real(dp),               intent(in)  :: jac_x(:, :)
         real(dp),               intent(in)  :: f_p(:, :)
         real(dp),               intent(in)  :: tp(:)
         real(dp),               intent(out) :: dx(:)
         type(fortnum_status_t), intent(out) :: status
+        procedure(multiroot_preconditioned_solve_t), optional :: preconditioned_solve
+        class(*), intent(inout), optional :: preconditioner_context
 
         real(dp) :: rhs(size(jac_x, 1))
         integer  :: n, ls_stat
 
         n = size(jac_x, 1)
         rhs = -matmul(f_p, tp)
-        call solve_linear(n, jac_x, rhs, dx, ls_stat)
+        call solve_implicit_product(jac_x, rhs, dx, ls_stat, &
+            preconditioned_solve, preconditioner_context)
         if (ls_stat /= 0) then
             dx = 0.0_dp
             call status_set(status, FORTNUM_DOMAIN_ERROR, &
@@ -222,18 +240,22 @@ contains
     !   f_p   : J_p at the root (n x m).
     !   u     : adjoint on the root output x* (length n).
     !   jtu   : adjoint on the parameter vector (length m).
-    subroutine multiroot_vjp(jac_x, f_p, u, jtu, status)
+    subroutine multiroot_vjp(jac_x, f_p, u, jtu, status, &
+            preconditioned_solve, preconditioner_context)
         real(dp),               intent(in)  :: jac_x(:, :)
         real(dp),               intent(in)  :: f_p(:, :)
         real(dp),               intent(in)  :: u(:)
         real(dp),               intent(out) :: jtu(:)
         type(fortnum_status_t), intent(out) :: status
+        procedure(multiroot_preconditioned_solve_t), optional :: preconditioned_solve
+        class(*), intent(inout), optional :: preconditioner_context
 
         real(dp) :: lambda(size(jac_x, 1))
         integer  :: n, ls_stat
 
         n = size(jac_x, 1)
-        call solve_linear(n, transpose(jac_x), u, lambda, ls_stat)
+        call solve_implicit_product(transpose(jac_x), u, lambda, ls_stat, &
+            preconditioned_solve, preconditioner_context)
         if (ls_stat /= 0) then
             jtu = 0.0_dp
             call status_set(status, FORTNUM_DOMAIN_ERROR, &
@@ -248,16 +270,20 @@ contains
     !   jac_x : J_x at the root (n x n).
     !   f_p   : dF/dp at the root (length n).
     !   dxdp  : sensitivity of the root (length n).
-    subroutine multiroot_grad(jac_x, f_p, dxdp, status)
+    subroutine multiroot_grad(jac_x, f_p, dxdp, status, &
+            preconditioned_solve, preconditioner_context)
         real(dp),               intent(in)  :: jac_x(:, :)
         real(dp),               intent(in)  :: f_p(:)
         real(dp),               intent(out) :: dxdp(:)
         type(fortnum_status_t), intent(out) :: status
+        procedure(multiroot_preconditioned_solve_t), optional :: preconditioned_solve
+        class(*), intent(inout), optional :: preconditioner_context
 
         integer :: n, ls_stat
 
         n = size(jac_x, 1)
-        call solve_linear(n, jac_x, -f_p, dxdp, ls_stat)
+        call solve_implicit_product(jac_x, -f_p, dxdp, ls_stat, &
+            preconditioned_solve, preconditioner_context)
         if (ls_stat /= 0) then
             dxdp = 0.0_dp
             call status_set(status, FORTNUM_DOMAIN_ERROR, &
@@ -266,6 +292,27 @@ contains
         end if
         call status_set(status, FORTNUM_OK, "")
     end subroutine multiroot_grad
+
+    subroutine solve_implicit_product(a, b, x, info, &
+            preconditioned_solve, preconditioner_context)
+        real(dp), intent(in) :: a(:, :), b(:)
+        real(dp), intent(out) :: x(:)
+        integer, intent(out) :: info
+        procedure(multiroot_preconditioned_solve_t), optional :: preconditioned_solve
+        class(*), intent(inout), optional :: preconditioner_context
+        integer :: n
+
+        if (present(preconditioned_solve)) then
+            if (present(preconditioner_context)) then
+                call preconditioned_solve(a, b, x, info, preconditioner_context)
+            else
+                call preconditioned_solve(a, b, x, info)
+            end if
+        else
+            n = size(a, 1)
+            call solve_linear(n, a, b, x, info)
+        end if
+    end subroutine solve_implicit_product
 
     ! Resolve optional tolerances and iteration cap to working values.
     pure subroutine resolve_tols(xtol, ftol, max_iter, xt, ft, max_it)
