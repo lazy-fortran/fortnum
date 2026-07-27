@@ -496,6 +496,71 @@ taskset -c 4 benchmark/build/bin/bench_integrate_frozen_jvp analytical
 taskset -c 4 benchmark/build/bin/bench_integrate_frozen_jvp diagnostic
 ```
 
+## Forward autodiff through a frozen adaptive trace
+
+The first `autodiff` frozen-trace candidate records the actual three-panel
+QAG trace for the preceding exponential workload, then evaluates its fixed
+G7K15 weighted sum in an Enzyme-safe scalar kernel. Enzyme forward mode
+differentiates that complete frozen trace. The fixture verifies that the
+adaptive primal still selected `[0,0.5]`, `[0.5,0.75]`, and `[0.75,1]`;
+otherwise it rejects the derivative rather than silently using a stale trace.
+
+All timed candidates include adaptive primal trace construction:
+
+- `analytical` replays the public generic trace JVP with an explicit tangent
+  integrand;
+- `autodiff` applies Enzyme forward mode to the fixed weighted-sum kernel;
+- the diagnostic centrally differences two evaluations of that same frozen
+  weighted sum.
+
+The independent oracle is the closed-form derivative of the exactly integrated
+exponential. The workload evaluates 10,000 varying parameters per sample, with
+15 samples after three warmups. Reference: AMD Ryzen 9 5950X, CPU 4 pinned,
+Flang/LLVM 22.1.8, Enzyme `c96508349d9f`, Release `-O2`.
+
+| Candidate | Mechanism | Median ns/value+JVP | MAD ns | Peak RSS |
+|---|---|---:|---:|---:|
+| generic explicit-tangent trace replay | `analytical` | 2,564.1478 | 39.2610 | 2,715,648 B |
+| Enzyme through fixed weighted sum | `autodiff` | 1,306.9523 | 2.4366 | 2,547,712 B |
+| frozen weighted-sum central difference | diagnostic | 1,423.0742 | 6.0043 | 2,580,480 B |
+
+Complete-workload wall clock selects `autodiff`: it is 1.9619 times faster
+than the generic `analytical` trace replay and 1.0889 times faster than the
+diagnostic. The mechanism name is not the explanation. The generic analytical
+path calls the full Gauss-Kronrod panel evaluator, including error-estimate
+bookkeeping that is unnecessary once the trace is fixed; Enzyme differentiates
+a compact fixed weighted sum. A later tournament may add an equally compact
+analytical replay rather than treating this workload-specific result as a
+universal autodiff verdict.
+
+Linux `perf stat -r 5` over the same 10,000-workload process gives:
+
+| Candidate | Cycles | Instructions | Cache references | Cache misses | Miss rate |
+|---|---:|---:|---:|---:|---:|
+| `analytical` | 112,671,786 | 221,842,471 | 1,047,534 | 20,034 | 1.9125% |
+| `autodiff` | 59,946,420 | 183,208,458 | 445,143 | 17,227 | 3.8700% |
+| diagnostic | 70,736,217 | 203,712,253 | 260,635 | 21,188 | 8.1294% |
+
+The cycle and instruction counts corroborate the wall-clock winner. Cache
+references varied by 4% for `analytical`, 57% for `autodiff`, and 30% for the
+diagnostic, so only the analytical cache count is stable enough for detailed
+interpretation; cache counters do not override wall clock.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_integrate_frozen_autodiff_jvp.json`.
+
+Run validation and timing with:
+
+```bash
+cmake --build build-enzyme \
+    --target enzyme_adaptive_frozen_trace_jvp_build
+ctest --test-dir build-enzyme \
+    -R '^enzyme_adaptive_frozen_trace_jvp$' --output-on-failure
+taskset -c 4 \
+    build-enzyme/test/ad/enzyme_adaptive_frozen_trace_jvp.enzyme/enzyme_adaptive_frozen_trace_jvp \
+    --benchmark autodiff
+```
+
 ## Vector-root candidate tournament
 
 The coupled vector tournament uses
