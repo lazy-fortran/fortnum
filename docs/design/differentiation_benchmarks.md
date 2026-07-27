@@ -345,6 +345,68 @@ taskset -c 4 \
     --benchmark
 ```
 
+## Analytical differentiation under a fixed-bound integral
+
+For inactive bounds, `integrate_fixed_jvp` applies
+
+```text
+d/dp integral_a^b f(x,p) dx = integral_a^b (df/dp)(x,p) dx.
+```
+
+The independent test uses `f(x,p)=exp(p*x)` on `[0,1]`. It compares the
+integrated tangent with both the closed-form derivative and a central
+difference of two complete primal integrations.
+
+The benchmark varies `p` over 101 values and computes 10,000 derivatives per
+sample. `analytical` performs one adaptive integration of `df/dp`.
+`diagnostic` performs two complete adaptive primal integrations at `p+h` and
+`p-h`. Reference: AMD Ryzen 9 5950X, CPU 4 pinned, GNU Fortran 16.1.1,
+Release build, 15 samples after three warmups.
+
+| Candidate | Mechanism | Median ns/JVP | MAD ns/JVP | Peak RSS |
+|---|---|---:|---:|---:|
+| integrate the analytical tangent | `analytical` | 430.3008 | 3.5697 | 12,550,144 B |
+| central difference of complete integrals | diagnostic | 820.7775 | 14.6786 | 12,177,408 B |
+
+The `analytical` JVP is 1.9075 times faster in complete-workload wall clock,
+saving 390.4767 ns per derivative. It uses 372,736 more bytes of maximum
+observed process RSS, so this workload has a runtime-memory tradeoff. Wall
+clock is the primary metric here, and selects `analytical`.
+
+Linux `perf stat -r 5` over the same 10,000-call process gives:
+
+| Candidate | Cycles | Instructions | Cache references | Cache misses | Miss rate |
+|---|---:|---:|---:|---:|---:|
+| `analytical` | 649,863,590 | 1,499,721,281 | 25,971,138 | 4,477,666 | 17.2409% |
+| diagnostic | 1,111,056,138 | 2,366,450,831 | 33,800,218 | 4,597,997 | 13.6035% |
+
+Although the diagnostic has a lower miss rate, it performs 1.3015 times as
+many cache references and 1.0269 times as many absolute cache misses. It also
+executes 1.5779 times as many instructions and consumes 1.7097 times as many
+cycles. Cache counters include the identical `fo exec` launcher overhead and
+are therefore supporting evidence; measured complete-workload wall clock
+remains decisive.
+
+This case has one active input and one scalar output, so it does not establish
+a forward/reverse crossover. The roadmap now requires input/output-count
+scaling and cache evidence for tournaments where those dimensions vary.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_integrate_fixed_jvp.json`.
+
+Run the benchmark with:
+
+```bash
+cd benchmark
+fo build
+taskset -c 4 fo exec bench_integrate_fixed_jvp analytical
+taskset -c 4 fo exec bench_integrate_fixed_jvp diagnostic
+fo exec bench_integrate_fixed_jvp analytical --peak-rss
+fo exec bench_integrate_fixed_jvp diagnostic --peak-rss
+perf stat -r 5 -e cycles,instructions,cache-references,cache-misses \
+    taskset -c 4 fo exec bench_integrate_fixed_jvp analytical
+```
+
 ## Hybrid vector-root JVP
 
 This comparison computes the same two-component JVP of the converged root for

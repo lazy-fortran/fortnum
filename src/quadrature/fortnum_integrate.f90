@@ -32,6 +32,7 @@ module fortnum_integrate
     public :: integrate_workspace_t, integrate_epstab_t, integrate_result_t
     public :: integrate_qag, integrate_qags, integrate
     public :: integrate_qagp, integrate_qagiu
+    public :: integrate_fixed_jvp
     public :: integrate_qag_jvp, integrate_qags_jvp, integrate_qagp_jvp
     public :: integrate_qagiu_jvp
 
@@ -437,6 +438,23 @@ contains
             status, key=key, ctx=ctx)
         value = result%value
     end subroutine integrate
+
+    ! Analytical differentiation under a fixed-bound integral:
+    !   d/dp integral_a^b f(x,p) dx = integral_a^b (df/dp)(x,p) dx.
+    ! The caller supplies the contracted integrand tangent. Bounds are inactive;
+    ! moving-boundary terms belong to separate interfaces.
+    subroutine integrate_fixed_jvp(dfdp, a, b, di_dp, status, epsabs, epsrel, &
+            key, ctx)
+        procedure(integrate_integrand_t) :: dfdp
+        real(dp), intent(in) :: a, b
+        real(dp), intent(out) :: di_dp
+        type(fortnum_status_t), intent(out) :: status
+        real(dp), intent(in), optional :: epsabs, epsrel
+        integer, intent(in), optional :: key
+        class(*), intent(in), optional :: ctx
+
+        call integrate(dfdp, a, b, di_dp, status, epsabs, epsrel, key, ctx)
+    end subroutine integrate_fixed_jvp
 
     ! ------------------------------------------------------------------
     ! integrate_qag_jvp: forward-mode product for the trace_rule policy

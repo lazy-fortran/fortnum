@@ -30,6 +30,11 @@ is committed in
 `docs/design/differentiation_benchmarks.md` and `benchmark/reference/`.
 `ROADMAP.md` is the authoritative implementation checklist.
 
+Fixed-bound parameterized integrals also expose an analytical JVP based on
+differentiation under the integral sign. Candidate selection prioritizes
+complete-workload wall clock and records peak memory, input/output scaling,
+and cache behavior where supported.
+
 ## Build
 
 CMake is the primary build system with CTest integration:

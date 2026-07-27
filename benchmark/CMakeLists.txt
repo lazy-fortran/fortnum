@@ -34,6 +34,8 @@ add_library(bench_core STATIC
     ${FORTNUM_CORE_DIR}/fortnum_status.f90
     ${FORTNUM_CORE_DIR}/fortnum_version.f90
     ${FORTNUM_CORE_DIR}/generated/fortnum_dawson_outer_kernel.f90
+    ${FORTNUM_CORE_DIR}/quadrature/fortnum_integrate_gk.f90
+    ${FORTNUM_CORE_DIR}/quadrature/fortnum_integrate.f90
     ${FORTNUM_CORE_DIR}/linalg/fortnum_linalg.f90
     ${FORTNUM_CORE_DIR}/roots/fortnum_fixed_point.f90
     ${FORTNUM_CORE_DIR}/roots/fortnum_multiroot.f90
@@ -81,6 +83,9 @@ target_link_libraries(bench_multiroot_implicit_vjp_reliability PRIVATE bench_cor
 
 add_executable(bench_multiroot_condition bench_multiroot_condition.f90)
 target_link_libraries(bench_multiroot_condition PRIVATE bench_core)
+
+add_executable(bench_integrate_fixed_jvp bench_integrate_fixed_jvp.f90)
+target_link_libraries(bench_integrate_fixed_jvp PRIVATE bench_core)
 
 add_executable(bench_scalar_root_tangent bench_scalar_root_tangent.f90)
 target_link_libraries(bench_scalar_root_tangent PRIVATE bench_core)

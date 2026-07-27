@@ -16,13 +16,18 @@ Work through this file one checkbox at a time.
 4. Add an independent behavioral oracle and run the relevant test matrices.
 5. Measure and report performance for every item. Report at least runtime and
    peak memory, with before and after numbers or competing-candidate numbers.
-   Record the workload, compiler, hardware, and measurement method.
-6. Update committed benchmark evidence when the item affects differentiation
+   Record the workload, compiler, hardware, and measurement method. Wall-clock
+   time for the complete workload is the primary selection metric.
+6. Measure scaling with active-input count, output count, and derivative
+   directions wherever those dimensions can change the forward-versus-reverse
+   verdict. Report CPU work, peak memory, and cache behavior in addition to
+   wall-clock time when the host exposes reliable counters.
+7. Update committed benchmark evidence when the item affects differentiation
    performance or candidate selection.
-7. Check off the completed item in this file.
-8. Commit the implementation, tests, evidence, and checklist update together.
-9. Push the commit to `main`.
-10. Only after the push succeeds, select the next unchecked item.
+8. Check off the completed item in this file.
+9. Commit the implementation, tests, evidence, and checklist update together.
+10. Push the commit to `main`.
+11. Only after the push succeeds, select the next unchecked item.
 
 Do not combine several checklist items into one implementation cycle. If an item
 turns out to contain several independent changes, split it into smaller
@@ -79,7 +84,7 @@ independent validation plus measured application runtime and peak memory.
 
 ## Integration and quadrature
 
-- [ ] Add analytical differentiation under a fixed-bound integral.
+- [x] Add analytical differentiation under a fixed-bound integral.
 - [ ] Add analytical moving-lower-bound terms.
 - [ ] Add analytical moving-upper-bound terms.
 - [ ] Compose autodiff integrand JVPs with analytical fixed quadrature.
@@ -191,6 +196,9 @@ Every tournament record must include:
 - [ ] Hardware and compiler identity.
 - [ ] Reusable primal state.
 - [ ] The selected candidate and deterministic selection rationale.
+- [ ] Scaling over representative active-input and output counts.
+- [ ] Forward-mode versus reverse-mode crossover evidence.
+- [ ] CPU work and cache counters where supported.
 
 ## Application-level benchmarks
 
@@ -204,6 +212,9 @@ Every tournament record must include:
 - [ ] Benchmark an event-driven trajectory.
 - [ ] Benchmark a small PDE or residual application.
 - [ ] Benchmark a representative `itpplasma` workload.
+- [ ] Measure end-to-end forward/reverse scaling over active-input counts.
+- [ ] Measure end-to-end forward/reverse scaling over output counts.
+- [ ] Record wall-clock, peak-memory, and cache-performance crossover curves.
 
 ## Second order
 
