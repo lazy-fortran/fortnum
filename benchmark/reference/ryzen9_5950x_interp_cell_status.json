@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operation": "interpolation-cell derivative crossing status",
+  "hardware": "AMD Ryzen 9 5950X, CPU 4 pinned",
+  "compiler": "GNU Fortran 16.1.1, Release",
+  "validation": {
+    "oracle": "known cells on a five-point nonuniform grid",
+    "same_cell": "FORTNUM_OK",
+    "crossing": "FORTNUM_DOMAIN_ERROR",
+    "zero_direction_at_node": "FORTNUM_OK"
+  },
+  "timings": [
+    {"grid_points": 16, "candidate": "plain_search", "median_ns": 16.3228, "mad_ns": 0.4955},
+    {"grid_points": 16, "candidate": "derivative_status", "median_ns": 31.2394, "mad_ns": 0.9988},
+    {"grid_points": 256, "candidate": "plain_search", "median_ns": 27.3594, "mad_ns": 0.9328},
+    {"grid_points": 256, "candidate": "derivative_status", "median_ns": 51.5335, "mad_ns": 1.0482},
+    {"grid_points": 4096, "candidate": "plain_search", "median_ns": 39.3667, "mad_ns": 0.7548},
+    {"grid_points": 4096, "candidate": "derivative_status", "median_ns": 73.5932, "mad_ns": 1.6771}
+  ],
+  "peak_rss_bytes_at_4096_points": {
+    "plain_search": 4112384,
+    "derivative_status": 4112384
+  },
+  "perf_stat_per_call_at_4096_points": {
+    "plain_search": {"cycles": 182.505, "instructions": 423.074, "cache_references": 0.03428, "cache_misses": 0.00277},
+    "derivative_status": {"cycles": 341.672, "instructions": 684.074, "cache_references": 0.05655, "cache_misses": 0.00372}
+  },
+  "decision": "run the status guard at derivative or optimizer boundaries when crossing detection is required; do not add it to value-only grid_search"
+}

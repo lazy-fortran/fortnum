@@ -10,7 +10,8 @@ program test_fortnum_interp
     !   5. Works for a two-element grid (smallest non-trivial case).
     !   6. Non-uniform spacing: correct index found.
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
-    use fortnum_interp, only: grid_search
+    use fortnum_interp, only: grid_search, grid_search_derivative_status
+    use fortnum_status, only: fortnum_status_t, FORTNUM_OK, FORTNUM_DOMAIN_ERROR
 
     implicit none
 
@@ -24,6 +25,7 @@ program test_fortnum_interp
     call test_interior_nonuniform(nfail)
     call test_exact_node(nfail)
     call test_two_element(nfail)
+    call test_derivative_status(nfail)
 
     if (nfail > 0) then
         write (error_unit, "(i0,a)") nfail, " test(s) failed"
@@ -167,5 +169,34 @@ contains
         call grid_search(p, 1, 2, 1.5_dp, i)
         call check_idx("two_el_clamp_high", i, 2, nfail)
     end subroutine test_two_element
+
+    ! The expected cells are derived directly from the fixed grid, independently
+    ! of the implementation's binary-search path.
+    subroutine test_derivative_status(nfail)
+        integer, intent(inout) :: nfail
+        real(dp), parameter :: p(1:5) = [0.0_dp, 0.2_dp, 0.5_dp, 0.8_dp, 1.0_dp]
+        type(fortnum_status_t) :: status
+
+        call grid_search_derivative_status(p, 1, 5, 0.35_dp, 1.0_dp, &
+            0.01_dp, status)
+        if (status%code /= FORTNUM_OK) then
+            write (error_unit, '(a)') "FAIL [derivative_status_same_cell]"
+            nfail = nfail + 1
+        end if
+
+        call grid_search_derivative_status(p, 1, 5, 0.5_dp, 1.0_dp, &
+            0.01_dp, status)
+        if (status%code /= FORTNUM_DOMAIN_ERROR) then
+            write (error_unit, '(a)') "FAIL [derivative_status_crossing]"
+            nfail = nfail + 1
+        end if
+
+        call grid_search_derivative_status(p, 1, 5, 0.5_dp, 0.0_dp, &
+            0.01_dp, status)
+        if (status%code /= FORTNUM_OK) then
+            write (error_unit, '(a)') "FAIL [derivative_status_zero_direction]"
+            nfail = nfail + 1
+        end if
+    end subroutine test_derivative_status
 
 end program test_fortnum_interp

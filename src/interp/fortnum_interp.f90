@@ -26,10 +26,13 @@ module fortnum_interp
     ! Complexity: O(log2(nmax - nmin)) comparisons.
 
     use fortnum_kinds, only: dp
+    use fortnum_status, only: fortnum_status_t, status_set, FORTNUM_OK, &
+        FORTNUM_DOMAIN_ERROR
     implicit none
     private
 
     public :: grid_search
+    public :: grid_search_derivative_status
 
 contains
 
@@ -74,5 +77,30 @@ contains
 
         i = imax
     end subroutine grid_search
+
+    ! Report whether a symmetric directional probe stays in one interpolation
+    ! cell. A changed cell makes a fixed-cell derivative non-smooth for the
+    ! requested probe. The integer cell index itself remains inactive.
+    pure subroutine grid_search_derivative_status( &
+            p, nmin, nmax, xi, vxi, probe_step, status)
+        integer, intent(in) :: nmin, nmax
+        real(dp), intent(in) :: p(nmin:nmax), xi, vxi, probe_step
+        type(fortnum_status_t), intent(out) :: status
+        integer :: cell_minus, cell_plus
+
+        if (nmax <= nmin .or. probe_step < 0.0_dp) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "grid_search_derivative_status: invalid bounds or probe step")
+            return
+        end if
+        call grid_search(p, nmin, nmax, xi - probe_step*vxi, cell_minus)
+        call grid_search(p, nmin, nmax, xi + probe_step*vxi, cell_plus)
+        if (cell_minus /= cell_plus) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "grid_search_derivative_status: interpolation-cell crossing")
+            return
+        end if
+        call status_set(status, FORTNUM_OK, "")
+    end subroutine grid_search_derivative_status
 
 end module fortnum_interp

@@ -47,6 +47,7 @@ add_library(bench_core STATIC
     ${FORTNUM_CORE_DIR}/linalg/fortnum_linalg.f90
     ${FORTNUM_CORE_DIR}/interp/fortnum_polynomial.f90
     ${FORTNUM_CORE_DIR}/interp/fortnum_bspline.f90
+    ${FORTNUM_CORE_DIR}/interp/fortnum_interp.f90
     ${FORTNUM_CORE_DIR}/roots/fortnum_fixed_point.f90
     ${FORTNUM_CORE_DIR}/roots/fortnum_multiroot.f90
     ${FORTNUM_CORE_DIR}/roots/fortnum_roots.f90
@@ -77,6 +78,9 @@ target_link_libraries(bench_bspline_knots PRIVATE bench_core)
 
 add_executable(bench_bspline_fit bench_bspline_fit.f90)
 target_link_libraries(bench_bspline_fit PRIVATE bench_core)
+
+add_executable(bench_interp_cell_status bench_interp_cell_status.f90)
+target_link_libraries(bench_interp_cell_status PRIVATE bench_core)
 
 add_executable(bench_multiroot_preconditioner bench_multiroot_preconditioner.f90)
 target_link_libraries(bench_multiroot_preconditioner PRIVATE bench_core)
