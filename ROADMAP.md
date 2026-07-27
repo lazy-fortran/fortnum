@@ -89,7 +89,7 @@ independent validation plus measured application runtime and peak memory.
 - [x] Add analytical moving-upper-bound terms.
 - [x] Compose autodiff integrand JVPs with analytical fixed quadrature.
 - [x] Compose autodiff integrand VJPs with analytical fixed quadrature.
-- [ ] Add an analytical frozen-trace adaptive-integration candidate.
+- [x] Add an analytical frozen-trace adaptive-integration candidate.
 - [ ] Add an autodiff frozen-trace adaptive-integration candidate.
 - [ ] Add a hybrid adaptive-integration candidate.
 - [ ] Benchmark fixed quadrature candidates.

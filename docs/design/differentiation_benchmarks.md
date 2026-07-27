@@ -437,6 +437,65 @@ taskset -c 4 \
     --benchmark hybrid 1
 ```
 
+## Analytical frozen-trace adaptive integration
+
+`integrate_qag_jvp` replays the Gauss-Kronrod rule on the exact subdivision
+accepted by the primal and applies an explicit tangent integrand. The same
+analytical trace walk underlies the QAGS, QAGP, and supported one-sided QAGIU
+products. The existing behavioral test uses
+
+```text
+I(p) = integral_0^1 exp(p*x) dx,  p = 12,
+```
+
+where the low-order rule accepts three panels. It checks the JVP against the
+closed-form derivative and complete adaptive central differences, and verifies
+that the perturbations retain the same subdivision. Failed and nonsmooth
+primal traces are separately checked to reject the derivative.
+
+The performance workload includes everything required for a value and
+derivative call: it constructs the adaptive primal trace, then either performs
+one analytical tangent trace walk or two primal trace walks at `p+h` and
+`p-h`. Thus the table reports combined primal-plus-derivative wall clock, not
+only isolated trace replay. It evaluates 10,000 varying parameters per sample,
+with 15 samples after three warmups. Reference: AMD Ryzen 9 5950X, CPU 4
+pinned, GNU Fortran 16.1.1, Release build.
+
+| Candidate | Mechanism | Median ns/value+JVP | MAD ns | Peak RSS |
+|---|---|---:|---:|---:|
+| adaptive primal + explicit tangent trace walk | `analytical` | 1,113.8565 | 4.4133 | 2,912,256 B |
+| adaptive primal + two frozen primal trace walks | diagnostic | 1,596.3970 | 6.2468 | 2,596,864 B |
+
+Complete-workload wall clock selects `analytical`, which is 1.4332 times
+faster and saves 482.5405 ns per value-plus-derivative call. The small peak-RSS
+difference is process-layout noise: both candidates reuse the same bounded
+workspace and allocate no storage proportional to the number of derivative
+directions.
+
+Linux `perf stat -r 5` over the same 10,000-workload process gives:
+
+| Candidate | Cycles | Instructions | Cache references | Cache misses | Miss rate |
+|---|---:|---:|---:|---:|---:|
+| `analytical` | 80,269,951 | 134,644,416 | 713,244 | 19,150 | 2.6849% |
+| diagnostic | 97,032,487 | 173,874,284 | 944,545 | 19,272 | 2.0403% |
+
+The diagnostic uses 1.2088 times as many cycles, 1.2914 times as many
+instructions, and 1.3243 times as many cache references. Absolute cache misses
+are nearly equal, so wall clock remains the selection criterion.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_integrate_frozen_jvp.json`.
+
+Run the benchmark with:
+
+```bash
+cmake -S benchmark -B benchmark/build -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release
+cmake --build benchmark/build --target bench_integrate_frozen_jvp
+taskset -c 4 benchmark/build/bin/bench_integrate_frozen_jvp analytical
+taskset -c 4 benchmark/build/bin/bench_integrate_frozen_jvp diagnostic
+```
+
 ## Vector-root candidate tournament
 
 The coupled vector tournament uses

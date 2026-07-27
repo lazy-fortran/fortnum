@@ -105,7 +105,7 @@ runtime dependency on it.
 | interpolation interface rules | complete | simultaneous-activity directional and adjoint tests |
 | implicit linear solve | JVP/VJP and factorization reuse complete | finite-difference, adjoint, and reuse benchmarks |
 | roots and fixed points | scalar/vector tournaments, analytical boundaries, hybrid JVP/VJP, Jacobian/factor reuse, and implicit JVP/VJP reliability complete | complete-solve finite-difference, exact-condition, Jacobian, and scalar-objective oracles |
-| integration | fixed-bound and moving-bound analytical JVPs plus Enzyme-integrand/analytical-quadrature hybrid JVP and VJP compositions complete; adaptive products and full tournaments pending | closed-form integral and Leibniz derivatives plus complete-integral finite differences |
+| integration | fixed/moving-bound analytical JVPs, Enzyme-integrand/analytical-quadrature hybrid JVP/VJP, and analytical frozen-trace adaptive JVPs complete; autodiff/hybrid adaptive candidates and full tournaments pending | closed-form integral and Leibniz derivatives, frozen-trace finite differences, and trace-change checks |
 | ODE hybridization | pending | existing analytical products remain candidates |
 | module/application tournaments | pending except Dawson | first committed table in `differentiation_benchmarks.md` |
 | second order | pending | implement only for demonstrated consumers |
