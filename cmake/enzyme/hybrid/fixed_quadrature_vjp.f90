@@ -176,6 +176,11 @@ program enzyme_fixed_quadrature_vjp_hybrid
     call get_command_argument(1, argument)
     call get_command_argument(2, candidate)
     call get_command_argument(3, count_argument)
+    if (len_trim(argument) == 0) then
+        call get_environment_variable("FORTNUM_BATCH_ACTION", argument)
+        call get_environment_variable("FORTNUM_BATCH_CANDIDATE", candidate)
+        call get_environment_variable("FORTNUM_BATCH_SIZE", count_argument)
+    end if
     if (trim(argument) == "--benchmark") then
         if (len_trim(candidate) > 0) then
             read (count_argument, *) cotangent_count
@@ -183,11 +188,18 @@ program enzyme_fixed_quadrature_vjp_hybrid
         else
             call run_benchmark()
         end if
+    else if (trim(argument) == "--batch-benchmark") then
+        read (count_argument, *) cotangent_count
+        call run_batch_benchmark(trim(candidate), cotangent_count)
+    else if (trim(argument) == "--batch-peak-rss") then
+        read (count_argument, *) cotangent_count
+        call run_batch_peak_rss(trim(candidate), cotangent_count)
     else if (trim(argument) == "--peak-rss") then
         read (count_argument, *) cotangent_count
         call run_peak_rss(trim(candidate), cotangent_count)
     else
         call validate_candidates()
+        call validate_batch_candidates()
     end if
 
 contains
@@ -225,6 +237,35 @@ contains
         end do
         print *, "PASS fixed-quadrature hybrid VJP"
     end subroutine validate_candidates
+
+    subroutine validate_batch_candidates()
+        real(dp) :: analytical(4), autodiff(4), hybrid(4), diagnostic(4)
+        real(dp) :: reference(4), batch_parameters(4), batch_errors(4)
+        integer :: batch
+
+        do batch = 1, 16
+            batch_parameters = parameters
+            batch_parameters(1) = batch_parameters(1) + &
+                1.0e-3_dp*real(batch - 1, dp)
+            reference = exact_integral_vjp(batch_parameters, cotangents(1))
+            analytical = analytical_integral_vjp(nodes, weights, &
+                batch_parameters, cotangents(1))
+            autodiff = autodiff_integral_vjp(batch_parameters, cotangents(1))
+            hybrid = hybrid_integral_vjp(nodes, weights, batch_parameters, &
+                cotangents(1))
+            diagnostic = diagnostic_integral_vjp(nodes, weights, &
+                batch_parameters, cotangents(1))
+            batch_errors(1) = maxval(abs(analytical - reference))
+            batch_errors(2) = maxval(abs(autodiff - reference))
+            batch_errors(3) = maxval(abs(hybrid - reference))
+            batch_errors(4) = maxval(abs(diagnostic - reference))
+            if (maxval(batch_errors(1:3)) > 2.0e-14_dp .or. &
+                batch_errors(4) > 2.0e-10_dp) then
+                print *, "batched quadrature VJP mismatch", batch, batch_errors
+                error stop 1
+            end if
+        end do
+    end subroutine validate_batch_candidates
 
     subroutine run_benchmark()
         integer, parameter :: counts(3) = [1, 2, 4]
@@ -266,6 +307,86 @@ contains
         call time_candidate(name, count, reps, elapsed)
         write (*, "(i0)") peak_rss_bytes()
     end subroutine run_peak_rss
+
+    subroutine run_batch_benchmark(name, batch_size)
+        character(*), intent(in) :: name
+        integer, intent(in) :: batch_size
+        integer, parameter :: samples = 31
+        integer(int64), parameter :: reps = 2000_int64
+        real(dp) :: elapsed(samples), sink
+        integer :: sample
+
+        call validate_batch_request(name, batch_size)
+        do sample = 1, 3
+            call time_batch_candidate(name, batch_size, reps/20_int64, sink)
+        end do
+        do sample = 1, samples
+            call time_batch_candidate(name, batch_size, reps, elapsed(sample))
+        end do
+        call report(name, batch_size, elapsed, reps)
+    end subroutine run_batch_benchmark
+
+    subroutine run_batch_peak_rss(name, batch_size)
+        character(*), intent(in) :: name
+        integer, intent(in) :: batch_size
+        integer(int64), parameter :: reps = 5000_int64
+        real(dp) :: elapsed
+
+        call validate_batch_request(name, batch_size)
+        call time_batch_candidate(name, batch_size, reps, elapsed)
+        write (*, "(i0)") peak_rss_bytes()
+    end subroutine run_batch_peak_rss
+
+    subroutine validate_batch_request(name, batch_size)
+        character(*), intent(in) :: name
+        integer, intent(in) :: batch_size
+
+        call validate_request(name, 1)
+        if ((batch_size /= 1) .and. (batch_size /= 4) .and. &
+            (batch_size /= 16)) then
+            error stop "batch size must be 1, 4, or 16"
+        end if
+    end subroutine validate_batch_request
+
+    subroutine time_batch_candidate(name, batch_size, reps, elapsed_ns)
+        character(*), intent(in) :: name
+        integer, intent(in) :: batch_size
+        integer(int64), intent(in) :: reps
+        real(dp), intent(out) :: elapsed_ns
+        integer(int64) :: iteration, start, finish, rate
+        integer :: batch
+        real(dp) :: varied_parameters(4), result(4), sink
+
+        sink = 0.0_dp
+        call system_clock(start, rate)
+        do iteration = 1, reps
+            do batch = 1, batch_size
+                varied_parameters = parameters
+                varied_parameters(1) = varied_parameters(1) + &
+                    1.0e-6_dp*real(mod(iteration, 101_int64), dp) + &
+                    1.0e-3_dp*real(batch - 1, dp)
+                select case (name)
+                case ("analytical")
+                    result = analytical_integral_vjp(nodes, weights, &
+                        varied_parameters, cotangents(1))
+                case ("autodiff")
+                    result = autodiff_integral_vjp(varied_parameters, &
+                        cotangents(1))
+                case ("hybrid")
+                    result = hybrid_integral_vjp(nodes, weights, &
+                        varied_parameters, cotangents(1))
+                case ("diagnostic")
+                    result = diagnostic_integral_vjp(nodes, weights, &
+                        varied_parameters, cotangents(1))
+                end select
+                sink = sink + sum(result)
+            end do
+        end do
+        call system_clock(finish)
+        elapsed_ns = 1.0e9_dp*real(finish - start, dp)/ &
+            (real(rate, dp)*real(reps, dp))
+        if (sink == huge(sink)) print *, sink
+    end subroutine time_batch_candidate
 
     subroutine validate_request(name, count)
         character(*), intent(in) :: name

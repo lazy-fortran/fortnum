@@ -95,7 +95,7 @@ independent validation plus measured application runtime and peak memory.
 - [x] Benchmark fixed quadrature candidates.
 - [x] Benchmark smooth adaptive-integration candidates.
 - [x] Benchmark singular adaptive-integration candidates.
-- [ ] Benchmark batched integration candidates.
+- [x] Benchmark batched integration candidates.
 
 ## ODE solvers and events
 

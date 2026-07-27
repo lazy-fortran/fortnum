@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "batched_fixed_quadrature",
+  "product": "full_block_jacobian",
+  "workload": "B independent 32-point Gauss-Legendre integrals, four active parameters per scalar output, Jacobian shape B by 4B",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor"
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "enzyme_commit": "c96508349d9f",
+    "build": "Release -O2"
+  },
+  "sampling": {
+    "processes": 3,
+    "samples_per_process": 31,
+    "batches_per_sample": 2000,
+    "runtime_aggregation": "median of process medians",
+    "dispersion_aggregation": "median of within-process MADs",
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum",
+    "perf_repetitions": 3
+  },
+  "validation": {
+    "oracle": "closed-form derivative of every integrated basis term",
+    "batch_sizes": [1, 4, 16],
+    "active_inputs_per_output": 4,
+    "exact_absolute_tolerance": 2e-14,
+    "diagnostic_absolute_tolerance": 2e-10
+  },
+  "forward_full_jacobian_ns": {
+    "analytical": [1280.6130, 5117.0365, 20318.8290],
+    "autodiff": [1788.8005, 6995.6110, 28073.2040],
+    "hybrid": [1272.2220, 5095.4910, 20674.0080],
+    "diagnostic": [2325.1010, 9263.2680, 37533.0330]
+  },
+  "reverse_full_jacobian_ns": {
+    "analytical": [319.2215, 1199.5500, 4884.7135],
+    "autodiff": [450.3835, 1871.6915, 6994.6890],
+    "hybrid": [340.7270, 1315.5990, 5011.5825],
+    "diagnostic": [2323.7430, 9115.6250, 36628.8195]
+  },
+  "batch_16_peak_rss_bytes": {
+    "forward_analytical": 3026944,
+    "forward_autodiff": 2924544,
+    "forward_hybrid": 2871296,
+    "forward_diagnostic": 3014656,
+    "reverse_analytical": 3031040,
+    "reverse_autodiff": 2859008,
+    "reverse_hybrid": 3006464,
+    "reverse_diagnostic": 2859008
+  },
+  "batch_16_perf": {
+    "forward_analytical": {"cycles": 5685837952, "instructions": 20081441392, "cache_references": 7736492, "cache_misses": 256097},
+    "reverse_analytical": {"cycles": 1394670950, "instructions": 5034745727, "cache_references": 1887203, "cache_misses": 198429},
+    "reverse_autodiff": {"cycles": 2037786872, "instructions": 7288509995, "cache_references": 2299377, "cache_misses": 227362},
+    "reverse_hybrid": {"cycles": 1463346989, "instructions": 5198218860, "cache_references": 1501620, "cache_misses": 208226},
+    "reverse_diagnostic": {"cycles": 10231175773, "instructions": 35197916516, "cache_references": 40258188, "cache_misses": 278969}
+  },
+  "selection": {
+    "selected": "reverse_analytical",
+    "criterion": "complete full-Jacobian wall clock",
+    "batch_16_speedup_over_forward_analytical": 4.1597,
+    "batch_16_speedup_over_reverse_autodiff": 1.4319,
+    "batch_16_speedup_over_reverse_hybrid": 1.0260,
+    "batch_16_speedup_over_reverse_diagnostic": 7.4987,
+    "reason": "four active inputs and one scalar output per independent integral favor one reverse sweep over four forward sweeps; analytical reverse has the lowest batch-16 wall clock"
+  }
+}

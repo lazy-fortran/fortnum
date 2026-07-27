@@ -48,6 +48,11 @@ has the lowest median wall clock, but is within measurement noise of compact
 prioritizes complete-workload wall clock and records peak memory, input/output
 scaling, and cache behavior where supported.
 
+For batches of independent fixed integrals with four active inputs per scalar
+output, the full-Jacobian tournament selects reverse `analytical`. At batch 16
+it is 4.16 times faster than four forward analytical sweeps and scales nearly
+linearly without material batch-sized memory growth.
+
 ## Build
 
 CMake is the primary build system with CTest integration:
