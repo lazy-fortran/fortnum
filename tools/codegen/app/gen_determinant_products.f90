@@ -116,7 +116,7 @@ contains
         spec%generator = str("gen_determinant_products")
         spec%generator_revision = str(fortsym_revision())
         spec%regenerate_command = str( &
-            "fpm run -C tools/codegen --target gen_determinant_products")
+            "cd tools/codegen && fo exec gen_determinant_products")
         spec%openacc_routine_seq = .true.
         spec%pure_procedure = .true.
         allocate (spec%args(size(names) + size(tangent_names)), spec%outputs(1))
@@ -174,7 +174,7 @@ contains
         spec%generator = str("gen_determinant_products")
         spec%generator_revision = str(fortsym_revision())
         spec%regenerate_command = str( &
-            "fpm run -C tools/codegen --target gen_determinant_products")
+            "cd tools/codegen && fo exec gen_determinant_products")
         spec%openacc_routine_seq = .true.
         spec%pure_procedure = .true.
         allocate (spec%args(size(names) + 1), spec%outputs(size(output_names)))

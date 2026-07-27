@@ -54,7 +54,8 @@ program gen_dawson_outer
     spec%generator = str("gen_dawson_outer")
     spec%generator_revision = str(fortsym_revision())
     spec%regenerate_command = str( &
-        "fpm run -C tools/codegen --target gen_dawson_outer")
+        "cd tools/codegen && fo exec gen_dawson_outer")
+    spec%pure_procedure = .true.
     allocate (spec%args(3), spec%outputs(2))
     spec%args = [str("x"), str("f"), str("v")]
     spec%outputs = [str("value"), str("jvp")]
