@@ -225,7 +225,7 @@ derivatives. CPU Enzyme remains the `autodiff` backend and supplies CPU
 - [x] Offload the identical Dawson leaf, layout, and workload through OpenMP
   target with the same released compiler; require
   `omp_is_initial_device()==false`.
-- [ ] Add persistent-data execution for the Dawson pilot and report
+- [x] Add persistent-data execution for the Dawson pilot and report
   transfer-inclusive and resident-data wall-clock measurements separately.
 - [ ] Offload a generated analytical VJP leaf and validate it with an
   independent adjoint identity.
