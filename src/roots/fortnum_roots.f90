@@ -30,9 +30,9 @@ module fortnum_roots
     implicit none
     private
 
-    public :: root_fn_t, root_fn_df_t
+    public :: root_fn_t, root_fn_df_t, root_residual_jvp_t
     public :: root_bisect, root_newton, root_brent
-    public :: root_jvp, root_vjp, root_grad
+    public :: root_implicit_jvp, root_jvp, root_vjp, root_grad
 
     ! Function whose root is sought: y = f(x).
     abstract interface
@@ -52,6 +52,17 @@ module fortnum_roots
             real(dp), intent(in)  :: x
             real(dp), intent(out) :: fx, dfx
         end subroutine root_fn_df_t
+    end interface
+
+    ! Contracted residual products at a converged scalar root. The callback
+    ! returns f_x and f_p*tp without requiring a full parameter gradient.
+    abstract interface
+        subroutine root_residual_jvp_t(x, p, tp, f_x, f_p_tp, context)
+            import :: dp
+            real(dp), intent(in) :: x, p(:), tp(:)
+            real(dp), intent(out) :: f_x, f_p_tp
+            class(*), intent(inout), optional :: context
+        end subroutine root_residual_jvp_t
     end interface
 
 contains
@@ -465,6 +476,26 @@ contains
         dx = -dot_product(f_p, tp) / f_x
         call status_set(status, FORTNUM_OK, "")
     end subroutine root_jvp
+
+    ! Generic analytical implicit tangent boundary. residual_jvp evaluates the
+    ! local contracted products at the already-converged root; solver iterations
+    ! remain inactive.
+    subroutine root_implicit_jvp(residual_jvp, x, p, tp, dx, status, &
+            context, deriv_floor)
+        procedure(root_residual_jvp_t) :: residual_jvp
+        real(dp), intent(in) :: x, p(:), tp(:)
+        real(dp), intent(out) :: dx
+        type(fortnum_status_t), intent(out) :: status
+        class(*), intent(inout), optional :: context
+        real(dp), intent(in), optional :: deriv_floor
+
+        real(dp) :: f_x, f_p_tp, contracted_f_p(1), unit_direction(1)
+
+        call residual_jvp(x, p, tp, f_x, f_p_tp, context)
+        contracted_f_p(1) = f_p_tp
+        unit_direction(1) = 1.0_dp
+        call root_jvp(f_x, contracted_f_p, unit_direction, dx, status, deriv_floor)
+    end subroutine root_implicit_jvp
 
     ! root_vjp: reverse-mode product jtu_i = -(f_p_i / f_x) * u.
     !   f_x  : df/dx at the converged root.

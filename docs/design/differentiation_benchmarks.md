@@ -140,6 +140,51 @@ fo exec bench_linear_solve_vjp refactor --peak-rss
 fo exec bench_linear_solve_vjp reuse --peak-rss
 ```
 
+## Generic analytical implicit tangent boundary for scalar roots
+
+The generic boundary accepts a converged scalar root and a callback that
+returns the contracted residual products `f_x` and `f_p*tp`. It then applies
+the analytical implicit rule `dx = -(f_p*tp)/f_x`; root-solver iterations are
+not differentiated. An independent central-difference oracle re-solves
+`x^3 + p1*x - p2 = 0` at `p + h*tp` and `p - h*tp`.
+
+The benchmark applies 2,000,000 directions per sample to that same residual.
+Both rows compute the same scalar-root JVP. The baseline calls the existing
+low-level `root_jvp` with an assembled two-component residual gradient. The
+candidate calls the new contracted callback boundary.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, GNU Fortran 16.1.1, Release build,
+15 samples after three warmups.
+
+| Candidate | Mechanism | Median ns/JVP | MAD ns/JVP | Peak RSS |
+|---|---|---:|---:|---:|
+| assembled residual gradient | `analytical` | 23.2538 | 0.0708 | 12,271,616 B |
+| contracted callback boundary | `analytical` | 27.9348 | 0.1342 | 12,279,808 B |
+
+Here “1.2013 times slower” means
+`27.9348 / 23.2538 = 1.2013`: it compares the callback-boundary row with the
+assembled-gradient row for the same JVP, not with a primal root solve. The
+assembled path remains the isolated-kernel selection. The generic boundary
+costs 4.6810 ns/JVP while avoiding full residual-gradient materialization and
+providing the operator interface needed for later `hybrid` residual products.
+Its maximum observed candidate-process RSS is 8,192 bytes higher.
+
+Peak memory is the maximum across five separately launched processes per
+candidate, measured with `getrusage(RUSAGE_SELF)`. The machine-readable record
+is
+`benchmark/reference/ryzen9_5950x_scalar_root_tangent_boundary.json`.
+
+Run the benchmark with:
+
+```bash
+cd benchmark
+fo build
+taskset -c 4 fo exec bench_scalar_root_tangent assembled
+taskset -c 4 fo exec bench_scalar_root_tangent boundary
+fo exec bench_scalar_root_tangent assembled --peak-rss
+fo exec bench_scalar_root_tangent boundary --peak-rss
+```
+
 ## Reusable preconditioner hook for implicit products
 
 The multiroot analytical JVP, VJP, and scalar gradient accept an optional

@@ -36,6 +36,7 @@ add_library(bench_core STATIC
     ${FORTNUM_CORE_DIR}/generated/fortnum_dawson_outer_kernel.f90
     ${FORTNUM_CORE_DIR}/linalg/fortnum_linalg.f90
     ${FORTNUM_CORE_DIR}/roots/fortnum_multiroot.f90
+    ${FORTNUM_CORE_DIR}/roots/fortnum_roots.f90
     fortnum_benchmark.f90
     fortnum_benchmark_memory.f90
     peak_rss.c
@@ -60,6 +61,9 @@ target_link_libraries(bench_multiroot_preconditioner PRIVATE bench_core)
 
 add_executable(bench_multiroot_condition bench_multiroot_condition.f90)
 target_link_libraries(bench_multiroot_condition PRIVATE bench_core)
+
+add_executable(bench_scalar_root_tangent bench_scalar_root_tangent.f90)
+target_link_libraries(bench_scalar_root_tangent PRIVATE bench_core)
 
 add_executable(bench_static_registry bench_static_registry.f90)
 target_link_libraries(bench_static_registry PRIVATE bench_core)
