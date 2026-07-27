@@ -102,7 +102,7 @@ runtime dependency on it.
 | real `hybrid` boundary | complete for first slice | Enzyme Dawson custom-rule call assertion |
 | candidate registry | complete for static selection | deterministic validation, timing, memory, code-size and ID ordering tests |
 | symbolic generation | complete for first slice | `gen_dawson_outer`, `fortsym` tests, regeneration banner |
-| interpolation interface rules | combined evaluation/value, active support nodes and breakpoints, and implicit fitted coefficients complete | finite-difference directional and adjoint tests |
+| interpolation interface rules | combined evaluation/value, active support nodes and breakpoints, implicit fitted coefficients, and cell-crossing status complete | finite-difference directional, adjoint, and fixed-grid tests |
 | linear algebra | determinant JVP/VJP, fused inverse JVP/VJP, reusable LU object, multiple-RHS tangent/adjoint products, forward/reverse Enzyme direct-solver comparators, a fixed-trace iterative-solver comparator, an evidence-based no-add BLAS/LAPACK custom-rule decision, and implicit solve JVP/VJP with factorization reuse complete | finite-difference, adjoint, residual, scaling, cache, memory, and reuse benchmarks |
 | roots and fixed points | scalar/vector tournaments, analytical boundaries, hybrid JVP/VJP, Jacobian/factor reuse, and implicit JVP/VJP reliability complete | complete-solve finite-difference, exact-condition, Jacobian, and scalar-objective oracles |
 | integration | fixed/moving-bound analytical JVPs, complete fixed-quadrature JVP/VJP tournament, analytical/autodiff/hybrid frozen-trace candidates, and smooth, singular, and batched tournaments complete | closed-form integral and Leibniz derivatives, frozen-trace finite differences, and trace-change checks |

@@ -47,6 +47,10 @@ factorization-reusing analytical implicit JVP and VJP products. At 16
 coefficients they are respectively 4.90 and 1,224 times faster than complete
 finite-difference diagnostics.
 
+Interpolation callers can explicitly guard a directional probe with
+`grid_search_derivative_status`; a changed cell reports non-smoothness through
+`FORTNUM_DOMAIN_ERROR` without adding overhead to value-only searches.
+
 Fixed-bound parameterized integrals also expose an analytical JVP based on
 differentiation under the integral sign, including the analytical Leibniz term
 for an active lower or upper bound. Measured `hybrid` candidates use Enzyme

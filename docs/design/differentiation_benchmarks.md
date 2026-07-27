@@ -1024,6 +1024,40 @@ taskset -c 4 fo exec bench_bspline_fit analytical vjp 16
 taskset -c 4 fo exec bench_bspline_fit diagnostic vjp 16
 ```
 
+## Interpolation-cell crossing status
+
+`grid_search_derivative_status` performs symmetric directional probes and
+reports `FORTNUM_DOMAIN_ERROR` when they select different interpolation cells.
+The value-only `grid_search` remains unchanged. Tests use analytically known
+cells on a fixed nonuniform grid, including a same-cell probe, an exact-node
+crossing, and a zero direction.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, GNU Fortran 16.1.1, Release,
+15 samples after three warmups.
+
+| Grid points | Plain search median (MAD) | Status guard median (MAD) | Guard/plain |
+|---:|---:|---:|---:|
+| 16 | 16.3228 (0.4955) ns | 31.2394 (0.9988) ns | 1.914x |
+| 256 | 27.3594 (0.9328) ns | 51.5335 (1.0482) ns | 1.884x |
+| 4,096 | 39.3667 (0.7548) ns | 73.5932 (1.6771) ns | 1.869x |
+
+At 4,096 points both paths have the same 4,112,384-byte peak RSS. The status
+guard uses 342 cycles, 684 instructions, 0.057 cache references, and 0.004
+cache misses per call, versus 183, 423, 0.034, and 0.003 for one plain search.
+This supports keeping the guard explicit at derivative or optimizer
+boundaries instead of burdening value-only interpolation.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_interp_cell_status.json`.
+
+```bash
+fo test test_fortnum_interp
+cd benchmark
+fo build
+taskset -c 4 fo exec bench_interp_cell_status plain 4096
+taskset -c 4 fo exec bench_interp_cell_status status 4096
+```
+
 ## Hybrid fixed-quadrature integrand JVP
 
 This workload applies a reusable 32-point Gauss-Legendre rule on `[0,1]` to

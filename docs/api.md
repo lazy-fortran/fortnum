@@ -1298,6 +1298,13 @@ Binary search in strictly increasing `p(nmin:nmax)`. Returns `i` in
 `xi <= p(nmin)` gives `i = nmin+1`; `xi >= p(nmax)` gives `i = nmax`.
 O(log2(nmax-nmin)) comparisons.
 
+### `grid_search_derivative_status(p, nmin, nmax, xi, vxi, probe_step, status)`
+
+Checks the cells selected at `xi-probe_step*vxi` and
+`xi+probe_step*vxi`. Equal cells report `FORTNUM_OK`; a changed cell reports
+`FORTNUM_DOMAIN_ERROR` because a fixed-cell interpolation derivative is
+non-smooth for that probe. A zero direction remains smooth even at a node.
+
 ---
 
 ## fortnum_polynomial
