@@ -906,6 +906,63 @@ diagnostic, so counters are supporting evidence. Complete-workload wall clock
 selects the candidate. The machine-readable record is
 `benchmark/reference/ryzen9_5950x_ode_continuous_sensitivity.json`.
 
+## Cash-Karp discrete sensitivity contract
+
+The discrete map is the composition of the accepted Cash-Karp fifth-order
+steps with the recorded times and step sizes held fixed. The test uses a
+nonlinear, coupled 16-state system. Its independent oracle calls the public
+fixed-step kernel directly for perturbed initial states. This avoids using the
+JVP or VJP recurrence as its own oracle.
+
+Maximum absolute errors are `7.6134e-12` for a JVP and `1.2543e-11` for a VJP.
+The adjoint dot-product identity error is `2.7756e-17`. These errors test the
+finite-step map, not convergence to the continuous ODE solution.
+
+The timing rows include one adaptive primal integration plus all requested
+products. A forward product is one initial-state JVP. A reverse product is one
+terminal-state VJP. The diagnostic row uses two independent fixed-schedule
+replays per JVP direction. It is a validation baseline, not a production
+candidate. Both forward and reverse rows are `analytical`: an explicit RHS
+Jacobian product is composed with the analytical Cash-Karp tangent or adjoint
+recurrence. This contract benchmark does not invoke Enzyme or another
+`autodiff` backend.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, GNU Fortran 16.1.1, Release build.
+Each result is the median of three process medians. Each process collected 31
+samples of 500 complete workloads after three warmups.
+
+| Requested products | Primal ns | Forward JVP workload ns | Reverse VJP workload ns | JVP diagnostic ns |
+|---:|---:|---:|---:|---:|
+| 1 | 7,430.6600 | 18,742.6940 | 21,639.6520 | 19,815.0540 |
+| 4 | 7,479.0100 | 52,294.4680 | 63,098.2860 | 57,335.2260 |
+| 16 | 7,571.2840 | 187,990.6180 | 230,678.7860 | 207,231.7100 |
+
+The forward and reverse columns compute different derivative products until
+all 16 basis directions or cotangents are requested. At 16 products both
+reconstruct the same square 16 by 16 Jacobian. Complete-workload wall clock
+selects forward at 187.99 µs, 1.2271 times faster than reverse at 230.68 µs.
+Forward is also 1.1024 times faster than the finite-difference JVP diagnostic.
+This result does not predict a many-input, few-output objective; the planned
+trajectory tournaments measure those shapes separately.
+
+At 16 products, maximum observed peak RSS is 3,817,472 B for primal,
+3,862,528 B for forward, 3,928,064 B for reverse, and 3,883,008 B for the
+diagnostic. Supporting `perf stat` counts over 5,000 workloads are:
+
+| Candidate | Cycles | Instructions | Cache references | Cache misses |
+|---|---:|---:|---:|---:|
+| primal | 382,872,046 | 1,211,862,521 | 16,361,616 | 2,106,002 |
+| forward | 4,474,620,079 | 18,993,238,363 | 25,861,004 | 2,541,065 |
+| reverse | 5,405,689,588 | 23,149,555,770 | 29,037,676 | 2,929,976 |
+| diagnostic | 5,137,638,969 | 23,975,041,431 | 29,722,347 | 2,820,825 |
+
+Forward's lower cycle, instruction, cache-reference, and cache-miss counts are
+consistent with its wall-clock lead over reverse for the full square Jacobian.
+Wall clock remains the selection criterion.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_ode_discrete_sensitivity.json`.
+
 ## Analytical Cash–Karp discrete adjoint
 
 `ode_integrate_vjp` is the exact transpose of the analytical Cash–Karp tangent

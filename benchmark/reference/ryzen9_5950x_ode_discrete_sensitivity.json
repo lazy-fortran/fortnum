@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "cash_karp_discrete_sensitivity",
+  "product": "initial_state_jvp_and_vjp",
+  "workload": "16-state nonlinear adaptive primal plus sequential frozen-map products",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1",
+    "build": "Release"
+  },
+  "sampling": {
+    "processes": 3,
+    "samples_per_process": 31,
+    "workloads_per_sample": 500,
+    "runtime_aggregation": "median of process medians",
+    "dispersion_aggregation": "median of within-process MADs",
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum",
+    "perf_repetitions": 3
+  },
+  "validation": {
+    "oracle": "central differences of independent public fixed-step Cash-Karp replay on the recorded schedule",
+    "jvp_maximum_absolute_error": 7.613354391367011e-12,
+    "vjp_maximum_absolute_error": 1.2542633598400243e-11,
+    "adjoint_identity_absolute_error": 2.7755575615628914e-17
+  },
+  "scaling": [
+    {
+      "products": 1,
+      "primal_median_ns": 7430.6600,
+      "primal_mad_ns": 47.2460,
+      "forward_median_ns": 18742.6940,
+      "forward_mad_ns": 92.8360,
+      "reverse_median_ns": 21639.6520,
+      "reverse_mad_ns": 122.1900,
+      "diagnostic_median_ns": 19815.0540,
+      "diagnostic_mad_ns": 129.3040
+    },
+    {
+      "products": 4,
+      "primal_median_ns": 7479.0100,
+      "primal_mad_ns": 65.9060,
+      "forward_median_ns": 52294.4680,
+      "forward_mad_ns": 375.2060,
+      "reverse_median_ns": 63098.2860,
+      "reverse_mad_ns": 502.6640,
+      "diagnostic_median_ns": 57335.2260,
+      "diagnostic_mad_ns": 220.5760
+    },
+    {
+      "products": 16,
+      "primal_median_ns": 7571.2840,
+      "primal_mad_ns": 63.8620,
+      "forward_median_ns": 187990.6180,
+      "forward_mad_ns": 1514.2520,
+      "reverse_median_ns": 230678.7860,
+      "reverse_mad_ns": 2746.1140,
+      "diagnostic_median_ns": 207231.7100,
+      "diagnostic_mad_ns": 2101.9200
+    }
+  ],
+  "memory": {
+    "products": 16,
+    "primal_peak_rss_bytes": 3817472,
+    "forward_peak_rss_bytes": 3862528,
+    "reverse_peak_rss_bytes": 3928064,
+    "diagnostic_peak_rss_bytes": 3883008
+  },
+  "perf": {
+    "products": 16,
+    "workloads_per_repetition": 5000,
+    "primal": {
+      "cycles": 382872046,
+      "instructions": 1211862521,
+      "cache_references": 16361616,
+      "cache_misses": 2106002
+    },
+    "forward": {
+      "cycles": 4474620079,
+      "instructions": 18993238363,
+      "cache_references": 25861004,
+      "cache_misses": 2541065
+    },
+    "reverse": {
+      "cycles": 5405689588,
+      "instructions": 23149555770,
+      "cache_references": 29037676,
+      "cache_misses": 2929976
+    },
+    "diagnostic": {
+      "cycles": 5137638969,
+      "instructions": 23975041431,
+      "cache_references": 29722347,
+      "cache_misses": 2820825
+    }
+  },
+  "selection": {
+    "comparable_workload": "full 16 by 16 initial-state Jacobian",
+    "selected": "forward",
+    "criterion": "complete primal-plus-all-products wall clock",
+    "forward_speedup_over_reverse": 1.2271,
+    "forward_speedup_over_diagnostic": 1.1024,
+    "reason": "sixteen analytical JVP sweeps have the lowest measured complete-workload wall clock"
+  }
+}
