@@ -906,6 +906,23 @@ Same iteration with the Jacobian built column by column by central differences
 of the residual `fn` (`multiroot_fn_t`); finite-difference-Jacobian variant of
 the Powell hybrid dogleg.
 
+#### `multiroot_jvp_factored(jacobian_factors, ipiv, f_p, tp, dx, status)`
+
+```fortran
+subroutine multiroot_jvp_factored(jacobian_factors, ipiv, f_p, tp, dx, status)
+    real(dp), contiguous, intent(in) :: jacobian_factors(:, :)
+    integer, contiguous, intent(in) :: ipiv(:)
+    real(dp), intent(in) :: f_p(:, :), tp(:)
+    real(dp), contiguous, intent(out) :: dx(:)
+    type(fortnum_status_t), intent(out) :: status
+```
+
+Analytical implicit JVP for a converged vector root using the compact LU and
+pivots produced by `lu_factor`. It forms the contracted residual tangent
+`F_p*tp` directly and solves `F_x*dx = -(F_p*tp)` without refactorizing
+`F_x`. Reuse one factorization for multiple parameter directions. Invalid or
+singular factors report `FORTNUM_DOMAIN_ERROR`.
+
 #### `deriv_central(f, x, h, result, abserr, status [, ctx])`
 
 ```fortran

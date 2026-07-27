@@ -15,11 +15,13 @@ program test_roots_ad
     !   6. Vector-p case: f(x,p1,p2) = x^2 - p1 - p2 = 0; grad = [1,1]/(2x*).
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
     use fortnum_kinds,  only: dp
+    use fortnum_linalg, only: LINALG_OK, lu_factor
     use fortnum_status, only: fortnum_status_t, status_ok, FORTNUM_DOMAIN_ERROR
     use fortnum_roots,  only: root_brent, root_implicit_jvp, &
         root_implicit_vjp, root_jvp, root_vjp, root_grad
     use fortnum_multiroot, only: multiroot_hybrid, multiroot_implicit_jvp, &
-        multiroot_implicit_vjp, multiroot_jvp, multiroot_vjp, multiroot_grad
+        multiroot_implicit_vjp, multiroot_jvp, multiroot_jvp_factored, &
+        multiroot_vjp, multiroot_grad
     implicit none
 
     type :: diagonal_preconditioner_t
@@ -47,6 +49,7 @@ program test_roots_ad
     call test_implicit_adjoint_boundary(nfail)
     call test_multiroot_grad_vs_fd(nfail)
     call test_multiroot_jvp_vs_fd(nfail)
+    call test_multiroot_factored_jvp_vs_fd(nfail)
     call test_multiroot_implicit_tangent_boundary(nfail)
     call test_multiroot_implicit_adjoint_boundary(nfail)
     call test_multiroot_dot_product_id(nfail)
@@ -439,6 +442,43 @@ contains
             end if
         end do
     end subroutine test_multiroot_jvp_vs_fd
+
+    subroutine test_multiroot_factored_jvp_vs_fd(nfail)
+        integer, intent(inout) :: nfail
+        real(dp) :: factors(2, 2), f_p(2, 2), tp(2), dx(2)
+        real(dp) :: pbase(2), xp(2), xm(2), dx_fd(2), h, oracle_error
+        type(fortnum_status_t) :: st
+        integer :: ipiv(2), info
+
+        pbase = [2.0_dp, 2.0_dp]
+        factors = reshape([2.0_dp, 1.0_dp, 1.0_dp, 2.0_dp], [2, 2])
+        f_p = reshape([-1.0_dp, 0.0_dp, 0.0_dp, -1.0_dp], [2, 2])
+        tp = [0.3_dp, -0.5_dp]
+        call lu_factor(2, factors, ipiv, info)
+        if (info /= LINALG_OK) error stop "test factorization failed"
+
+        call multiroot_jvp_factored(factors, ipiv, f_p, tp, dx, st)
+        h = 1.0e-5_dp
+        call solve_mr(pbase + h*tp, xp)
+        call solve_mr(pbase - h*tp, xm)
+        dx_fd = (xp - xm)/(2.0_dp*h)
+        oracle_error = maxval(abs(dx - dx_fd))
+
+        if (.not. status_ok(st)) then
+            write (error_unit, '(a)') &
+                "FAIL [mr_factored_jvp_fd] unexpected status error"
+            nfail = nfail + 1
+            return
+        end if
+        if (oracle_error > 1.0e-7_dp) then
+            write (error_unit, '(a,2es24.16)') &
+                "FAIL [mr_factored_jvp_fd] factored=", dx
+            write (error_unit, '(a,2es24.16)') &
+                "FAIL [mr_factored_jvp_fd] fd=", dx_fd
+            nfail = nfail + 1
+        end if
+        write (*, '(a,es24.16)') "factored JVP oracle maxabs=", oracle_error
+    end subroutine test_multiroot_factored_jvp_vs_fd
 
     subroutine test_multiroot_implicit_tangent_boundary(nfail)
         integer, intent(inout) :: nfail

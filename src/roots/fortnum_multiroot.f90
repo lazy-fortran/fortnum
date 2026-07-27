@@ -39,6 +39,7 @@ module fortnum_multiroot
     ! caller-owned or stack-local.
 
     use fortnum_kinds, only: dp
+    use fortnum_linalg, only: LINALG_OK, lu_solve_factored
     use fortnum_status, only: fortnum_status_t, status_set, &
         FORTNUM_OK, FORTNUM_DOMAIN_ERROR, FORTNUM_CONVERGENCE_ERROR
     implicit none
@@ -49,7 +50,8 @@ module fortnum_multiroot
     public :: multiroot_preconditioned_solve_t
     public :: multiroot_hybrid, multiroot_hybrids
     public :: multiroot_implicit_jvp, multiroot_implicit_vjp
-    public :: multiroot_jvp, multiroot_vjp, multiroot_grad
+    public :: multiroot_jvp, multiroot_jvp_factored
+    public :: multiroot_vjp, multiroot_grad
     public :: deriv_fn_t, deriv_central
     public :: argsort
 
@@ -286,6 +288,34 @@ contains
         end if
         call status_set(status, FORTNUM_OK, "")
     end subroutine multiroot_jvp
+
+    ! Analytical JVP using a reusable LU factorization of the converged F_x.
+    subroutine multiroot_jvp_factored(jacobian_factors, ipiv, f_p, tp, &
+            dx, status)
+        real(dp), contiguous, intent(in) :: jacobian_factors(:, :)
+        real(dp), intent(in) :: f_p(:, :), tp(:)
+        integer, contiguous, intent(in) :: ipiv(:)
+        real(dp), contiguous, intent(out) :: dx(:)
+        type(fortnum_status_t), intent(out) :: status
+
+        integer :: i, info, j, n
+
+        n = size(jacobian_factors, 1)
+        dx = 0.0_dp
+        do j = 1, size(tp)
+            do i = 1, n
+                dx(i) = dx(i) - f_p(i, j)*tp(j)
+            end do
+        end do
+        call lu_solve_factored(n, jacobian_factors, ipiv, dx, info)
+        if (info /= LINALG_OK) then
+            dx = 0.0_dp
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "multiroot_jvp_factored: invalid or singular factorization")
+            return
+        end if
+        call status_set(status, FORTNUM_OK, "")
+    end subroutine multiroot_jvp_factored
 
     ! Generic analytical implicit tangent boundary. The callback evaluates F_x
     ! and the contracted residual tangent F_p*tp at the converged root.

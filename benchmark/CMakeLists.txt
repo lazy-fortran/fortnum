@@ -63,6 +63,10 @@ target_link_libraries(bench_multiroot_preconditioner PRIVATE bench_core)
 add_executable(bench_multiroot_jacobian_reuse bench_multiroot_jacobian_reuse.f90)
 target_link_libraries(bench_multiroot_jacobian_reuse PRIVATE bench_core)
 
+add_executable(bench_multiroot_jvp_factorization
+    bench_multiroot_jvp_factorization.f90)
+target_link_libraries(bench_multiroot_jvp_factorization PRIVATE bench_core)
+
 add_executable(bench_multiroot_condition bench_multiroot_condition.f90)
 target_link_libraries(bench_multiroot_condition PRIVATE bench_core)
 
