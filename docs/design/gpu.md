@@ -518,7 +518,7 @@ required validate–measure–document–commit cycle independently.
 | Interpolation | covered pilot | generated fixed-cell Lagrange value/JVP/VJP; independent cubic and adjoint oracles; resident and transfer wall clock |
 | Fixed quadrature | covered pilot | arbitrary-order analytical JVP/VJP loops; exact-polynomial and adjoint oracles; resident and transfer wall clock |
 | Fixed-size linear algebra | covered pilot | generated 3x3 determinant/inverse JVP/VJP; finite-difference, matrix-product, and adjoint oracles; resident and transfer wall clock |
-| FFT rules | pending | no validated device pilot |
+| FFT rules | covered fixed-length pilot | shared analytical length-8 radix-2 JVP/VJP; direct-DFT and complex-adjoint oracles; resident and transfer wall clock |
 | Fixed-trace ODE products | pending | no validated device pilot |
 
 For special functions, the largest transfer-inclusive Dawson value/JVP
@@ -628,6 +628,39 @@ numerical arrays and inverse products hold 226,492,416 B. CPU peak host RSS is
 ranges from 209,076,224 to 356,933,632 B. Exact three-size wall clocks,
 dispersion, memory, structural operation counts, and provenance are in
 `benchmark/reference/rtx5060ti_linalg3_products.json`.
+
+### Fixed-length FFT pilot
+
+The reliable first FFT slice is a batched length-8 complex radix-2 transform.
+One analytical leaf handles both products by selecting the transform sign:
+JVP uses the forward transform and VJP uses the opposite-sign unnormalized
+adjoint transform. This preserves `O(n log n)` work and avoids separate
+forward/reverse implementations. The general planned FFT, dynamic work arrays,
+and Bluestein fallback remain on CPU; this pilot does not claim general-length
+GPU FFT support.
+
+Both real-device tests compare 4,096 transforms against an independent
+`O(n^2)` direct DFT for each sign and verify the complex adjoint identity.
+Complete-workload 31-sample medians are:
+
+| Product | Transforms | CPU ms | OpenACC resident/transfer ms | OpenMP resident/transfer ms |
+| --- | ---: | ---: | ---: | ---: |
+| JVP | 256 | 0.005860 | 0.009297 / 0.029984 | 0.009706 / 0.030562 |
+| JVP | 65,536 | 1.0941 | 0.0400 / 1.5271 | 0.0401 / 1.5890 |
+| JVP | 1,048,576 | 18.9090 | 0.7059 / 26.5519 | 0.7050 / 25.6760 |
+| VJP | 256 | 0.007094 | 0.008844 / 0.030719 | 0.009008 / 0.031180 |
+| VJP | 65,536 | 1.3890 | 0.0401 / 1.6460 | 0.0401 / 1.6210 |
+| VJP | 1,048,576 | 20.8731 | 0.7050 / 24.3821 | 0.7059 / 26.7430 |
+
+CPU wins the launch-bound batch. At the largest batch, resident GPU is 26.82
+times faster for JVP and 29.61 times faster for VJP; OpenACC and OpenMP are
+practical ties. CPU wins every transfer-inclusive workload, so callers need
+persistent transform batches before selecting GPU.
+
+The two live complex arrays occupy 268,435,456 B at the largest batch. CPU peak
+host RSS is about 273.9 MB. GPU-process host peak RSS ranges from 258,519,040
+to 399,101,952 B. Exact dispersion, memory, provenance, and all three workload
+sizes are in `benchmark/reference/rtx5060ti_fft8_products.json`.
 
 ## Immediate implementation order
 

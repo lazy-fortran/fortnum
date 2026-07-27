@@ -83,8 +83,10 @@ is 28.5 times faster for JVP and 26.7 times faster for VJP, but CPU wins when
 transfers are included. Generated 3x3 determinant and inverse products cover
 fixed-size linear algebra: resident GPU is 21.5 to 33.4 times faster at
 1,048,576 matrices. Transfers keep determinant products on CPU, while inverse
-products remain 1.32 to 1.36 times faster on GPU. FFT rules and fixed-trace ODE
-products remain explicit unchecked roadmap items.
+products remain 1.32 to 1.36 times faster on GPU. A shared analytical
+length-8 radix-2 leaf covers batched FFT JVP/VJP: resident GPU is 26.8 to 29.6
+times faster at 1,048,576 transforms, while transfer-inclusive execution stays
+on CPU. Fixed-trace ODE products remain an explicit unchecked roadmap item.
 `fortnum` uses `fortsym` at build time for symbolic algebra and code
 generation. The first pinned generator is under `tools/codegen/`; generated
 production sources are committed under `src/generated/`. The
