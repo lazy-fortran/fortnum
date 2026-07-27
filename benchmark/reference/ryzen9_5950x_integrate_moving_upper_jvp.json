@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "moving_upper_bound_integral",
+  "product": "jvp",
+  "workload": "integral of exp(p*x) from 0 to 0.5+0.1*p, one active input, one scalar output, 10000 varying parameters per sample",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1",
+    "build": "Release"
+  },
+  "sampling": {
+    "warmup_rounds": 3,
+    "samples": 15,
+    "calls_per_sample": 10000,
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum",
+    "perf_repetitions": 5
+  },
+  "validation": {
+    "oracles": [
+      "closed-form Leibniz derivative",
+      "central difference of complete integrations with perturbed upper bounds"
+    ],
+    "closed_form_relative_tolerance": 1e-11,
+    "finite_difference_relative_tolerance": 1e-8
+  },
+  "memory_method": "getrusage(RUSAGE_SELF) inside each separately launched candidate",
+  "candidates": [
+    {
+      "id": "analytical_upper_endpoint",
+      "mechanism": "analytical",
+      "median_ns_per_call": 458.6955,
+      "mad_ns_per_call": 6.3670,
+      "peak_rss_bytes": 12312576,
+      "cycles": 670655351,
+      "instructions": 1561690214,
+      "cache_references": 26954668,
+      "cache_misses": 4801576
+    },
+    {
+      "id": "complete_integral_central_difference",
+      "mechanism": "diagnostic",
+      "median_ns_per_call": 775.7548,
+      "mad_ns_per_call": 13.7940,
+      "peak_rss_bytes": 12537856,
+      "cycles": 912613852,
+      "instructions": 2407807332,
+      "cache_references": 27799974,
+      "cache_misses": 4796019
+    }
+  ],
+  "selection": {
+    "selected": "analytical_upper_endpoint",
+    "wall_clock_speedup": 1.6912,
+    "reason": "analytical minimizes complete-workload wall clock and peak RSS while passing both independent oracles"
+  }
+}
