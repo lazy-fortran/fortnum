@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "dawson_outer",
+  "product": "jvp",
+  "workload": "scalar calls, x cycled over [0.65, 0.75], one direction",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "flang": "22.1.8",
+    "clang": "22.1.8",
+    "llvm": "22.1.8",
+    "enzyme_commit": "c96508349d9f121957292308c646b4a1fd53c507",
+    "fortsym_commit": "15636e944b3b932283aff4f313c6a5f459d40692"
+  },
+  "sampling": {
+    "warmup_rounds": 3,
+    "samples": 15,
+    "calls_per_sample": 200000
+  },
+  "validation": {
+    "oracle": "central finite difference of the complete outer function",
+    "relative_tolerance": 2e-9,
+    "hybrid_rule_call_assertion": true
+  },
+  "process_peak_rss_bytes": 2764800,
+  "candidates": [
+    {
+      "id": "analytical",
+      "mechanism": "analytical",
+      "median_ns_per_call": 21.1663,
+      "mad_ns_per_call": 0.1903
+    },
+    {
+      "id": "autodiff",
+      "mechanism": "autodiff",
+      "median_ns_per_call": 23.3390,
+      "mad_ns_per_call": 0.1078
+    },
+    {
+      "id": "hybrid",
+      "mechanism": "hybrid",
+      "median_ns_per_call": 20.7559,
+      "mad_ns_per_call": 0.1828
+    }
+  ],
+  "selection": {
+    "raw_fastest": "hybrid",
+    "timing_tie_fraction": 0.03,
+    "selected": "analytical",
+    "reason": "analytical and hybrid are within the 3 percent noise guard; measured process RSS is shared, so the stable candidate id breaks the unresolved tie"
+  }
+}

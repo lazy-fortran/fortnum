@@ -1,10 +1,10 @@
 module fortnum_special_dawson
     ! Dawson integral F(x) = exp(-x^2) * integral_0^x exp(t^2) dt.
     !
-    ! Derivative policy (ad.md sec 1, sec 4): analytic_rule.
+    ! Leading derivative candidate (ad.md sec 1, sec 4): analytical.
     !   F'(x) = 1 - 2*x*F(x).
     ! Active argument: x (real scalar). Result F(x) is the active output.
-    ! Derivative entry point (not yet implemented): dawson_grad(x, dF_dout).
+    ! Derivative entry points: dawson_jvp and dawson_grad.
     !
     ! Algorithm:
     !   |x| < 1   Maclaurin series (DLMF 7.6.4).
@@ -17,16 +17,20 @@ module fortnum_special_dawson
     ! conformance: 0.0d0 -> _dp.
 
     use, intrinsic :: iso_fortran_env, only: dp => real64
+    use fortnum_generated_dawson_outer, only: fortnum_dawson_outer_kernel
     implicit none
     private
 
     public :: dawson
-    ! analytic_rule derivatives (ad.md §2):
+    public :: fortnum_dawson_kernel
+    public :: fortnum_dawson_kernel_autodiff
+    ! Analytical derivatives (ad.md §2):
     !   dawson_jvp: forward product F'(x) * v = (1 - 2*x*F(x)) * v
     !   dawson_grad: scalar gradient (same coefficient, d/dx applied to scalar)
     ! Active argument: x. No HVP here (would require F'' = -2F - 2xF').
     public :: dawson_jvp
     public :: dawson_grad
+    public :: dawson_outer_jvp
 
     real(dp), parameter :: inv_sqrt_pi = 0.564189583547756287_dp
 
@@ -84,6 +88,37 @@ module fortnum_special_dawson
         213458046676875.0_dp]
 
 contains
+
+    ! Fused fortsym-generated value and analytical JVP for
+    ! g(x)=sin(F(x))+F(x)^2. Dawson's numerical implementation remains an
+    ! operator boundary; the generated kernel applies product and chain rules.
+    subroutine dawson_outer_jvp(x, v, value, jvp)
+        real(dp), intent(in) :: x, v
+        real(dp), intent(out) :: value, jvp
+        real(dp) :: f
+        f = dawson(x)
+        call fortnum_dawson_outer_kernel(x, f, v, value, jvp)
+    end subroutine dawson_outer_jvp
+
+    ! Compiler-stable scalar boundary used by autodiff and hybrid candidates.
+    ! Keeping the boundary here avoids differentiating through the regional
+    ! approximation merely because an outer expression uses Dawson's integral.
+    function fortnum_dawson_kernel(x) result(f) bind(c, name="fortnum_dawson_kernel")
+        use, intrinsic :: iso_c_binding, only: c_double
+        real(c_double), intent(in), value :: x
+        real(c_double) :: f
+        f = dawson(x)
+    end function fortnum_dawson_kernel
+
+    ! Deliberately unregistered twin used as the pure autodiff tournament
+    ! candidate. It has identical primal behavior but no analytical rule.
+    function fortnum_dawson_kernel_autodiff(x) result(f) &
+            bind(c, name="fortnum_dawson_kernel_autodiff")
+        use, intrinsic :: iso_c_binding, only: c_double
+        real(c_double), intent(in), value :: x
+        real(c_double) :: f
+        f = dawson(x)
+    end function fortnum_dawson_kernel_autodiff
 
     elemental function dawson(x) result(f)
         real(dp), intent(in) :: x

@@ -155,15 +155,18 @@ status type, the same CSV layout.
 
 ## 7. Candidate generation and `fortsym`
 
-`fortnum` will use `../fortsym` for symbolic algebra and derivative code
-generation. `fortsym` is unfinished. Until its interface is stable:
+`fortnum` uses `fortsym` for symbolic algebra and derivative code generation.
+The development checkout currently resolves it at `../lazy-fortran/fortsym`.
+The supported integration surface is deliberately narrow and demonstrated by
+`tools/codegen/app/gen_dawson_outer.f90`: expression construction, differentiation,
+engine simplification, fused kernel emission, post-CSE operation counting, and
+an exact regeneration command in the generated banner.
 
-- record symbolic-generation work as a planned `analytical` candidate
-- do not invent a `fortsym` API, file format, command line, or build contract
-- do not duplicate a provisional symbolic engine inside `fortnum`
-- keep handwritten implementations replaceable by generated candidates
-
-This rule fixes ownership without prematurely fixing integration details.
+`fortsym` remains under development. New work may extend it, with independent
+tests in that repository, but must not guess an unimplemented API or duplicate a
+symbolic engine inside `fortnum`. Generated kernels are build-time artifacts
+committed under `src/generated/`; production `fortnum` does not dynamically
+depend on `fortsym`.
 
 ## 8. Selection and dispatch
 

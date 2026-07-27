@@ -6,7 +6,8 @@ program test_fortnum_linalg
     ! check, and the singular-status contract for inv2/inv3/lu_solve.
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
     use fortnum_linalg, only: det2, det3, inv2, inv3, jacobian_ok3, lu_solve, &
-        LINALG_OK, LINALG_SINGULAR, LINALG_MAX_N
+        linear_solve_jvp, linear_solve_vjp, LINALG_OK, LINALG_SINGULAR, &
+        LINALG_MAX_N
     implicit none
 
     integer :: nfail
@@ -20,6 +21,7 @@ program test_fortnum_linalg
     call test_lu_pivot(nfail)
     call test_lu_vs_inv3(nfail)
     call test_singular(nfail)
+    call test_linear_solve_products(nfail)
 
     if (nfail > 0) then
         write (error_unit, "(i0,a)") nfail, " test(s) failed"
@@ -197,6 +199,46 @@ contains
         call lu_solve(3, as, bs, info)
         call check_true("lu_sing", info > 0, nfail)
     end subroutine test_singular
+
+    subroutine test_linear_solve_products(nfail)
+        integer, intent(inout) :: nfail
+        real(dp), parameter :: h = 1.0e-6_dp
+        real(dp) :: a(3, 3), da(3, 3), b(3), db(3), x(3), dx(3)
+        real(dp) :: xp(3), xm(3), ap(3, 3), am(3, 3), bp(3), bm(3)
+        real(dp) :: u(3), abar(3, 3), bbar(3), lhs, rhs
+        integer :: info
+
+        a = reshape([4.0_dp, 1.0_dp, -1.0_dp, &
+            0.5_dp, 3.0_dp, 0.25_dp, &
+            -0.2_dp, 0.4_dp, 2.5_dp], [3, 3])
+        da = reshape([0.1_dp, -0.2_dp, 0.05_dp, &
+            0.3_dp, 0.1_dp, -0.1_dp, &
+            0.0_dp, 0.2_dp, -0.05_dp], [3, 3])
+        b = [1.0_dp, -2.0_dp, 0.5_dp]
+        db = [0.2_dp, 0.1_dp, -0.3_dp]
+
+        ap = a
+        x = b
+        call lu_solve(3, ap, x, info)
+        call linear_solve_jvp(3, a, x, da, db, dx, info)
+
+        ap = a + h*da
+        am = a - h*da
+        bp = b + h*db
+        bm = b - h*db
+        xp = bp
+        xm = bm
+        call lu_solve(3, ap, xp, info)
+        call lu_solve(3, am, xm, info)
+        call check("linear_jvp_fd", &
+            maxval(abs(dx - (xp - xm)/(2.0_dp*h))), 0.0_dp, 2.0e-9_dp, nfail)
+
+        u = [0.7_dp, -0.4_dp, 1.2_dp]
+        call linear_solve_vjp(3, a, x, u, abar, bbar, info)
+        lhs = dot_product(u, dx)
+        rhs = sum(abar*da) + dot_product(bbar, db)
+        call check("linear_adjoint", lhs, rhs, 2.0e-14_dp, nfail)
+    end subroutine test_linear_solve_products
 
     pure function eye(n) result(m)
         integer, intent(in) :: n

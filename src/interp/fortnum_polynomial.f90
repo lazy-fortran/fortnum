@@ -1,8 +1,7 @@
 module fortnum_polynomial
     ! Lagrange interpolation weights on an arbitrary support node set.
     !
-    ! DERIVATIVE POLICY (ad.md §1, §4):
-    !   Default class: analytic_rule.
+    ! LEADING DERIVATIVE CANDIDATE (ad.md §1, §4): analytical.
     !   lagrange_weights: the barycentric-form weights are linear in the nodal
     !     values; value weights are transparent (linear map). The derivative
     !     weights are a closed-form analytic rule: see lagrange_deriv_weights.
@@ -11,9 +10,8 @@ module fortnum_polynomial
     !     point x and support nodes xp are active when the caller differentiates
     !     with respect to position; that path is deferred to issue #40.
     !   Inactive: n (size, selects problem dimension).
-    !   Derivative entry points (ad.md §2): lagrange_weights_jvp -- not
-    !     implemented here; will be added in the AD milestone without touching
-    !     the primal signatures below.
+    !   Derivative entry points (ad.md §2): separate and combined JVP/VJP
+    !     products for evaluation point and nodal-value activity.
     !
     ! The two exported routines compute weights coef(1:n) and dcoef(1:n) such
     ! that for any function f sampled at the support nodes xp(1:n):
@@ -42,6 +40,8 @@ module fortnum_polynomial
     public :: lagrange_weights_vjp ! (d p(x)/d x)^T . u   (x active)
     public :: lagrange_fval_jvp ! d p(x)/d f  . v_f   (f values active)
     public :: lagrange_fval_vjp ! (d p(x)/d f)^T . u  (f values active)
+    public :: lagrange_combined_jvp
+    public :: lagrange_combined_vjp
 
 contains
 
@@ -113,7 +113,7 @@ contains
 
 
     ! JVP of p(x) = sum_i f(i)*coef_i(x) with respect to the evaluation
-    ! point x.  Policy: analytic_rule (ad.md §4).
+    ! point x. Leading candidate: analytical (ad.md §4).
     !
     ! Active: x (scalar). Inactive: f (nodal values), xp (support), n.
     ! Valid only inside a fixed cell; crossing a cell boundary is non-smooth
@@ -153,8 +153,8 @@ contains
     end subroutine lagrange_weights_vjp
 
 
-    ! JVP of p(x) w.r.t. the nodal values f(1:n).  Policy: transparent
-    ! (p is linear in f; value weights coef are the Jacobian row).
+    ! JVP of p(x) w.r.t. the nodal values f(1:n). This analytical rule uses
+    ! linearity in f; value weights coef are the Jacobian row.
     !
     ! Active: f(1:n). Inactive: x, xp, n.
     ! Smooth everywhere (the linear dependence on f has no branch).
@@ -186,5 +186,35 @@ contains
         call lagrange_weights(n, x, xp, coef)
         jtu = coef * u
     end subroutine lagrange_fval_vjp
+
+
+    ! Hybrid interface rule for simultaneous activity in the evaluation point
+    ! and nodal values. The product rule composes the two analytical products
+    ! without constructing the full Jacobian.
+    pure subroutine lagrange_combined_jvp(n, x, xp, f, vx, vf, jv)
+        integer,  intent(in)  :: n
+        real(dp), intent(in)  :: x, xp(n), f(n), vx, vf(n)
+        real(dp), intent(out) :: jv
+        real(dp) :: coef(n), dcoef(n)
+
+        call lagrange_weights(n, x, xp, coef)
+        call lagrange_deriv_weights(n, x, xp, dcoef)
+        jv = dot_product(f, dcoef)*vx + dot_product(coef, vf)
+    end subroutine lagrange_combined_jvp
+
+
+    ! Transposed hybrid interface rule corresponding to
+    ! lagrange_combined_jvp.
+    pure subroutine lagrange_combined_vjp(n, x, xp, f, u, xbar, fbar)
+        integer,  intent(in)  :: n
+        real(dp), intent(in)  :: x, xp(n), f(n), u
+        real(dp), intent(out) :: xbar, fbar(n)
+        real(dp) :: coef(n), dcoef(n)
+
+        call lagrange_weights(n, x, xp, coef)
+        call lagrange_deriv_weights(n, x, xp, dcoef)
+        xbar = u*dot_product(f, dcoef)
+        fbar = u*coef
+    end subroutine lagrange_combined_vjp
 
 end module fortnum_polynomial

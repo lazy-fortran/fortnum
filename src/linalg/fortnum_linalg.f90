@@ -44,6 +44,7 @@ module fortnum_linalg
     real(dp), parameter :: SING_TOL_REL = 1.0e-8_dp
 
     public :: det2, det3, inv2, inv3, jacobian_ok3, lu_solve
+    public :: linear_solve_jvp, linear_solve_vjp
 
 contains
 
@@ -194,5 +195,46 @@ contains
             b(i) = s/a(i, i)
         end do
     end subroutine lu_solve
+
+    ! Analytical implicit JVP for A x = b: A dx = db - dA x. The caller
+    ! supplies the converged primal x, so this neither repeats the primal solve
+    ! nor differentiates the elimination algorithm.
+    pure subroutine linear_solve_jvp(n, a, x, da, db, dx, info)
+        integer, intent(in) :: n
+        real(dp), intent(in) :: a(n, n), x(n), da(n, n), db(n)
+        real(dp), intent(out) :: dx(n)
+        integer, intent(out) :: info
+        real(dp) :: work_a(n, n)
+
+        work_a = a
+        dx = db - matmul(da, x)
+        call lu_solve(n, work_a, dx, info)
+        if (info /= LINALG_OK) dx = 0.0_dp
+    end subroutine linear_solve_jvp
+
+    ! Analytical implicit VJP. Solving A^T lambda = u gives
+    ! b_bar=lambda and A_bar=-lambda*x^T.
+    pure subroutine linear_solve_vjp(n, a, x, u, abar, bbar, info)
+        integer, intent(in) :: n
+        real(dp), intent(in) :: a(n, n), x(n), u(n)
+        real(dp), intent(out) :: abar(n, n), bbar(n)
+        integer, intent(out) :: info
+        real(dp) :: work_a(n, n)
+        integer :: i, j
+
+        work_a = transpose(a)
+        bbar = u
+        call lu_solve(n, work_a, bbar, info)
+        if (info /= LINALG_OK) then
+            abar = 0.0_dp
+            bbar = 0.0_dp
+            return
+        end if
+        do j = 1, n
+            do i = 1, n
+                abar(i, j) = -bbar(i)*x(j)
+            end do
+        end do
+    end subroutine linear_solve_vjp
 
 end module fortnum_linalg

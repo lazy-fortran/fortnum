@@ -18,7 +18,8 @@ program test_bspline_ad
     use fortnum_bspline, only: bspline_workspace_t, bspline_init, &
         bspline_set_knots, bspline_eval_deriv, bspline_eval_jvp, &
         bspline_eval_vjp, bspline_span_index, bspline_eval_basis, &
-        bspline_eval_coef_jvp, bspline_eval_coef_vjp
+        bspline_eval_coef_jvp, bspline_eval_coef_vjp, &
+        bspline_eval_combined_jvp, bspline_eval_combined_vjp
     use fortnum_status, only: fortnum_status_t, FORTNUM_OK
     use fortnum_ad_test_utils, only: rel_err, fd_jvp_step, &
         check_smoothness, ad_status_t, AD_SMOOTH, AD_NONSMOOTH
@@ -32,6 +33,7 @@ program test_bspline_ad
     call test_dotprod_identity(nfail)
     call test_span_boundary_nonsmooth(nfail)
     call test_coef_products(nfail)
+    call test_combined_products(nfail)
 
     if (nfail > 0) then
         write (error_unit, '(i0,a)') nfail, " test(s) failed"
@@ -231,6 +233,49 @@ contains
             nfail = nfail + 1
         end if
     end subroutine test_coef_products
+
+    subroutine test_combined_products(nfail)
+        integer, intent(inout) :: nfail
+        type(bspline_workspace_t) :: ws
+        type(fortnum_status_t) :: s
+        real(dp), allocatable :: coef(:), vcoef(:), coefbar(:)
+        real(dp) :: x, vx, u, h, jv, fd, sp, sm, xbar, lhs, rhs
+        integer :: i
+
+        call setup(ws, coef)
+        allocate (vcoef(ws%ncoef), coefbar(ws%ncoef))
+        do i = 1, ws%ncoef
+            vcoef(i) = cos(0.37_dp*real(i, dp))
+        end do
+        x = 0.53_dp
+        vx = -0.4_dp
+        u = 2.1_dp
+
+        call bspline_eval_combined_jvp(ws, x, coef, vx, vcoef, jv, s)
+        if (s%code /= FORTNUM_OK) then
+            write (error_unit, '(a)') "FAIL [combined_jvp] status"
+            nfail = nfail + 1
+            return
+        end if
+        h = 1.0e-6_dp
+        call eval_spline(ws, x + h*vx, coef + h*vcoef, sp)
+        call eval_spline(ws, x - h*vx, coef - h*vcoef, sm)
+        fd = (sp - sm)/(2.0_dp*h)
+        if (rel_err(jv, fd) > 1.0e-7_dp) then
+            write (error_unit, '(a,es24.16,a,es24.16)') &
+                "FAIL [combined_jvp] jv=", jv, " fd=", fd
+            nfail = nfail + 1
+        end if
+
+        call bspline_eval_combined_vjp(ws, x, coef, u, xbar, coefbar, s)
+        lhs = u*jv
+        rhs = vx*xbar + dot_product(vcoef, coefbar)
+        if (rel_err(lhs, rhs) > 1.0e-13_dp) then
+            write (error_unit, '(a,es24.16,a,es24.16)') &
+                "FAIL [combined_adjoint] lhs=", lhs, " rhs=", rhs
+            nfail = nfail + 1
+        end if
+    end subroutine test_combined_products
 
     ! Spline value s(x) = sum_i c_i B_i(x).
     subroutine eval_spline(ws, x, coef, val)

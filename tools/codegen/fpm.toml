@@ -1,0 +1,18 @@
+name = "fortnum_codegen"
+version = "0.1.0"
+license = "MIT"
+
+[dependencies]
+fortsym = { path = "../../../lazy-fortran/fortsym" }
+
+[build]
+auto-executables = true
+
+[fortran]
+implicit-typing = false
+source-form = "free"
+
+[[executable]]
+name = "gen_dawson_outer"
+source-dir = "app"
+main = "gen_dawson_outer.f90"

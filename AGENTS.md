@@ -17,8 +17,9 @@
 - Apply analytical implicit differentiation as a candidate whenever an output
   is defined by a residual equation. Do not make differentiation through solver
   iterations the unmeasured default.
-- Use `../fortsym` for future symbolic algebra and code generation. It is
-  unfinished, so do not invent or depend on a `fortsym` API until its interface
-  is explicitly stabilized.
+- Use `fortsym` for symbolic algebra and code generation. In this checkout its
+  development path is `../lazy-fortran/fortsym`. Depend only on interfaces
+  exercised by committed generators and pinned by tests; do not guess future
+  APIs.
 - Read `docs/design/differentiation_plan.md` before implementing derivative
   infrastructure or derivative products.

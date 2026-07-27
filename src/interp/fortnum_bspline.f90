@@ -46,6 +46,8 @@ module fortnum_bspline
     public :: bspline_eval_vjp ! (d/dx [sum_i c_i B_i(x)])^T . u (x active)
     public :: bspline_eval_coef_jvp ! d/dc [sum_i c_i B_i(x)] . vc  (coef active)
     public :: bspline_eval_coef_vjp ! (d/dc [sum_i c_i B_i(x)])^T . u (coef active)
+    public :: bspline_eval_combined_jvp
+    public :: bspline_eval_combined_vjp
 
     ! Caller-owned B-spline state. order, nbreak, ncoef and the augmented knot
     ! vector are filled by bspline_init / bspline_set_knots; no module-level
@@ -341,7 +343,7 @@ contains
     end subroutine bspline_eval_deriv
 
     ! JVP of the spline value s(x) = sum_i c_i B_{i,k}(x) w.r.t. x. Policy:
-    ! transparent within a fixed span (ad.md §4). Active: x. Inactive: coef,
+    ! analytical within a fixed span (ad.md §4). Active: x. Inactive: coef,
     ! knots, order. Valid only inside the span x sits in; crossing a knot is a
     ! non-smooth event the caller must guard (bspline_span_index is primal_only).
     !
@@ -392,7 +394,7 @@ contains
 
     ! JVP of the spline value s(x) = sum_i c_i B_i(x) w.r.t. the coefficients c.
     ! The map c -> s is globally linear with Jacobian B(x), so this product is
-    ! transparent everywhere in c with no span guard: only x selects the span,
+    ! analytical everywhere in c with no span guard: only x selects the span,
     ! and x is inactive here. Active: coef. Inactive: x, knots, order.
     !
     ! jv = (d s / d c) . vc = sum_i B_i(x) vc_i
@@ -436,5 +438,51 @@ contains
         if (status%code /= FORTNUM_OK) return
         jtu = u*basis
     end subroutine bspline_eval_coef_vjp
+
+    ! Hybrid interface rule for simultaneous activity in x and the spline
+    ! coefficients. The product rule is evaluated from one shared basis pass.
+    subroutine bspline_eval_combined_jvp(ws, x, coef, vx, vcoef, jv, status)
+        type(bspline_workspace_t), intent(in)  :: ws
+        real(dp),                  intent(in)  :: x, coef(:), vx, vcoef(:)
+        real(dp),                  intent(out) :: jv
+        type(fortnum_status_t),    intent(out) :: status
+
+        real(dp) :: dvals(0:1, ws%ncoef)
+
+        jv = 0.0_dp
+        if (size(coef) /= ws%ncoef .or. size(vcoef) /= ws%ncoef) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "bspline: coef or vcoef size /= ncoef")
+            return
+        end if
+        call bspline_eval_deriv(ws, x, 1, dvals, status)
+        if (status%code /= FORTNUM_OK) return
+        jv = dot_product(coef, dvals(1, :))*vx + &
+            dot_product(dvals(0, :), vcoef)
+    end subroutine bspline_eval_combined_jvp
+
+
+    ! Transposed hybrid interface rule corresponding to
+    ! bspline_eval_combined_jvp.
+    subroutine bspline_eval_combined_vjp(ws, x, coef, u, xbar, coefbar, status)
+        type(bspline_workspace_t), intent(in)  :: ws
+        real(dp),                  intent(in)  :: x, coef(:), u
+        real(dp),                  intent(out) :: xbar, coefbar(:)
+        type(fortnum_status_t),    intent(out) :: status
+
+        real(dp) :: dvals(0:1, ws%ncoef)
+
+        xbar = 0.0_dp
+        coefbar = 0.0_dp
+        if (size(coef) /= ws%ncoef .or. size(coefbar) /= ws%ncoef) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "bspline: coef or coefbar size /= ncoef")
+            return
+        end if
+        call bspline_eval_deriv(ws, x, 1, dvals, status)
+        if (status%code /= FORTNUM_OK) return
+        xbar = u*dot_product(coef, dvals(1, :))
+        coefbar = u*dvals(0, :)
+    end subroutine bspline_eval_combined_vjp
 
 end module fortnum_bspline

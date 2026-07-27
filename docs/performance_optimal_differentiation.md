@@ -307,10 +307,11 @@ joint_dag = CAS.factor_for_target(joint_dag, hardware_profile)
 codegen(joint_dag, target_language, target_architecture)
 ```
 
-`fortnum` will use `../fortsym` as its symbolic algebra and code-generation
-library. `fortsym` is not yet complete, so this document fixes the dependency
-direction only. It does not specify an API, interchange format, or integration
-mechanism.
+`fortnum` uses `fortsym` as its build-time symbolic algebra and code-generation
+library. Its first pinned integration covers expression DAGs, differentiation,
+simplification, fused kernel emission, operation counts, and regeneration
+metadata. Further interfaces remain provisional until implemented and tested in
+`fortsym`.
 
 ### 4.2 Analytical recurrences
 
@@ -756,8 +757,8 @@ benchmarks.
 7. Preserve recurrences, transforms, factorizations, solvers, and sparse
    operators unless expansion wins by measurement.
 8. Add representative application benchmarks.
-9. Use `../fortsym` for future symbolic algebra and code generation without
-   defining its interface before the library is ready.
+9. Use `fortsym` for symbolic algebra and code generation, extending and testing
+   it there rather than duplicating symbolic machinery in `fortnum`.
 
 ## 13. Development sequence
 
@@ -774,7 +775,7 @@ and conditioning diagnostics.
 
 ### Phase 3: symbolic generation
 
-Use `../fortsym` for the future pipeline:
+Use the isolated `tools/codegen/` package and `fortsym` for the pipeline:
 
 ```text
 specification

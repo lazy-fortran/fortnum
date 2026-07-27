@@ -29,8 +29,6 @@ module fortnum_ad_test_utils
     public :: ad_status_t ! smoothness/branch status carrier
     public :: AD_SMOOTH, AD_NONSMOOTH
     public :: check_smoothness ! same-trace passes, branch change reports
-    public :: enzyme_available ! .true. only in FORTNUM_ENABLE_ENZYME builds
-    public :: check_enzyme_vs_analytic ! inert unless built with Enzyme
 
     ! Smoothness verdicts for a same-trace vs branch-change derivative check.
     integer, parameter :: AD_SMOOTH    = 0
@@ -270,53 +268,5 @@ contains
         end if
         s%ok = (s%verdict == expect)
     end function check_smoothness
-
-    ! ----------------------------------------------------- Enzyme compare
-
-    ! True only when fortnum is built with the Enzyme pass available. The
-    ! preprocessor define is set by the build (FORTNUM_ENABLE_ENZYME); without
-    ! it the whole Enzyme path stays inert and tests skip cleanly.
-    pure function enzyme_available() result(yes)
-        logical :: yes
-#ifdef FORTNUM_ENABLE_ENZYME
-        yes = .true.
-#else
-        yes = .false.
-#endif
-    end function enzyme_available
-
-    ! Enzyme-vs-analytic forward-product compare. Identical contract to
-    ! check_jvp_vs_fd but the reference is an analytic JVP instead of finite
-    ! difference, used to validate a generated (transparent-path) product. In a
-    ! non-Enzyme build enzyme_available() is .false. and callers skip; the
-    ! routine still compiles and, if called, reports the worst component.
-    function check_enzyme_vs_analytic(label, enzyme_jvp, analytic_jvp, &
-            x, v, tol) result(ok)
-        character(*), intent(in) :: label
-        procedure(jvp_fn_i)      :: enzyme_jvp
-        procedure(jvp_fn_i)      :: analytic_jvp
-        real(dp), intent(in)     :: x(:)
-        real(dp), intent(in)     :: v(:)
-        real(dp), intent(in)     :: tol
-        logical                  :: ok
-        real(dp), allocatable :: je(:), ja(:)
-        real(dp) :: worst
-        integer  :: i, n
-
-        n = size(x)
-        allocate (je(n), ja(n))
-        call enzyme_jvp(x, v, je)
-        call analytic_jvp(x, v, ja)
-        worst = 0.0_dp
-        do i = 1, n
-            worst = max(worst, rel_err(je(i), ja(i)))
-        end do
-        ok = (worst <= tol)
-        if (.not. ok) then
-            write (error_unit, '(a,a,a,es12.4,a,es12.4)') &
-                "FAIL [", label, "] enzyme-vs-analytic worst rel_err=", &
-                worst, " tol=", tol
-        end if
-    end function check_enzyme_vs_analytic
 
 end module fortnum_ad_test_utils
