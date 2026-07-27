@@ -10,7 +10,8 @@ module scalar_root_vjp_hybrid_kernel
         real(c_double) :: values(3)
     end type residual_gradient_t
 
-    public :: analytical_root_vjp, hybrid_root_vjp, residual
+    public :: analytical_root_vjp, hybrid_root_vjp, &
+        autodiff_iterations_root_vjp, finite_difference_root_vjp, residual
 
     interface
         function enzyme_autodiff(f, x, p1, p2) result(gradient) &
@@ -32,6 +33,18 @@ contains
         f = x*x*x + p1*x - p2
     end function residual
 
+    pure function newton_solve(x0, p1, p2) result(x) &
+            bind(c, name="fortnum_scalar_root_vjp_newton_solve")
+        real(c_double), value :: x0, p1, p2
+        real(c_double) :: x
+        integer :: iteration
+
+        x = 1.0_c_double + 0.0_c_double*x0
+        do iteration = 1, 12
+            x = x - residual(x, p1, p2)/(3.0_c_double*x*x + p1)
+        end do
+    end function newton_solve
+
     function analytical_root_vjp(x, p, u) result(jtu)
         real(dp), intent(in) :: x, p(2), u
         real(dp) :: jtu(2)
@@ -49,6 +62,33 @@ contains
         call root_implicit_vjp(autodiff_residual_vjp, x, p, u, jtu, status)
         if (.not. status_ok(status)) error stop "hybrid root VJP failed"
     end function hybrid_root_vjp
+
+    function autodiff_iterations_root_vjp(p, u) result(jtu)
+        real(dp), intent(in) :: p(2), u
+        real(dp) :: jtu(2)
+        type(residual_gradient_t) :: gradient
+
+        gradient = enzyme_autodiff(c_funloc(newton_solve), &
+            0.0_dp, p(1), p(2))
+        jtu = u*gradient%values(2:3)
+    end function autodiff_iterations_root_vjp
+
+    function finite_difference_root_vjp(p, u) result(jtu)
+        real(dp), intent(in) :: p(2), u
+        real(dp), parameter :: h = 1.0e-5_dp
+        real(dp) :: jtu(2), pm(2), pp(2)
+        integer :: parameter
+
+        do parameter = 1, 2
+            pp = p
+            pm = p
+            pp(parameter) = pp(parameter) + h
+            pm(parameter) = pm(parameter) - h
+            jtu(parameter) = u*( &
+                newton_solve(0.0_dp, pp(1), pp(2)) &
+                - newton_solve(0.0_dp, pm(1), pm(2)))/(2.0_dp*h)
+        end do
+    end function finite_difference_root_vjp
 
     subroutine analytical_residual_vjp(x, p, u, f_x, f_p_t_u, context)
         real(dp), intent(in) :: x, p(:), u
@@ -77,7 +117,8 @@ program enzyme_scalar_root_vjp_hybrid
     use, intrinsic :: iso_c_binding, only: c_int64_t
     use, intrinsic :: iso_fortran_env, only: dp => real64, int64
     use scalar_root_vjp_hybrid_kernel, only: analytical_root_vjp, &
-        hybrid_root_vjp, residual
+        hybrid_root_vjp, autodiff_iterations_root_vjp, &
+        finite_difference_root_vjp, residual
     implicit none
 
     interface
@@ -92,6 +133,8 @@ program enzyme_scalar_root_vjp_hybrid
     real(dp), parameter :: u = 1.3_dp
     real(dp) :: p(2), pp(2), pm(2), xstar, got(2), reference(2)
     real(dp) :: analytical(2), analytical_error, hybrid_error
+    real(dp) :: autodiff_iterations(2), autodiff_iterations_error
+    real(dp) :: diagnostic(2), diagnostic_error
     character(32) :: argument, candidate
     integer :: parameter
 
@@ -114,18 +157,21 @@ program enzyme_scalar_root_vjp_hybrid
         end do
         got = hybrid_root_vjp(xstar, p, u)
         analytical = analytical_root_vjp(xstar, p, u)
+        autodiff_iterations = autodiff_iterations_root_vjp(p, u)
+        diagnostic = finite_difference_root_vjp(p, u)
         analytical_error = maxval(abs(analytical - reference))
         hybrid_error = maxval(abs(got - reference))
+        autodiff_iterations_error = maxval(abs(autodiff_iterations - reference))
+        diagnostic_error = maxval(abs(diagnostic - reference))
 
-        if (analytical_error > 1.0e-9_dp) then
-            print *, "analytical scalar-root VJP mismatch", analytical, reference
+        if (max(analytical_error, hybrid_error, autodiff_iterations_error, &
+                diagnostic_error) > 1.0e-9_dp) then
+            print *, "scalar-root VJP mismatch", analytical_error, &
+                hybrid_error, autodiff_iterations_error, diagnostic_error
             error stop 1
         end if
-        if (hybrid_error > 1.0e-9_dp) then
-            print *, "hybrid scalar-root VJP mismatch", got, reference
-            error stop 1
-        end if
-        print *, "PASS scalar-root VJPs", analytical_error, hybrid_error
+        print *, "PASS scalar-root VJP tournament", analytical_error, &
+            hybrid_error, autodiff_iterations_error, diagnostic_error
     end if
 
 contains
@@ -151,29 +197,37 @@ contains
 
     subroutine run_benchmark()
         integer, parameter :: samples = 15
-        integer(int64), parameter :: reps = 2000000_int64
-        real(dp) :: analytical(samples), hybrid(samples), sink
+        integer(int64), parameter :: reps = 100000_int64
+        real(dp) :: analytical(samples), hybrid(samples)
+        real(dp) :: autodiff_iterations(samples), diagnostic(samples), sink
         integer :: sample
 
         do sample = 1, 3
             call time_candidate("analytical", reps/100_int64, sink)
             call time_candidate("hybrid", reps/100_int64, sink)
+            call time_candidate("autodiff", reps/100_int64, sink)
+            call time_candidate("diagnostic", reps/100_int64, sink)
         end do
         do sample = 1, samples
             call time_candidate("analytical", reps, analytical(sample))
             call time_candidate("hybrid", reps, hybrid(sample))
+            call time_candidate("autodiff", reps, autodiff_iterations(sample))
+            call time_candidate("diagnostic", reps, diagnostic(sample))
         end do
         call report("analytical", analytical, reps)
         call report("hybrid", hybrid, reps)
+        call report("autodiff", autodiff_iterations, reps)
+        call report("diagnostic", diagnostic, reps)
     end subroutine run_benchmark
 
     subroutine run_peak_rss(name)
         character(*), intent(in) :: name
-        integer(int64), parameter :: reps = 2000000_int64
+        integer(int64), parameter :: reps = 100000_int64
         real(dp) :: elapsed
 
-        if ((name /= "analytical") .and. (name /= "hybrid")) then
-            error stop "usage: --peak-rss analytical|hybrid"
+        if ((name /= "analytical") .and. (name /= "hybrid") .and. &
+                (name /= "autodiff") .and. (name /= "diagnostic")) then
+            error stop "usage: --peak-rss analytical|hybrid|autodiff|diagnostic"
         end if
         call time_candidate(name, reps, elapsed)
         write (*, "(i0)") peak_rss_bytes()
@@ -193,11 +247,16 @@ contains
             x = 1.15_dp + 0.001_dp*real(mod(i, 101_int64), dp)
             parameters(2) = x*x*x + parameters(1)*x
             cotangent = 0.8_dp + 0.001_dp*real(mod(i, 17_int64), dp)
-            if (name == "analytical") then
+            select case (name)
+            case ("analytical")
                 jtu = analytical_root_vjp(x, parameters, cotangent)
-            else
+            case ("hybrid")
                 jtu = hybrid_root_vjp(x, parameters, cotangent)
-            end if
+            case ("autodiff")
+                jtu = autodiff_iterations_root_vjp(parameters, cotangent)
+            case ("diagnostic")
+                jtu = finite_difference_root_vjp(parameters, cotangent)
+            end select
             sink = sink + sum(jtu)
         end do
         call system_clock(finish)
