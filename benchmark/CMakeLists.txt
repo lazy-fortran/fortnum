@@ -27,6 +27,16 @@ set(CMAKE_Fortran_MODULE_DIRECTORY ${PROJECT_BINARY_DIR}/include)
 # Core fortnum sources the benchmark exercises.  Add more here only as the
 # seeded kernels grow to need them; the test/src builds are untouched.
 set(FORTNUM_CORE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../src)
+set(FORTNUM_MULTI_INPUT_SOURCES
+    ${FORTNUM_CORE_DIR}/generated/fortnum_multi_input_p2_jvp_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_multi_input_p2_vjp_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_multi_input_p4_jvp_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_multi_input_p4_vjp_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_multi_input_p8_jvp_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_multi_input_p8_vjp_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_multi_input_p16_jvp_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_multi_input_p16_vjp_kernel.f90
+)
 
 # Shared core compiled once into a static library. Building it per-executable
 # made two targets emit the same .mod into the shared module directory, which
@@ -49,6 +59,7 @@ add_library(bench_core STATIC
     ${FORTNUM_CORE_DIR}/generated/fortnum_inv2_vjp_kernel.f90
     ${FORTNUM_CORE_DIR}/generated/fortnum_inv3_jvp_kernel.f90
     ${FORTNUM_CORE_DIR}/generated/fortnum_inv3_vjp_kernel.f90
+    ${FORTNUM_MULTI_INPUT_SOURCES}
     ${FORTNUM_CORE_DIR}/quadrature/fortnum_integrate_gk.f90
     ${FORTNUM_CORE_DIR}/quadrature/fortnum_integrate.f90
     ${FORTNUM_CORE_DIR}/linalg/fortnum_linalg.f90
@@ -59,11 +70,26 @@ add_library(bench_core STATIC
     ${FORTNUM_CORE_DIR}/roots/fortnum_multiroot.f90
     ${FORTNUM_CORE_DIR}/roots/fortnum_roots.f90
     gpu/fortnum_gpu_batch_wrappers.f90
+    gpu/fortnum_gpu_multi_input_wrappers.f90
+    gpu/test_gpu_multi_input_support.f90
     fortnum_benchmark.f90
     fortnum_benchmark_memory.f90
     peak_rss.c
 )
 target_link_libraries(bench_core PUBLIC fortnum_gpu_backend)
+
+add_library(bench_multi_input_cpu_core STATIC
+    ${FORTNUM_CORE_DIR}/fortnum_kinds.f90
+    ${FORTNUM_MULTI_INPUT_SOURCES}
+    gpu/fortnum_gpu_multi_input_wrappers.f90
+    fortnum_benchmark_memory.f90
+    peak_rss.c
+)
+set_target_properties(bench_multi_input_cpu_core PROPERTIES
+    Fortran_MODULE_DIRECTORY
+        ${PROJECT_BINARY_DIR}/include-multi-input-cpu)
+target_include_directories(bench_multi_input_cpu_core PUBLIC
+    ${PROJECT_BINARY_DIR}/include-multi-input-cpu)
 
 add_executable(bench_main bench_main.f90)
 target_link_libraries(bench_main PRIVATE bench_core)
@@ -88,6 +114,12 @@ if(FORTNUM_GPU_BACKEND STREQUAL "OPENACC")
     add_test(NAME openacc_dawson_offload
         COMMAND test_openacc_dawson_offload)
 
+    add_executable(test_openacc_multi_input_offload
+        gpu/test_openacc_multi_input_offload.f90)
+    target_link_libraries(test_openacc_multi_input_offload PRIVATE bench_core)
+    add_test(NAME openacc_multi_input_offload
+        COMMAND test_openacc_multi_input_offload)
+
     add_executable(bench_openacc_dawson_offload
         gpu/bench_openacc_dawson_offload.f90)
     target_link_libraries(bench_openacc_dawson_offload PRIVATE bench_core)
@@ -98,6 +130,12 @@ elseif(FORTNUM_GPU_BACKEND STREQUAL "OPENMP")
     add_test(NAME openmp_dawson_offload
         COMMAND test_openmp_dawson_offload)
 
+    add_executable(test_openmp_multi_input_offload
+        gpu/test_openmp_multi_input_offload.f90)
+    target_link_libraries(test_openmp_multi_input_offload PRIVATE bench_core)
+    add_test(NAME openmp_multi_input_offload
+        COMMAND test_openmp_multi_input_offload)
+
     add_executable(bench_openmp_dawson_offload
         gpu/bench_openmp_dawson_offload.f90)
     target_link_libraries(bench_openmp_dawson_offload PRIVATE bench_core)
@@ -107,7 +145,16 @@ if(NOT FORTNUM_GPU_BACKEND STREQUAL "NONE")
     add_executable(bench_dawson_gpu_fusion
         gpu/bench_dawson_gpu_fusion.f90)
     target_link_libraries(bench_dawson_gpu_fusion PRIVATE bench_core)
+
+    add_executable(bench_multi_input_gpu
+        gpu/bench_multi_input_scaling.f90)
+    target_link_libraries(bench_multi_input_gpu PRIVATE bench_core)
 endif()
+
+add_executable(bench_multi_input_cpu
+    gpu/bench_multi_input_scaling.f90)
+target_link_libraries(bench_multi_input_cpu PRIVATE
+    bench_multi_input_cpu_core)
 
 add_executable(bench_linear_solve_jvp bench_linear_solve_jvp.f90)
 target_link_libraries(bench_linear_solve_jvp PRIVATE bench_core)

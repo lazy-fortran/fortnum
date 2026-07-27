@@ -14,8 +14,8 @@ must not silently behave as a supported one.
 | Target | `autodiff` | `analytical` | `hybrid` |
 | --- | --- | --- | --- |
 | Serial and parallel CPU | Supported selectively through the pinned Flang/Enzyme pipeline | Supported | Supported selectively as Enzyme composition with analytical custom rules |
-| OpenACC GPU | Not supported | Dawson fused value/JVP pilot | Not supported |
-| OpenMP-target GPU | Not supported | Dawson fused value/JVP pilot | Not supported |
+| OpenACC GPU | Not supported | Validated generated explicit-kernel pilots | Not supported |
+| OpenMP-target GPU | Not supported | Validated generated explicit-kernel pilots | Not supported |
 
 CPU remains the complete feature path. Initial GPU work supports only explicit
 `analytical` leaves that independently pass the device gates below. A missing
@@ -252,6 +252,74 @@ fusion-memory winner independent of backend and residency. Fused execution is
 the wall-clock winner in every measured workload. Machine-readable medians,
 MADs, and candidate-specific peak RSS are in
 `benchmark/reference/rtx5060ti_dawson_fusion.json`.
+
+## Multi-input scalar-output scaling
+
+The next generated family uses one symbolic definition,
+
+```text
+f(x) = sum(sin(x_k)) + 0.5 * sum(x_k)^2,
+```
+
+with fixed 2-, 4-, 8-, and 16-input variants. `fortsym` emits fused
+analytical value/JVP and value/VJP leaves; wrappers contain scheduling only.
+The corrected DAG product generation preserves linear structure: post-CSE
+operation counts are 16, 30, 58, and 114 for JVP and 15, 27, 51, and 99 for
+VJP. The earlier repeated-partial construction would have produced 353 and
+338 operations at 16 inputs.
+
+Both real-device tests cover all four input counts. Independent CPU formulas
+check the value, every JVP, and every VJP component at 1,024 nonuniform points;
+the batched adjoint identity is a second oracle. OpenACC requires an NVIDIA
+device, and OpenMP target requires `omp_is_initial_device()` to be false.
+
+At 65,536 points with one product and resident data, 31-sample medians are:
+
+| Product | Inputs | CPU ms | OpenACC ms | OpenMP ms | Fastest GPU/CPU |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| JVP | 2 | 0.6559 | 0.0319 | 0.0310 | 21.16x |
+| JVP | 4 | 1.3759 | 0.0551 | 0.0551 | 24.97x |
+| JVP | 8 | 2.9981 | 0.1040 | 0.1049 | 28.83x |
+| JVP | 16 | 6.8441 | 0.2150 | 0.2160 | 31.83x |
+| VJP | 2 | 0.6759 | 0.0310 | 0.0310 | 21.80x |
+| VJP | 4 | 1.3740 | 0.0542 | 0.0549 | 25.35x |
+| VJP | 8 | 3.0999 | 0.1011 | 0.1020 | 30.66x |
+| VJP | 16 | 7.7820 | 0.2072 | 0.2010 | 38.72x |
+
+For eight inputs, increasing directions or cotangents from 1 to 4 to 16
+increases wall clock approximately 4x and 16x on CPU and both GPUs. This
+benchmark executes one contracted product per direction or cotangent; it
+therefore measures the expected linear repeated-product cost, not a blocked
+multi-product optimization.
+
+Batch size determines the useful execution path:
+
+| Product | Points | CPU ms | Best resident GPU ms | Best transfer GPU ms |
+| --- | ---: | ---: | ---: | ---: |
+| JVP | 256 | 0.0129 | 0.0141 | 0.0448 |
+| JVP | 65,536 | 3.0201 | 0.1040 | 0.9389 |
+| JVP | 1,048,576 | 48.5580 | 1.4620 | 14.3049 |
+| VJP | 256 | 0.0129 | 0.0141 | 0.0449 |
+| VJP | 65,536 | 3.0561 | 0.1011 | 1.0409 |
+| VJP | 1,048,576 | 49.3989 | 1.4169 | 14.5468 |
+
+Thus the CPU wins the launch-bound 256-point workload. With 65,536 or more
+points, GPU wins even when transfers are included; resident execution wins by
+29.0 to 34.9 times. OpenACC and OpenMP target differ by less than one percent
+in every resident comparison, so this item does not select a backend.
+
+Product-specific allocation avoids counting unused derivative buffers. Live
+array storage is `8*n*(p + p*q + 2*q)` bytes for either product: 17,825,792 B
+at `(p,n,q)=(16,65536,1)`, 88,080,384 B at `(8,65536,16)`, and 150,994,944 B
+at `(8,1048576,1)`. Measured pinned-CPU peak RSS is respectively about 23.4,
+93.4, and 156.3 MB. GPU-process host RSS includes compiler runtime and mapping
+overhead and ranges from 129.7 to 260.9 MB in those regimes. Peak device
+allocation and cache/bandwidth counters remain deliberately assigned to the
+profiling checklist item.
+
+Machine-readable medians, MADs, memory, exact toolchain, and validation
+evidence are in
+`benchmark/reference/rtx5060ti_multi_input_products.json`.
 
 ## Immediate implementation order
 

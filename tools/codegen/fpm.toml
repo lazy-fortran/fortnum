@@ -26,3 +26,8 @@ main = "gen_determinant_products.f90"
 name = "gen_inverse_products"
 source-dir = "app"
 main = "gen_inverse_products.f90"
+
+[[executable]]
+name = "gen_multi_input_scalar"
+source-dir = "app"
+main = "gen_multi_input_scalar.f90"

@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "operation": "fortsym-generated multi-input scalar-output analytical JVP and VJP",
+  "mathematical_kernel": "f(x)=sum(sin(x_k))+0.5*sum(x_k)^2",
+  "workload": {
+    "active_inputs": [2, 4, 8, 16],
+    "product_counts": [1, 4, 16],
+    "batch_sizes": [256, 65536, 1048576],
+    "samples": 31,
+    "warmup_samples": 3,
+    "pinned_cpu": 4,
+    "layout": "x(batch,active), direction(batch,active,product)"
+  },
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "gpu": "NVIDIA GeForce RTX 5060 Ti",
+    "gpu_memory_mib": 16311,
+    "driver": "610.43.03"
+  },
+  "toolchain": {
+    "compiler": "NVHPC nvfortran 26.5",
+    "openacc_flags": "-fast -O3 -acc",
+    "openmp_flags": "-fast -O3 -mp=gpu -mp",
+    "fortsym_revision": "0e3deee5fa2ed3d30ebfce607cc96794f4b8fed3"
+  },
+  "validation": {
+    "device_paths": "mandatory real NVIDIA execution for OpenACC and OpenMP target",
+    "oracles": ["independent value and gradient formulas", "batched adjoint identity"],
+    "points_per_active_input_count": 1024
+  },
+  "structural_operations_after_cse": {
+    "active_inputs": [2, 4, 8, 16],
+    "jvp": [16, 30, 58, 114],
+    "vjp": [15, 27, 51, 99]
+  },
+  "active_input_scaling_n65536_q1_resident": {
+    "active_inputs": [2, 4, 8, 16],
+    "cpu_jvp_median_ms": [0.6559, 1.3759, 2.9981, 6.8441],
+    "cpu_vjp_median_ms": [0.6759, 1.3740, 3.0999, 7.7820],
+    "openacc_jvp_median_ms": [0.0319, 0.0551, 0.1040, 0.2150],
+    "openacc_vjp_median_ms": [0.0310, 0.0542, 0.1011, 0.2072],
+    "openmp_jvp_median_ms": [0.0310, 0.0551, 0.1049, 0.2160],
+    "openmp_vjp_median_ms": [0.0310, 0.0549, 0.1020, 0.2010],
+    "cpu_jvp_mad_ms": [0.0039, 0.0022, 0.0069, 0.0169],
+    "cpu_vjp_mad_ms": [0.0019, 0.0031, 0.0059, 0.0119],
+    "openacc_jvp_mad_ms": [0.0002, 0.0003, 0.0001, 0.0010],
+    "openacc_vjp_mad_ms": [0.0000, 0.0004, 0.0002, 0.0019],
+    "openmp_jvp_mad_ms": [0.0001, 0.0003, 0.0003, 0.0009],
+    "openmp_vjp_mad_ms": [0.0000, 0.0002, 0.0009, 0.0031]
+  },
+  "product_count_scaling_p8_n65536_resident": {
+    "product_counts": [1, 4, 16],
+    "cpu_jvp_median_ms": [2.9981, 12.0070, 48.5518],
+    "cpu_vjp_median_ms": [3.0999, 12.3150, 49.3689],
+    "openacc_jvp_median_ms": [0.1040, 0.4150, 1.6752],
+    "openacc_vjp_median_ms": [0.1011, 0.4042, 1.6300],
+    "openmp_jvp_median_ms": [0.1049, 0.4161, 1.6730],
+    "openmp_vjp_median_ms": [0.1020, 0.4041, 1.6301]
+  },
+  "batch_scaling_p8_q1": {
+    "batch_sizes": [256, 65536, 1048576],
+    "cpu_jvp_median_ms": [0.0129, 3.0201, 48.5580],
+    "cpu_vjp_median_ms": [0.0129, 3.0561, 49.3989],
+    "openacc_resident_jvp_median_ms": [0.0141, 0.1040, 1.4620],
+    "openacc_resident_vjp_median_ms": [0.0150, 0.1011, 1.4178],
+    "openacc_transfer_jvp_median_ms": [0.0450, 0.9389, 14.3049],
+    "openacc_transfer_vjp_median_ms": [0.0449, 1.0409, 16.6571],
+    "openmp_resident_jvp_median_ms": [0.0141, 0.1049, 1.4630],
+    "openmp_resident_vjp_median_ms": [0.0141, 0.1011, 1.4169],
+    "openmp_transfer_jvp_median_ms": [0.0448, 0.9441, 14.4040],
+    "openmp_transfer_vjp_median_ms": [0.0451, 1.0410, 14.5468]
+  },
+  "memory": {
+    "live_array_bytes_formula": "8*n*(p+p*q+2*q)",
+    "regimes": [
+      {
+        "p": 16, "n": 65536, "q": 1, "live_array_bytes": 17825792,
+        "cpu_jvp_peak_rss_bytes": 23355392, "cpu_vjp_peak_rss_bytes": 23351296,
+        "openacc_jvp_peak_rss_bytes": 139239424, "openacc_vjp_peak_rss_bytes": 129744896,
+        "openmp_jvp_peak_rss_bytes": 143294464, "openmp_vjp_peak_rss_bytes": 133480448
+      },
+      {
+        "p": 8, "n": 65536, "q": 16, "live_array_bytes": 88080384,
+        "cpu_jvp_peak_rss_bytes": 93356032, "cpu_vjp_peak_rss_bytes": 93351936,
+        "openacc_jvp_peak_rss_bytes": 193933312, "openacc_vjp_peak_rss_bytes": 135208960,
+        "openmp_jvp_peak_rss_bytes": 197214208, "openmp_vjp_peak_rss_bytes": 140021760
+      },
+      {
+        "p": 8, "n": 1048576, "q": 1, "live_array_bytes": 150994944,
+        "cpu_jvp_peak_rss_bytes": 156266496, "cpu_vjp_peak_rss_bytes": 156274688,
+        "openacc_jvp_peak_rss_bytes": 254537728, "openacc_vjp_peak_rss_bytes": 198107136,
+        "openmp_jvp_peak_rss_bytes": 260878336, "openmp_vjp_peak_rss_bytes": 202858496
+      }
+    ]
+  },
+  "verdict": "CPU wins at n=256; resident GPU wins at n>=65536; analytical products scale linearly in active inputs and repeated products; resident OpenACC and OpenMP target are effectively tied"
+}
