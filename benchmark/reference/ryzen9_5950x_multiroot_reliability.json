@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "multiroot_implicit",
+  "product": "jvp_reliability_status",
+  "workload": "16x16 dense residual Jacobian, 10000 parameter directions per sample",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "gfortran": "16.1.1 20260625",
+    "cmake": "4.4.0"
+  },
+  "sampling": {
+    "warmup_rounds": 3,
+    "samples": 15,
+    "calls_per_sample": 10000
+  },
+  "validation": {
+    "oracle": "diagonal matrix with exact reciprocal condition 1e-8",
+    "reject_threshold": 1e-6,
+    "accept_threshold": 1e-9,
+    "products_checked": ["jvp", "vjp", "gradient"]
+  },
+  "memory_method": "/usr/bin/time -v around taskset -c 4 fo exec",
+  "candidates": [
+    {
+      "id": "plain_product",
+      "mechanism": "analytical",
+      "median_ns_per_call": 2927.8098,
+      "mad_ns_per_call": 9.5219,
+      "peak_rss_bytes": 23977984
+    },
+    {
+      "id": "product_with_reliability_threshold",
+      "mechanism": "analytical",
+      "median_ns_per_call": 52479.1808,
+      "mad_ns_per_call": 242.1733,
+      "peak_rss_bytes": 24236032
+    }
+  ],
+  "selection": {
+    "selected": "plain_product_by_default",
+    "reliability_runtime_ratio": 17.9244,
+    "reason": "the threshold gives explicit reliability status but exact conditioning is expensive, so checking remains caller-requested"
+  }
+}

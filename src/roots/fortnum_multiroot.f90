@@ -210,7 +210,8 @@ contains
     !   tp    : tangent in parameter space (length m).
     !   dx    : output tangent in root space (length n).
     subroutine multiroot_jvp(jac_x, f_p, tp, dx, status, &
-            preconditioned_solve, preconditioner_context, reciprocal_condition)
+            preconditioned_solve, preconditioner_context, reciprocal_condition, &
+            minimum_reciprocal_condition)
         real(dp),               intent(in)  :: jac_x(:, :)
         real(dp),               intent(in)  :: f_p(:, :)
         real(dp),               intent(in)  :: tp(:)
@@ -219,13 +220,20 @@ contains
         procedure(multiroot_preconditioned_solve_t), optional :: preconditioned_solve
         class(*), intent(inout), optional :: preconditioner_context
         real(dp), intent(out), optional :: reciprocal_condition
+        real(dp), intent(in), optional :: minimum_reciprocal_condition
 
         real(dp) :: rhs(size(jac_x, 1))
         integer  :: n, ls_stat
+        logical :: reliable
 
         n = size(jac_x, 1)
-        if (present(reciprocal_condition)) then
-            call estimate_rcond_1(jac_x, reciprocal_condition)
+        call assess_condition(jac_x, reciprocal_condition, &
+            minimum_reciprocal_condition, reliable)
+        if (.not. reliable) then
+            dx = 0.0_dp
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "multiroot_jvp: ill-conditioned Jacobian; derivative unreliable")
+            return
         end if
         rhs = -matmul(f_p, tp)
         call solve_implicit_product(jac_x, rhs, dx, ls_stat, &
@@ -245,7 +253,8 @@ contains
     !   u     : adjoint on the root output x* (length n).
     !   jtu   : adjoint on the parameter vector (length m).
     subroutine multiroot_vjp(jac_x, f_p, u, jtu, status, &
-            preconditioned_solve, preconditioner_context, reciprocal_condition)
+            preconditioned_solve, preconditioner_context, reciprocal_condition, &
+            minimum_reciprocal_condition)
         real(dp),               intent(in)  :: jac_x(:, :)
         real(dp),               intent(in)  :: f_p(:, :)
         real(dp),               intent(in)  :: u(:)
@@ -254,13 +263,20 @@ contains
         procedure(multiroot_preconditioned_solve_t), optional :: preconditioned_solve
         class(*), intent(inout), optional :: preconditioner_context
         real(dp), intent(out), optional :: reciprocal_condition
+        real(dp), intent(in), optional :: minimum_reciprocal_condition
 
         real(dp) :: lambda(size(jac_x, 1))
         integer  :: n, ls_stat
+        logical :: reliable
 
         n = size(jac_x, 1)
-        if (present(reciprocal_condition)) then
-            call estimate_rcond_1(jac_x, reciprocal_condition)
+        call assess_condition(jac_x, reciprocal_condition, &
+            minimum_reciprocal_condition, reliable)
+        if (.not. reliable) then
+            jtu = 0.0_dp
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "multiroot_vjp: ill-conditioned Jacobian; derivative unreliable")
+            return
         end if
         call solve_implicit_product(transpose(jac_x), u, lambda, ls_stat, &
             preconditioned_solve, preconditioner_context)
@@ -279,7 +295,8 @@ contains
     !   f_p   : dF/dp at the root (length n).
     !   dxdp  : sensitivity of the root (length n).
     subroutine multiroot_grad(jac_x, f_p, dxdp, status, &
-            preconditioned_solve, preconditioner_context, reciprocal_condition)
+            preconditioned_solve, preconditioner_context, reciprocal_condition, &
+            minimum_reciprocal_condition)
         real(dp),               intent(in)  :: jac_x(:, :)
         real(dp),               intent(in)  :: f_p(:)
         real(dp),               intent(out) :: dxdp(:)
@@ -287,12 +304,19 @@ contains
         procedure(multiroot_preconditioned_solve_t), optional :: preconditioned_solve
         class(*), intent(inout), optional :: preconditioner_context
         real(dp), intent(out), optional :: reciprocal_condition
+        real(dp), intent(in), optional :: minimum_reciprocal_condition
 
         integer :: n, ls_stat
+        logical :: reliable
 
         n = size(jac_x, 1)
-        if (present(reciprocal_condition)) then
-            call estimate_rcond_1(jac_x, reciprocal_condition)
+        call assess_condition(jac_x, reciprocal_condition, &
+            minimum_reciprocal_condition, reliable)
+        if (.not. reliable) then
+            dxdp = 0.0_dp
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "multiroot_grad: ill-conditioned Jacobian; derivative unreliable")
+            return
         end if
         call solve_implicit_product(jac_x, -f_p, dxdp, ls_stat, &
             preconditioned_solve, preconditioner_context)
@@ -325,6 +349,24 @@ contains
             call solve_linear(n, a, b, x, info)
         end if
     end subroutine solve_implicit_product
+
+    subroutine assess_condition(a, reciprocal_condition, &
+            minimum_reciprocal_condition, reliable)
+        real(dp), intent(in) :: a(:, :)
+        real(dp), intent(out), optional :: reciprocal_condition
+        real(dp), intent(in), optional :: minimum_reciprocal_condition
+        logical, intent(out) :: reliable
+        real(dp) :: measured
+
+        reliable = .true.
+        if (.not. present(reciprocal_condition) .and. &
+                .not. present(minimum_reciprocal_condition)) return
+        call estimate_rcond_1(a, measured)
+        if (present(reciprocal_condition)) reciprocal_condition = measured
+        if (present(minimum_reciprocal_condition)) then
+            reliable = measured >= minimum_reciprocal_condition
+        end if
+    end subroutine assess_condition
 
     subroutine estimate_rcond_1(a, reciprocal_condition)
         real(dp), intent(in) :: a(:, :)

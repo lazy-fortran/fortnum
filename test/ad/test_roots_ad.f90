@@ -366,6 +366,7 @@ contains
     subroutine test_multiroot_condition_diagnostic(nfail)
         integer, intent(inout) :: nfail
         real(dp) :: jac_x(2, 2), f_p(2, 2), tp(2), dx(2), rcond
+        real(dp) :: u(2), jtu(2), scalar_f_p(2), dxdp(2)
         type(fortnum_status_t) :: st
 
         f_p = reshape([-1.0_dp, 0.0_dp, 0.0_dp, -1.0_dp], [2, 2])
@@ -386,6 +387,40 @@ contains
         if (abs(rcond - 1.0e-8_dp) > 1.0e-22_dp) then
             write (error_unit, '(a,es24.16)') &
                 "FAIL [mr_condition] expected 1e-8, got ", rcond
+            nfail = nfail + 1
+        end if
+
+        call multiroot_jvp(jac_x, f_p, tp, dx, st, &
+            reciprocal_condition=rcond, minimum_reciprocal_condition=1.0e-6_dp)
+        if (st%code /= FORTNUM_DOMAIN_ERROR .or. maxval(abs(dx)) /= 0.0_dp) then
+            write (error_unit, '(a)') &
+                "FAIL [mr_condition] unreliable JVP status"
+            nfail = nfail + 1
+        end if
+
+        u = [0.4_dp, -0.2_dp]
+        call multiroot_vjp(jac_x, f_p, u, jtu, st, &
+            minimum_reciprocal_condition=1.0e-6_dp)
+        if (st%code /= FORTNUM_DOMAIN_ERROR .or. maxval(abs(jtu)) /= 0.0_dp) then
+            write (error_unit, '(a)') &
+                "FAIL [mr_condition] unreliable VJP status"
+            nfail = nfail + 1
+        end if
+
+        scalar_f_p = f_p(:, 1)
+        call multiroot_grad(jac_x, scalar_f_p, dxdp, st, &
+            minimum_reciprocal_condition=1.0e-6_dp)
+        if (st%code /= FORTNUM_DOMAIN_ERROR .or. maxval(abs(dxdp)) /= 0.0_dp) then
+            write (error_unit, '(a)') &
+                "FAIL [mr_condition] unreliable gradient status"
+            nfail = nfail + 1
+        end if
+
+        call multiroot_jvp(jac_x, f_p, tp, dx, st, &
+            minimum_reciprocal_condition=1.0e-9_dp)
+        if (.not. status_ok(st)) then
+            write (error_unit, '(a)') &
+                "FAIL [mr_condition] reliable threshold rejected"
             nfail = nfail + 1
         end if
     end subroutine test_multiroot_condition_diagnostic
