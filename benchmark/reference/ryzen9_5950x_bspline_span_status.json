@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operation": "B-spline knot-span derivative crossing status",
+  "hardware": "AMD Ryzen 9 5950X, CPU 4 pinned",
+  "compiler": "GNU Fortran 16.1.1, Release",
+  "validation": {
+    "oracle": "known spans around the interior breakpoint 0.45",
+    "same_span": "FORTNUM_OK",
+    "crossing": "FORTNUM_DOMAIN_ERROR"
+  },
+  "timings": [
+    {"breakpoints": 16, "candidate": "plain_span", "median_ns": 15.8728, "mad_ns": 0.3538},
+    {"breakpoints": 16, "candidate": "derivative_status", "median_ns": 27.3467, "mad_ns": 0.8130},
+    {"breakpoints": 256, "candidate": "plain_span", "median_ns": 25.3249, "mad_ns": 0.9850},
+    {"breakpoints": 256, "candidate": "derivative_status", "median_ns": 48.0806, "mad_ns": 0.5971},
+    {"breakpoints": 4096, "candidate": "plain_span", "median_ns": 36.3111, "mad_ns": 0.5650},
+    {"breakpoints": 4096, "candidate": "derivative_status", "median_ns": 66.4439, "mad_ns": 1.7101}
+  ],
+  "peak_rss_bytes_at_4096_breakpoints": {
+    "plain_span": 4165632,
+    "derivative_status": 4186112
+  },
+  "perf_stat_per_call_at_4096_breakpoints": {
+    "plain_span": {"cycles": 168.046, "instructions": 380.075, "cache_references": 0.02985, "cache_misses": 0.00257},
+    "derivative_status": {"cycles": 311.844, "instructions": 588.075, "cache_references": 0.05660, "cache_misses": 0.00362}
+  },
+  "decision": "run the status guard only at derivative or optimizer boundaries that require span-crossing detection"
+}

@@ -1058,6 +1058,39 @@ taskset -c 4 fo exec bench_interp_cell_status plain 4096
 taskset -c 4 fo exec bench_interp_cell_status status 4096
 ```
 
+## B-spline knot-span crossing status
+
+`bspline_span_derivative_status` performs symmetric directional probes and
+reports `FORTNUM_DOMAIN_ERROR` when they select different knot spans. Tests
+use known spans around an interior breakpoint and retain the existing
+independent fixed-span tag checks.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, GNU Fortran 16.1.1, Release,
+15 samples after three warmups.
+
+| Breakpoints | Plain span median (MAD) | Status guard median (MAD) | Guard/plain |
+|---:|---:|---:|---:|
+| 16 | 15.8728 (0.3538) ns | 27.3467 (0.8130) ns | 1.723x |
+| 256 | 25.3249 (0.9850) ns | 48.0806 (0.5971) ns | 1.899x |
+| 4,096 | 36.3111 (0.5650) ns | 66.4439 (1.7101) ns | 1.830x |
+
+At 4,096 breakpoints, peak RSS is 4,165,632 bytes for one span lookup and
+4,186,112 bytes for the status guard. The guard uses 312 cycles, 588
+instructions, 0.057 cache references, and 0.004 cache misses per call, versus
+168, 380, 0.030, and 0.003 for one lookup. As with interpolation cells, the
+guard remains explicit outside value-only hot loops.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_bspline_span_status.json`.
+
+```bash
+fo test test_bspline_ad
+cd benchmark
+fo build
+taskset -c 4 fo exec bench_bspline_span_status plain 4096
+taskset -c 4 fo exec bench_bspline_span_status status 4096
+```
+
 ## Hybrid fixed-quadrature integrand JVP
 
 This workload applies a reusable 32-point Gauss-Legendre rule on `[0,1]` to
