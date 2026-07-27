@@ -35,6 +35,7 @@ add_library(bench_core STATIC
     ${FORTNUM_CORE_DIR}/fortnum_version.f90
     ${FORTNUM_CORE_DIR}/generated/fortnum_dawson_outer_kernel.f90
     ${FORTNUM_CORE_DIR}/linalg/fortnum_linalg.f90
+    ${FORTNUM_CORE_DIR}/roots/fortnum_fixed_point.f90
     ${FORTNUM_CORE_DIR}/roots/fortnum_multiroot.f90
     ${FORTNUM_CORE_DIR}/roots/fortnum_roots.f90
     fortnum_benchmark.f90
@@ -73,6 +74,9 @@ target_link_libraries(bench_vector_root_tangent PRIVATE bench_core)
 
 add_executable(bench_vector_root_adjoint bench_vector_root_adjoint.f90)
 target_link_libraries(bench_vector_root_adjoint PRIVATE bench_core)
+
+add_executable(bench_fixed_point_tangent bench_fixed_point_tangent.f90)
+target_link_libraries(bench_fixed_point_tangent PRIVATE bench_core)
 
 add_executable(bench_static_registry bench_static_registry.f90)
 target_link_libraries(bench_static_registry PRIVATE bench_core)

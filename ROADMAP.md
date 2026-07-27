@@ -61,7 +61,8 @@ independent validation plus measured application runtime and peak memory.
 - [x] Add a generic analytical implicit adjoint boundary for scalar roots.
 - [x] Add a generic analytical implicit tangent boundary for vector roots.
 - [x] Add a generic analytical implicit adjoint boundary for vector roots.
-- [ ] Add analytical implicit products for fixed points.
+- [x] Add analytical implicit tangent products for fixed points.
+- [ ] Add analytical implicit adjoint products for fixed points.
 - [ ] Add hybrid scalar-root candidates using autodiff residual products.
 - [ ] Add hybrid vector-root candidates using autodiff residual products.
 - [ ] Reuse converged root Jacobians and factorizations.
