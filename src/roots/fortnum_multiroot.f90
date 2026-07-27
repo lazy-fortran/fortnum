@@ -45,9 +45,10 @@ module fortnum_multiroot
     private
 
     public :: multiroot_fdf_t, multiroot_fn_t, multiroot_residual_jvp_t
+    public :: multiroot_state_jacobian_t, multiroot_parameter_vjp_t
     public :: multiroot_preconditioned_solve_t
     public :: multiroot_hybrid, multiroot_hybrids
-    public :: multiroot_implicit_jvp
+    public :: multiroot_implicit_jvp, multiroot_implicit_vjp
     public :: multiroot_jvp, multiroot_vjp, multiroot_grad
     public :: deriv_fn_t, deriv_central
     public :: argsort
@@ -85,6 +86,24 @@ module fortnum_multiroot
             real(dp), intent(out) :: f_p_tp(size(x))
             class(*), intent(inout), optional :: context
         end subroutine multiroot_residual_jvp_t
+    end interface
+
+    abstract interface
+        subroutine multiroot_state_jacobian_t(x, p, jac_x, context)
+            import :: dp
+            real(dp), intent(in) :: x(:), p(:)
+            real(dp), intent(out) :: jac_x(size(x), size(x))
+            class(*), intent(inout), optional :: context
+        end subroutine multiroot_state_jacobian_t
+    end interface
+
+    abstract interface
+        subroutine multiroot_parameter_vjp_t(x, p, u, f_p_t_u, context)
+            import :: dp
+            real(dp), intent(in) :: x(:), p(:), u(:)
+            real(dp), intent(out) :: f_p_t_u(size(p))
+            class(*), intent(inout), optional :: context
+        end subroutine multiroot_parameter_vjp_t
     end interface
 
     ! Optional implicit-product solve hook. Implementations may carry and reuse
@@ -316,6 +335,35 @@ contains
         jtu = -matmul(transpose(f_p), lambda)
         call status_set(status, FORTNUM_OK, "")
     end subroutine multiroot_vjp
+
+    ! Generic analytical implicit adjoint boundary. First solve
+    ! F_x^T*lambda=u, then evaluate and negate F_p^T*lambda.
+    subroutine multiroot_implicit_vjp(state_jacobian, parameter_vjp, x, p, &
+            u, jtu, status, context)
+        procedure(multiroot_state_jacobian_t) :: state_jacobian
+        procedure(multiroot_parameter_vjp_t) :: parameter_vjp
+        real(dp), intent(in) :: x(:), p(:), u(:)
+        real(dp), intent(out) :: jtu(:)
+        type(fortnum_status_t), intent(out) :: status
+        class(*), intent(inout), optional :: context
+
+        real(dp) :: jac_x(size(x), size(x)), jac_x_t(size(x), size(x))
+        real(dp) :: lambda(size(x)), f_p_t_lambda(size(p))
+        integer :: ls_stat
+
+        call state_jacobian(x, p, jac_x, context)
+        jac_x_t = transpose(jac_x)
+        call solve_implicit_product(jac_x_t, u, lambda, ls_stat)
+        if (ls_stat /= 0) then
+            jtu = 0.0_dp
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "multiroot_implicit_vjp: singular Jacobian; derivative unreliable")
+            return
+        end if
+        call parameter_vjp(x, p, lambda, f_p_t_lambda, context)
+        jtu = -f_p_t_lambda
+        call status_set(status, FORTNUM_OK, "")
+    end subroutine multiroot_implicit_vjp
 
     ! multiroot_grad: scalar-p case dx*/dp = -J_x^{-1} f_p, solved as J_x dxdp = -f_p.
     !   jac_x : J_x at the root (n x n).

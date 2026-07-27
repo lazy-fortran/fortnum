@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "vector_root",
+  "product": "vjp",
+  "workload": "2-state residual, 2 active parameters, 2000000 cotangents per sample",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "gfortran": "16.1.1 20260625",
+    "cmake": "4.4.0",
+    "fortsym_commit": "15636e944b3b932283aff4f313c6a5f459d40692"
+  },
+  "sampling": {
+    "warmup_rounds": 3,
+    "samples": 15,
+    "calls_per_sample": 2000000,
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum"
+  },
+  "validation": {
+    "oracle": "componentwise central difference of u^T*x*(p) with complete vector-root solves",
+    "absolute_tolerance": 1e-7
+  },
+  "memory_method": "getrusage(RUSAGE_SELF) inside each separately launched candidate",
+  "candidates": [
+    {
+      "id": "preassembled_residual_jacobians",
+      "mechanism": "analytical",
+      "median_ns_per_call": 105.9837,
+      "mad_ns_per_call": 1.4521,
+      "peak_rss_bytes": 12316672
+    },
+    {
+      "id": "contracted_callback_boundary",
+      "mechanism": "analytical",
+      "median_ns_per_call": 94.1294,
+      "mad_ns_per_call": 0.6195,
+      "peak_rss_bytes": 12472320
+    }
+  ],
+  "selection": {
+    "selected": "contracted_callback_boundary",
+    "runtime_speedup": 1.1259,
+    "reason": "both pass the independent oracle; contracted callback is 1.1259x faster while using 155648 more bytes of maximum observed candidate-process RSS"
+  }
+}
