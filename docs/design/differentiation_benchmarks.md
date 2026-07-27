@@ -1125,6 +1125,39 @@ taskset -c 4 fo exec bench_lagrange_combined separate vjp 16
 taskset -c 4 fo exec bench_lagrange_combined fused vjp 16
 ```
 
+## Separate versus fused combined-active B-spline products
+
+The fused product shares one derivative-basis evaluation between
+evaluation-point and coefficient activity. Separate products evaluate the
+derivative basis and value basis independently.
+
+| Product | Coefficients | Separate median (MAD) | Fused median (MAD) | Fused speedup |
+|---|---:|---:|---:|---:|
+| JVP | 4 | 118.8003 (2.2049) ns | 80.0236 (1.9091) ns | 1.485x |
+| JVP | 8 | 144.3235 (3.8062) ns | 88.4504 (1.3137) ns | 1.632x |
+| JVP | 16 | 156.7805 (2.0708) ns | 101.5131 (2.1066) ns | 1.544x |
+| VJP | 4 | 115.4465 (2.5599) ns | 74.5651 (1.8176) ns | 1.548x |
+| VJP | 8 | 131.1213 (1.4884) ns | 83.3298 (1.2245) ns | 1.574x |
+| VJP | 16 | 151.2180 (2.0806) ns | 104.2594 (1.7177) ns | 1.450x |
+
+At 16 coefficients, fused JVP executes 1,675 instructions versus 2,307
+separately; fused VJP executes 1,576 versus 2,208. Peak RSS stays in the same
+3.89--4.18 MiB process-baseline band and cache misses are negligible. Fused is
+selected for simultaneous activity at every measured size.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_bspline_combined.json`.
+
+```bash
+fo test test_bspline_ad
+cd benchmark
+fo build
+taskset -c 4 fo exec bench_bspline_combined separate jvp 16
+taskset -c 4 fo exec bench_bspline_combined fused jvp 16
+taskset -c 4 fo exec bench_bspline_combined separate vjp 16
+taskset -c 4 fo exec bench_bspline_combined fused vjp 16
+```
+
 ## Hybrid fixed-quadrature integrand JVP
 
 This workload applies a reusable 32-point Gauss-Legendre rule on `[0,1]` to
