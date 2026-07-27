@@ -50,7 +50,7 @@ independent validation plus measured application runtime and peak memory.
 - [x] Connect committed benchmark records to build-time candidate selection.
 - [x] Generate a static per-workload selection registry.
 - [x] Add conditioning diagnostics to implicit derivative products.
-- [ ] Add derivative-reliability status for ill-conditioned implicit products.
+- [x] Add derivative-reliability status for ill-conditioned implicit products.
 - [ ] Measure candidate-specific peak memory instead of shared-process RSS.
 
 ## Roots and residual equations

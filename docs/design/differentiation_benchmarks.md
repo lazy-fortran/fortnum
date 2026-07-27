@@ -250,3 +250,35 @@ fo build
 taskset -c 4 fo exec bench_multiroot_condition plain
 taskset -c 4 fo exec bench_multiroot_condition diagnostic
 ```
+
+## Reliability status for ill-conditioned implicit products
+
+The multiroot analytical JVP, VJP, and scalar gradient accept an optional
+minimum reciprocal condition. If the measured condition falls below that
+threshold, the product is zeroed and returns `FORTNUM_DOMAIN_ERROR` with an
+unreliable-derivative message. A matrix with exact reciprocal condition `1e-8`
+is independently verified to fail a `1e-6` threshold and pass `1e-9`.
+
+Checking reliability performs the opt-in exact condition estimate:
+
+| Candidate | Median ns/JVP | MAD ns/JVP | Peak RSS |
+|---|---:|---:|---:|
+| plain analytical product | 2,927.8098 | 9.5219 | 23,977,984 B |
+| product plus reliability threshold | 52,479.1808 | 242.1733 | 24,236,032 B |
+
+Per-call reliability checking is 17.9244 times as expensive and raises measured
+process-tree peak RSS by 258,048 bytes. It therefore remains explicit; callers
+should request or cache it at solver and optimization boundaries rather than
+inside repeated direction loops.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_multiroot_reliability.json`.
+
+Run the benchmark with:
+
+```bash
+cd benchmark
+fo build
+taskset -c 4 fo exec bench_multiroot_condition plain
+taskset -c 4 fo exec bench_multiroot_condition reliability
+```

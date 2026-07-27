@@ -14,8 +14,10 @@ program bench_multiroot_condition
     character(16) :: candidate
 
     call get_command_argument(1, candidate)
-    if ((trim(candidate) /= "plain") .and. (trim(candidate) /= "diagnostic")) then
-        error stop "usage: bench_multiroot_condition plain|diagnostic"
+    if ((trim(candidate) /= "plain") .and. &
+            (trim(candidate) /= "diagnostic") .and. &
+            (trim(candidate) /= "reliability")) then
+        error stop "usage: bench_multiroot_condition plain|diagnostic|reliability"
     end if
     call initialize_inputs()
 
@@ -60,6 +62,9 @@ contains
                 call multiroot_jvp(jacobian, parameter_jacobian, direction, &
                     tangent, status, reciprocal_condition=reciprocal_condition)
                 sink = sink + reciprocal_condition
+            else if (trim(name) == "reliability") then
+                call multiroot_jvp(jacobian, parameter_jacobian, direction, &
+                    tangent, status, minimum_reciprocal_condition=1.0e-12_dp)
             else
                 call multiroot_jvp(jacobian, parameter_jacobian, direction, &
                     tangent, status)
