@@ -116,15 +116,17 @@ cmake --build build -j$(nproc)
 ctest --test-dir build
 ```
 
-**fpm** (alternate, for fpm-based consumers):
+**Native fpm manifest** (alternate build and consumer metadata):
 
 ```
 fpm build
-fpm test
+fo
 ```
 
-The `fo` tool wraps both paths and adds static analysis and formatting checks.
-Run `fo` with no arguments for the full pipeline.
+The manifest uses `[extra.fo.test-args]` because the oracle executables require
+different reference-data arguments. Plain fpm cannot attach distinct arguments
+to automatically discovered tests. Run `fo` with no arguments for the complete
+native build, test, static-analysis, formatting-check, and lint pipeline.
 
 ---
 

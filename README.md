@@ -249,12 +249,17 @@ cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```
 
-An `fpm.toml` is provided so the `fo` tool and `fpm` work as well:
+An `fpm.toml` is provided for native `fo` builds and fpm-based consumers:
 
 ```
 fpm build
-fpm test
+fo
 ```
+
+The manifest's `[extra.fo.test-args]` table supplies each oracle test with its
+own reference-data arguments. Plain `fpm test` cannot express different
+arguments per automatically discovered test; use bare `fo` for the complete
+native build, 92-test suite, static checks, and lint pipeline.
 
 ## Layout
 
