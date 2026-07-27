@@ -24,6 +24,7 @@ set(FORTNUM_DERIVATIVE_BENCHMARK_RECORDS
     "${CMAKE_CURRENT_SOURCE_DIR}/benchmark/reference/ryzen9_5950x_multiroot_preconditioner.json")
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include(FortnumGpuBackend)
 include(FortnumBenchmarkSelection)
 if(FORTNUM_USE_BENCHMARK_SELECTION)
     fortnum_read_benchmark_selection(

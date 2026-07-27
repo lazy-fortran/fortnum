@@ -82,7 +82,7 @@ endif()
 
 # roots/fortnum_roots_complex.f90 calls LAPACK ZGGEV; link LAPACK (with BLAS)
 # into the library so every consumer resolves the symbol.
-target_link_libraries(fortnum PUBLIC LAPACK::LAPACK)
+target_link_libraries(fortnum PUBLIC LAPACK::LAPACK fortnum_gpu_backend)
 
 # Install the hand-written C ABI header so C/C++ consumers find it.
 install(FILES ${PROJECT_SOURCE_DIR}/include/fortnum.h DESTINATION include)

@@ -16,6 +16,11 @@ The current CPU/GPU support matrix and the strict device-leaf contract are in
 `docs/design/gpu.md`. GPU differentiation is not yet a supported production
 path: initial offload work is limited to validated generated `analytical`
 leaves, and silent host fallback is a test failure.
+GPU compilation is selected explicitly with
+`-DFORTNUM_GPU_BACKEND=NONE|OPENACC|OPENMP`; `NONE` is the default, and an
+unavailable selection fails configuration. OpenMP offload also requires
+compiler-specific `FORTNUM_OPENMP_TARGET_FLAGS`, so host-only OpenMP cannot be
+mistaken for GPU support.
 `fortnum` uses `fortsym` at build time for symbolic algebra and code
 generation. The first pinned generator is under `tools/codegen/`; generated
 production sources are committed under `src/generated/`. The
@@ -252,6 +257,11 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
 cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```
+
+For an accelerator build, add exactly one explicit backend selection. For
+example, an OpenACC-capable compiler uses
+`-DFORTNUM_GPU_BACKEND=OPENACC`. OpenMP target builds additionally pass
+`-DFORTNUM_OPENMP_TARGET_FLAGS="<compiler target flags>"`.
 
 An `fpm.toml` is provided for native `fo` builds and fpm-based consumers:
 

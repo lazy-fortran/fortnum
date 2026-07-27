@@ -214,7 +214,7 @@ derivatives. CPU Enzyme remains the `autodiff` backend and supplies CPU
   annotations; add no scheduling or GPU runtime abstraction.
 - [x] Pin the tested `fortsym` revision in `fortnum`, regenerate the Dawson
   leaf with device annotations, and prove byte-stable regeneration.
-- [ ] Add the build-time choice
+- [x] Add the build-time choice
   `FORTNUM_GPU_BACKEND=NONE|OPENACC|OPENMP`, defaulting to `NONE`; selecting an
   unavailable backend must fail configuration instead of falling back.
 - [ ] Add one shared benchmark-only batch-wrapper template whose numerical

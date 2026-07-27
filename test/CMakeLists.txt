@@ -5,6 +5,13 @@
 # OpenMP is required only by the M5 concurrency tests (thread-safety checks).
 find_package(OpenMP REQUIRED COMPONENTS Fortran)
 
+add_test(
+    NAME gpu_backend_configure
+    COMMAND "${CMAKE_COMMAND}"
+        "-DFORTNUM_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
+        "-DTEST_BINARY_ROOT=${PROJECT_BINARY_DIR}/gpu-backend-configure"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/test_gpu_backend_configure.cmake")
+
 add_executable(test_fortnum_smoke test_fortnum_smoke.f90)
 target_link_libraries(test_fortnum_smoke PRIVATE fortnum)
 add_test(NAME fortnum_smoke COMMAND test_fortnum_smoke)
