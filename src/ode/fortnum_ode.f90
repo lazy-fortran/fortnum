@@ -32,6 +32,8 @@ module fortnum_ode
     use, intrinsic :: iso_fortran_env, only: dp => real64
     use fortnum_status, only: fortnum_status_t, status_set, &
         FORTNUM_OK, FORTNUM_DOMAIN_ERROR, FORTNUM_CONVERGENCE_ERROR
+    use fortnum_linalg, only: LINALG_MAX_N, LINALG_OK, lu_factor, &
+        lu_solve_factored
     use fortnum_ode_cash_karp, only: cash_karp_step
     implicit none
     private
@@ -42,6 +44,7 @@ module fortnum_ode
     public :: ode_integrate_parameter_vjp
     public :: ode_build_checkpoints, ode_integrate_vjp_checkpointed
     public :: ode_build_recompute_trace, ode_integrate_vjp_recomputed
+    public :: ode_implicit_stage_jvp
 
     integer, parameter, public :: ODE_EVENT_RISING  =  1
     integer, parameter, public :: ODE_EVENT_FALLING = -1
@@ -185,6 +188,87 @@ module fortnum_ode
     end type ode_recompute_trace_t
 
 contains
+
+    ! Analytical tangent of the implicit-stage residual
+    !
+    !     stage - base - alpha*f(t, stage, p) = 0.
+    !
+    ! For every direction, solve
+    !
+    !     (I - alpha*df/dstage) dstage
+    !         = dbase + alpha*(df/dp dp).
+    !
+    ! The caller evaluates rhs_jacobian at the converged primal stage.
+    ! base_tangent carries product/chain-rule contributions from prior stages;
+    ! rhs_parameter_jvp carries already-contracted active-parameter directions.
+    ! One factorization is reused across all direction columns.
+    subroutine ode_implicit_stage_jvp(alpha, rhs_jacobian, base_tangent, &
+            rhs_parameter_jvp, stage_tangent, status)
+        real(dp), intent(in) :: alpha
+        real(dp), intent(in) :: rhs_jacobian(:,:)
+        real(dp), intent(in) :: base_tangent(:,:)
+        real(dp), intent(in) :: rhs_parameter_jvp(:,:)
+        real(dp), allocatable, intent(out) :: stage_tangent(:,:)
+        type(fortnum_status_t), intent(out) :: status
+
+        integer :: n, ndirection, i, direction, info
+        integer, allocatable :: pivots(:)
+        real(dp), allocatable :: factor(:,:)
+
+        call status_set(status, FORTNUM_OK, "")
+        n = size(rhs_jacobian, 1)
+        if (n < 1 .or. n > LINALG_MAX_N) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_implicit_stage_jvp: unsupported state size")
+            return
+        end if
+        if (size(rhs_jacobian, 2) /= n) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_implicit_stage_jvp: Jacobian must be square")
+            return
+        end if
+        if (size(base_tangent, 1) /= n) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_implicit_stage_jvp: base tangent size mismatch")
+            return
+        end if
+        if (size(rhs_parameter_jvp, 1) /= n) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_implicit_stage_jvp: parameter tangent size mismatch")
+            return
+        end if
+        ndirection = size(base_tangent, 2)
+        if (size(rhs_parameter_jvp, 2) /= ndirection) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_implicit_stage_jvp: direction count mismatch")
+            return
+        end if
+
+        allocate(stage_tangent(n, ndirection), factor(n, n), pivots(n))
+        factor = -alpha*rhs_jacobian
+        do i = 1, n
+            factor(i, i) = factor(i, i) + 1.0_dp
+        end do
+        call lu_factor(n, factor, pivots, info)
+        if (info /= LINALG_OK) then
+            stage_tangent = 0.0_dp
+            call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
+                "ode_implicit_stage_jvp: singular stage Jacobian")
+            return
+        end if
+
+        stage_tangent = base_tangent + alpha*rhs_parameter_jvp
+        do direction = 1, ndirection
+            call lu_solve_factored(n, factor, pivots, &
+                stage_tangent(:, direction), info)
+            if (info /= LINALG_OK) then
+                stage_tangent = 0.0_dp
+                call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
+                    "ode_implicit_stage_jvp: stage tangent solve failed")
+                return
+            end if
+        end do
+    end subroutine ode_implicit_stage_jvp
 
     ! Integrate problem%rhs from t0 to t1 with adaptive Cash-Karp RK5(4).
     ! Records the accepted-step mesh into solution. Event detection lands in

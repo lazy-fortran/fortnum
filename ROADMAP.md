@@ -104,7 +104,7 @@ independent validation plus measured application runtime and peak memory.
 - [x] Accumulate parameter VJPs in the discrete adjoint.
 - [x] Add checkpointed reverse differentiation as a candidate.
 - [x] Add recomputation-based reverse differentiation as a candidate.
-- [ ] Add analytical implicit-stage tangent products.
+- [x] Add analytical implicit-stage tangent products.
 - [ ] Add analytical implicit-stage adjoint products.
 - [ ] Differentiate event times through the event residual equation.
 - [ ] Document and test the continuous sensitivity contract.

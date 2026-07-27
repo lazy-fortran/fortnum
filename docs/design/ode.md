@@ -272,6 +272,15 @@ under #40 checks transversality before propagating an event sensitivity.
   `h` schedule plus `y0`. `ode_integrate_vjp_recomputed` reconstructs the
   forward prefix from `y0` for every backward step. This uses constant state
   storage beyond the scalar schedule, at quadratic work in the step count.
+- Implicit stages: for a converged stage satisfying
+  `stage - base - alpha*rhs(t, stage, p) = 0`,
+  `ode_implicit_stage_jvp` solves
+  `(I - alpha*rhs_jacobian) * stage_tangent =
+  base_tangent + alpha*rhs_parameter_jvp`. `base_tangent` composes all
+  product/chain-rule contributions from earlier stages. Parameter products are
+  already contracted into the requested directions. Multiple direction
+  columns reuse one stage-Jacobian factorization. Step size and tableau
+  coefficient `alpha` are inactive.
 
 These names follow ad.md §2 (`foo_jvp`, `foo_vjp`). The primal `ode_integrate`
 and `ode_solve` signatures in sections 4 and 5 remain unchanged.
