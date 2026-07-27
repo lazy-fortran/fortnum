@@ -154,7 +154,7 @@ independent validation plus measured application runtime and peak memory.
   baseline.
 - [x] Extend and test `fortsym` provenance support in its own repository when
   the emitter needs capabilities beyond its current public interface.
-- [ ] Add a `fortsym` revision lock and emit the exact revision in every
+- [x] Add a `fortsym` revision lock and emit the exact revision in every
   generated numerical-kernel banner.
 - [ ] Regenerate Dawson, determinant, and inverse kernels with current module,
   purity, line-wrapping, operation-count, and `fo` regeneration metadata.

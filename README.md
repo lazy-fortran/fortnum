@@ -14,7 +14,9 @@ See `docs/performance_optimal_differentiation.md` for the rationale and
 `docs/design/differentiation_plan.md` for the implementation plan.
 `fortnum` uses `fortsym` at build time for symbolic algebra and code
 generation. The first pinned generator is under `tools/codegen/`; generated
-production sources are committed under `src/generated/`.
+production sources are committed under `src/generated/`. The
+`tools/codegen/fortsym.lock` file pins the generator dependency, and every
+generated numerical kernel records that full revision in its banner.
 
 Current derivative infrastructure includes generic analytical implicit JVP and
 VJP boundaries for scalar and vector roots, analytical fixed-point and

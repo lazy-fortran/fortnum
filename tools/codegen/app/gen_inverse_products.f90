@@ -7,6 +7,7 @@ program gen_inverse_products
         operation_count_t, KERNEL_SUBROUTINE
     use fortsym_engine, only: engine_result_t
     use fortsym_engine_symengine, only: symengine_engine_t, make_symengine_engine
+    use fortnum_codegen_provenance, only: fortsym_revision
     implicit none
 
     type(arena_t), target :: arena
@@ -97,6 +98,7 @@ contains
         spec%mode = KERNEL_SUBROUTINE
         spec%temp_prefix = str("t")
         spec%generator = str("gen_inverse_products")
+        spec%generator_revision = str(fortsym_revision())
         spec%regenerate_command = str( &
             "fpm run -C tools/codegen --target gen_inverse_products")
         spec%openacc_routine_seq = .true.

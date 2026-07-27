@@ -162,7 +162,10 @@ The supported integration surface is deliberately narrow and demonstrated by
 engine simplification, fused kernel emission, post-CSE operation counting, and
 an exact regeneration command in the generated banner. Revision
 `fortsym@59c2949` adds the tested `generator_revision` field needed to place an
-exact dependency revision in that banner.
+exact dependency revision in that banner. `tools/codegen/fortsym.lock` pins the
+full revision `59c2949ecf52887f91248d3e32cde54020e2fca6`. The Dawson,
+determinant, and inverse generators read that lock through one support module.
+All nine generated numerical kernels carry the same full revision.
 
 `fortsym` remains under development. New work may extend it, with independent
 tests in that repository, but must not guess an unimplemented API or duplicate a
@@ -211,8 +214,10 @@ autodiff.
 
 Adding revision metadata changes comments only. The focused `fortsym` codegen
 test takes 0.10 s, its full `fo` pipeline takes 18.6 s, and its CMake suite
-passes 11 of 11 tests in 21.13 s on the reference host. Generated numerical
-runtime, peak memory, and native instructions are unchanged.
+passes 11 of 11 tests in 21.13 s on the reference host. Regenerating Dawson,
+determinant, and inverse takes 0.01 s, 0.01 s, and 0.02 s, with peak RSS of
+42,276 KB, 45,296 KB, and 45,196 KB. Generated numerical statements, runtime,
+peak memory, and native instructions are unchanged.
 
 ## 8. Selection and dispatch
 
