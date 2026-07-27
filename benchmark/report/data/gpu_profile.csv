@@ -1,0 +1,5 @@
+candidate,bandwidth_gbyte_s,occupancy_percent,registers_per_thread,spills,peak_device_mb
+OpenACC-JVP,102.42,24.41,147,0,153.051422
+OpenACC-VJP,99.37,24.31,150,0,153.051422
+OpenMP-JVP,102.47,24.52,147,0,153.125080
+OpenMP-VJP,99.65,24.55,150,0,153.125080

@@ -395,6 +395,38 @@ difference to peak device allocation is runtime allocation overhead. Complete
 profile metadata and the extraction definition are in
 `benchmark/reference/rtx5060ti_multi_input_profile.json`.
 
+## Reproducible GPU figures
+
+`benchmark/report/app/plot_gpu_report.f90` generates six focused figures from
+the normalized CSV copies of the committed benchmark evidence:
+
+- JVP and VJP complete wall clock versus batch size on log-log axes, including
+  CPU, resident GPU, and transfer-inclusive GPU paths;
+- JVP and VJP wall clock versus active-input count on log axes;
+- achieved device-memory bandwidth; and
+- peak device allocation.
+
+The runtime figures use an Okabe-Ito-derived color-safe palette plus distinct
+line styles and markers. Backend and product names label every profile bar, so
+color is not required to decode them. Axes state quantities, units, and log
+scales explicitly. The rendered color figures and a grayscale conversion were
+inspected for labels, overlap, and redundant series distinction.
+
+Reproduce them from the repository root:
+
+```bash
+mkdir -p /tmp/fortnum-gpu-report
+cd benchmark/report
+fo exec plot_gpu_report \
+  data/gpu_batch_scaling.csv \
+  data/gpu_active_scaling.csv \
+  data/gpu_profile.csv \
+  /tmp/fortnum-gpu-report
+```
+
+The repository commits the generator and data only. `benchmark/report` ignores
+its output directory and all PNG files.
+
 ## Immediate implementation order
 
 The first pilot is the generated Dawson fused value/JVP leaf:

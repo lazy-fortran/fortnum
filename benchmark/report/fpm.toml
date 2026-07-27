@@ -19,3 +19,8 @@ fortplot = { git = "https://github.com/lazy-fortran/fortplot.git", rev = "c6567b
 name = "plot_differentiation_report"
 source-dir = "app"
 main = "plot_differentiation_report.f90"
+
+[[executable]]
+name = "plot_gpu_report"
+source-dir = "app"
+main = "plot_gpu_report.f90"

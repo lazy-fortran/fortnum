@@ -1,0 +1,4 @@
+batch,cpu_jvp,openacc_resident_jvp,openacc_transfer_jvp,openmp_resident_jvp,openmp_transfer_jvp,cpu_vjp,openacc_resident_vjp,openacc_transfer_vjp,openmp_resident_vjp,openmp_transfer_vjp
+256,0.0129,0.0141,0.0450,0.0141,0.0448,0.0129,0.0150,0.0449,0.0141,0.0451
+65536,3.0201,0.1040,0.9389,0.1049,0.9441,3.0561,0.1011,1.0409,0.1011,1.0410
+1048576,48.5580,1.4620,14.3049,1.4630,14.4040,49.3989,1.4178,16.6571,1.4169,14.5468
