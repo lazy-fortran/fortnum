@@ -42,8 +42,11 @@ tournament selects `analytical` for both products. Adaptive integration has an
 traces, a forward-`autodiff` candidate through a fixed accepted trace, and a
 `hybrid` candidate using Enzyme integrand JVPs inside the analytical trace walk.
 The smooth adaptive tournament selects a compact `analytical` frozen-trace
-replay. Candidate selection prioritizes complete-workload wall clock and
-records peak memory, input/output scaling, and cache behavior where supported.
+replay. For an integrable endpoint singularity, compact whole-trace `autodiff`
+has the lowest median wall clock, but is within measurement noise of compact
+`analytical`; both clearly beat the generic callback paths. Candidate selection
+prioritizes complete-workload wall clock and records peak memory, input/output
+scaling, and cache behavior where supported.
 
 ## Build
 

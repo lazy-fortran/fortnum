@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "singular_adaptive_qags_frozen_trace",
+  "product": "value_plus_jvp",
+  "workload": "QAGS integral of exp(p)/sqrt(x) on [0,1], p=0.7, verified six-panel trace",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor"
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "enzyme_commit": "c96508349d9f",
+    "build": "Release -O2"
+  },
+  "sampling": {
+    "tournament_processes": 3,
+    "samples_per_process": 31,
+    "workloads_per_sample": 2000,
+    "candidate_order": "rotated each sample",
+    "runtime_aggregation": "median of process medians",
+    "dispersion_aggregation": "median of within-process MADs",
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum",
+    "perf_repetitions": 1
+  },
+  "validation": {
+    "oracle": "central difference of the independently evaluated frozen G10K21 trace",
+    "continuous_exact_derivative": "2*exp(p)",
+    "maximum_allowed_frozen_trace_bias": 0.02,
+    "trace_panels": [[0.0, 0.03125], [0.03125, 0.0625], [0.0625, 0.125], [0.125, 0.25], [0.25, 0.5], [0.5, 1.0]],
+    "candidate_absolute_tolerance": 2e-8,
+    "trace_identity_checked": true
+  },
+  "candidates": [
+    {"id": "generic_explicit_tangent", "mechanism": "analytical", "median_ns": 6753.1975, "mad_ns": 297.9260, "peak_rss_bytes": 2605056},
+    {"id": "compact_explicit_tangent", "mechanism": "analytical", "median_ns": 2862.8335, "mad_ns": 81.6190, "peak_rss_bytes": 2592768, "cycles": 980341483, "instructions": 2865255545, "cache_references": 1291893, "cache_misses": 45041},
+    {"id": "enzyme_complete_compact_trace", "mechanism": "autodiff", "median_ns": 2839.8200, "mad_ns": 98.9965, "peak_rss_bytes": 2818048, "cycles": 982011124, "instructions": 2853703532, "cache_references": 3797935, "cache_misses": 35971},
+    {"id": "enzyme_integrand_generic_trace", "mechanism": "hybrid", "median_ns": 7514.2765, "mad_ns": 278.0390, "peak_rss_bytes": 2605056},
+    {"id": "enzyme_integrand_compact_trace", "mechanism": "hybrid", "median_ns": 3106.1170, "mad_ns": 165.6670, "peak_rss_bytes": 2789376, "cycles": 1055071626, "instructions": 2909701442, "cache_references": 2192260, "cache_misses": 71017},
+    {"id": "frozen_trace_central_difference", "mechanism": "diagnostic", "median_ns": 2924.5145, "mad_ns": 127.9210, "peak_rss_bytes": 2748416, "cycles": 993845109, "instructions": 2891188591, "cache_references": 2321352, "cache_misses": 61982}
+  ],
+  "selection": {
+    "selected": "enzyme_complete_compact_trace",
+    "criterion": "complete value-plus-derivative wall clock",
+    "speedup_over_compact_analytical": 1.0081,
+    "speedup_over_compact_hybrid": 1.0938,
+    "speedup_over_diagnostic": 1.0298,
+    "practical_tie": ["enzyme_complete_compact_trace", "compact_explicit_tangent"],
+    "reason": "autodiff has the lowest measured median, but its 0.8% advantage over compact analytical is smaller than measured dispersion"
+  }
+}

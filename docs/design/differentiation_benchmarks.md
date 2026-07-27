@@ -664,6 +664,60 @@ taskset -c 4 \
     --tournament
 ```
 
+## Singular adaptive-integration tournament
+
+The singular workload is
+\(I(p)=\int_0^1 e^p/\sqrt{x}\,dx\) at \(p=0.7\). Its exact continuous
+derivative is \(2e^p\), while the production derivative contract replays the
+six-panel frozen QAGS trace. Candidate validation therefore uses central
+differences of an independently evaluated fixed G10K21 trace as the behavioral
+oracle and separately bounds the frozen-trace discretization bias.
+
+Every timed workload constructs and verifies the same QAGS primal trace and
+then evaluates one JVP. The interleaved protocol is the same as the smooth
+tournament: three processes, 31 rotating-order samples, and 2,000 workloads per
+sample. The table reports the median of process medians and the median
+within-process MAD.
+
+| Candidate | Mechanism | Median ns/value+JVP | MAD ns | Peak RSS |
+|---|---|---:|---:|---:|
+| generic explicit-tangent trace replay | `analytical` | 6,753.1975 | 297.9260 | 2,605,056 B |
+| compact explicit-tangent trace replay | `analytical` | 2,862.8335 | 81.6190 | 2,592,768 B |
+| Enzyme through compact fixed trace | `autodiff` | 2,839.8200 | 98.9965 | 2,818,048 B |
+| Enzyme integrand JVP + generic trace | `hybrid` | 7,514.2765 | 278.0390 | 2,605,056 B |
+| Enzyme integrand JVP + compact trace | `hybrid` | 3,106.1170 | 165.6670 | 2,789,376 B |
+| frozen-trace central difference | diagnostic | 2,924.5145 | 127.9210 | 2,748,416 B |
+
+Complete-workload wall clock selects compact whole-trace `autodiff`. It is
+1.0081 times faster than compact `analytical`, 1.0938 times faster than compact
+`hybrid`, and 1.0298 times faster than the finite-difference diagnostic.
+The 0.8% lead over compact analytical is smaller than the measured dispersion,
+so those two candidates are a practical tie. The generic paths are materially
+slower because callback, status, and panel-error traversal remain in the
+derivative workload. Peak RSS differs by only about 0.23 MB and does not
+override the wall-clock result.
+
+Single `perf stat` runs over the longer per-candidate benchmark are diagnostic:
+
+| Candidate | Cycles | Instructions | Cache references | Cache misses | Miss rate |
+|---|---:|---:|---:|---:|---:|
+| compact `analytical` | 980,341,483 | 2,865,255,545 | 1,291,893 | 45,041 | 3.4864% |
+| `autodiff` | 982,011,124 | 2,853,703,532 | 3,797,935 | 35,971 | 0.9471% |
+| compact `hybrid` | 1,055,071,626 | 2,909,701,442 | 2,192,260 | 71,017 | 3.2395% |
+| diagnostic | 993,845,109 | 2,891,188,591 | 2,321,352 | 61,982 | 2.6709% |
+
+The cycle counts confirm the near tie between compact `analytical` and
+`autodiff`; cache events are not used for selection because only one counter
+run was collected. The machine-readable record is
+`benchmark/reference/ryzen9_5950x_integrate_singular_tournament_jvp.json`.
+
+Run it with:
+
+```bash
+build-enzyme/test/ad/enzyme_adaptive_frozen_trace_jvp.enzyme/enzyme_adaptive_frozen_trace_jvp \
+    --singular-tournament
+```
+
 ## Vector-root candidate tournament
 
 The coupled vector tournament uses
