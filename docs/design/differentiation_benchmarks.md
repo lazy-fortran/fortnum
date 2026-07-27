@@ -718,6 +718,74 @@ build-enzyme/test/ad/enzyme_adaptive_frozen_trace_jvp.enzyme/enzyme_adaptive_fro
     --singular-tournament
 ```
 
+## Batched fixed-integration full-Jacobian tournament
+
+This workload batches \(B\) independent 32-point Gauss-Legendre integrals.
+Each scalar output has four private active parameters, so the complete
+block-diagonal Jacobian has shape \(B\times4B\). Forward construction performs
+four local JVP sweeps per integral; reverse construction performs one VJP per
+scalar output. Both produce every nonzero entry of the same Jacobian.
+
+The batch sizes are 1, 4, and 16. Every candidate is checked for all 16
+parameter shifts against closed-form derivatives of the exactly integrated
+terms. Timings cover complete full-Jacobian construction, use 31 samples of
+2,000 batches per process, and report the median of three process medians.
+Reference: AMD Ryzen 9 5950X, Flang/LLVM 22.1.8, Enzyme `c96508349d9f`,
+Release `-O2`.
+
+Forward full-Jacobian wall clock:
+
+| Mechanism | B=1 | B=4 | B=16 | B=16/B=1 |
+|---|---:|---:|---:|---:|
+| `analytical` | 1,280.6130 ns | 5,117.0365 ns | 20,318.8290 ns | 15.8665 |
+| `autodiff` | 1,788.8005 ns | 6,995.6110 ns | 28,073.2040 ns | 15.6940 |
+| `hybrid` | 1,272.2220 ns | 5,095.4910 ns | 20,674.0080 ns | 16.2504 |
+| diagnostic | 2,325.1010 ns | 9,263.2680 ns | 37,533.0330 ns | 16.1425 |
+
+Reverse full-Jacobian wall clock:
+
+| Mechanism | B=1 | B=4 | B=16 | B=16/B=1 |
+|---|---:|---:|---:|---:|
+| `analytical` | 319.2215 ns | 1,199.5500 ns | 4,884.7135 ns | 15.3019 |
+| `autodiff` | 450.3835 ns | 1,871.6915 ns | 6,994.6890 ns | 15.5305 |
+| `hybrid` | 340.7270 ns | 1,315.5990 ns | 5,011.5825 ns | 14.7085 |
+| diagnostic | 2,323.7430 ns | 9,115.6250 ns | 36,628.8195 ns | 15.7629 |
+
+Complete-workload wall clock selects reverse `analytical`. At \(B=16\), it is
+4.1597 times faster than forward `analytical`, 1.4319 times faster than reverse
+`autodiff`, 1.0260 times faster than reverse `hybrid`, and 7.4987 times faster
+than finite differences. The reason is dimensional rather than terminological:
+one scalar output with four active inputs needs one reverse sweep but four
+forward sweeps. `analytical` and `hybrid` forward timings are a practical tie
+at small batches, but reverse analytical remains the lowest full-Jacobian wall
+clock at every measured batch size.
+
+Peak RSS at \(B=16\) ranges from 2,859,008 to 3,031,040 bytes across all
+candidates. For selected analytical reverse it rises only from 2,850,816 bytes
+at \(B=1\) to 3,002,368 bytes at \(B=16\); the implementation streams batch
+items and stores no batch-sized derivative tape.
+
+Linux `perf stat -r 3` over the CTest-launched \(B=16\) processes gives:
+
+| Candidate | Cycles | Instructions | Cache references | Cache misses |
+|---|---:|---:|---:|---:|
+| forward `analytical` | 5,685,837,952 | 20,081,441,392 | 7,736,492 | 256,097 |
+| reverse `analytical` | 1,394,670,950 | 5,034,745,727 | 1,887,203 | 198,429 |
+| reverse `autodiff` | 2,037,786,872 | 7,288,509,995 | 2,299,377 | 227,362 |
+| reverse `hybrid` | 1,463,346,989 | 5,198,218,860 | 1,501,620 | 208,226 |
+| reverse diagnostic | 10,231,175,773 | 35,197,916,516 | 40,258,188 | 278,969 |
+
+Forward analytical uses 4.0767 times as many cycles and 3.9886 times as many
+instructions as reverse analytical, matching the wall-clock explanation.
+Cache-reference dispersion is high for forward analytical and the diagnostic,
+so cache counters remain supporting evidence and do not override wall clock.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_integrate_batched_full_jacobian.json`.
+The benchmark is launched through CTest by setting `FORTNUM_BATCH_ACTION`,
+`FORTNUM_BATCH_CANDIDATE`, and `FORTNUM_BATCH_SIZE`; the ordinary test path
+continues to run only independent validation.
+
 ## Vector-root candidate tournament
 
 The coupled vector tournament uses
