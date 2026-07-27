@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "product": "Lagrange interpolation with active support-node locations",
+  "selection_criterion": "complete product wall clock",
+  "hardware": "AMD Ryzen 9 5950X, CPU 4 pinned",
+  "compiler": "GNU Fortran 16.1.1, Release",
+  "validation": {
+    "jvp_oracle": "central finite difference of the primal interpolation weights",
+    "jvp_relative_error_limit": 2e-7,
+    "vjp_oracle": "adjoint dot-product identity",
+    "vjp_relative_error_limit": 2e-13
+  },
+  "timings": [
+    {"product": "jvp", "nodes": 4, "candidate": "analytical", "median_ns": 32.3739, "mad_ns": 0.7776},
+    {"product": "jvp", "nodes": 4, "candidate": "diagnostic", "median_ns": 51.4392, "mad_ns": 1.5128},
+    {"product": "jvp", "nodes": 8, "candidate": "analytical", "median_ns": 91.6290, "mad_ns": 1.7366},
+    {"product": "jvp", "nodes": 8, "candidate": "diagnostic", "median_ns": 164.0874, "mad_ns": 6.4908},
+    {"product": "jvp", "nodes": 16, "candidate": "analytical", "median_ns": 323.9990, "mad_ns": 5.9951},
+    {"product": "jvp", "nodes": 16, "candidate": "diagnostic", "median_ns": 747.5676, "mad_ns": 13.3641},
+    {"product": "vjp", "nodes": 4, "candidate": "analytical", "median_ns": 51.7429, "mad_ns": 2.2466},
+    {"product": "vjp", "nodes": 4, "candidate": "diagnostic", "median_ns": 141.2107, "mad_ns": 0.5146},
+    {"product": "vjp", "nodes": 8, "candidate": "analytical", "median_ns": 160.2639, "mad_ns": 3.6832},
+    {"product": "vjp", "nodes": 8, "candidate": "diagnostic", "median_ns": 1135.3916, "mad_ns": 9.3532},
+    {"product": "vjp", "nodes": 16, "candidate": "analytical", "median_ns": 713.3109, "mad_ns": 7.9466},
+    {"product": "vjp", "nodes": 16, "candidate": "diagnostic", "median_ns": 11848.1212, "mad_ns": 258.2272}
+  ],
+  "peak_rss_bytes_at_16_nodes": {
+    "analytical_jvp": 11796480,
+    "diagnostic_jvp": 11714560,
+    "analytical_vjp": 11776000,
+    "diagnostic_vjp": 11739136
+  },
+  "perf_stat_per_product_at_16_nodes": {
+    "analytical_jvp": {"cycles": 1497.228, "instructions": 6196.146, "cache_references": 0.08239, "cache_misses": 0.00755},
+    "diagnostic_jvp": {"cycles": 3467.506, "instructions": 6715.291, "cache_references": 0.18701, "cache_misses": 0.01226},
+    "analytical_vjp": {"cycles": 3267.471, "instructions": 10300.146, "cache_references": 0.22935, "cache_misses": 0.01376},
+    "diagnostic_vjp": {"cycles": 53591.978, "instructions": 102080.925, "cache_references": 1.65608, "cache_misses": 0.14521}
+  },
+  "selection": {
+    "jvp": "analytical",
+    "vjp": "analytical",
+    "reason": "lowest complete-product wall clock at every measured node count"
+  }
+}

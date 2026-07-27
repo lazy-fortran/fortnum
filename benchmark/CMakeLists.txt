@@ -34,9 +34,18 @@ add_library(bench_core STATIC
     ${FORTNUM_CORE_DIR}/fortnum_status.f90
     ${FORTNUM_CORE_DIR}/fortnum_version.f90
     ${FORTNUM_CORE_DIR}/generated/fortnum_dawson_outer_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_det2_jvp_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_det2_vjp_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_det3_jvp_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_det3_vjp_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_inv2_jvp_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_inv2_vjp_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_inv3_jvp_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_inv3_vjp_kernel.f90
     ${FORTNUM_CORE_DIR}/quadrature/fortnum_integrate_gk.f90
     ${FORTNUM_CORE_DIR}/quadrature/fortnum_integrate.f90
     ${FORTNUM_CORE_DIR}/linalg/fortnum_linalg.f90
+    ${FORTNUM_CORE_DIR}/interp/fortnum_polynomial.f90
     ${FORTNUM_CORE_DIR}/roots/fortnum_fixed_point.f90
     ${FORTNUM_CORE_DIR}/roots/fortnum_multiroot.f90
     ${FORTNUM_CORE_DIR}/roots/fortnum_roots.f90
@@ -58,6 +67,9 @@ target_link_libraries(bench_linear_solve_jvp PRIVATE bench_core)
 
 add_executable(bench_linear_solve_vjp bench_linear_solve_vjp.f90)
 target_link_libraries(bench_linear_solve_vjp PRIVATE bench_core)
+
+add_executable(bench_lagrange_nodes bench_lagrange_nodes.f90)
+target_link_libraries(bench_lagrange_nodes PRIVATE bench_core)
 
 add_executable(bench_multiroot_preconditioner bench_multiroot_preconditioner.f90)
 target_link_libraries(bench_multiroot_preconditioner PRIVATE bench_core)

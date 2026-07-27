@@ -17,3 +17,5 @@ determinant_jvp,analytical,analytical,1198.33911,2208.37176,ryzen9_5950x_determi
 determinant_vjp,analytical,analytical,29.013223,159.540497,ryzen9_5950x_determinant_vjp.json
 inverse_jvp,analytical,analytical,125.082176,160.003325,ryzen9_5950x_inverse_jvp.json
 inverse_vjp,analytical,analytical,113.428233,929.100516,ryzen9_5950x_inverse_vjp.json
+lagrange_active_nodes_jvp,analytical,analytical,323.9990,747.5676,ryzen9_5950x_lagrange_active_nodes.json
+lagrange_active_nodes_vjp,analytical,analytical,713.3109,11848.1212,ryzen9_5950x_lagrange_active_nodes.json

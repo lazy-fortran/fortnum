@@ -14,7 +14,8 @@ program test_interp_ad
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
     use fortnum_polynomial, only: lagrange_weights_jvp, lagrange_weights_vjp, &
         lagrange_fval_jvp, lagrange_fval_vjp, lagrange_weights, &
-        lagrange_combined_jvp, lagrange_combined_vjp
+        lagrange_combined_jvp, lagrange_combined_vjp, &
+        lagrange_nodes_jvp, lagrange_nodes_vjp
     use fortnum_ad_test_utils, only: fd_jvp_step, rel_err, &
         check_smoothness, ad_status_t, AD_SMOOTH, AD_NONSMOOTH
     implicit none
@@ -27,6 +28,7 @@ program test_interp_ad
     call test_xvjp_identity(nfail)
     call test_fval_jvp_vs_fd(nfail)
     call test_fval_dotprod_identity(nfail)
+    call test_node_products(nfail)
     call test_combined_products(nfail)
     call test_cell_boundary_nonsmooth(nfail)
 
@@ -211,6 +213,46 @@ contains
             nfail = nfail + 1
         end if
     end subroutine test_fval_dotprod_identity
+
+
+    ! Support-node locations are active while their sampled values remain
+    ! fixed. Central finite differences provide an independent directional
+    ! oracle; the transpose identity independently checks the VJP contraction.
+    subroutine test_node_products(nfail)
+        integer, intent(inout) :: nfail
+        integer, parameter :: n = 5
+        real(dp), parameter :: x = 0.43_dp, u = -1.7_dp
+        real(dp), parameter :: xp(n) = [ &
+            -0.2_dp, 0.1_dp, 0.5_dp, 0.8_dp, 1.3_dp]
+        real(dp), parameter :: f(n) = [ &
+            0.4_dp, -0.7_dp, 1.2_dp, 0.3_dp, -0.2_dp]
+        real(dp), parameter :: vxp(n) = [ &
+            0.3_dp, -0.2_dp, 0.1_dp, 0.4_dp, -0.15_dp]
+        real(dp) :: cp(n), cm(n), xpbar(n), xp_plus(n), xp_minus(n)
+        real(dp) :: h, jv, fd, lhs, rhs
+
+        call lagrange_nodes_jvp(n, x, xp, f, vxp, jv)
+        h = fd_jvp_step(xp, vxp)
+        xp_plus = xp + h*vxp
+        xp_minus = xp - h*vxp
+        call lagrange_weights(n, x, xp_plus, cp)
+        call lagrange_weights(n, x, xp_minus, cm)
+        fd = dot_product(f, cp - cm)/(2.0_dp*h)
+        if (rel_err(jv, fd) > 2.0e-7_dp) then
+            write (error_unit, '(a,es24.16,a,es24.16)') &
+                "FAIL [node_jvp] jv=", jv, " fd=", fd
+            nfail = nfail + 1
+        end if
+
+        call lagrange_nodes_vjp(n, x, xp, f, u, xpbar)
+        lhs = u*jv
+        rhs = dot_product(vxp, xpbar)
+        if (rel_err(lhs, rhs) > 2.0e-13_dp) then
+            write (error_unit, '(a,es24.16,a,es24.16)') &
+                "FAIL [node_adjoint] lhs=", lhs, " rhs=", rhs
+            nfail = nfail + 1
+        end if
+    end subroutine test_node_products
 
 
     ! Simultaneous x and f activity exercises the product rule at the public
