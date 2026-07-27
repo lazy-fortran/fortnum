@@ -133,6 +133,9 @@ A fixed-trace iterative-solver comparator distinguishes the executed iteration
 map from the converged solve. At 32 iterations and 16 directions, the analytical
 tangent recurrence takes 5.226 µs, finite differences 8.143 µs, and forward
 `autodiff` 19.764 µs.
+No hybrid BLAS/LAPACK custom rule is selected yet: the measured analytical
+direct-solver JVP and VJP already beat Enzyme by 3.51× and 1.28× respectively,
+so an extra external-rule boundary is not currently justified.
 
 The ODE forward sensitivity now has an explicit continuous contract: it
 approximates the variational IVP at fixed terminal time on the primal's frozen

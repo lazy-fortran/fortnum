@@ -127,7 +127,7 @@ independent validation plus measured application runtime and peak memory.
 - [x] Add a forward-mode autodiff direct-solver JVP comparator.
 - [x] Add a reverse-mode autodiff direct-solver VJP comparator.
 - [x] Add an autodiff iterative-solver comparator where applicable.
-- [ ] Add a hybrid BLAS or LAPACK custom-rule candidate where measurement
+- [x] Add a hybrid BLAS or LAPACK custom-rule candidate where measurement
   justifies it.
 - [ ] Benchmark all implemented linear-algebra candidates.
 

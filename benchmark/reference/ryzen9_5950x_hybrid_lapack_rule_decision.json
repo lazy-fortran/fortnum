@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "decision": "do_not_add_hybrid_blas_lapack_rule",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "evidence": [
+    {
+      "record": "ryzen9_5950x_direct_solver_jvp_enzyme.json",
+      "product": "16 value-plus-JVP directions",
+      "analytical_ns": 773.705750,
+      "autodiff_ns": 2719.007600,
+      "analytical_speedup": 3.5143
+    },
+    {
+      "record": "ryzen9_5950x_direct_solver_vjp_enzyme.json",
+      "product": "16 scalar-objective value-plus-VJPs",
+      "analytical_ns": 852.922000,
+      "autodiff_ns": 1089.863000,
+      "analytical_speedup": 1.2778
+    }
+  ],
+  "validation": {
+    "jvp": "analytical implicit identity and complete-solve central differences",
+    "vjp": "analytical adjoint identity and componentwise complete-objective central differences"
+  },
+  "selection_criterion": "complete workload wall clock",
+  "reason": "no measured workload justifies an additional custom external-rule boundary",
+  "reconsider_when": "a representative larger-matrix or downstream external-solver workload is faster"
+}

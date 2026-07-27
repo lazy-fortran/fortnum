@@ -518,6 +518,29 @@ env FORTNUM_DIRECT_SOLVER_VJP_ACTION=--benchmark \
     ctest --test-dir build-enzyme -V -R '^enzyme_direct_solver_vjp$'
 ```
 
+## Hybrid BLAS/LAPACK custom-rule decision
+
+The roadmap requires a hybrid BLAS or LAPACK custom rule only where measurement
+justifies the additional boundary. The independently validated 4x4 direct-solve
+tournaments do not.
+
+| Product | Analytical complete workload | Autodiff complete workload | Analytical advantage |
+|---|---:|---:|---:|
+| 16 value-plus-JVP directions | 773.7058 ns | 2,719.0076 ns | 3.5143x |
+| 16 scalar-objective VJPs | 852.9220 ns | 1,089.8630 ns | 1.2778x |
+
+The analytical candidates already use the mathematical solve rule and avoid
+differentiating elimination. A hybrid external-library rule would implement the
+same tangent or adjoint equations while adding an ABI, rule registration, and
+toolchain maintenance surface. It cannot be selected from the measured
+workloads without evidence of a faster external primal or factorized solve.
+
+Therefore no BLAS/LAPACK custom-rule implementation is added. Reconsider this
+decision when a representative larger-matrix or downstream workload uses an
+external solver and beats the current analytical complete-workload wall clock.
+The machine-readable decision is
+`benchmark/reference/ryzen9_5950x_hybrid_lapack_rule_decision.json`.
+
 ## Fixed-trace iterative-solver JVP
 
 This comparator differentiates a fixed number of Richardson iterations,
