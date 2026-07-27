@@ -231,7 +231,7 @@ derivatives. CPU Enzyme remains the `autodiff` backend and supplies CPU
   independent adjoint identity.
 - [x] Benchmark fused versus separate value/JVP and value/VJP GPU kernels
   across launch-bound, throughput, and memory-bound batch sizes.
-- [ ] Offload a generated multi-input scalar-output kernel and measure
+- [x] Offload a generated multi-input scalar-output kernel and measure
   analytical JVP and VJP scaling over active inputs, derivative directions,
   output cotangents where applicable, and batch sizes.
 - [ ] Compare admissible array layouts by complete-workload wall clock and

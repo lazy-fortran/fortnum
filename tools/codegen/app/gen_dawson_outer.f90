@@ -5,6 +5,7 @@ program gen_dawson_outer
     use fortsym_expr, only: expr_t, sym, operator(+), operator(-), &
         operator(*), operator(**), sin
     use fortsym_products, only: jvp, vjp
+    use fortsym_diff, only: diff
     use fortsym_kernel, only: kernel_spec_t, emit_kernel, count_operations, &
         operation_count_t, KERNEL_SUBROUTINE
     use fortsym_engine, only: engine_result_t
@@ -17,6 +18,7 @@ program gen_dawson_outer
     type(expr_t) :: x, f, v, u, value
     type(expr_t) :: values(1), variables(1), tangents(1), cotangents(1)
     type(expr_t) :: jvp_products(1), vjp_products(1)
+    type(expr_t) :: jvp_partial(1), vjp_partial(1)
     type(expr_t) :: value_root(1), fused_jvp(2), fused_vjp(2)
     character(len=1), parameter :: value_args(1) = ["f"]
     character(len=1), parameter :: jvp_args(3) = ["x", "f", "v"]
@@ -45,6 +47,12 @@ program gen_dawson_outer
     jvp_products = jvp(values, variables, tangents)
     vjp_products = vjp(values, variables, cotangents)
     vjp_products(1) = vjp_products(1)*(1 - 2*x*f)
+    jvp_partial(1) = diff(value, f)*tangents(1)
+    vjp_partial(1) = u*diff(value, f)*(1 - 2*x*f)
+    jvp_products(1) = lower_operation_variant( &
+        jvp_products(1), jvp_partial(1), engine)
+    vjp_products(1) = lower_operation_variant( &
+        vjp_products(1), vjp_partial(1), engine)
 
     value_root(1) = value
     fused_jvp(1) = value
@@ -78,6 +86,25 @@ program gen_dawson_outer
         vjp_args, vjp_output, vjp_products)
 
 contains
+
+    function lower_operation_variant(first, second, engine) result(best)
+        type(expr_t), intent(in) :: first, second
+        type(symengine_engine_t), intent(inout) :: engine
+        type(expr_t) :: best
+        type(expr_t) :: candidate(1)
+        type(operation_count_t) :: best_operations, candidate_operations
+        type(engine_result_t) :: simplified
+
+        best = first
+        best_operations = count_operations([best])
+        candidate(1) = second
+        simplified = engine%simplify(candidate(1))
+        if (simplified%ok) candidate(1) = simplified%value
+        candidate_operations = count_operations(candidate)
+        if (candidate_operations%total < best_operations%total) then
+            best = candidate(1)
+        end if
+    end function lower_operation_variant
 
     subroutine write_variant(filename, name, module_name, arguments, outputs, &
             expressions)

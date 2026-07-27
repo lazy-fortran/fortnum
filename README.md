@@ -36,6 +36,13 @@ on both devices and takes 0.1690 ms per resident 1,048,576-element call.
 Generated value/product fusion wins all 24 Dawson GPU comparisons across
 launch-, throughput-, and transfer/memory-dominated batches. Resident fusion
 is 1.45 to 1.96 times faster than two separate generated-kernel launches.
+The generated multi-input scalar-output pilot covers 2, 4, 8, and 16 active
+inputs and 1, 4, and 16 JVP directions or VJP cotangents. At 65,536 points,
+resident GPU execution is 20.6 to 38.7 times faster than the pinned CPU,
+depending on product and active-input count; at 256 points the CPU remains
+faster. Both product costs scale linearly, and OpenACC and OpenMP target are
+effectively tied while data is resident. Full wall-clock and memory evidence
+is in `docs/design/gpu.md`.
 `fortnum` uses `fortsym` at build time for symbolic algebra and code
 generation. The first pinned generator is under `tools/codegen/`; generated
 production sources are committed under `src/generated/`. The
