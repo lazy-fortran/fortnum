@@ -8,6 +8,17 @@ module fortnum_build_selection
         "@FORTNUM_DAWSON_OUTER_JVP_CANDIDATE@"
 
     public :: fortnum_selected_dawson_outer_jvp
+    public :: fortnum_lookup_build_selection
+
+    integer, parameter :: registry_size = @FORTNUM_REGISTRY_SIZE@
+    character(48), parameter :: registry_operators(registry_size) = [character(48) :: &
+@FORTNUM_REGISTRY_OPERATORS_FORTRAN@    ]
+    character(16), parameter :: registry_products(registry_size) = [character(16) :: &
+@FORTNUM_REGISTRY_PRODUCTS_FORTRAN@    ]
+    character(128), parameter :: registry_workloads(registry_size) = [character(128) :: &
+@FORTNUM_REGISTRY_WORKLOADS_FORTRAN@    ]
+    character(64), parameter :: registry_candidates(registry_size) = [character(64) :: &
+@FORTNUM_REGISTRY_CANDIDATES_FORTRAN@    ]
 
 contains
 
@@ -17,5 +28,24 @@ contains
 
         call fortnum_dawson_outer_kernel(x, f, v, value, jvp)
     end subroutine fortnum_selected_dawson_outer_jvp
+
+    pure subroutine fortnum_lookup_build_selection(operator, product, workload, &
+            candidate, found)
+        character(*), intent(in) :: operator, product, workload
+        character(*), intent(out) :: candidate
+        logical, intent(out) :: found
+        integer :: i
+
+        candidate = ""
+        found = .false.
+        do i = 1, registry_size
+            if (trim(operator) /= trim(registry_operators(i))) cycle
+            if (trim(product) /= trim(registry_products(i))) cycle
+            if (trim(workload) /= trim(registry_workloads(i))) cycle
+            candidate = trim(registry_candidates(i))
+            found = .true.
+            return
+        end do
+    end subroutine fortnum_lookup_build_selection
 
 end module fortnum_build_selection

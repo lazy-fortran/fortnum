@@ -48,7 +48,7 @@ independent validation plus measured application runtime and peak memory.
 - [x] Add transpose-factorization reuse to the analytical linear-solve VJP.
 - [x] Add reusable preconditioner hooks for implicit products.
 - [x] Connect committed benchmark records to build-time candidate selection.
-- [ ] Generate a static per-workload selection registry.
+- [x] Generate a static per-workload selection registry.
 - [ ] Add conditioning diagnostics to implicit derivative products.
 - [ ] Add derivative-reliability status for ill-conditioned implicit products.
 - [ ] Measure candidate-specific peak memory instead of shared-process RSS.

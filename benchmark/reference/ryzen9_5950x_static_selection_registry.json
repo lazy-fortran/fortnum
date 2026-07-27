@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "selection_registry",
+  "product": "lookup",
+  "workload": "cycle over four committed operator/product/workload keys, 500000 lookups per sample",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "gfortran": "16.1.1 20260625",
+    "cmake": "4.4.0"
+  },
+  "sampling": {
+    "warmup_rounds": 3,
+    "samples": 15,
+    "calls_per_sample": 500000
+  },
+  "validation": {
+    "oracle": "known transposed-linear-solve selection plus unknown-key rejection",
+    "records_in_registry": 4
+  },
+  "memory_method": "/usr/bin/time -v around taskset -c 4 fo exec",
+  "candidates": [
+    {
+      "id": "direct_hardcoded",
+      "median_ns_per_call": 24.1286,
+      "mad_ns_per_call": 0.1279,
+      "peak_rss_bytes": 23859200
+    },
+    {
+      "id": "static_registry",
+      "median_ns_per_call": 211.5917,
+      "mad_ns_per_call": 1.7550,
+      "peak_rss_bytes": 23547904
+    }
+  ],
+  "selection": {
+    "selected": "static_registry_preloop",
+    "lookup_overhead_ns": 187.4631,
+    "reason": "the registry provides evidence-derived workload lookup; the measured overhead is paid before hot loops and generated wrappers retain direct calls"
+  }
+}

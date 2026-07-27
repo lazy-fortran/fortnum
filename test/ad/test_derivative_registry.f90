@@ -8,6 +8,7 @@ program test_derivative_registry
         FORTNUM_AD_QUALITY_NONSMOOTH
     use fortnum_derivative_registry, only: derivative_candidate_t, &
         select_derivative_candidate
+    use fortnum_build_selection, only: fortnum_lookup_build_selection
     implicit none
 
     integer, parameter :: dp = real64
@@ -19,6 +20,7 @@ program test_derivative_registry
     call test_stable_id_breaks_complete_tie(nfail)
     call test_no_validated_candidate(nfail)
     call test_hybrid_status_merge(nfail)
+    call test_static_build_selection(nfail)
     if (nfail > 0) then
         write (error_unit, "(i0,a)") nfail, " test(s) failed"
         error stop 1
@@ -96,6 +98,23 @@ contains
         call check(nfail, merged%quality == FORTNUM_AD_QUALITY_NONSMOOTH, &
             "worst derivative quality propagates")
     end subroutine test_hybrid_status_merge
+
+    subroutine test_static_build_selection(nfail)
+        integer, intent(inout) :: nfail
+        character(64) :: selected
+        logical :: found
+
+        call fortnum_lookup_build_selection("linear_solve", "vjp", &
+            "16x16 dense system, 200000 cotangents per sample, "// &
+            "transposed primal LU reusable", selected, found)
+        call check(nfail, found .and. trim(selected) == &
+            "reuse_transposed_primal_lu", "static workload selection")
+
+        call fortnum_lookup_build_selection("unknown", "jvp", "none", &
+            selected, found)
+        call check(nfail,.not. found .and. trim(selected) == "", &
+            "unknown static workload")
+    end subroutine test_static_build_selection
 
     function candidate(ids, times, valid, memory) result(c)
         character(*), intent(in) :: ids(:)
