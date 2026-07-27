@@ -41,6 +41,7 @@ module fortnum_ode
     public :: ode_integrate_jvp, ode_integrate_vjp
     public :: ode_integrate_parameter_vjp
     public :: ode_build_checkpoints, ode_integrate_vjp_checkpointed
+    public :: ode_build_recompute_trace, ode_integrate_vjp_recomputed
 
     integer, parameter, public :: ODE_EVENT_RISING  =  1
     integer, parameter, public :: ODE_EVENT_FALLING = -1
@@ -175,6 +176,13 @@ module fortnum_ode
         real(dp), allocatable :: h(:)
         real(dp), allocatable :: y(:,:)
     end type ode_checkpoint_t
+
+    type, public :: ode_recompute_trace_t
+        integer :: nsteps = 0
+        real(dp), allocatable :: t(:)
+        real(dp), allocatable :: h(:)
+        real(dp), allocatable :: y0(:)
+    end type ode_recompute_trace_t
 
 contains
 
@@ -631,6 +639,88 @@ contains
 
         jtu = lam
     end subroutine ode_integrate_vjp_checkpointed
+
+    subroutine ode_build_recompute_trace(solution, trace, status)
+        type(ode_solution_t), intent(in) :: solution
+        type(ode_recompute_trace_t), intent(out) :: trace
+        type(fortnum_status_t), intent(out) :: status
+
+        call status_set(status, FORTNUM_OK, "")
+        if (.not. allocated(solution%t)) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_build_recompute_trace: empty trace")
+            return
+        end if
+        if (.not. allocated(solution%h)) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_build_recompute_trace: empty trace")
+            return
+        end if
+        if (.not. allocated(solution%y)) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_build_recompute_trace: empty trace")
+            return
+        end if
+
+        trace%nsteps = solution%nsteps
+        trace%t = solution%t
+        trace%h = solution%h
+        trace%y0 = solution%y(:, 1)
+    end subroutine ode_build_recompute_trace
+
+    subroutine ode_integrate_vjp_recomputed(problem, var_rhs_adj, u, trace, &
+            jtu, status)
+        type(ode_problem_t), intent(in) :: problem
+        procedure(ode_var_rhs_t) :: var_rhs_adj
+        real(dp), intent(in) :: u(:)
+        type(ode_recompute_trace_t), intent(in) :: trace
+        real(dp), allocatable, intent(out) :: jtu(:)
+        type(fortnum_status_t), intent(out) :: status
+
+        integer :: neq, reverse_step, forward_step, nfev
+        real(dp), allocatable :: y(:), lam(:)
+        real(dp), allocatable :: k1(:), k2(:), k3(:), k4(:), k5(:), k6(:)
+        real(dp), allocatable :: scratch(:), next_state(:), error_estimate(:)
+
+        call status_set(status, FORTNUM_OK, "")
+        if (.not. associated(problem%rhs)) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_integrate_vjp_recomputed: rhs not associated")
+            return
+        end if
+        if (.not. allocated(trace%y0)) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_integrate_vjp_recomputed: empty trace")
+            return
+        end if
+
+        neq = size(trace%y0)
+        if (size(u) /= neq) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_integrate_vjp_recomputed: u size mismatch")
+            return
+        end if
+
+        allocate(jtu(neq), y(neq), lam(neq))
+        allocate(k1(neq), k2(neq), k3(neq), k4(neq), k5(neq), k6(neq))
+        allocate(scratch(neq), next_state(neq), error_estimate(neq))
+        lam = u
+        nfev = 0
+
+        do reverse_step = trace%nsteps, 1, -1
+            y = trace%y0
+            do forward_step = 1, reverse_step - 1
+                call cash_karp_step(problem%rhs, trace%t(forward_step), y, &
+                    trace%h(forward_step), .false., k1, k2, k3, k4, k5, k6, &
+                    scratch, next_state, error_estimate, nfev)
+                y = next_state
+            end do
+            call augmented_step_adj(problem%rhs, var_rhs_adj, &
+                trace%t(reverse_step), y, lam, trace%h(reverse_step), neq)
+        end do
+
+        jtu = lam
+    end subroutine ode_integrate_vjp_recomputed
 
     ! One Cash-Karp step on the augmented state (y, s): the primal stages drive
     ! the tangent stages so they share the same internal states. h is taken from

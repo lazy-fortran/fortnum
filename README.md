@@ -73,6 +73,10 @@ recompute intervening segments. On the measured 41-step trajectory it reduces
 retained trace storage by 46–55%, but is 23–26% slower and does not reduce
 end-to-end peak RSS because the current primal is compressed after integration.
 
+A recomputation-only candidate retains just the accepted schedule and initial
+state. It cuts retained trace storage by 59%, but repeated forward prefixes make
+the complete VJP 5.04 times slower; full trace remains selected by wall clock.
+
 ## Build
 
 CMake is the primary build system with CTest integration:

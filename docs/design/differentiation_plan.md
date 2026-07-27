@@ -106,7 +106,7 @@ runtime dependency on it.
 | implicit linear solve | JVP/VJP and factorization reuse complete | finite-difference, adjoint, and reuse benchmarks |
 | roots and fixed points | scalar/vector tournaments, analytical boundaries, hybrid JVP/VJP, Jacobian/factor reuse, and implicit JVP/VJP reliability complete | complete-solve finite-difference, exact-condition, Jacobian, and scalar-objective oracles |
 | integration | fixed/moving-bound analytical JVPs, complete fixed-quadrature JVP/VJP tournament, analytical/autodiff/hybrid frozen-trace candidates, and smooth, singular, and batched tournaments complete | closed-form integral and Leibniz derivatives, frozen-trace finite differences, and trace-change checks |
-| ODE hybridization | forward sensitivity with Enzyme RHS JVP, analytical Cash-Karp discrete adjoint, stage-level parameter VJP accumulation, and checkpointed reverse candidate complete; recomputation-only and broader tournaments pending | closed-form trajectory sensitivity, exact matrix-exponential VJP, parameter/checkpoint scaling, adjoint identity, and complete-solve finite difference |
+| ODE hybridization | forward sensitivity with Enzyme RHS JVP, analytical Cash-Karp discrete adjoint, stage-level parameter VJP accumulation, checkpointed reverse, and recomputation-only reverse candidates complete; implicit stages and broader tournaments pending | closed-form trajectory sensitivity, exact matrix-exponential VJP, parameter/checkpoint storage evidence, adjoint identity, and complete-solve finite difference |
 | module/application tournaments | pending except Dawson | first committed table in `differentiation_benchmarks.md` |
 | second order | pending | implement only for demonstrated consumers |
 
