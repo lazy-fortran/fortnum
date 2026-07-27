@@ -65,7 +65,7 @@ configure_file(
     @ONLY)
 
 # Enzyme autodiff integration lands in #38; keep the switches inert for now.
-option(FORTNUM_ENABLE_ENZYME "Enable Enzyme-based reverse-mode autodiff" OFF)
+option(FORTNUM_ENABLE_ENZYME "Enable Enzyme-based autodiff" OFF)
 option(FORTNUM_ENZYME_REQUIRED "Fail configure if Enzyme is unavailable" OFF)
 
 # Shared library inclusion needs PIC-clean objects.

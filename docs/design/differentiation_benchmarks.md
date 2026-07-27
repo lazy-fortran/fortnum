@@ -185,6 +185,52 @@ fo exec bench_scalar_root_tangent assembled --peak-rss
 fo exec bench_scalar_root_tangent boundary --peak-rss
 ```
 
+## Hybrid scalar-root JVP with Enzyme residual products
+
+Both candidates use the same generic analytical implicit boundary and compute
+the same scalar-root JVP. The `analytical` callback evaluates `f_x` and
+`f_p*tp` explicitly. The `hybrid` callback invokes Enzyme forward mode twice
+on the scalar residual `f = x^3 + p1*x - p2`: once for `f_x`, and once for the
+parameter direction. Neither candidate differentiates root-solver iterations.
+
+An independent oracle completely bisects the root at `p + h*tp` and
+`p - h*tp`. Successful LLVM linking also requires Enzyme to eliminate the raw
+`__enzyme_fwddiff` intrinsics, so the test cannot silently fall back to the
+analytical callback.
+
+The benchmark applies 2,000,000 directions per sample while varying the root
+and preserving the residual equation. This is a residual-product comparison;
+autodiff through the iteration trace remains a later tournament candidate.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, Flang/LLVM 22.1.8, Enzyme
+`c96508349d9f`, Release `-O2`, 15 samples after three warmups.
+
+| Candidate | Mechanism | Median ns/JVP | MAD ns/JVP | Peak RSS |
+|---|---|---:|---:|---:|
+| explicit residual products | `analytical` | 6.7477 | 0.0879 | 2,957,312 B |
+| Enzyme forward residual products | `hybrid` | 5.1970 | 0.2172 | 2,928,640 B |
+
+Here “1.2984 times faster” means
+`6.7477 / 5.1970 = 1.2984`: it compares the `hybrid` row with the
+`analytical` row for the same implicit JVP, not with a primal root solve.
+`hybrid` saves 1.5507 ns/JVP and is the measured selection. Its maximum
+observed self-process RSS is 28,672 bytes lower.
+
+Peak memory is the maximum across five separately launched candidates,
+measured with `getrusage(RUSAGE_SELF)`. The machine-readable record is
+`benchmark/reference/ryzen9_5950x_scalar_root_hybrid_jvp.json`.
+
+Run validation and timing with:
+
+```bash
+cmake --build build-enzyme --target enzyme_scalar_root_hybrid_build
+ctest --test-dir build-enzyme -R '^enzyme_scalar_root_hybrid$' \
+    --output-on-failure
+taskset -c 4 \
+    build-enzyme/test/ad/enzyme_scalar_root_hybrid.enzyme/enzyme_scalar_root_hybrid \
+    --benchmark
+```
+
 ## Generic analytical implicit adjoint boundary for scalar roots
 
 The generic adjoint boundary accepts a converged scalar root and a callback

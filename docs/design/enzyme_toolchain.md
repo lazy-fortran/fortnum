@@ -35,7 +35,7 @@ driver. Any stage that returns nonzero fails the test build.
 - Flang and LLVM `opt` must come from the same LLVM release. The plugin is
   built against one LLVM version and its name encodes the major:
   `LLVMEnzyme-<major>.so`.
-- Developed and verified against flang-new, opt, and clang 22.1.6 with the
+- Developed and verified against flang-new, opt, and clang 22.1.8 with the
   Enzyme plugin for LLVM 22 (`LLVMEnzyme-22.so`).
 - `FortnumEnzyme.cmake` reads the major version from `opt --version` and uses
   it to name the plugin it searches for, so the discovered plugin matches the
@@ -79,6 +79,11 @@ symbol name is predictable and unmangled. The raw Enzyme entry points
 declared as `bind(c)` interfaces inside the test wrapper only. They never
 appear in the public API; public callers use the `foo_jvp` / `foo_vjp` /
 `foo_grad` / `foo_hvp` names (ad.md sec. 2).
+
+The scalar-root hybrid test stays inside this subset: Enzyme differentiates
+only the scalar `bind(c)` residual. The resulting residual JVPs are passed to
+the normal Fortran analytical implicit boundary. Enzyme does not differentiate
+the root solver or its assumed-shape callback interface.
 
 ### Argument activity in the wrapper
 
