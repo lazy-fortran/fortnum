@@ -10,7 +10,19 @@
   "toolchain": {
     "compiler": "GNU Fortran 16.1.1",
     "build": "Release",
+    "compiler_flags": "-O3",
     "generator": "fortsym c30e8c0"
+  },
+  "generated_kernels": {
+    "fortsym_revision": "59c2949ecf52887f91248d3e32cde54020e2fca6",
+    "inv2": {
+      "structural_operations": 60,
+      "native_symbol_bytes": 366
+    },
+    "inv3": {
+      "structural_operations": 315,
+      "native_symbol_bytes": 2075
+    }
   },
   "sampling": {
     "independent_processes": 31,

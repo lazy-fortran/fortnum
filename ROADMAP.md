@@ -161,7 +161,7 @@ independent validation plus measured application runtime and peak memory.
 - [x] Add a temporary-directory regeneration check that byte-compares every
   committed generated numerical kernel.
 - [x] Run generated-source drift checking in CTest and CI.
-- [ ] Record compiler flags, native symbol size, `fortsym` revision, and
+- [x] Record compiler flags, native symbol size, `fortsym` revision, and
   structural operation counts in relevant benchmark records.
 - [ ] Generate fused value/JVP, fused value/VJP, separate JVP/VJP, and
   contracted products from one symbolic DAG.

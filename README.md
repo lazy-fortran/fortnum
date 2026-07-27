@@ -21,7 +21,9 @@ modules use pure procedures where valid, current `fortsym` line wrapping, and
 `fo exec` regeneration commands. Run `tools/codegen/check_generated.sh` from
 its directory to regenerate into a temporary directory and byte-compare all
 committed numerical kernels. CTest and CI run the same check when
-`FORTNUM_CHECK_GENERATED=ON`.
+`FORTNUM_CHECK_GENERATED=ON`. Benchmark records for generated kernels also
+capture compiler flags, native symbol sizes, structural operation counts, and
+the exact `fortsym` revision.
 
 Current derivative infrastructure includes generic analytical implicit JVP and
 VJP boundaries for scalar and vector roots, analytical fixed-point and

@@ -13,7 +13,13 @@
     "clang": "22.1.8",
     "llvm": "22.1.8",
     "enzyme_commit": "c96508349d9f121957292308c646b4a1fd53c507",
-    "fortsym_commit": "15636e944b3b932283aff4f313c6a5f459d40692"
+    "fortsym_commit": "15636e944b3b932283aff4f313c6a5f459d40692",
+    "compiler_flags": "-O3"
+  },
+  "generated_kernel": {
+    "fortsym_revision": "59c2949ecf52887f91248d3e32cde54020e2fca6",
+    "structural_operations": 12,
+    "native_symbol_bytes": 137
   },
   "sampling": {
     "warmup_rounds": 3,
