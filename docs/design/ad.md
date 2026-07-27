@@ -160,7 +160,9 @@ The development checkout currently resolves it at `../lazy-fortran/fortsym`.
 The supported integration surface is deliberately narrow and demonstrated by
 `tools/codegen/app/gen_dawson_outer.f90`: expression construction, differentiation,
 engine simplification, fused kernel emission, post-CSE operation counting, and
-an exact regeneration command in the generated banner.
+an exact regeneration command in the generated banner. Revision
+`fortsym@59c2949` adds the tested `generator_revision` field needed to place an
+exact dependency revision in that banner.
 
 `fortsym` remains under development. New work may extend it, with independent
 tests in that repository, but must not guess an unimplemented API or duplicate a
@@ -206,6 +208,11 @@ reference performance baseline remains the committed 32-tournament data set.
 For example, the 16-product Bessel series JVP takes 917.276 ns for the selected
 analytical candidate, and the recurrence JVP takes 3,788.275 ns for selected
 autodiff.
+
+Adding revision metadata changes comments only. The focused `fortsym` codegen
+test takes 0.10 s, its full `fo` pipeline takes 18.6 s, and its CMake suite
+passes 11 of 11 tests in 21.13 s on the reference host. Generated numerical
+runtime, peak memory, and native instructions are unchanged.
 
 ## 8. Selection and dispatch
 
