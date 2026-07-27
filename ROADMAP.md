@@ -267,7 +267,7 @@ derivatives. CPU Enzyme remains the `autodiff` backend and supplies CPU
 - [x] Expand GPU coverage to FFT rules with one shared analytical length-8
   radix-2 JVP/VJP leaf, direct-DFT and complex-adjoint oracles, and resident
   and transfer-inclusive wall-clock and peak-memory evidence.
-- [ ] Expand GPU coverage to residual kernels through the generated scalar-root
+- [x] Expand GPU coverage to residual kernels through the generated scalar-root
   residual and analytical implicit JVP pilot.
 - [ ] Expand GPU coverage to fixed-trace ODE products.
 - [ ] Run an application-level GPU benchmark with persistent data and select
