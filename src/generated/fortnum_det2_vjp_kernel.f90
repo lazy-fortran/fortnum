@@ -10,6 +10,7 @@ module fortnum_generated_det2_vjp
 contains
 
     pure subroutine fortnum_det2_vjp_kernel(a, b, c, d, u, ba, bb, bc, bd)
+        !$omp declare target
         !$acc routine seq
         use, intrinsic :: iso_fortran_env, only: dp => real64
         implicit none

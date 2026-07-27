@@ -10,6 +10,7 @@ module fortnum_generated_det2_jvp
 contains
 
     pure subroutine fortnum_det2_jvp_kernel(a, b, c, d, va, vb, vc, vd, jvp)
+        !$omp declare target
         !$acc routine seq
         use, intrinsic :: iso_fortran_env, only: dp => real64
         implicit none

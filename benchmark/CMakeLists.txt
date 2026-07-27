@@ -79,10 +79,12 @@ add_library(bench_core STATIC
     gpu/fortnum_gpu_implicit_root_wrapper.f90
     gpu/fortnum_gpu_lagrange4_wrapper.f90
     gpu/fortnum_gpu_fixed_quadrature_wrapper.f90
+    gpu/fortnum_gpu_linalg3_wrapper.f90
     gpu/test_gpu_multi_input_support.f90
     gpu/test_gpu_implicit_root_support.f90
     gpu/test_gpu_lagrange4_support.f90
     gpu/test_gpu_fixed_quadrature_support.f90
+    gpu/test_gpu_linalg3_support.f90
     fortnum_benchmark.f90
     fortnum_benchmark_memory.f90
     peak_rss.c
@@ -144,6 +146,22 @@ set_target_properties(bench_fixed_quadrature_cpu_core PROPERTIES
 target_include_directories(bench_fixed_quadrature_cpu_core PUBLIC
     ${PROJECT_BINARY_DIR}/include-fixed-quadrature-cpu)
 
+add_library(bench_linalg3_cpu_core STATIC
+    ${FORTNUM_CORE_DIR}/fortnum_kinds.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_det3_jvp_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_det3_vjp_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_inv3_jvp_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_inv3_vjp_kernel.f90
+    gpu/fortnum_gpu_linalg3_wrapper.f90
+    fortnum_benchmark_memory.f90
+    peak_rss.c
+)
+set_target_properties(bench_linalg3_cpu_core PROPERTIES
+    Fortran_MODULE_DIRECTORY
+        ${PROJECT_BINARY_DIR}/include-linalg3-cpu)
+target_include_directories(bench_linalg3_cpu_core PUBLIC
+    ${PROJECT_BINARY_DIR}/include-linalg3-cpu)
+
 add_executable(bench_main bench_main.f90)
 target_link_libraries(bench_main PRIVATE bench_core)
 
@@ -191,6 +209,12 @@ if(FORTNUM_GPU_BACKEND STREQUAL "OPENACC")
     add_test(NAME openacc_fixed_quadrature_offload
         COMMAND test_openacc_fixed_quadrature_offload)
 
+    add_executable(test_openacc_linalg3_offload
+        gpu/test_openacc_linalg3_offload.f90)
+    target_link_libraries(test_openacc_linalg3_offload PRIVATE bench_core)
+    add_test(NAME openacc_linalg3_offload
+        COMMAND test_openacc_linalg3_offload)
+
     add_executable(bench_openacc_dawson_offload
         gpu/bench_openacc_dawson_offload.f90)
     target_link_libraries(bench_openacc_dawson_offload PRIVATE bench_core)
@@ -225,6 +249,12 @@ elseif(FORTNUM_GPU_BACKEND STREQUAL "OPENMP")
     add_test(NAME openmp_fixed_quadrature_offload
         COMMAND test_openmp_fixed_quadrature_offload)
 
+    add_executable(test_openmp_linalg3_offload
+        gpu/test_openmp_linalg3_offload.f90)
+    target_link_libraries(test_openmp_linalg3_offload PRIVATE bench_core)
+    add_test(NAME openmp_linalg3_offload
+        COMMAND test_openmp_linalg3_offload)
+
     add_executable(bench_openmp_dawson_offload
         gpu/bench_openmp_dawson_offload.f90)
     target_link_libraries(bench_openmp_dawson_offload PRIVATE bench_core)
@@ -254,6 +284,10 @@ if(NOT FORTNUM_GPU_BACKEND STREQUAL "NONE")
     add_executable(bench_fixed_quadrature_gpu
         gpu/bench_fixed_quadrature_gpu.f90)
     target_link_libraries(bench_fixed_quadrature_gpu PRIVATE bench_core)
+
+    add_executable(bench_linalg3_gpu
+        gpu/bench_linalg3_gpu.f90)
+    target_link_libraries(bench_linalg3_gpu PRIVATE bench_core)
 endif()
 
 add_executable(bench_multi_input_cpu
@@ -280,6 +314,10 @@ add_executable(bench_fixed_quadrature_cpu
     gpu/bench_fixed_quadrature_gpu.f90)
 target_link_libraries(bench_fixed_quadrature_cpu PRIVATE
     bench_fixed_quadrature_cpu_core)
+
+add_executable(bench_linalg3_cpu
+    gpu/bench_linalg3_gpu.f90)
+target_link_libraries(bench_linalg3_cpu PRIVATE bench_linalg3_cpu_core)
 
 add_executable(bench_linear_solve_jvp bench_linear_solve_jvp.f90)
 target_link_libraries(bench_linear_solve_jvp PRIVATE bench_core)
