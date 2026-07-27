@@ -2,6 +2,7 @@ program bench_linear_solve_jvp
     use, intrinsic :: iso_fortran_env, only: dp => real64, int64
     use fortnum_linalg, only: LINALG_MAX_N, LINALG_OK, linear_solve_jvp, &
         linear_solve_jvp_factored, lu_factor
+    use fortnum_benchmark_memory, only: peak_rss_bytes
     implicit none
 
     integer, parameter :: n = LINALG_MAX_N
@@ -10,9 +11,12 @@ program bench_linear_solve_jvp
     real(dp) :: a(n, n), factors(n, n), x(n), da(n, n), db(n), dx(n)
     real(dp) :: warmup
     integer :: ipiv(n), info, sample
-    character(16) :: candidate
+    character(16) :: candidate, mode
+    logical :: memory_only
 
     call get_command_argument(1, candidate)
+    call get_command_argument(2, mode)
+    memory_only = trim(mode) == "--peak-rss"
     if ((trim(candidate) /= "refactor") .and. (trim(candidate) /= "reuse")) then
         error stop "usage: bench_linear_solve_jvp refactor|reuse"
     end if
@@ -21,6 +25,12 @@ program bench_linear_solve_jvp
     factors = a
     call lu_factor(n, factors, ipiv, info)
     if (info /= LINALG_OK) error stop "benchmark factorization failed"
+
+    if (memory_only) then
+        warmup = run_sample(candidate, reps)
+        write (*, "(i0)") peak_rss_bytes()
+        stop
+    end if
 
     do sample = 1, 3
         warmup = run_sample(candidate, reps/10_int64)

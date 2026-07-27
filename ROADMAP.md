@@ -51,7 +51,9 @@ independent validation plus measured application runtime and peak memory.
 - [x] Generate a static per-workload selection registry.
 - [x] Add conditioning diagnostics to implicit derivative products.
 - [x] Add derivative-reliability status for ill-conditioned implicit products.
-- [ ] Measure candidate-specific peak memory instead of shared-process RSS.
+- [x] Measure candidate-specific peak memory instead of shared-process RSS.
+- [ ] Correct the linear-solve VJP benchmark target source and rerun its
+  committed evidence.
 
 ## Roots and residual equations
 

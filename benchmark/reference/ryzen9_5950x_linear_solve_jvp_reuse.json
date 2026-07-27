@@ -16,32 +16,34 @@
   "sampling": {
     "warmup_rounds": 3,
     "samples": 15,
-    "calls_per_sample": 200000
+    "calls_per_sample": 200000,
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum"
   },
   "validation": {
     "oracle": "central finite difference of the complete solve in two directions",
     "absolute_tolerance": 2e-9
   },
-  "memory_method": "/usr/bin/time -v around taskset -c 4 fo exec",
+  "memory_method": "getrusage(RUSAGE_SELF) inside each separately launched candidate",
   "candidates": [
     {
       "id": "refactor_each_jvp",
       "mechanism": "analytical",
-      "median_ns_per_call": 4863.9215,
-      "mad_ns_per_call": 82.1883,
-      "peak_rss_bytes": 23453696
+      "median_ns_per_call": 981.8472,
+      "mad_ns_per_call": 7.2850,
+      "peak_rss_bytes": 12451840
     },
     {
       "id": "reuse_primal_lu",
       "mechanism": "analytical",
-      "median_ns_per_call": 813.4458,
-      "mad_ns_per_call": 4.2406,
-      "peak_rss_bytes": 23977984
+      "median_ns_per_call": 348.6946,
+      "mad_ns_per_call": 0.5354,
+      "peak_rss_bytes": 12378112
     }
   ],
   "selection": {
     "selected": "reuse_primal_lu",
-    "runtime_speedup": 5.9794,
-    "reason": "validated against the independent oracle and 5.9794x faster; runner-inclusive peak RSS is 524288 bytes higher"
+    "runtime_speedup": 2.8158,
+    "reason": "validated against the independent oracle, 2.8158x faster, and 73728 bytes lower in maximum observed candidate-process RSS"
   }
 }
