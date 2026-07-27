@@ -99,7 +99,7 @@ independent validation plus measured application runtime and peak memory.
 
 ## ODE solvers and events
 
-- [ ] Add hybrid forward sensitivities using autodiff RHS JVPs.
+- [x] Add hybrid forward sensitivities using autodiff RHS JVPs.
 - [ ] Add an analytical discrete adjoint for one explicit ODE method.
 - [ ] Accumulate parameter VJPs in the discrete adjoint.
 - [ ] Add checkpointed reverse differentiation as a candidate.
