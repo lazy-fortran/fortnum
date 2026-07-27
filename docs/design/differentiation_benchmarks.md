@@ -1156,6 +1156,48 @@ Cache counters explain part of the cost, but complete primal-plus-VJP wall
 clock is the selection criterion. The machine-readable record is
 `benchmark/reference/ryzen9_5950x_ode_recomputed_adjoint.json`.
 
+## Short nonstiff trajectory selection
+
+The short nonstiff workload is the stable Cash-Karp trajectory used by the
+preceding ODE benchmarks. The scalar parameter-JVP case integrates to \(t=2\).
+The two-state scalar-objective VJP case has 41 accepted steps. All timings
+include the adaptive primal trajectory and the requested derivative product.
+
+| Requested product | Candidate | Mechanism | Complete workload | Relative result |
+|---|---|---|---:|---:|
+| one parameter JVP | explicit RHS tangent plus frozen trace | `analytical` forward | 9,322.0850 ns | selected |
+| one parameter JVP | Enzyme RHS JVP plus frozen trace | `hybrid` forward | 9,690.5995 ns | 1.0395x slower |
+| one parameter JVP | complete-solve finite difference | diagnostic | 14,965.7690 ns | 1.6054x slower |
+| one scalar-objective VJP, two inputs | full-trace discrete adjoint | `analytical` reverse | 20,668.4510 ns | selected |
+| one scalar-objective VJP, two inputs | two tangent sweeps | `analytical` forward | 35,911.4100 ns | 1.7375x slower |
+| one scalar-objective VJP, two inputs | complete-solve finite difference | diagnostic | 38,526.2070 ns | 1.8640x slower |
+
+The parameter JVP selects forward analytical. The scalar-objective gradient
+selects reverse analytical because one adjoint replaces one tangent sweep per
+active input. These are product-specific selections, not a single mode policy.
+The benchmark has no pure `autodiff` trace candidate. Its `hybrid` candidate
+uses Enzyme only for the local RHS product and keeps the adaptive schedule
+inactive.
+
+For the scalar-objective VJP, checkpoint strides 4 and 16 take 26,091.4380 ns
+and 25,406.8980 ns. Recomputation takes 104,315.1290 ns. Full trace therefore
+also wins the short-trajectory storage tournament. Checkpointing cuts retained
+trace storage by up to 55.29% and recomputation by 59.13%, but neither lowers
+measured application peak RSS because the current primal constructs the full
+trace before compression.
+
+At the VJP boundary, full trace records 2,895,811,348 cycles and 292,015 cache
+misses. Two forward sweeps record 5,079,552,126 cycles and 405,576 cache
+misses. Recomputation records 14,870,500,020 cycles and 1,308,877 cache misses.
+These counters explain the wall-clock ordering. Complete-workload wall clock
+selects the candidates.
+
+Machine-readable evidence is in
+`benchmark/reference/ryzen9_5950x_ode_hybrid_forward_sensitivity.json`,
+`benchmark/reference/ryzen9_5950x_ode_discrete_adjoint.json`,
+`benchmark/reference/ryzen9_5950x_ode_checkpointed_adjoint.json`, and
+`benchmark/reference/ryzen9_5950x_ode_recomputed_adjoint.json`.
+
 ## Analytical implicit-stage tangent
 
 For a converged implicit stage

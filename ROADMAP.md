@@ -109,7 +109,7 @@ independent validation plus measured application runtime and peak memory.
 - [x] Differentiate event times through the event residual equation.
 - [x] Document and test the continuous sensitivity contract.
 - [x] Document and test the discrete sensitivity contract.
-- [ ] Benchmark a short nonstiff trajectory.
+- [x] Benchmark a short nonstiff trajectory.
 - [ ] Benchmark a long nonstiff trajectory.
 - [ ] Benchmark a stiff trajectory.
 - [ ] Benchmark a many-parameter trajectory.
