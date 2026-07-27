@@ -187,3 +187,34 @@ evidence to production without adding runtime dispatch.
 
 The machine-readable record is
 `benchmark/reference/ryzen9_5950x_build_selection.json`.
+
+## Static per-workload selection registry
+
+CMake now generates a fixed registry from the four committed derivative
+tournament records. Lookup keys are exact operator, derivative product, and
+workload strings; values are the committed selected candidate IDs. An unknown
+key returns no selection. Numerical wrappers continue to use generated direct
+calls, so registry lookup is a pre-loop configuration operation.
+
+The benchmark cycles over all four keys for 500,000 calls per sample:
+
+| Candidate | Median ns/lookup | MAD ns/lookup | Peak RSS |
+|---|---:|---:|---:|
+| direct hardcoded ID | 24.1286 | 0.1279 | 23,859,200 B |
+| static registry lookup | 211.5917 | 1.7550 | 23,547,904 B |
+
+Static lookup adds 187.4631 ns. This cost is intentionally not paid in hot
+loops; the registry exists to resolve or inspect a workload selection before
+entering a kernel. Peak RSS measures the complete `fo exec` process tree.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_static_selection_registry.json`.
+
+Run the benchmark with:
+
+```bash
+cd benchmark
+fo build
+taskset -c 4 fo exec bench_static_registry direct
+taskset -c 4 fo exec bench_static_registry registry
+```

@@ -15,6 +15,11 @@ option(FORTNUM_USE_BENCHMARK_SELECTION
 set(FORTNUM_DAWSON_BENCHMARK_RECORD
     "${CMAKE_CURRENT_SOURCE_DIR}/benchmark/reference/ryzen9_5950x_dawson_outer.json"
     CACHE FILEPATH "Benchmark record used for the Dawson outer JVP")
+set(FORTNUM_DERIVATIVE_BENCHMARK_RECORDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/benchmark/reference/ryzen9_5950x_dawson_outer.json"
+    "${CMAKE_CURRENT_SOURCE_DIR}/benchmark/reference/ryzen9_5950x_linear_solve_jvp_reuse.json"
+    "${CMAKE_CURRENT_SOURCE_DIR}/benchmark/reference/ryzen9_5950x_linear_solve_vjp_reuse.json"
+    "${CMAKE_CURRENT_SOURCE_DIR}/benchmark/reference/ryzen9_5950x_multiroot_preconditioner.json")
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(FortnumBenchmarkSelection)
@@ -30,6 +35,28 @@ if(NOT FORTNUM_DAWSON_OUTER_JVP_CANDIDATE STREQUAL "analytical")
         "Dawson outer JVP candidate '${FORTNUM_DAWSON_OUTER_JVP_CANDIDATE}' "
         "is not available in the production library")
 endif()
+
+set(FORTNUM_REGISTRY_OPERATORS)
+set(FORTNUM_REGISTRY_PRODUCTS)
+set(FORTNUM_REGISTRY_WORKLOADS)
+set(FORTNUM_REGISTRY_CANDIDATES)
+foreach(record IN LISTS FORTNUM_DERIVATIVE_BENCHMARK_RECORDS)
+    fortnum_read_benchmark_entry("${record}" operator product workload candidate)
+    list(APPEND FORTNUM_REGISTRY_OPERATORS "${operator}")
+    list(APPEND FORTNUM_REGISTRY_PRODUCTS "${product}")
+    list(APPEND FORTNUM_REGISTRY_WORKLOADS "${workload}")
+    list(APPEND FORTNUM_REGISTRY_CANDIDATES "${candidate}")
+endforeach()
+list(LENGTH FORTNUM_REGISTRY_OPERATORS FORTNUM_REGISTRY_SIZE)
+fortnum_format_fortran_strings(
+    FORTNUM_REGISTRY_OPERATORS FORTNUM_REGISTRY_OPERATORS_FORTRAN)
+fortnum_format_fortran_strings(
+    FORTNUM_REGISTRY_PRODUCTS FORTNUM_REGISTRY_PRODUCTS_FORTRAN)
+fortnum_format_fortran_strings(
+    FORTNUM_REGISTRY_WORKLOADS FORTNUM_REGISTRY_WORKLOADS_FORTRAN)
+fortnum_format_fortran_strings(
+    FORTNUM_REGISTRY_CANDIDATES FORTNUM_REGISTRY_CANDIDATES_FORTRAN)
+
 set(FORTNUM_BUILD_SELECTION_SOURCE
     "${CMAKE_CURRENT_BINARY_DIR}/generated/fortnum_build_selection.f90")
 configure_file(
