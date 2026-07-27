@@ -180,6 +180,13 @@ if(FORTNUM_ENABLE_ENZYME)
         MODE forward
         OPT_LEVEL O2)
     fortnum_add_enzyme_test(
+        NAME enzyme_direct_solver_vjp
+        SOURCES
+            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/direct_solver_vjp.f90
+        MODE reverse
+        OPT_LEVEL O2)
+    fortnum_add_enzyme_test(
         NAME enzyme_array_sum
         SOURCES ${CMAKE_SOURCE_DIR}/cmake/enzyme/smoke/array_sum.f90
         MODE reverse

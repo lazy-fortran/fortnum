@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "direct_linear_solve",
+  "product": "value_plus_vjp",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "autodiff": "Enzyme 22",
+    "optimization": "O2"
+  },
+  "sampling": {
+    "independent_processes": 31,
+    "workloads_per_process": 2000,
+    "runtime_aggregation": "median",
+    "dispersion": "median absolute deviation",
+    "memory_processes_per_candidate": 5,
+    "perf_repetitions": 3
+  },
+  "workload": {
+    "matrix_size": 4,
+    "active_inputs": 20,
+    "scalar_outputs": 1
+  },
+  "validation": {
+    "primary_oracle": "analytical adjoint A^T*lambda=u",
+    "independent_oracle": "componentwise central differences of the complete objective",
+    "cotangents_checked": 16,
+    "autodiff_absolute_tolerance": 2e-12,
+    "diagnostic_absolute_tolerance": 2e-10
+  },
+  "scaling": [
+    {
+      "cotangents": 1,
+      "analytical_median_ns": 59.397000,
+      "analytical_mad_ns": 2.770000,
+      "autodiff_median_ns": 73.503500,
+      "autodiff_mad_ns": 3.577000,
+      "diagnostic_median_ns": 1025.386500,
+      "diagnostic_mad_ns": 37.681000
+    },
+    {
+      "cotangents": 4,
+      "analytical_median_ns": 227.037500,
+      "analytical_mad_ns": 15.895000,
+      "autodiff_median_ns": 307.519000,
+      "autodiff_mad_ns": 6.963500,
+      "diagnostic_median_ns": 3972.388000,
+      "diagnostic_mad_ns": 115.939000
+    },
+    {
+      "cotangents": 16,
+      "analytical_median_ns": 852.922000,
+      "analytical_mad_ns": 24.015500,
+      "autodiff_median_ns": 1089.863000,
+      "autodiff_mad_ns": 35.777000,
+      "diagnostic_median_ns": 15454.542500,
+      "diagnostic_mad_ns": 492.197000
+    }
+  ],
+  "memory": {
+    "cotangents": 16,
+    "analytical_peak_rss_bytes": 2891776,
+    "autodiff_peak_rss_bytes": 2994176,
+    "diagnostic_peak_rss_bytes": 2961408
+  },
+  "perf": {
+    "cotangents": 16,
+    "workloads_per_repetition": 200000,
+    "analytical": {
+      "cycles_per_workload": 3558.512,
+      "instructions_per_workload": 6581.291,
+      "cache_references_per_workload": 5.453,
+      "cache_misses_per_workload": 0.956
+    },
+    "autodiff": {
+      "cycles_per_workload": 4387.260,
+      "instructions_per_workload": 11589.297,
+      "cache_references_per_workload": 5.439,
+      "cache_misses_per_workload": 0.948
+    },
+    "diagnostic": {
+      "cycles_per_workload": 66628.122,
+      "instructions_per_workload": 73125.315,
+      "cache_references_per_workload": 8.136,
+      "cache_misses_per_workload": 1.092
+    }
+  },
+  "selection": {
+    "selected": "analytical",
+    "criterion": "complete scalar-objective value-plus-VJP wall clock",
+    "cotangents": 16,
+    "speedup_over_autodiff": 1.2778,
+    "autodiff_speedup_over_diagnostic": 14.1803,
+    "reason": "one analytical transposed solve is cheaper than the generated reverse sweep"
+  }
+}

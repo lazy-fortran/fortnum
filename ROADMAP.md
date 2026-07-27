@@ -125,7 +125,7 @@ independent validation plus measured application runtime and peak memory.
 - [x] Add multiple-right-hand-side tangent solves.
 - [x] Add multiple-right-hand-side adjoint solves.
 - [x] Add a forward-mode autodiff direct-solver JVP comparator.
-- [ ] Add a reverse-mode autodiff direct-solver VJP comparator.
+- [x] Add a reverse-mode autodiff direct-solver VJP comparator.
 - [ ] Add an autodiff iterative-solver comparator where applicable.
 - [ ] Add a hybrid BLAS or LAPACK custom-rule candidate where measurement
   justifies it.

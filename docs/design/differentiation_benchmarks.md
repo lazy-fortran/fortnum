@@ -463,6 +463,61 @@ env FORTNUM_DIRECT_SOLVER_ACTION=--benchmark \
     ctest --test-dir build-enzyme -V -R '^enzyme_direct_solver_jvp$'
 ```
 
+## Reverse-autodiff direct-solver VJP
+
+This tournament differentiates the same fixed 4x4 direct elimination kernel in
+reverse mode. A scalar objective \(u^T x\) has 20 active solve inputs: 16 matrix
+entries and four right-hand-side entries. One reverse Enzyme sweep returns all
+20 sensitivities. The `analytical` candidate solves
+\(A^T\lambda=u\), then returns \(\bar b=\lambda\) and
+\(\bar A=-\lambda x^T\). The diagnostic uses two complete primal solves per
+active input.
+
+Analytical and autodiff products are checked against every componentwise
+central difference. The primal objective is also compared independently.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, Flang/LLVM/Enzyme 22, `-O2`.
+Rows are medians of 31 independently launched CTest samples with 2,000 complete
+workloads.
+
+| Cotangents | Analytical ns | MAD ns | Autodiff ns | MAD ns | Diagnostic ns | MAD ns | Selected |
+|---:|---:|---:|---:|---:|---:|---:|---|
+| 1 | 59.3970 | 2.7700 | 73.5035 | 3.5770 | 1,025.3865 | 37.6810 | `analytical` |
+| 4 | 227.0375 | 15.8950 | 307.5190 | 6.9635 | 3,972.3880 | 115.9390 | `analytical` |
+| 16 | 852.9220 | 24.0155 | 1,089.8630 | 35.7770 | 15,454.5425 | 492.1970 | `analytical` |
+
+All candidates scale linearly in cotangent count. At 16 cotangents,
+`analytical` is 1.2778 times faster than reverse `autodiff`. Reverse `autodiff`
+is 14.1803 times faster than componentwise finite differences.
+
+Maximum process RSS across five launches was 2,891,776 bytes for analytical,
+2,994,176 bytes for autodiff, and 2,961,408 bytes for the diagnostic. These
+process-level differences do not establish an algorithmic memory crossover at
+this fixed size.
+
+Linux `perf stat -r 3` over 200,000 sixteen-cotangent workloads measured:
+
+| Candidate | Cycles/workload | Instructions/workload | Cache references/workload | Cache misses/workload |
+|---|---:|---:|---:|---:|
+| `analytical` | 3,558.512 | 6,581.291 | 5.453 | 0.956 |
+| `autodiff` | 4,387.260 | 11,589.297 | 5.439 | 0.948 |
+| diagnostic | 66,628.122 | 73,125.315 | 8.136 | 1.092 |
+
+Wall clock selects `analytical`; cache counters are supporting evidence only.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_direct_solver_vjp_enzyme.json`. Validate with
+`ctest --test-dir build-enzyme -R enzyme_direct_solver_vjp`. Reproduce one
+benchmark sample with:
+
+```bash
+env FORTNUM_DIRECT_SOLVER_VJP_ACTION=--benchmark \
+    FORTNUM_DIRECT_SOLVER_VJP_CANDIDATE=autodiff \
+    FORTNUM_DIRECT_SOLVER_VJP_COTANGENTS=16 \
+    FORTNUM_DIRECT_SOLVER_VJP_ITERATIONS=2000 \
+    ctest --test-dir build-enzyme -V -R '^enzyme_direct_solver_vjp$'
+```
+
 ## Multiple-right-hand-side adjoint solves
 
 `linear_solve_vjp_factored_many` accepts several output cotangents and reuses
