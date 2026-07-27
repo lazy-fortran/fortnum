@@ -14,18 +14,18 @@ module fortnum_bspline
     !   (basis funs and derivative basis funs); DLMF 1.B-splines.
     !
     ! DERIVATIVE POLICY (ad.md §1, §4):
-    !   Default class: transparent inside a fixed knot span. Within one span the
+    !   Leading candidate: analytical inside a fixed knot span. Within one span the
     !   spline value sum_i c_i B_{i,k}(x) is a fixed polynomial in x; the active
     !   variable is x. The knot index (which span x falls in) is selected by
     !   grid_search and is primal_only: crossing a knot is a non-smooth event and
     !   the caller must hold the span fixed (see check_smoothness in the AD test).
     !   The derivative weights are produced by the analytic recurrence in
     !   bspline_eval_deriv; the bspline_eval_jvp/vjp entry points expose them.
-    !   Active: x. Inactive: order k, the knot/breakpoint array, nderiv.
+    !   Active: x or the breakpoint array. Inactive: order k and nderiv.
     !
     !   The value also depends linearly on the coefficients c: s = sum_i c_i
     !   B_i(x). bspline_eval_coef_jvp/vjp differentiate w.r.t. c (Jacobian B(x)),
-    !   transparent everywhere in c with no span guard since x is inactive there.
+    !   analytical everywhere in c with no span guard since x is inactive there.
     !
     ! Out of fortnum scope: the Taylor extrapolation NEO-2 applies above the last
     ! breakpoint (collop_bspline_taylor) lives in the consumer, not here.
@@ -46,6 +46,8 @@ module fortnum_bspline
     public :: bspline_eval_vjp ! (d/dx [sum_i c_i B_i(x)])^T . u (x active)
     public :: bspline_eval_coef_jvp ! d/dc [sum_i c_i B_i(x)] . vc  (coef active)
     public :: bspline_eval_coef_vjp ! (d/dc [sum_i c_i B_i(x)])^T . u (coef active)
+    public :: bspline_eval_knots_jvp
+    public :: bspline_eval_knots_vjp
     public :: bspline_eval_combined_jvp
     public :: bspline_eval_combined_vjp
 
@@ -438,6 +440,107 @@ contains
         if (status%code /= FORTNUM_OK) return
         jtu = u*basis
     end subroutine bspline_eval_coef_vjp
+
+    ! Analytical JVP with respect to the breakpoint locations, valid while the
+    ! primal knot span remains fixed. The augmented clamped-knot tangents are
+    ! propagated through the Cox-de Boor basis recurrence.
+    subroutine bspline_eval_knots_jvp(ws, x, coef, vbreak, jv, status)
+        type(bspline_workspace_t), intent(in) :: ws
+        real(dp), intent(in) :: x, coef(:), vbreak(:)
+        real(dp), intent(out) :: jv
+        type(fortnum_status_t), intent(out) :: status
+        real(dp) :: vknot(size(ws%knots))
+        integer :: i, pos
+
+        jv = 0.0_dp
+        call status_set(status, FORTNUM_OK, "")
+        if (.not. ws%knots_set) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, "bspline: knots not set")
+            return
+        end if
+        if (size(coef) /= ws%ncoef .or. size(vbreak) /= ws%nbreak) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "bspline: coef or vbreak size mismatch")
+            return
+        end if
+
+        vknot(:ws%order) = vbreak(1)
+        pos = ws%order
+        do i = 2, ws%nbreak - 1
+            pos = pos + 1
+            vknot(pos) = vbreak(i)
+        end do
+        vknot(pos + 1:) = vbreak(ws%nbreak)
+        call bspline_knots_direction(ws, x, coef, vknot, jv)
+    end subroutine bspline_eval_knots_jvp
+
+    ! Analytical VJP for active breakpoints. The simple repeated-direction
+    ! implementation keeps the fixed-span recurrence as the single derivative
+    ! source; benchmark evidence determines whether a dedicated reverse pass is
+    ! needed later.
+    subroutine bspline_eval_knots_vjp(ws, x, coef, u, breakbar, status)
+        type(bspline_workspace_t), intent(in) :: ws
+        real(dp), intent(in) :: x, coef(:), u
+        real(dp), intent(out) :: breakbar(:)
+        type(fortnum_status_t), intent(out) :: status
+        real(dp) :: direction(ws%nbreak), value
+        integer :: i
+
+        breakbar = 0.0_dp
+        if (size(breakbar) /= ws%nbreak) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "bspline: breakbar size /= nbreak")
+            return
+        end if
+        do i = 1, ws%nbreak
+            direction = 0.0_dp
+            direction(i) = 1.0_dp
+            call bspline_eval_knots_jvp(ws, x, coef, direction, value, status)
+            if (status%code /= FORTNUM_OK) return
+            breakbar(i) = u*value
+        end do
+    end subroutine bspline_eval_knots_vjp
+
+    subroutine bspline_knots_direction(ws, x, coef, vknot, jv)
+        type(bspline_workspace_t), intent(in) :: ws
+        real(dp), intent(in) :: x, coef(:), vknot(:)
+        real(dp), intent(out) :: jv
+        real(dp) :: nb(ws%order), dnb(ws%order)
+        real(dp) :: left(ws%order), right(ws%order)
+        real(dp) :: dleft(ws%order), dright(ws%order)
+        real(dp) :: saved, dsaved, temp, dtemp, denominator, ddenominator
+        integer :: span, j, r
+
+        span = bspline_span_index(ws, x)
+        nb(1) = 1.0_dp
+        dnb(1) = 0.0_dp
+        do j = 1, ws%order - 1
+            left(j) = x - ws%knots(span + 1 - j)
+            dleft(j) = -vknot(span + 1 - j)
+            right(j) = ws%knots(span + j) - x
+            dright(j) = vknot(span + j)
+            saved = 0.0_dp
+            dsaved = 0.0_dp
+            do r = 1, j
+                denominator = right(r) + left(j - r + 1)
+                ddenominator = dright(r) + dleft(j - r + 1)
+                temp = nb(r)/denominator
+                dtemp = (dnb(r)*denominator - nb(r)*ddenominator)/ &
+                    (denominator*denominator)
+                nb(r) = saved + right(r)*temp
+                dnb(r) = dsaved + dright(r)*temp + right(r)*dtemp
+                saved = left(j - r + 1)*temp
+                dsaved = dleft(j - r + 1)*temp + left(j - r + 1)*dtemp
+            end do
+            nb(j + 1) = saved
+            dnb(j + 1) = dsaved
+        end do
+
+        jv = 0.0_dp
+        do j = 1, ws%order
+            jv = jv + coef(span - ws%order + j)*dnb(j)
+        end do
+    end subroutine bspline_knots_direction
 
     ! Hybrid interface rule for simultaneous activity in x and the spline
     ! coefficients. The product rule is evaluated from one shared basis pass.

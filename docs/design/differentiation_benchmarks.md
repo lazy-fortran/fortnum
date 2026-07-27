@@ -914,6 +914,60 @@ taskset -c 4 fo exec bench_lagrange_nodes analytical vjp 16
 taskset -c 4 fo exec bench_lagrange_nodes diagnostic vjp 16
 ```
 
+## Active B-spline breakpoint products
+
+The fixed-span B-spline tournament differentiates the Cox-de Boor basis
+recurrence with respect to the supplied breakpoint locations. Endpoint
+tangents are copied to every clamped endpoint knot. The analytical VJP
+currently applies the same analytical directional recurrence once per
+breakpoint; this simple implementation remains a candidate rather than
+assuming a dedicated reverse recurrence is necessary.
+
+Central differences independently rebuild both perturbed knot vectors and
+evaluate the primal basis. Perturbations remain in the primal span. The JVP
+agrees within `2e-7` relative error and the VJP adjoint identity within
+`2e-13`.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, GNU Fortran 16.1.1, Release,
+15 samples after three warmups.
+
+| Product | Breakpoints | Analytical median (MAD) | Diagnostic median (MAD) | Analytical speedup |
+|---|---:|---:|---:|---:|
+| JVP | 6 | 89.7243 (0.3275) ns | 158.9636 (1.3839) ns | 1.772x |
+| JVP | 10 | 96.2089 (2.4059) ns | 187.5671 (5.7610) ns | 1.949x |
+| JVP | 18 | 99.7070 (2.0023) ns | 203.2880 (1.1119) ns | 2.039x |
+| VJP | 6 | 492.8630 (8.5623) ns | 929.0131 (13.2967) ns | 1.885x |
+| VJP | 10 | 890.7819 (8.9980) ns | 1,650.0061 (8.3958) ns | 1.852x |
+| VJP | 18 | 1,651.6823 (24.0977) ns | 3,447.6551 (46.2107) ns | 2.087x |
+
+The JVP cost is nearly constant because only four basis functions are active
+at fixed spline order. The current VJP scales linearly with breakpoint count,
+as expected from repeated analytical directions. All peak-RSS measurements
+remain within the 3.77--4.41 MiB process-baseline band.
+
+At 18 breakpoints, `perf stat -r 3` gives:
+
+| Product | Candidate | Cycles/product | Instructions/product | Cache references/product | Cache misses/product |
+|---|---|---:|---:|---:|---:|
+| JVP | analytical | 450 | 1,525 | 0.040 | 0.008 |
+| JVP | diagnostic | 915 | 2,863 | 2.787 | 0.018 |
+| VJP | analytical | 7,350 | 21,698 | 0.373 | 0.021 |
+| VJP | diagnostic | 15,687 | 45,484 | 1.278 | 0.161 |
+
+The analytical JVP and VJP minimize complete-product wall clock at all
+measured sizes. The machine-readable record is
+`benchmark/reference/ryzen9_5950x_bspline_active_knots.json`.
+
+```bash
+fo test test_bspline_ad
+cd benchmark
+fo build
+taskset -c 4 fo exec bench_bspline_knots analytical jvp 18
+taskset -c 4 fo exec bench_bspline_knots diagnostic jvp 18
+taskset -c 4 fo exec bench_bspline_knots analytical vjp 18
+taskset -c 4 fo exec bench_bspline_knots diagnostic vjp 18
+```
+
 ## Hybrid fixed-quadrature integrand JVP
 
 This workload applies a reusable 32-point Gauss-Legendre rule on `[0,1]` to

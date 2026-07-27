@@ -7,7 +7,7 @@ the source records under `benchmark/reference/`.
 
 ## Scope
 
-The cumulative data set contains 20 measured derivative-product tournaments
+The cumulative data set contains 22 measured derivative-product tournaments
 for which competing mechanism timings are committed. It excludes comparisons
 between two implementations of the same mechanism, incomplete selections, and
 reliability-only experiments. Finite differences remain a validation
@@ -23,14 +23,14 @@ measurement noise and the smaller analytical implementation remains selected.
 
 | Mechanism | Selected workloads | Share | Raw fastest workloads |
 |---|---:|---:|---:|
-| `analytical` | 14 | 70.0% | 13 |
-| `autodiff` | 2 | 10.0% | 2 |
-| `hybrid` | 4 | 20.0% | 5 |
+| `analytical` | 16 | 72.7% | 15 |
+| `autodiff` | 2 | 9.1% | 2 |
+| `hybrid` | 4 | 18.2% | 5 |
 | finite-difference diagnostic | 0 | 0.0% | 0 |
 
-Across the 20 workloads, the second-fastest candidate ranges from 1.004x to
-16.610x the fastest wall clock. The median ratio is 1.081x and the geometric
-mean is 1.615x. Fourteen workloads are tightly grouped near the fastest
+Across the 22 workloads, the second-fastest candidate ranges from 1.004x to
+16.610x the fastest wall clock. The median ratio is 1.179x and the geometric
+mean is 1.652x. Fourteen workloads are tightly grouped near the fastest
 candidate; determinant, inverse, and active-node Lagrange VJPs provide the
 largest separation.
 Consequently, mechanism counts describe only the current measured workload

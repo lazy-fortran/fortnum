@@ -102,12 +102,12 @@ runtime dependency on it.
 | real `hybrid` boundary | complete for first slice | Enzyme Dawson custom-rule call assertion |
 | candidate registry | complete for static selection | deterministic validation, timing, memory, code-size and ID ordering tests |
 | symbolic generation | complete for first slice | `gen_dawson_outer`, `fortsym` tests, regeneration banner |
-| interpolation interface rules | combined evaluation/value and active Lagrange support-node products complete | finite-difference directional and adjoint tests |
+| interpolation interface rules | combined evaluation/value, active Lagrange support nodes, and fixed-span B-spline breakpoints complete | finite-difference directional and adjoint tests |
 | linear algebra | determinant JVP/VJP, fused inverse JVP/VJP, reusable LU object, multiple-RHS tangent/adjoint products, forward/reverse Enzyme direct-solver comparators, a fixed-trace iterative-solver comparator, an evidence-based no-add BLAS/LAPACK custom-rule decision, and implicit solve JVP/VJP with factorization reuse complete | finite-difference, adjoint, residual, scaling, cache, memory, and reuse benchmarks |
 | roots and fixed points | scalar/vector tournaments, analytical boundaries, hybrid JVP/VJP, Jacobian/factor reuse, and implicit JVP/VJP reliability complete | complete-solve finite-difference, exact-condition, Jacobian, and scalar-objective oracles |
 | integration | fixed/moving-bound analytical JVPs, complete fixed-quadrature JVP/VJP tournament, analytical/autodiff/hybrid frozen-trace candidates, and smooth, singular, and batched tournaments complete | closed-form integral and Leibniz derivatives, frozen-trace finite differences, and trace-change checks |
 | ODE hybridization | complete for the planned slice: forward sensitivity with Enzyme RHS JVP, analytical Cash-Karp tangent and adjoint products, parameter VJPs, checkpoint/recompute candidates, implicit-stage products, transversal event-time and event-state JVPs, continuous and discrete contracts, and short, long, stiff, many-parameter, and event-driven tournaments | closed-form continuous trajectory/event-time/event-state sensitivity with refinement, frozen-map finite-difference JVP/VJP, exact matrix-exponential VJP, exact implicit-stage tangent/adjoint, parameter/objective/direction/checkpoint scaling, adjoint identity, and complete-solve finite difference |
-| cumulative evidence report | current for 20 mechanism tournaments | normalized source data and pinned `fortplot` generators in `benchmark/report/` |
+| cumulative evidence report | current for 22 mechanism tournaments | normalized source data and pinned `fortplot` generators in `benchmark/report/` |
 | module/application tournaments | pending except completed integration, roots, linear algebra, and ODE slices | committed records in `benchmark/reference/` |
 | second order | pending | implement only for demonstrated consumers |
 
