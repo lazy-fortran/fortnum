@@ -210,7 +210,7 @@ contains
     !   tp    : tangent in parameter space (length m).
     !   dx    : output tangent in root space (length n).
     subroutine multiroot_jvp(jac_x, f_p, tp, dx, status, &
-            preconditioned_solve, preconditioner_context)
+            preconditioned_solve, preconditioner_context, reciprocal_condition)
         real(dp),               intent(in)  :: jac_x(:, :)
         real(dp),               intent(in)  :: f_p(:, :)
         real(dp),               intent(in)  :: tp(:)
@@ -218,11 +218,15 @@ contains
         type(fortnum_status_t), intent(out) :: status
         procedure(multiroot_preconditioned_solve_t), optional :: preconditioned_solve
         class(*), intent(inout), optional :: preconditioner_context
+        real(dp), intent(out), optional :: reciprocal_condition
 
         real(dp) :: rhs(size(jac_x, 1))
         integer  :: n, ls_stat
 
         n = size(jac_x, 1)
+        if (present(reciprocal_condition)) then
+            call estimate_rcond_1(jac_x, reciprocal_condition)
+        end if
         rhs = -matmul(f_p, tp)
         call solve_implicit_product(jac_x, rhs, dx, ls_stat, &
             preconditioned_solve, preconditioner_context)
@@ -241,7 +245,7 @@ contains
     !   u     : adjoint on the root output x* (length n).
     !   jtu   : adjoint on the parameter vector (length m).
     subroutine multiroot_vjp(jac_x, f_p, u, jtu, status, &
-            preconditioned_solve, preconditioner_context)
+            preconditioned_solve, preconditioner_context, reciprocal_condition)
         real(dp),               intent(in)  :: jac_x(:, :)
         real(dp),               intent(in)  :: f_p(:, :)
         real(dp),               intent(in)  :: u(:)
@@ -249,11 +253,15 @@ contains
         type(fortnum_status_t), intent(out) :: status
         procedure(multiroot_preconditioned_solve_t), optional :: preconditioned_solve
         class(*), intent(inout), optional :: preconditioner_context
+        real(dp), intent(out), optional :: reciprocal_condition
 
         real(dp) :: lambda(size(jac_x, 1))
         integer  :: n, ls_stat
 
         n = size(jac_x, 1)
+        if (present(reciprocal_condition)) then
+            call estimate_rcond_1(jac_x, reciprocal_condition)
+        end if
         call solve_implicit_product(transpose(jac_x), u, lambda, ls_stat, &
             preconditioned_solve, preconditioner_context)
         if (ls_stat /= 0) then
@@ -271,17 +279,21 @@ contains
     !   f_p   : dF/dp at the root (length n).
     !   dxdp  : sensitivity of the root (length n).
     subroutine multiroot_grad(jac_x, f_p, dxdp, status, &
-            preconditioned_solve, preconditioner_context)
+            preconditioned_solve, preconditioner_context, reciprocal_condition)
         real(dp),               intent(in)  :: jac_x(:, :)
         real(dp),               intent(in)  :: f_p(:)
         real(dp),               intent(out) :: dxdp(:)
         type(fortnum_status_t), intent(out) :: status
         procedure(multiroot_preconditioned_solve_t), optional :: preconditioned_solve
         class(*), intent(inout), optional :: preconditioner_context
+        real(dp), intent(out), optional :: reciprocal_condition
 
         integer :: n, ls_stat
 
         n = size(jac_x, 1)
+        if (present(reciprocal_condition)) then
+            call estimate_rcond_1(jac_x, reciprocal_condition)
+        end if
         call solve_implicit_product(jac_x, -f_p, dxdp, ls_stat, &
             preconditioned_solve, preconditioner_context)
         if (ls_stat /= 0) then
@@ -313,6 +325,37 @@ contains
             call solve_linear(n, a, b, x, info)
         end if
     end subroutine solve_implicit_product
+
+    subroutine estimate_rcond_1(a, reciprocal_condition)
+        real(dp), intent(in) :: a(:, :)
+        real(dp), intent(out) :: reciprocal_condition
+        real(dp) :: basis(size(a, 1)), inverse_column(size(a, 1))
+        real(dp) :: a_norm, inverse_norm
+        integer :: j, info, n
+
+        n = size(a, 1)
+        a_norm = 0.0_dp
+        do j = 1, n
+            a_norm = max(a_norm, sum(abs(a(:, j))))
+        end do
+        if (a_norm == 0.0_dp) then
+            reciprocal_condition = 0.0_dp
+            return
+        end if
+
+        inverse_norm = 0.0_dp
+        do j = 1, n
+            basis = 0.0_dp
+            basis(j) = 1.0_dp
+            call solve_linear(n, a, basis, inverse_column, info)
+            if (info /= 0) then
+                reciprocal_condition = 0.0_dp
+                return
+            end if
+            inverse_norm = max(inverse_norm, sum(abs(inverse_column)))
+        end do
+        reciprocal_condition = 1.0_dp/(a_norm*inverse_norm)
+    end subroutine estimate_rcond_1
 
     ! Resolve optional tolerances and iteration cap to working values.
     pure subroutine resolve_tols(xtol, ftol, max_iter, xt, ft, max_it)

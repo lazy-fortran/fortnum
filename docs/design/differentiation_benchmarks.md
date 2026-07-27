@@ -218,3 +218,35 @@ fo build
 taskset -c 4 fo exec bench_static_registry direct
 taskset -c 4 fo exec bench_static_registry registry
 ```
+
+## Conditioning diagnostics for implicit products
+
+The multiroot analytical JVP, VJP, and scalar gradient expose an optional
+reciprocal 1-norm condition estimate for the residual Jacobian. The estimate
+solves against every coordinate vector and therefore remains opt-in. Validation
+uses matrices whose exact reciprocal condition numbers are `1/3` and `1e-8`.
+
+The 16-by-16 benchmark compares the unchanged product path with requesting the
+diagnostic:
+
+| Candidate | Median ns/JVP | MAD ns/JVP | Peak RSS |
+|---|---:|---:|---:|
+| plain analytical product | 2,936.5041 | 9.2533 | 23,650,304 B |
+| product plus reciprocal condition | 46,947.1965 | 928.5938 | 23,453,696 B |
+
+Exact inverse-norm estimation is 15.9874 times as expensive for this workload.
+The production default therefore remains the plain product; callers request the
+diagnostic where derivative reliability matters. Peak RSS measures the complete
+`fo exec` process tree.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_multiroot_condition.json`.
+
+Run the benchmark with:
+
+```bash
+cd benchmark
+fo build
+taskset -c 4 fo exec bench_multiroot_condition plain
+taskset -c 4 fo exec bench_multiroot_condition diagnostic
+```

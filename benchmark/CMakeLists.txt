@@ -54,5 +54,8 @@ target_link_libraries(bench_linear_solve_vjp PRIVATE bench_core)
 add_executable(bench_multiroot_preconditioner bench_multiroot_preconditioner.f90)
 target_link_libraries(bench_multiroot_preconditioner PRIVATE bench_core)
 
+add_executable(bench_multiroot_condition bench_multiroot_condition.f90)
+target_link_libraries(bench_multiroot_condition PRIVATE bench_core)
+
 add_executable(bench_static_registry bench_static_registry.f90)
 target_link_libraries(bench_static_registry PRIVATE bench_core)
