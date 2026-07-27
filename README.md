@@ -82,6 +82,11 @@ Implicit ODE stages expose a batched `analytical` tangent solve for
 the measured four-state, sixteen-direction workload 4.88 times faster than
 complete-solve finite differences, with equal measured peak RSS.
 
+The matching contracted adjoint reuses one transposed factorization and sends
+RHS cotangents through a parameter-VJP callback. With four states, sixteen
+parameters, and one objective it is 20.21 times faster than complete-solve
+finite differences; complete wall clock selects it in every measured regime.
+
 ## Build
 
 CMake is the primary build system with CTest integration:

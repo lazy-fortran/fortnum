@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "implicit_ode_stage",
+  "product": "batched_vjp",
+  "workload": "one four-state diagonal linear implicit-stage primal plus all requested objective VJPs",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor"
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1",
+    "build": "Release"
+  },
+  "sampling": {
+    "processes": 3,
+    "samples_per_process": 31,
+    "workloads_per_sample": 20000,
+    "runtime_aggregation": "median of process medians",
+    "dispersion_aggregation": "median of within-process MADs",
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum",
+    "perf_repetitions": 3
+  },
+  "validation": {
+    "oracle": "componentwise transposed solve plus an independently contracted parameter matrix",
+    "absolute_tolerance": 1.4210854715202004e-14,
+    "singular_stage_rejected": true
+  },
+  "scaling": [
+    {"states": 4, "parameters": 1, "active_inputs": 5, "objectives": 1, "analytical_median_ns": 621.4741, "analytical_mad_ns": 33.6725, "diagnostic_median_ns": 3016.1382, "diagnostic_mad_ns": 142.6969, "analytical_speedup": 4.8532},
+    {"states": 4, "parameters": 4, "active_inputs": 8, "objectives": 1, "analytical_median_ns": 691.5601, "analytical_mad_ns": 30.3732, "diagnostic_median_ns": 5462.5404, "diagnostic_mad_ns": 209.1476, "analytical_speedup": 7.8989},
+    {"states": 4, "parameters": 16, "active_inputs": 20, "objectives": 1, "analytical_median_ns": 1004.3971, "analytical_mad_ns": 25.4694, "diagnostic_median_ns": 20294.0726, "diagnostic_mad_ns": 512.8303, "analytical_speedup": 20.2052},
+    {"states": 4, "parameters": 4, "active_inputs": 8, "objectives": 4, "analytical_median_ns": 1192.5225, "analytical_mad_ns": 47.9639, "diagnostic_median_ns": 5731.7321, "diagnostic_mad_ns": 289.9838, "analytical_speedup": 4.8064},
+    {"states": 4, "parameters": 4, "active_inputs": 8, "objectives": 16, "analytical_median_ns": 3114.8672, "analytical_mad_ns": 149.1485, "diagnostic_median_ns": 6230.9748, "diagnostic_mad_ns": 306.9479, "analytical_speedup": 2.0004}
+  ],
+  "memory": {
+    "states": 4,
+    "parameters": 16,
+    "objectives": 16,
+    "analytical_peak_rss_bytes": 3612672,
+    "diagnostic_peak_rss_bytes": 3592192
+  },
+  "perf": {
+    "states": 4,
+    "parameters": 16,
+    "objectives": 1,
+    "analytical": {"cycles": 9666567310, "instructions": 17216918972, "cache_references": 25050375, "cache_misses": 2682222},
+    "diagnostic": {"cycles": 92600734504, "instructions": 323131596384, "cache_references": 45589454, "cache_misses": 3800865}
+  },
+  "selection": {
+    "selected": "analytical",
+    "criterion": "complete primal-plus-all-objectives wall clock",
+    "reason": "the transposed implicit-stage solve avoids one perturbed primal pair per active input"
+  }
+}
