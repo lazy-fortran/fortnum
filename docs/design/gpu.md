@@ -506,6 +506,27 @@ Machine-readable wall clock, dispersion, memory, exact source/toolchain
 provenance, classification, and validation are in
 `benchmark/reference/rtx5060ti_implicit_root_jvp.json`.
 
+## Family coverage
+
+GPU expansion is tracked per numerical family so each change can satisfy the
+required validate–measure–document–commit cycle independently.
+
+| Family | Status | Current evidence |
+| --- | --- | --- |
+| Special functions | covered pilot | generated Dawson value/JVP/VJP; real-device formula and adjoint oracles; resident and transfer wall clock |
+| Residual kernels | covered pilot | generated scalar-root residual products composed with analytical implicit JVP |
+| Interpolation | pending | no validated device pilot |
+| Fixed quadrature | pending | no validated device pilot |
+| Fixed-size linear algebra | pending | no validated device pilot |
+| FFT rules | pending | no validated device pilot |
+| Fixed-trace ODE products | pending | no validated device pilot |
+
+For special functions, the largest transfer-inclusive Dawson value/JVP
+workload is 2.006 times faster than its CPU comparator with OpenACC and 1.6585
+times faster with OpenMP target. Resident execution reduces the corresponding
+call to about 0.210 ms, and the generated resident VJP takes 0.169 ms. Host
+peak RSS and device-execution proof remain recorded with those tournaments.
+
 ## Immediate implementation order
 
 The first pilot is the generated Dawson fused value/JVP leaf:
