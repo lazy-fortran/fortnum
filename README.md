@@ -48,6 +48,12 @@ access across GPU threads, is never materially slower in resident workloads,
 and beats `x(active,batch)` by 4.9 to 5.8 percent for the mid-size resident
 VJP. Transfer-only differences were noisy and inconsistent, so they did not
 override the resident and CPU evidence.
+Released Nsight profiling reports 99.4 to 102.5 GB/s device-memory throughput,
+24.3 to 24.6 percent achieved occupancy, 147 to 150 registers per thread, zero
+local-memory spills, and about 153.1 MB peak device allocation for the
+1,048,576-point resident workload. Compute throughput is about 84.7 percent
+while DRAM throughput is about 23 percent, so this generated kernel is
+compute-throughput limited rather than bandwidth limited.
 `fortnum` uses `fortsym` at build time for symbolic algebra and code
 generation. The first pinned generator is under `tools/codegen/`; generated
 production sources are committed under `src/generated/`. The

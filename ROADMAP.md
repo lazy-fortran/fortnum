@@ -236,7 +236,7 @@ derivatives. CPU Enzyme remains the `autodiff` backend and supplies CPU
   output cotangents where applicable, and batch sizes.
 - [x] Compare admissible array layouts by complete-workload wall clock and
   select one coalesced layout without exposing a general layout framework.
-- [ ] Record peak device allocation, achieved bandwidth, occupancy, register
+- [x] Record peak device allocation, achieved bandwidth, occupancy, register
   use, and spills with released profiling tools.
 - [ ] Add reproducible GPU tables and `fortplot` source generators for runtime,
   scaling, memory, bandwidth, and backend crossovers; commit no PNG files.

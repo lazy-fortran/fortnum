@@ -365,6 +365,36 @@ they are not a public layout framework. Full medians, repeated transfer
 measurements, memory, validation, and toolchain provenance are in
 `benchmark/reference/rtx5060ti_multi_input_layout.json`.
 
+## Released-tool GPU profile
+
+The selected batch-first layout was profiled at 1,048,576 points with released
+Nsight Compute 2026.2.1 and Nsight Systems 2026.1.3. Nsight Compute collected
+the `SpeedOfLight`, `LaunchStats`, `Occupancy`, and
+`MemoryWorkloadAnalysis` sections for one launch after three skipped launches.
+Nsight Systems traced CUDA allocation events; peak device allocation is the
+maximum running allocation-minus-free total. Performance counters were read
+through passwordless `sudo` because this host disables unprivileged access.
+
+| Backend | Product | Duration ms | GB/s | Compute % | DRAM % | Registers/thread | Achieved occupancy | Spills | Peak device allocation |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| OpenACC | JVP | 1.46 | 102.42 | 84.66 | 23.21 | 147 | 24.41% | 0 | 153,051,422 B |
+| OpenACC | VJP | 1.41 | 99.37 | 84.68 | 22.52 | 150 | 24.31% | 0 | 153,051,422 B |
+| OpenMP target | JVP | 1.46 | 102.47 | 84.67 | 23.23 | 147 | 24.52% | 0 | 153,125,080 B |
+| OpenMP target | VJP | 1.41 | 99.65 | 84.66 | 22.58 | 150 | 24.55% | 0 | 153,125,080 B |
+
+Theoretical occupancy is 25 percent and is register-limited. No local-memory
+spilling request occurs. L1 hit rate is 52.45 to 52.72 percent and L2 hit rate
+is 43.66 to 43.95 percent. Compute throughput is about 84.7 percent while DRAM
+throughput is only 22.5 to 23.2 percent, so reducing bytes alone is not the
+leading optimization for this transcendental-heavy kernel. The near-identical
+profiles also corroborate that the two scheduling backends reach equivalent
+generated device code.
+
+The live numerical arrays account for 150,994,944 B; the roughly 2.1 MB
+difference to peak device allocation is runtime allocation overhead. Complete
+profile metadata and the extraction definition are in
+`benchmark/reference/rtx5060ti_multi_input_profile.json`.
+
 ## Immediate implementation order
 
 The first pilot is the generated Dawson fused value/JVP leaf:

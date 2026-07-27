@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "operation": "resident generated eight-input analytical JVP and VJP profiling",
+  "workload": {
+    "batch_size": 1048576,
+    "layout": "x(batch,active)",
+    "residency": "resident",
+    "live_array_bytes": 150994944
+  },
+  "hardware": {
+    "gpu": "NVIDIA GeForce RTX 5060 Ti",
+    "compute_capability": "12.0",
+    "sms": 36,
+    "driver": "610.43.03"
+  },
+  "toolchain": {
+    "compiler": "NVHPC nvfortran 26.5",
+    "openacc_flags": "-fast -O3 -acc",
+    "openmp_flags": "-fast -O3 -mp=gpu -mp",
+    "nsight_compute": "2026.2.1.0 public-release",
+    "nsight_systems": "2026.1.3.425",
+    "fortsym_revision": "0e3deee5fa2ed3d30ebfce607cc96794f4b8fed3"
+  },
+  "method": {
+    "ncu_sections": ["SpeedOfLight", "LaunchStats", "Occupancy", "MemoryWorkloadAnalysis"],
+    "ncu_launch_skip": 3,
+    "ncu_launch_count": 1,
+    "nsys_options": ["--trace=cuda", "--cuda-memory-usage=true"],
+    "peak_device_allocation": "maximum running allocation-minus-free sum from CUDA_GPU_MEMORY_USAGE_EVENTS",
+    "performance_counter_access": "ncu executed through passwordless sudo because unprivileged counters are disabled"
+  },
+  "profiles": [
+    {
+      "backend": "openacc",
+      "product": "jvp",
+      "duration_ms": 1.46,
+      "memory_throughput_gbyte_s": 102.42,
+      "dram_throughput_percent": 23.21,
+      "compute_throughput_percent": 84.66,
+      "l1_hit_rate_percent": 52.60,
+      "l2_hit_rate_percent": 43.95,
+      "registers_per_thread": 147,
+      "theoretical_occupancy_percent": 25.00,
+      "achieved_occupancy_percent": 24.41,
+      "local_memory_spilling_requests": 0,
+      "peak_device_allocation_bytes": 153051422
+    },
+    {
+      "backend": "openacc",
+      "product": "vjp",
+      "duration_ms": 1.41,
+      "memory_throughput_gbyte_s": 99.37,
+      "dram_throughput_percent": 22.52,
+      "compute_throughput_percent": 84.68,
+      "l1_hit_rate_percent": 52.45,
+      "l2_hit_rate_percent": 43.73,
+      "registers_per_thread": 150,
+      "theoretical_occupancy_percent": 25.00,
+      "achieved_occupancy_percent": 24.31,
+      "local_memory_spilling_requests": 0,
+      "peak_device_allocation_bytes": 153051422
+    },
+    {
+      "backend": "openmp",
+      "product": "jvp",
+      "duration_ms": 1.46,
+      "memory_throughput_gbyte_s": 102.47,
+      "dram_throughput_percent": 23.23,
+      "compute_throughput_percent": 84.67,
+      "l1_hit_rate_percent": 52.72,
+      "l2_hit_rate_percent": 43.87,
+      "registers_per_thread": 147,
+      "theoretical_occupancy_percent": 25.00,
+      "achieved_occupancy_percent": 24.52,
+      "local_memory_spilling_requests": 0,
+      "peak_device_allocation_bytes": 153125080
+    },
+    {
+      "backend": "openmp",
+      "product": "vjp",
+      "duration_ms": 1.41,
+      "memory_throughput_gbyte_s": 99.65,
+      "dram_throughput_percent": 22.58,
+      "compute_throughput_percent": 84.66,
+      "l1_hit_rate_percent": 52.52,
+      "l2_hit_rate_percent": 43.66,
+      "registers_per_thread": 150,
+      "theoretical_occupancy_percent": 25.00,
+      "achieved_occupancy_percent": 24.55,
+      "local_memory_spilling_requests": 0,
+      "peak_device_allocation_bytes": 153125080
+    }
+  ],
+  "verdict": "the kernel is compute-throughput limited rather than DRAM-bandwidth limited; register use limits occupancy to 25 percent, but there are no local-memory spills and OpenACC and OpenMP target generate equivalent profiles"
+}
