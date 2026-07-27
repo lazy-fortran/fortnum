@@ -102,6 +102,7 @@ contains
         spec%regenerate_command = str( &
             "cd tools/codegen && fo exec gen_inverse_products")
         spec%openacc_routine_seq = .true.
+        spec%openmp_declare_target = .true.
         spec%pure_procedure = .true.
         allocate (spec%args(2*n*n), spec%outputs(n*n))
         do q = 1, n*n

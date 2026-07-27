@@ -11,6 +11,7 @@ contains
 
     pure subroutine fortnum_det3_jvp_kernel(a, b, c, d, f, g, h, j, k, ta, tb, tc, td, tf, tg, th, tj, &
             tk, jvp)
+        !$omp declare target
         !$acc routine seq
         use, intrinsic :: iso_fortran_env, only: dp => real64
         implicit none

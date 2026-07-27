@@ -118,6 +118,7 @@ contains
         spec%regenerate_command = str( &
             "cd tools/codegen && fo exec gen_determinant_products")
         spec%openacc_routine_seq = .true.
+        spec%openmp_declare_target = .true.
         spec%pure_procedure = .true.
         allocate (spec%args(size(names) + size(tangent_names)), spec%outputs(1))
         do k = 1, size(names)
@@ -176,6 +177,7 @@ contains
         spec%regenerate_command = str( &
             "cd tools/codegen && fo exec gen_determinant_products")
         spec%openacc_routine_seq = .true.
+        spec%openmp_declare_target = .true.
         spec%pure_procedure = .true.
         allocate (spec%args(size(names) + 1), spec%outputs(size(output_names)))
         do k = 1, size(names)
