@@ -73,7 +73,11 @@ Resident GPU execution is 17.0 to 21.8 times faster than CPU at 65,536 and
 GPU family coverage is tracked separately rather than as one oversized
 milestone. Special functions are covered by the generated Dawson
 value/JVP/VJP pilots, and residual kernels are covered by the generated
-scalar-root residual plus analytical implicit JVP. Interpolation, fixed
+scalar-root residual plus analytical implicit JVP. Fixed-cell interpolation is
+covered by generated Lagrange value/JVP/VJP leaves. At 1,048,576 points the
+resident GPU is 15.0 times faster than CPU for JVP and 11.9 times faster for
+VJP. With transfers included, GPU still wins JVP by 1.31 times, while CPU wins
+VJP by 1.24 times because five adjoint arrays must return to the host. Fixed
 quadrature, fixed-size linear algebra, FFT rules, and fixed-trace ODE products
 remain explicit unchecked roadmap items.
 `fortnum` uses `fortsym` at build time for symbolic algebra and code
