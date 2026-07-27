@@ -22,6 +22,8 @@ module fortnum_gpu_multi_input_wrappers
     public :: multi_input_p2_jvp_batch, multi_input_p2_vjp_batch
     public :: multi_input_p4_jvp_batch, multi_input_p4_vjp_batch
     public :: multi_input_p8_jvp_batch, multi_input_p8_vjp_batch
+    public :: multi_input_p8_jvp_active_first_batch
+    public :: multi_input_p8_vjp_active_first_batch
     public :: multi_input_p16_jvp_batch, multi_input_p16_vjp_batch
 
 contains
@@ -128,6 +130,46 @@ contains
                 adjoints(i, 7), adjoints(i, 8))
         end do
     end subroutine multi_input_p8_vjp_batch
+
+    subroutine multi_input_p8_jvp_active_first_batch( &
+            n, x, v, values, products)
+        integer, intent(in) :: n
+        real(dp), intent(in) :: x(8, n), v(8, n)
+        real(dp), intent(out) :: values(n), products(n)
+        integer :: i
+
+        !$acc parallel loop present(x, v, values, products)
+        !$omp target teams distribute parallel do &
+        !$omp& map(to: x, v) map(from: values, products)
+        do i = 1, n
+            call fortnum_multi_input_p8_jvp_kernel( &
+                x(1, i), x(2, i), x(3, i), x(4, i), &
+                x(5, i), x(6, i), x(7, i), x(8, i), &
+                v(1, i), v(2, i), v(3, i), v(4, i), &
+                v(5, i), v(6, i), v(7, i), v(8, i), &
+                values(i), products(i))
+        end do
+    end subroutine multi_input_p8_jvp_active_first_batch
+
+    subroutine multi_input_p8_vjp_active_first_batch( &
+            n, x, u, values, adjoints)
+        integer, intent(in) :: n
+        real(dp), intent(in) :: x(8, n), u(n)
+        real(dp), intent(out) :: values(n), adjoints(8, n)
+        integer :: i
+
+        !$acc parallel loop present(x, u, values, adjoints)
+        !$omp target teams distribute parallel do &
+        !$omp& map(to: x, u) map(from: values, adjoints)
+        do i = 1, n
+            call fortnum_multi_input_p8_vjp_kernel( &
+                x(1, i), x(2, i), x(3, i), x(4, i), &
+                x(5, i), x(6, i), x(7, i), x(8, i), u(i), values(i), &
+                adjoints(1, i), adjoints(2, i), adjoints(3, i), &
+                adjoints(4, i), adjoints(5, i), adjoints(6, i), &
+                adjoints(7, i), adjoints(8, i))
+        end do
+    end subroutine multi_input_p8_vjp_active_first_batch
 
     subroutine multi_input_p16_jvp_batch(n, x, v, values, products)
         integer, intent(in) :: n

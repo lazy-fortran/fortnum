@@ -149,11 +149,20 @@ if(NOT FORTNUM_GPU_BACKEND STREQUAL "NONE")
     add_executable(bench_multi_input_gpu
         gpu/bench_multi_input_scaling.f90)
     target_link_libraries(bench_multi_input_gpu PRIVATE bench_core)
+
+    add_executable(bench_multi_input_layout_gpu
+        gpu/bench_multi_input_layout.f90)
+    target_link_libraries(bench_multi_input_layout_gpu PRIVATE bench_core)
 endif()
 
 add_executable(bench_multi_input_cpu
     gpu/bench_multi_input_scaling.f90)
 target_link_libraries(bench_multi_input_cpu PRIVATE
+    bench_multi_input_cpu_core)
+
+add_executable(bench_multi_input_layout_cpu
+    gpu/bench_multi_input_layout.f90)
+target_link_libraries(bench_multi_input_layout_cpu PRIVATE
     bench_multi_input_cpu_core)
 
 add_executable(bench_linear_solve_jvp bench_linear_solve_jvp.f90)
