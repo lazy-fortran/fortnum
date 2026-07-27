@@ -837,6 +837,56 @@ selects the candidate.
 The machine-readable record is
 `benchmark/reference/ryzen9_5950x_ode_hybrid_forward_sensitivity.json`.
 
+## Analytical Cash–Karp discrete adjoint
+
+`ode_integrate_vjp` is the exact transpose of the analytical Cash–Karp tangent
+step, walked backward over the accepted-step trace selected by the primal. The
+direct behavioral oracle uses a two-state linear system
+\(\dot y=Ay\) and verifies
+
+\[
+J^Tu = \exp(A^Tt_1)u.
+\]
+
+This is independent of the existing tangent/adjoint dot-product identity.
+Complete-solve central differences provide a second oracle.
+
+The requested derivative object is one scalar-terminal-objective VJP. Each
+timed candidate includes the adaptive primal trajectory. Reverse analytical
+performs one discrete-adjoint trace walk; forward reconstruction performs two
+tangent walks, one per initial-state input; the diagnostic evaluates the base
+trajectory and four perturbed trajectories. Results are medians of three
+processes, each with 31 samples of 1,000 workloads. Reference: AMD Ryzen 9
+5950X, GNU Fortran 16.1.1, Release.
+
+| Candidate | Mechanism | Median ns/primal+VJP | MAD ns | Peak RSS |
+|---|---|---:|---:|---:|
+| one reverse discrete adjoint | `analytical` | 34,270.5560 | 1,023.0970 | 5,345,280 B |
+| two forward tangent sweeps | `analytical` | 58,768.7470 | 1,074.3040 | 5,382,144 B |
+| complete-solve central difference | diagnostic | 62,939.3870 | 1,150.4480 | 5,292,032 B |
+
+Complete-workload wall clock selects the reverse discrete adjoint. It is
+1.7149 times faster than forward reconstruction and 1.8365 times faster than
+finite differences. Peak RSS is equal within 91 KB and does not affect the
+selection.
+
+Linux `perf stat -r 3` over CTest-launched benchmark processes records:
+
+| Candidate | Cycles | Instructions | Cache references | Cache misses |
+|---|---:|---:|---:|---:|
+| reverse `analytical` | 4,926,950,485 | 18,091,883,235 | 22,343,502 | 382,233 |
+| forward reconstruction | 8,317,476,053 | 28,965,614,332 | 23,260,473 | 445,412 |
+| diagnostic | 8,850,465,175 | 30,614,064,380 | 18,595,675 | 411,590 |
+
+Cycles and instructions corroborate the wall-clock winner. Cache counters are
+supporting evidence only. This two-input, one-objective workload demonstrates
+the expected reverse advantage for a VJP; state-, parameter-, and objective-
+count scaling remains the responsibility of the later many-parameter
+trajectory tournament.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_ode_discrete_adjoint.json`.
+
 ## Vector-root candidate tournament
 
 The coupled vector tournament uses

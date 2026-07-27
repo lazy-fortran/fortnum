@@ -58,6 +58,11 @@ analytical frozen Cash–Karp trace. On the first scalar trajectory this `hybrid
 is 4.0% slower than an explicit RHS derivative but 1.54 times faster than
 complete-solve finite differences.
 
+Cash–Karp also has an analytical discrete adjoint over its frozen accepted-step
+trace. For a two-state system and one scalar terminal objective, one reverse
+adjoint is 1.71 times faster than reconstructing the VJP from two forward
+tangent sweeps.
+
 ## Build
 
 CMake is the primary build system with CTest integration:
