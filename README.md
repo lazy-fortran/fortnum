@@ -28,7 +28,7 @@ implicit, hybrid, and finite-difference diagnostic candidates. Measured
 runtime, dispersion, peak memory, validation, hardware, and compiler evidence
 is committed in
 `docs/design/differentiation_benchmarks.md` and `benchmark/reference/`.
-The cumulative report in `docs/design/differentiation_report.md` summarizes 26
+The cumulative report in `docs/design/differentiation_report.md` summarizes 32
 mechanism tournaments and provides reproducible `fortplot` figure generation
 without committing generated PNGs.
 `ROADMAP.md` is the authoritative implementation checklist.
@@ -63,6 +63,12 @@ Inside a fixed cubic B-spline span, analytical and Enzyme products are both
 competitive. At 16 products, forward Enzyme is 2.8% faster for JVP while the
 analytical VJP is 6.6% faster than reverse Enzyme, so selection remains
 product- and workload-specific.
+
+The modified-Bessel tournament likewise selects by region and product. For 16
+products, analytical wins series JVP/VJP and asymptotic VJP; raw Enzyme wins
+recurrence JVP/VJP and asymptotic JVP. The measured hybrid JVP proves the
+analytical custom-rule boundary but does not win because it evaluates both
+`I0` and `I1` separately.
 
 Fixed-bound parameterized integrals also expose an analytical JVP based on
 differentiation under the integral sign, including the analytical Leibniz term

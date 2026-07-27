@@ -327,4 +327,17 @@ if(FORTNUM_ENABLE_ENZYME)
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/bspline_fixed_span_products.f90
         MODE forward
         OPT_LEVEL O2)
+    fortnum_add_enzyme_test(
+        NAME enzyme_bessel_tournament
+        SOURCES
+            ${CMAKE_SOURCE_DIR}/src/fortnum_kinds.f90
+            ${CMAKE_SOURCE_DIR}/src/special/fortnum_special_bessel.f90
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/bessel_kernel.f90
+            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/bessel_rule.c
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/bessel_outer.f90
+        FORWARD_RULES
+            fortnum_bessel_i0_kernel=fortnum_bessel_i0_kernel_derivative
+        MODE forward
+        OPT_LEVEL O2)
 endif()

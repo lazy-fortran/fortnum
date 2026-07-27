@@ -25,3 +25,9 @@ bspline_fit_implicit_jvp,analytical,analytical,422.9037,2073.1364,ryzen9_5950x_b
 bspline_fit_implicit_vjp,analytical,analytical,415.9960,509326.8650,ryzen9_5950x_bspline_fit_implicit.json
 bspline_fixed_span_jvp,autodiff,autodiff,141.266038,145.199818,ryzen9_5950x_bspline_fixed_span_enzyme.json
 bspline_fixed_span_vjp,analytical,analytical,132.050065,140.726378,ryzen9_5950x_bspline_fixed_span_enzyme.json
+bessel_series_jvp,analytical,analytical,917.275660,979.125890,ryzen9_5950x_bessel_tournament.json
+bessel_series_vjp,analytical,analytical,929.241600,3222.316490,ryzen9_5950x_bessel_tournament.json
+bessel_recurrence_jvp,autodiff,autodiff,3788.274910,5763.282255,ryzen9_5950x_bessel_tournament.json
+bessel_recurrence_vjp,autodiff,autodiff,5521.690160,5697.044880,ryzen9_5950x_bessel_tournament.json
+bessel_asymptotic_jvp,autodiff,autodiff,2400.249025,2784.492675,ryzen9_5950x_bessel_tournament.json
+bessel_asymptotic_vjp,analytical,analytical,2774.859240,6063.291490,ryzen9_5950x_bessel_tournament.json
