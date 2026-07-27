@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "reusable_lu_factorization",
+  "product": "primal_solve",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1",
+    "build": "Release"
+  },
+  "workload": {
+    "matrix_size": 16,
+    "right_hand_sides_per_factorization": 200000,
+    "independent_processes": 31,
+    "runtime_aggregation": "median",
+    "dispersion": "median absolute deviation",
+    "memory_processes_per_candidate": 5,
+    "perf_repetitions": 3
+  },
+  "validation": {
+    "oracle": "known solution and independent A*x-b residual",
+    "absolute_tolerance": 2e-14,
+    "repeated_solves_checked": true
+  },
+  "candidates": [
+    {
+      "name": "raw_factored_arrays",
+      "median_ns_per_workload": 1103.596635,
+      "mad_ns": 2.105770,
+      "peak_rss_bytes": 4284416,
+      "cycles_per_workload": 5062.945,
+      "instructions_per_workload": 16964.058,
+      "cache_references_per_workload": 1.955,
+      "cache_misses_per_workload": 0.062
+    },
+    {
+      "name": "lu_factorization_t",
+      "median_ns_per_workload": 1117.585595,
+      "mad_ns": 4.547220,
+      "peak_rss_bytes": 4300800,
+      "cycles_per_workload": 5089.302,
+      "instructions_per_workload": 17067.058,
+      "cache_references_per_workload": 1.533,
+      "cache_misses_per_workload": 0.051
+    }
+  ],
+  "selection": {
+    "selected": "raw_factored_arrays",
+    "criterion": "complete workload wall clock",
+    "speedup": 1.0127,
+    "reason": "the object is safer to own, but its type-bound call is slightly slower"
+  }
+}

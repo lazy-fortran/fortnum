@@ -51,6 +51,15 @@ module fortnum_linalg
     ! the FO Boris guard so the chartmap inversion behaviour is preserved.
     real(dp), parameter :: SING_TOL_REL = 1.0e-8_dp
 
+    type, public :: lu_factorization_t
+        integer :: n = 0
+        real(dp), allocatable :: factors(:, :)
+        integer, allocatable :: pivots(:)
+    contains
+        procedure :: factor => lu_object_factor
+        procedure :: solve => lu_object_solve
+    end type lu_factorization_t
+
     public :: det2, det3, det2_jvp, det3_jvp, det2_vjp, det3_vjp
     public :: inv2, inv3, inv2_jvp, inv3_jvp, inv2_vjp, inv3_vjp, jacobian_ok3
     public :: lu_factor, lu_solve_factored, lu_solve
@@ -385,6 +394,46 @@ contains
         if (info /= LINALG_OK) return
         call lu_solve_factored(n, a, ipiv, b, info)
     end subroutine lu_solve
+
+    ! Store one fixed-capacity LU factorization for repeated solves.
+    pure subroutine lu_object_factor(self, a, info)
+        class(lu_factorization_t), intent(inout) :: self
+        real(dp), intent(in) :: a(:, :)
+        integer, intent(out) :: info
+        integer :: n
+
+        self%n = 0
+        if (allocated(self%factors)) deallocate (self%factors)
+        if (allocated(self%pivots)) deallocate (self%pivots)
+        n = size(a, 1)
+        if (n < 1 .or. n > LINALG_MAX_N) then
+            info = LINALG_SINGULAR
+            return
+        end if
+        if (size(a, 2) /= n) then
+            info = LINALG_SINGULAR
+            return
+        end if
+        allocate (self%factors(n, n), self%pivots(n))
+        self%factors = a
+        call lu_factor(n, self%factors, self%pivots, info)
+        if (info == LINALG_OK) self%n = n
+    end subroutine lu_object_factor
+
+    ! Solve with the stored factors; leave the object reusable.
+    pure subroutine lu_object_solve(self, b, info)
+        class(lu_factorization_t), intent(in) :: self
+        real(dp), contiguous, intent(inout) :: b(:)
+        integer, intent(out) :: info
+        integer :: n
+
+        n = self%n
+        if (n < 1 .or. size(b) /= n) then
+            info = LINALG_SINGULAR
+            return
+        end if
+        call lu_solve_factored(n, self%factors, self%pivots, b, info)
+    end subroutine lu_object_solve
 
     ! Analytical implicit JVP for A x = b: A dx = db - dA x. The caller
     ! supplies the converged primal x, so this neither repeats the primal solve

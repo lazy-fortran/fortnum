@@ -112,6 +112,10 @@ win.
 The matching inverse-plus-VJP returns all nine input sensitivities in 113.43 ns
 versus 929.10 ns for componentwise central differences, an 8.19× complete
 wall-clock win.
+A fixed-capacity `lu_factorization_t` now owns reusable LU factors and pivots.
+For the measured 16×16 solve workload its type-bound solve takes 1.118 µs
+versus 1.104 µs for the raw factored API, so raw reuse remains the hot-loop
+winner while the object provides safer ownership.
 
 The ODE forward sensitivity now has an explicit continuous contract: it
 approximates the variational IVP at fixed terminal time on the primal's frozen

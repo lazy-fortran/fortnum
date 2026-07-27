@@ -316,6 +316,51 @@ fo exec bench_linear_solve_jvp refactor --peak-rss
 fo exec bench_linear_solve_jvp reuse --peak-rss
 ```
 
+## Reusable LU factorization object
+
+`lu_factorization_t` owns one fixed-capacity LU matrix and pivot vector and
+exposes type-bound `factor` and `solve` calls. The comparison below isolates
+interface cost by running the same complete 16x16 workload through either the
+object or the raw `lu_solve_factored` arrays. Each workload constructs a right
+hand side and solves it; both candidates reuse one factorization. A known
+solution and the independent residual \(Ax-b\) validate repeated object solves.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, GNU Fortran 16.1.1, Release build.
+Rows are medians of 31 independently launched samples with 200,000 complete
+workloads.
+
+| Interface | Median ns/workload | MAD ns | Peak RSS |
+|---|---:|---:|---:|
+| raw factored arrays | 1,103.5966 | 2.1058 | 4,284,416 B |
+| `lu_factorization_t` | 1,117.5856 | 4.5472 | 4,300,800 B |
+
+The raw interface is 1.0127 times faster and remains selected inside measured
+hot loops. The object is retained as a convenience API that keeps factor and
+pivot ownership together. The 16,384-byte process-RSS difference is not an
+algorithmic memory result; both candidates use fixed stack storage.
+
+Linux `perf stat -r 3` over two million workloads measured:
+
+| Interface | Cycles/workload | Instructions/workload | Cache references/workload | Cache misses/workload |
+|---|---:|---:|---:|---:|
+| raw factored arrays | 5,062.945 | 16,964.058 | 1.955 | 0.062 |
+| `lu_factorization_t` | 5,089.302 | 17,067.058 | 1.533 | 0.051 |
+
+Wall clock selects the raw interface. Sparse, variable cache events are only
+supporting evidence.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_lu_factorization_object.json`. Reproduce one
+sample with:
+
+```bash
+fo test test_lu_factorization_object
+taskset -c 4 env FORTNUM_LU_OBJECT_ACTION=--benchmark \
+    FORTNUM_LU_OBJECT_CANDIDATE=object \
+    FORTNUM_LU_OBJECT_ITERATIONS=200000 \
+    fo exec --no-build test_lu_factorization_object
+```
+
 ## Analytical linear-solve VJP transpose-factorization reuse
 
 This workload applies 200,000 cotangents to one dense 16-by-16 primal system.
