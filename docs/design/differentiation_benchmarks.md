@@ -1494,6 +1494,66 @@ Analytical cache-miss dispersion is 40%, so misses are diagnostic only and do
 not override complete-workload wall clock. The machine-readable record is
 `benchmark/reference/ryzen9_5950x_ode_event_time_tangent.json`.
 
+## Event-driven trajectory tournament
+
+An event-driven output contains both the crossing time and the state evaluated
+at that moving time. After the implicit event-time product, the analytical
+interface applies
+
+\[
+\dot y_{\rm event}
+=
+\left.\dot y\right|_{\tau\ {\rm fixed}}
++f(\tau,y_{\rm event})\dot\tau.
+\]
+
+`ode_event_state_jvp` performs this contracted chain rule without forming a
+Jacobian. The independent workload uses
+\(y'=\operatorname{mean}(p)\) and \(y-\theta=0\). Its exact event state is
+\(y_{\rm event}=\theta\), so every total event-state direction must equal the
+corresponding threshold direction. The test checks that identity in addition
+to the exact event-time derivative and rejects non-transversal events.
+
+The timed output is `(event time, event state)`. Each analytical workload
+includes adaptive integration, event scan and root location, contracted
+residual and fixed-time state products, the implicit event-time JVP, and the
+moving-time state composition. The diagnostic relocates the event for positive
+and negative perturbations of every direction.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, GNU Fortran 16.1.1, Release build.
+Results are medians of three process medians. Each process collected 31 samples
+of 1,000 complete workloads after three warmups.
+
+| Parameters | Active inputs | Directions | Analytical ns | MAD ns | Diagnostic ns | MAD ns | Analytical speedup |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 3 | 1 | 2,514.3900 | 13.6860 | 9,803.7000 | 180.3990 | 3.8990x |
+| 4 | 6 | 1 | 2,526.2220 | 14.4170 | 7,287.1860 | 31.8400 | 2.8846x |
+| 16 | 18 | 1 | 2,571.6170 | 41.0570 | 7,345.8170 | 49.4530 | 2.8565x |
+| 4 | 6 | 4 | 2,552.7020 | 11.9720 | 21,795.8060 | 81.2330 | 8.5383x |
+| 4 | 6 | 16 | 2,711.7210 | 32.5820 | 84,216.7220 | 3,231.5200 | 31.0566x |
+
+Complete-workload wall clock selects `analytical` in every regime. From one to
+sixteen directions at four parameters, analytical grows 1.0734 times because
+the located crossing is reused. The diagnostic grows 11.5568 times because it
+performs two complete perturbed trajectories per direction.
+
+At four parameters and sixteen directions, both candidates have maximum
+observed peak RSS of 3,833,856 bytes. Normalized `perf stat -r 3` counts per
+complete workload are:
+
+| Candidate | Cycles | Instructions | Cache references | Cache misses |
+|---|---:|---:|---:|---:|
+| analytical | 14,596 | 39,422 | 955 | 23 |
+| diagnostic | 374,578 | 1,024,347 | 22,843 | 62 |
+
+The diagnostic executes 25.66 times as many cycles, 25.99 times as many
+instructions, and 23.92 times as many cache references. Cache-miss dispersion
+is 17% for the diagnostic, so counters remain supporting evidence. Complete
+wall clock selects the analytical event interface.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_ode_event_driven.json`.
+
 ## Vector-root candidate tournament
 
 The coupled vector tournament uses

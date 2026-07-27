@@ -113,7 +113,7 @@ independent validation plus measured application runtime and peak memory.
 - [x] Benchmark a long nonstiff trajectory.
 - [x] Benchmark a stiff trajectory.
 - [x] Benchmark a many-parameter trajectory.
-- [ ] Benchmark an event-driven trajectory.
+- [x] Benchmark an event-driven trajectory.
 
 ## Linear algebra
 

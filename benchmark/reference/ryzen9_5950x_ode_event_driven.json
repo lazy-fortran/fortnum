@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "transversal_ode_event_output",
+  "product": "batched_jvp",
+  "workload": "adaptive integration, event location, and all event-time and event-state products",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1",
+    "build": "Release"
+  },
+  "sampling": {
+    "processes": 3,
+    "samples_per_process": 31,
+    "workloads_per_sample": 1000,
+    "runtime_aggregation": "median of process medians",
+    "dispersion_aggregation": "median of within-process MADs",
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum",
+    "perf_repetitions": 3
+  },
+  "validation": {
+    "time_oracle": "tau=(threshold-y0)/mean(parameters)",
+    "state_oracle": "y_event=threshold and dy_event=dy_fixed+f_event*dt_event=dthreshold",
+    "absolute_tolerance": 2e-7,
+    "nontransversal_event_rejected": true
+  },
+  "scaling": [
+    {"parameters": 1, "active_inputs": 3, "directions": 1, "analytical_median_ns": 2514.3900, "analytical_mad_ns": 13.6860, "diagnostic_median_ns": 9803.7000, "diagnostic_mad_ns": 180.3990, "analytical_speedup": 3.8990},
+    {"parameters": 4, "active_inputs": 6, "directions": 1, "analytical_median_ns": 2526.2220, "analytical_mad_ns": 14.4170, "diagnostic_median_ns": 7287.1860, "diagnostic_mad_ns": 31.8400, "analytical_speedup": 2.8846},
+    {"parameters": 16, "active_inputs": 18, "directions": 1, "analytical_median_ns": 2571.6170, "analytical_mad_ns": 41.0570, "diagnostic_median_ns": 7345.8170, "diagnostic_mad_ns": 49.4530, "analytical_speedup": 2.8565},
+    {"parameters": 4, "active_inputs": 6, "directions": 4, "analytical_median_ns": 2552.7020, "analytical_mad_ns": 11.9720, "diagnostic_median_ns": 21795.8060, "diagnostic_mad_ns": 81.2330, "analytical_speedup": 8.5383},
+    {"parameters": 4, "active_inputs": 6, "directions": 16, "analytical_median_ns": 2711.7210, "analytical_mad_ns": 32.5820, "diagnostic_median_ns": 84216.7220, "diagnostic_mad_ns": 3231.5200, "analytical_speedup": 31.0566}
+  ],
+  "memory": {
+    "parameters": 4,
+    "directions": 16,
+    "analytical_peak_rss_bytes": 3833856,
+    "diagnostic_peak_rss_bytes": 3833856
+  },
+  "perf": {
+    "parameters": 4,
+    "directions": 16,
+    "workloads_per_repetition": 100000,
+    "analytical": {
+      "cycles_per_workload": 14595.509,
+      "instructions_per_workload": 39422.229,
+      "cache_references_per_workload": 955.037,
+      "cache_misses_per_workload": 23.012
+    },
+    "diagnostic": {
+      "cycles_per_workload": 374578.012,
+      "instructions_per_workload": 1024346.679,
+      "cache_references_per_workload": 22843.405,
+      "cache_misses_per_workload": 62.069
+    }
+  },
+  "selection": {
+    "selected": "analytical",
+    "criterion": "complete integration-plus-event-location-plus-time-and-state-products wall clock",
+    "speedup_at_four_parameters_sixteen_directions": 31.0566,
+    "reason": "the implicit time product and state chain rule reuse one located crossing"
+  }
+}

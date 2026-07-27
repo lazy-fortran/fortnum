@@ -93,6 +93,10 @@ Transversal event times use an `analytical` implicit JVP of the event residual,
 not the root-location iterations. For four parameters and sixteen directions,
 one primal integration plus all event-time products takes 2.48 µs versus
 77.79 µs for complete-solve finite differences, a 31.37× wall-clock win.
+The event-state interface composes the fixed-time tangent with
+`f_event * dt_event`. For the complete `(event time, event state)` output, the
+same four-parameter, sixteen-direction workload takes 2.71 µs analytically
+versus 84.22 µs diagnostically, a 31.06× wall-clock win.
 
 The ODE forward sensitivity now has an explicit continuous contract: it
 approximates the variational IVP at fixed terminal time on the primal's frozen

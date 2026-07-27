@@ -3,7 +3,7 @@ program test_ode_event_time_tangent
     use fortnum_ode, only: ode_problem_t, ode_workspace_t, ode_solution_t, &
         ode_integrate, ODE_EVENT_RISING
     use fortnum_ode_events, only: ode_event_result_t, ode_event_scan, &
-        ode_event_time_jvp
+        ode_event_time_jvp, ode_event_state_jvp
     use fortnum_status, only: fortnum_status_t, status_ok
     implicit none
 
@@ -11,7 +11,9 @@ program test_ode_event_time_tangent
     real(dp) :: current_threshold = 0.8_dp
     character(32) :: action, candidate
     integer :: parameter_count, direction_count
+    logical :: event_driven = .false.
 
+    call configure_output()
     call get_environment_variable("FORTNUM_EVENT_TIME_ACTION", action)
     call get_environment_variable("FORTNUM_EVENT_TIME_CANDIDATE", candidate)
     if (trim(action) == "--benchmark") then
@@ -29,13 +31,21 @@ program test_ode_event_time_tangent
 
 contains
 
+    subroutine configure_output()
+        character(32) :: output
+
+        call get_environment_variable("FORTNUM_EVENT_OUTPUT", output)
+        event_driven = trim(output) == "state"
+    end subroutine configure_output
+
     subroutine validate_product()
         integer, parameter :: nparameter = 2, ndirection = 3
         real(dp) :: parameters(nparameter), parameter_direction(nparameter, ndirection)
         real(dp) :: y0, threshold, y0_direction(ndirection)
         real(dp) :: threshold_direction(ndirection), residual_tangent(ndirection)
         real(dp) :: expected(ndirection), rate_direction, exact_time
-        real(dp), allocatable :: tangent(:)
+        real(dp) :: fixed_state_tangent(1, ndirection), event_velocity(1)
+        real(dp), allocatable :: tangent(:), state_tangent(:,:)
         type(ode_event_result_t) :: event_result
         type(fortnum_status_t) :: status
         integer :: direction
@@ -67,6 +77,23 @@ contains
         if (.not. status_ok(status)) error stop "event-time JVP failed"
         if (maxval(abs(tangent - expected)) > 2.0e-7_dp) then
             print *, "event-time exact-oracle mismatch", tangent, expected
+            error stop 1
+        end if
+
+        do direction = 1, ndirection
+            rate_direction = sum(parameter_direction(:, direction)) / &
+                real(nparameter, dp)
+            fixed_state_tangent(1, direction) = y0_direction(direction) + &
+                event_result%t_event*rate_direction
+        end do
+        event_velocity(1) = current_rate
+        call ode_event_state_jvp(event_result, fixed_state_tangent, &
+            event_velocity, tangent, state_tangent, status)
+        if (.not. status_ok(status)) error stop "event-state JVP failed"
+        if (maxval(abs(state_tangent(1, :) - threshold_direction)) > &
+                2.0e-7_dp) then
+            print *, "event-state chain-rule mismatch", &
+                state_tangent(1, :), threshold_direction
             error stop 1
         end if
 
@@ -189,7 +216,8 @@ contains
         real(dp) :: parameters(nparameter), parameter_direction(nparameter, ndirection)
         real(dp) :: y0, threshold, y0_direction(ndirection)
         real(dp) :: threshold_direction(ndirection), residual_tangent(ndirection)
-        real(dp), allocatable :: tangent(:)
+        real(dp) :: fixed_state_tangent(1, ndirection), event_velocity(1)
+        real(dp), allocatable :: tangent(:), state_tangent(:,:)
         type(ode_event_result_t) :: event_result
         type(fortnum_status_t) :: status
         integer(int64) :: iteration, start, finish, rate
@@ -225,16 +253,29 @@ contains
                     residual_tangent(direction) = y0_direction(direction) + &
                         event_result%t_event*rate_direction - &
                         threshold_direction(direction)
+                    fixed_state_tangent(1, direction) = &
+                        y0_direction(direction) + &
+                        event_result%t_event*rate_direction
                 end do
                 call ode_event_time_jvp(event_result, residual_tangent, &
                     tangent, status)
                 if (.not. status_ok(status)) error stop "benchmark JVP failed"
+                if (event_driven) then
+                    event_velocity(1) = current_rate
+                    call ode_event_state_jvp(event_result, &
+                        fixed_state_tangent, event_velocity, tangent, &
+                        state_tangent, status)
+                    if (.not. status_ok(status)) then
+                        error stop "benchmark event-state JVP failed"
+                    end if
+                end if
             else
                 call diagnostic_tangents(y0, parameters, threshold, &
                     y0_direction, parameter_direction, threshold_direction, &
-                    tangent)
+                    tangent, state_tangent)
             end if
             sink = sink + event_result%t_event + sum(tangent)
+            if (event_driven) sink = sink + sum(state_tangent)
         end do
         call system_clock(finish)
         if (sink /= sink) error stop "benchmark produced NaN"
@@ -243,29 +284,38 @@ contains
     end subroutine time_candidate
 
     subroutine diagnostic_tangents(y0, parameters, threshold, y0_direction, &
-            parameter_direction, threshold_direction, tangent)
+            parameter_direction, threshold_direction, tangent, state_tangent)
         real(dp), intent(in) :: y0, parameters(:), threshold
         real(dp), intent(in) :: y0_direction(:), parameter_direction(:,:)
         real(dp), intent(in) :: threshold_direction(:)
         real(dp), allocatable, intent(out) :: tangent(:)
+        real(dp), allocatable, intent(out) :: state_tangent(:,:)
         real(dp), parameter :: step = 1.0e-5_dp
         real(dp) :: parameter_work(size(parameters)), plus_time, minus_time
+        real(dp) :: plus_state, minus_state
         type(ode_event_result_t) :: event_result
         integer :: direction
 
         allocate(tangent(size(y0_direction)))
+        if (event_driven) allocate(state_tangent(1, size(y0_direction)))
         do direction = 1, size(y0_direction)
             parameter_work = parameters + &
                 step*parameter_direction(:, direction)
             call solve_event(y0 + step*y0_direction(direction), parameter_work, &
                 threshold + step*threshold_direction(direction), event_result)
             plus_time = event_result%t_event
+            if (event_driven) plus_state = event_result%y_event(1)
             parameter_work = parameters - &
                 step*parameter_direction(:, direction)
             call solve_event(y0 - step*y0_direction(direction), parameter_work, &
                 threshold - step*threshold_direction(direction), event_result)
             minus_time = event_result%t_event
+            if (event_driven) minus_state = event_result%y_event(1)
             tangent(direction) = (plus_time - minus_time)/(2.0_dp*step)
+            if (event_driven) then
+                state_tangent(1, direction) = &
+                    (plus_state - minus_state)/(2.0_dp*step)
+            end if
         end do
     end subroutine diagnostic_tangents
 

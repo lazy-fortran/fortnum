@@ -15,7 +15,8 @@ module fortnum_ode_events
     !   derivative; ode_event_scan then sets FORTNUM_DOMAIN_ERROR naming the
     !   non-transversal event, while the primal root it returns stays valid.
     !   ode_event_time_jvp applies the residual-equation tangent only after
-    !   checking the recorded transversality flag.
+    !   checking the recorded transversality flag. ode_event_state_jvp then
+    !   composes the fixed-time state tangent with f_event*dt_event.
     !   Active: y0, ctx parameters, the frozen trace. Inactive: event_direction,
     !   event_tol, the bracket index, transversal_ok, status.
     !
@@ -39,7 +40,7 @@ module fortnum_ode_events
     implicit none
     private
 
-    public :: ode_event_scan, ode_event_time_jvp
+    public :: ode_event_scan, ode_event_time_jvp, ode_event_state_jvp
     public :: ode_event_result_t
 
     integer, parameter :: BRENT_MAX_ITER = 200
@@ -91,6 +92,64 @@ contains
         allocate(time_tangent(size(residual_tangent)))
         time_tangent = -residual_tangent/result%g_dot
     end subroutine ode_event_time_jvp
+
+    ! Compose the moving-time chain rule for the located event state:
+    !
+    !   d y_event = d y(t_event)|fixed_time + f(t_event,y_event) d t_event.
+    !
+    ! Columns are contracted input directions. The caller supplies the
+    ! fixed-time state JVP and the primal event velocity; this routine does not
+    ! form a state or parameter Jacobian.
+    subroutine ode_event_state_jvp(result, fixed_state_tangent, event_velocity, &
+            time_tangent, state_tangent, status)
+        type(ode_event_result_t), intent(in) :: result
+        real(dp), intent(in) :: fixed_state_tangent(:,:)
+        real(dp), intent(in) :: event_velocity(:), time_tangent(:)
+        real(dp), allocatable, intent(out) :: state_tangent(:,:)
+        type(fortnum_status_t), intent(out) :: status
+        integer :: direction, state_count, direction_count
+
+        call status_set(status, FORTNUM_OK, "")
+        if (.not. result%found) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_event_state_jvp: event not found")
+            return
+        end if
+        if (.not. result%transversal) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_event_state_jvp: non-transversal event")
+            return
+        end if
+        if (.not. allocated(result%y_event)) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_event_state_jvp: event state not available")
+            return
+        end if
+
+        state_count = size(result%y_event)
+        direction_count = size(time_tangent)
+        if (size(fixed_state_tangent, 1) /= state_count) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_event_state_jvp: state count mismatch")
+            return
+        end if
+        if (size(event_velocity) /= state_count) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_event_state_jvp: velocity size mismatch")
+            return
+        end if
+        if (size(fixed_state_tangent, 2) /= direction_count) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_event_state_jvp: direction count mismatch")
+            return
+        end if
+
+        allocate(state_tangent(state_count, direction_count))
+        do direction = 1, direction_count
+            state_tangent(:, direction) = fixed_state_tangent(:, direction) + &
+                event_velocity*time_tangent(direction)
+        end do
+    end subroutine ode_event_state_jvp
 
     ! Scan the accepted-step trace in solution for the first event consistent
     ! with direction, then locate it to event_tol. The caller supplies the same
