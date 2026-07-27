@@ -330,6 +330,55 @@ taskset -c 4 \
     --benchmark
 ```
 
+## Hybrid vector-root VJP
+
+This comparison computes the same two-parameter VJP for the two-state residual
+used by the vector-root JVP benchmark. Both candidates use the analytical
+implicit adjoint boundary: assemble `F_x`, solve `F_x^T*lambda=u`, then compute
+`-F_p^T*lambda`. The `analytical` candidate supplies explicit residual
+partials. The `hybrid` candidate obtains a four-scalar gradient from each
+residual component with Enzyme reverse mode, both for state-Jacobian assembly
+and for the contracted parameter VJP. Neither differentiates solver
+iterations.
+
+The independent oracle centrally differences the complete objective
+`L(p)=u^T*x*(p)` component by component. Every perturbed root comes from a
+fresh 12-step Newton solve. The maximum absolute error for both candidates was
+`3.7337e-11`.
+
+The benchmark applies 2,000,000 cotangents per sample while varying both root
+components and preserving the residual equation. Reference: AMD Ryzen 9 5950X,
+CPU 4 pinned, Flang/LLVM 22.1.8, Enzyme `c96508349d9f`, Release `-O2`, 15
+samples after three warmups.
+
+| Candidate | Mechanism | Median ns/VJP | MAD ns/VJP | Peak RSS |
+|---|---|---:|---:|---:|
+| explicit residual products | `analytical` | 73.8151 | 0.5271 | 2,441,216 B |
+| Enzyme reverse residual products | `hybrid` | 74.1869 | 0.9943 | 2,420,736 B |
+
+Here “1.0050 times faster” means
+`74.1869 / 73.8151 = 1.0050`: the isolated `analytical` VJP saves 0.3718 ns
+relative to `hybrid`. The comparison is not against a primal root solve.
+Analytical has the lower isolated runtime, while hybrid uses 20,480 fewer
+bytes of maximum observed self-process RSS. There is no production selection
+from this microbenchmark alone; the roots tournament must resolve the tradeoff
+for a complete application workload.
+
+Peak memory is the maximum across five separately launched candidates,
+measured with `getrusage(RUSAGE_SELF)`. The machine-readable record is
+`benchmark/reference/ryzen9_5950x_vector_root_hybrid_vjp.json`.
+
+Run validation and timing with:
+
+```bash
+cmake --build build-enzyme --target enzyme_vector_root_vjp_hybrid_build
+ctest --test-dir build-enzyme -R '^enzyme_vector_root_vjp_hybrid$' \
+    --output-on-failure
+taskset -c 4 \
+    build-enzyme/test/ad/enzyme_vector_root_vjp_hybrid.enzyme/enzyme_vector_root_vjp_hybrid \
+    --benchmark
+```
+
 ## Generic analytical implicit adjoint boundary for scalar roots
 
 The generic adjoint boundary accepts a converged scalar root and a callback

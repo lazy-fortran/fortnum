@@ -96,6 +96,12 @@ two-state tangent system. A generic runtime function-pointer helper is not
 supported here because the standalone Enzyme pass must resolve each primal
 function statically.
 
+The vector-root reverse candidate obtains a four-scalar gradient from each
+residual component. Two reverse sweeps assemble the state Jacobian before the
+analytical transpose solve; two further sweeps contract the parameter
+partials with the resulting residual cotangent. This keeps both the nonlinear
+solver and implicit adjoint solve outside Enzyme.
+
 ### Argument activity in the wrapper
 
 - Reverse mode: an active array `x` is paired with a shadow array `dx` that
