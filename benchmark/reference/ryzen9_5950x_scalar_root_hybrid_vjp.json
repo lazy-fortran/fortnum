@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "scalar_root",
+  "product": "vjp",
+  "workload": "cubic scalar residual, 2 active parameters, 2000000 cotangents per sample, shared analytical implicit boundary",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "flang_llvm": "22.1.8",
+    "enzyme_commit": "c96508349d9f",
+    "fortsym_commit": "15636e944b3b932283aff4f313c6a5f459d40692"
+  },
+  "sampling": {
+    "warmup_rounds": 3,
+    "samples": 15,
+    "calls_per_sample": 2000000,
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum"
+  },
+  "validation": {
+    "oracle": "componentwise central finite difference of L(p)=1.3*x*(p), with every x*(p) obtained by a complete 100-step bisection solve",
+    "maximum_absolute_error_by_candidate": {
+      "analytical_residual_products": 1.1890960438520892e-11,
+      "enzyme_reverse_residual_products": 1.1890960438520892e-11
+    },
+    "absolute_tolerance": 1e-9,
+    "enzyme_execution_proof": "the linked executable has no unresolved __enzyme_autodiff intrinsic"
+  },
+  "memory_method": "getrusage(RUSAGE_SELF) inside each separately launched candidate",
+  "candidates": [
+    {
+      "id": "analytical_residual_products",
+      "mechanism": "analytical",
+      "median_ns_per_call": 27.3548,
+      "mad_ns_per_call": 0.2323,
+      "peak_rss_bytes": 2973696
+    },
+    {
+      "id": "enzyme_reverse_residual_products",
+      "mechanism": "hybrid",
+      "median_ns_per_call": 16.3433,
+      "mad_ns_per_call": 0.1202,
+      "peak_rss_bytes": 2965504
+    }
+  ],
+  "selection": {
+    "selected": "enzyme_reverse_residual_products",
+    "runtime_speedup": 1.6738,
+    "reason": "both pass the independent complete-root objective oracle; hybrid is 1.6738x faster and uses 8192 fewer bytes of maximum observed candidate-process RSS"
+  }
+}

@@ -64,7 +64,7 @@ independent validation plus measured application runtime and peak memory.
 - [x] Add analytical implicit tangent products for fixed points.
 - [x] Add analytical implicit adjoint products for fixed points.
 - [x] Add a hybrid scalar-root JVP using forward-mode autodiff residual products.
-- [ ] Add a hybrid scalar-root VJP using reverse-mode autodiff residual products.
+- [x] Add a hybrid scalar-root VJP using reverse-mode autodiff residual products.
 - [ ] Add hybrid vector-root candidates using autodiff residual products.
 - [ ] Reuse converged root Jacobians and factorizations.
 - [ ] Report derivative reliability near singular root Jacobians.
