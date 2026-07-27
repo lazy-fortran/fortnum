@@ -178,6 +178,41 @@ backend. Peak device allocation is deliberately deferred to its dedicated
 profiling checklist item. Machine-readable evidence is in
 `benchmark/reference/rtx5060ti_dawson_residency.json`.
 
+## Analytical VJP offload
+
+`dawson_vjp_batch` adds scheduling around the generated contracted VJP leaf;
+it contains no derivative expression. The OpenACC and OpenMP target directives
+annotate the same loop and call the same `fortsym`-generated procedure. Both
+transfer-inclusive and persistent-data paths run on the GPU.
+
+The independent batched adjoint oracle checks
+
+```text
+sum(u * Jv) = sum(v * transpose(J)u)
+```
+
+at 4,096 nonuniform points after both residency paths. The JVP is also checked
+against its independently evaluated analytical formula, so agreement is not
+accepted merely because both products came from the same generator.
+
+On the RTX 5060 Ti, NVHPC 26.5, CPU 4 pinned, with 31 samples of 1,048,576
+elements:
+
+| VJP workload | Median ms | MAD ms | Host peak RSS |
+| --- | ---: | ---: | ---: |
+| OpenACC, transfers included | 2.9421 | 0.0341 | 159,084,544 B |
+| OpenACC, resident | 0.1690 | 0.0001 | 152,985,600 B |
+| CPU leaf in OpenACC build | 6.7489 | 0.0313 | 47,685,632 B |
+| OpenMP target, transfers included | 2.8081 | 0.0069 | 165,961,728 B |
+| OpenMP target, resident | 0.1690 | 0.0001 | 157,728,768 B |
+| CPU leaf in OpenMP build | 5.6961 | 0.0192 | 54,521,856 B |
+
+Transfer-inclusive GPU execution is 2.2939 times faster than its CPU comparator
+for OpenACC and 2.0285 times faster for OpenMP target. Persistent data improves
+the GPU paths by another 17.4089 and 16.6160 times, respectively.
+Machine-readable evidence is in
+`benchmark/reference/rtx5060ti_dawson_vjp.json`.
+
 ## Immediate implementation order
 
 The first pilot is the generated Dawson fused value/JVP leaf:
