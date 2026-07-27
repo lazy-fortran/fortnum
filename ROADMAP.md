@@ -117,7 +117,7 @@ independent validation plus measured application runtime and peak memory.
 
 ## Linear algebra
 
-- [ ] Add an analytical determinant JVP.
+- [x] Add an analytical determinant JVP.
 - [ ] Add an analytical determinant VJP.
 - [ ] Add an analytical inverse JVP for callers that require an inverse.
 - [ ] Add an analytical inverse VJP for callers that require an inverse.
@@ -130,6 +130,11 @@ independent validation plus measured application runtime and peak memory.
 - [ ] Add a hybrid BLAS or LAPACK custom-rule candidate where measurement
   justifies it.
 - [ ] Benchmark all implemented linear-algebra candidates.
+
+## Evidence report
+
+- [ ] Add cumulative `analytical`, finite-difference diagnostic, `autodiff`,
+  and `hybrid` statistics with reproducible `fortplot` figure generators.
 
 ## Interpolation and splines
 

@@ -5,8 +5,9 @@ program test_fortnum_linalg
     ! systems at several sizes including a pivot-required case, an inv3 cross
     ! check, and the singular-status contract for inv2/inv3/lu_solve.
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
-    use fortnum_linalg, only: det2, det3, inv2, inv3, jacobian_ok3, lu_factor, &
-        lu_solve, linear_solve_jvp, linear_solve_jvp_factored, linear_solve_vjp, &
+    use fortnum_linalg, only: det2, det3, det2_jvp, det3_jvp, inv2, inv3, &
+        jacobian_ok3, lu_factor, lu_solve, linear_solve_jvp, &
+        linear_solve_jvp_factored, linear_solve_vjp, &
         linear_solve_vjp_factored, LINALG_OK, LINALG_SINGULAR, LINALG_MAX_N
     implicit none
 
@@ -14,6 +15,7 @@ program test_fortnum_linalg
     nfail = 0
 
     call test_det(nfail)
+    call test_det_jvp(nfail)
     call test_inv2_roundtrip(nfail)
     call test_inv3_roundtrip(nfail)
     call test_jacobian_ok3(nfail)
@@ -74,6 +76,40 @@ contains
             7.0_dp, 9.0_dp, 4.0_dp], [3, 3])
         call check("det3_triangular", det3(a3), 24.0_dp, 1.0e-12_dp, nfail)
     end subroutine test_det
+
+    subroutine test_det_jvp(nfail)
+        integer, intent(inout) :: nfail
+        real(dp), parameter :: h = 1.0e-5_dp
+        real(dp) :: a2(2, 2), v2(2, 2), a3(3, 3), v3(3, 3)
+        real(dp) :: jv, fd_h, fd_half
+        real(dp) :: plus2(2, 2), minus2(2, 2), plus3(3, 3), minus3(3, 3)
+
+        a2 = reshape([2.0_dp, -0.5_dp, 1.25_dp, 3.0_dp], [2, 2])
+        v2 = reshape([0.2_dp, 0.3_dp, -0.4_dp, 0.1_dp], [2, 2])
+        call det2_jvp(a2, v2, jv)
+        plus2 = a2 + h*v2
+        minus2 = a2 - h*v2
+        fd_h = (det2(plus2) - det2(minus2))/(2.0_dp*h)
+        plus2 = a2 + 0.5_dp*h*v2
+        minus2 = a2 - 0.5_dp*h*v2
+        fd_half = (det2(plus2) - det2(minus2))/h
+        call check("det2_jvp_fd", jv, fd_half, 2.0e-10_dp, nfail)
+        call check("det2_jvp_fd_refine", fd_h, fd_half, 2.0e-10_dp, nfail)
+
+        a3 = reshape([2.0_dp, -0.5_dp, 0.3_dp, 1.25_dp, 3.0_dp, -0.8_dp, &
+            0.4_dp, 0.7_dp, 1.8_dp], [3, 3])
+        v3 = reshape([0.2_dp, 0.3_dp, -0.4_dp, 0.1_dp, -0.2_dp, 0.5_dp, &
+            -0.3_dp, 0.6_dp, 0.25_dp], [3, 3])
+        call det3_jvp(a3, v3, jv)
+        plus3 = a3 + h*v3
+        minus3 = a3 - h*v3
+        fd_h = (det3(plus3) - det3(minus3))/(2.0_dp*h)
+        plus3 = a3 + 0.5_dp*h*v3
+        minus3 = a3 - 0.5_dp*h*v3
+        fd_half = (det3(plus3) - det3(minus3))/h
+        call check("det3_jvp_fd", jv, fd_half, 2.0e-9_dp, nfail)
+        call check("det3_jvp_fd_refine", fd_h, fd_half, 2.0e-9_dp, nfail)
+    end subroutine test_det_jvp
 
     subroutine test_inv2_roundtrip(nfail)
         integer, intent(inout) :: nfail

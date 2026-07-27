@@ -98,6 +98,11 @@ The event-state interface composes the fixed-time tangent with
 same four-parameter, sixteen-direction workload takes 2.71 µs analytically
 versus 84.22 µs diagnostically, a 31.06× wall-clock win.
 
+Small determinant products now expose `fortsym`-generated analytical JVPs.
+For a complete 3x3 determinant value plus 64 directional products, analytical
+takes 1.198 µs versus 2.208 µs for central finite differences, a 1.843×
+wall-clock win with no derivative-workspace allocation.
+
 The ODE forward sensitivity now has an explicit continuous contract: it
 approximates the variational IVP at fixed terminal time on the primal's frozen
 mesh. Halving the maximum step reduced the closed-form-oracle error from
