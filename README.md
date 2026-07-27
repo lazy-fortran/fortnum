@@ -21,6 +21,8 @@ GPU compilation is selected explicitly with
 unavailable selection fails configuration. OpenMP offload also requires
 compiler-specific `FORTNUM_OPENMP_TARGET_FLAGS`, so host-only OpenMP cannot be
 mistaken for GPU support.
+The benchmark pilot uses one shared Dawson batch loop for OpenACC and OpenMP
+target; both schedules call the same generated `analytical` leaf.
 `fortnum` uses `fortsym` at build time for symbolic algebra and code
 generation. The first pinned generator is under `tools/codegen/`; generated
 production sources are committed under `src/generated/`. The

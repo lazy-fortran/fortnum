@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operation": "shared Dawson fused value/JVP batch wrapper CPU overhead",
+  "workload": {
+    "batch_size": 65536,
+    "batches_per_sample": 100,
+    "samples": 31,
+    "warmup_samples": 3,
+    "pinned_cpu": 4
+  },
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor"
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1",
+    "compiler_flags": "-O3",
+    "gpu_backend": "NONE",
+    "fortsym_revision": "349bc6257a22b416093624bd04dd1ed8a83852d0"
+  },
+  "validation": {
+    "oracle": "independently evaluated sin(f)+f^2 and v*(1-2*x*f)*(cos(f)+2*f)",
+    "points": 17,
+    "absolute_tolerance": 2e-15
+  },
+  "candidates": [
+    {
+      "candidate": "shared_wrapper",
+      "median_ns_per_element": 9.1550,
+      "mad_ns_per_element": 0.0573,
+      "peak_rss_bytes": 12578816
+    },
+    {
+      "candidate": "direct_reference_loop",
+      "median_ns_per_element": 9.6499,
+      "mad_ns_per_element": 0.0621,
+      "peak_rss_bytes": 11771904
+    }
+  ],
+  "verdict": "shared wrapper is 1.0541 times faster on this CPU run; it adds no measured CPU overhead"
+}
