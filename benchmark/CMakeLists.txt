@@ -91,6 +91,10 @@ add_executable(bench_integrate_moving_lower_jvp
     bench_integrate_moving_lower_jvp.f90)
 target_link_libraries(bench_integrate_moving_lower_jvp PRIVATE bench_core)
 
+add_executable(bench_integrate_moving_upper_jvp
+    bench_integrate_moving_upper_jvp.f90)
+target_link_libraries(bench_integrate_moving_upper_jvp PRIVATE bench_core)
+
 add_executable(bench_scalar_root_tangent bench_scalar_root_tangent.f90)
 target_link_libraries(bench_scalar_root_tangent PRIVATE bench_core)
 

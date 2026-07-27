@@ -32,9 +32,9 @@ is committed in
 
 Fixed-bound parameterized integrals also expose an analytical JVP based on
 differentiation under the integral sign, including the analytical Leibniz term
-for an active lower bound. Candidate selection prioritizes complete-workload
-wall clock and records peak memory, input/output scaling, and cache behavior
-where supported.
+for an active lower or upper bound. Candidate selection prioritizes
+complete-workload wall clock and records peak memory, input/output scaling,
+and cache behavior where supported.
 
 ## Build
 

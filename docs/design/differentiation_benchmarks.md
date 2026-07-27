@@ -450,6 +450,45 @@ complete-workload wall clock still selects it.
 The machine-readable record is
 `benchmark/reference/ryzen9_5950x_integrate_moving_lower_jvp.json`.
 
+## Analytical moving-upper-bound term
+
+`integrate_moving_upper_jvp` implements
+
+```text
+dI/dp = integral_a^b df/dp dx + f(b,p) db/dp
+```
+
+for an inactive lower bound and active upper bound. The independent test uses
+`f(x,p)=exp(p*x)`, `a=0`, and `b(p)=0.5+0.1*p`. It compares with a closed-form
+derivative and complete primal integrations whose upper limits are perturbed.
+
+The benchmark computes 10,000 derivatives per sample over 101 parameter
+values. Reference: AMD Ryzen 9 5950X, CPU 4 pinned, GNU Fortran 16.1.1,
+Release build, 15 samples after three warmups.
+
+| Candidate | Mechanism | Median ns/JVP | MAD ns/JVP | Peak RSS |
+|---|---|---:|---:|---:|
+| tangent integral plus upper endpoint | `analytical` | 458.6955 | 6.3670 | 12,312,576 B |
+| complete moving-bound differences | diagnostic | 775.7548 | 13.7940 | 12,537,856 B |
+
+The `analytical` candidate is 1.6912 times faster in complete-workload wall
+clock, saves 317.0593 ns per derivative, and uses 225,280 fewer bytes of
+maximum observed process RSS.
+
+Linux `perf stat -r 5` gives:
+
+| Candidate | Cycles | Instructions | Cache references | Cache misses | Miss rate |
+|---|---:|---:|---:|---:|---:|
+| `analytical` | 670,655,351 | 1,561,690,214 | 26,954,668 | 4,801,576 | 17.8135% |
+| diagnostic | 912,613,852 | 2,407,807,332 | 27,799,974 | 4,796,019 | 17.2519% |
+
+The diagnostic uses 1.3608 times as many cycles, 1.5418 times as many
+instructions, and 1.0314 times as many cache references. Absolute cache misses
+differ by only 0.12%; wall clock and peak memory both select `analytical`.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_integrate_moving_upper_jvp.json`.
+
 ## Hybrid vector-root JVP
 
 This comparison computes the same two-component JVP of the converged root for

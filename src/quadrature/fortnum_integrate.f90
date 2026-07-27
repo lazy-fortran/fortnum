@@ -33,6 +33,7 @@ module fortnum_integrate
     public :: integrate_qag, integrate_qags, integrate
     public :: integrate_qagp, integrate_qagiu
     public :: integrate_fixed_jvp, integrate_moving_lower_jvp
+    public :: integrate_moving_upper_jvp
     public :: integrate_qag_jvp, integrate_qags_jvp, integrate_qagp_jvp
     public :: integrate_qagiu_jvp
 
@@ -472,6 +473,23 @@ contains
             key, ctx)
         if (status%code == FORTNUM_OK) di_dp = di_dp - f(a, ctx)*da_dp
     end subroutine integrate_moving_lower_jvp
+
+    ! Leibniz rule with an inactive lower bound and active upper bound:
+    !   dI = integral_a^b df/dp dx + f(b,p) db/dp.
+    subroutine integrate_moving_upper_jvp(f, dfdp, a, b, db_dp, di_dp, &
+            status, epsabs, epsrel, key, ctx)
+        procedure(integrate_integrand_t) :: f, dfdp
+        real(dp), intent(in) :: a, b, db_dp
+        real(dp), intent(out) :: di_dp
+        type(fortnum_status_t), intent(out) :: status
+        real(dp), intent(in), optional :: epsabs, epsrel
+        integer, intent(in), optional :: key
+        class(*), intent(in), optional :: ctx
+
+        call integrate_fixed_jvp(dfdp, a, b, di_dp, status, epsabs, epsrel, &
+            key, ctx)
+        if (status%code == FORTNUM_OK) di_dp = di_dp + f(b, ctx)*db_dp
+    end subroutine integrate_moving_upper_jvp
 
     ! ------------------------------------------------------------------
     ! integrate_qag_jvp: forward-mode product for the trace_rule policy
