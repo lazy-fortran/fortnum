@@ -356,6 +356,87 @@ taskset -c 4 \
     --benchmark hybrid 4
 ```
 
+## Hybrid fixed-quadrature integrand VJP
+
+This reverse-mode experiment uses the same 32-point rule, four-parameter
+integrand, and independently integrated closed-form oracle as the preceding
+JVP experiment. The analytical quadrature VJP first maps scalar output
+cotangent `u` to node cotangents `u*w(i)`. The `analytical` candidate applies
+explicit integrand partials at each node; the `hybrid` candidate uses one
+Enzyme reverse sweep per node and accumulates all four parameter cotangents.
+The diagnostic uses eight complete quadrature evaluations to centrally
+difference all four parameters.
+
+The timed workload requests one, two, or four scalar-output cotangents. Each
+VJP returns all four parameter sensitivities. Rows are separate processes
+pinned to CPU 4, with 31 samples of 10,000 complete workloads after three
+warmups and a cooldown between sustained runs. Reference: AMD Ryzen 9 5950X,
+Flang/LLVM 22.1.8, Enzyme `c96508349d9f`, Release `-O2`.
+
+| Cotangents | Candidate | Mechanism | Median ns/workload | MAD ns | Peak RSS |
+|---:|---|---|---:|---:|---:|
+| 1 | explicit integrand VJP + fixed quadrature | `analytical` | 299.4435 | 1.1752 | 3,051,520 B |
+| 1 | Enzyme integrand VJP + fixed quadrature | `hybrid` | 317.5576 | 5.2910 | 2,797,568 B |
+| 1 | eight complete quadrature evaluations | diagnostic | 2,263.7966 | 12.9915 | 2,834,432 B |
+| 2 | explicit integrand VJP + fixed quadrature | `analytical` | 604.4575 | 2.9396 | 2,789,376 B |
+| 2 | Enzyme integrand VJP + fixed quadrature | `hybrid` | 646.4897 | 4.8511 | 2,813,952 B |
+| 2 | eight complete evaluations per cotangent | diagnostic | 4,547.2562 | 45.2453 | 2,813,952 B |
+| 4 | explicit integrand VJP + fixed quadrature | `analytical` | 1,213.0276 | 2.8915 | 2,793,472 B |
+| 4 | Enzyme integrand VJP + fixed quadrature | `hybrid` | 1,275.7279 | 4.1718 | 2,826,240 B |
+| 4 | eight complete evaluations per cotangent | diagnostic | 9,187.4429 | 190.7125 | 2,830,336 B |
+
+Complete-workload wall clock selects `analytical`; it is 1.0517 to 1.0695
+times faster than `hybrid`. The `hybrid` candidate is 7.0338 to 7.2017 times
+faster than finite differences. Batching independent cotangents scales
+linearly: four cotangents cost 4.0509, 4.0173, and 4.0584 times one cotangent
+for `analytical`, `hybrid`, and diagnostic respectively. Peak RSS is
+effectively flat and does not select a candidate.
+
+The important forward/reverse result uses complete derivative workloads, not
+isolated scalar partials:
+
+| Required derivative | `analytical` wall clock | `hybrid` wall clock | Diagnostic wall clock |
+|---|---:|---:|---:|
+| full four-parameter gradient via four forward JVPs | 1,247.7167 ns | 1,263.4433 ns | 2,316.5791 ns |
+| full four-parameter gradient via one reverse VJP | 299.4435 ns | 317.5576 ns | 2,263.7966 ns |
+| forward/reverse ratio | 4.1668 | 3.9786 | 1.0233 |
+
+For this one-output, four-input map, reverse mode wins by approximately four
+times because a single VJP returns all input sensitivities, whereas forward
+mode needs one JVP per input basis direction. This is a workload-shape verdict,
+not a universal reverse-mode rule; multi-output crossover measurements remain
+in the roadmap.
+
+Linux `perf stat -r 5` for 20,000 single-cotangent workloads gives:
+
+| Candidate | Cycles | Instructions | Cache references | Cache misses | Miss rate |
+|---|---:|---:|---:|---:|---:|
+| `analytical` | 28,978,599 | 101,314,668 | 248,437 | 16,004 | 6.4419% |
+| `hybrid` | 29,425,584 | 103,934,596 | 75,711 | 16,438 | 21.7115% |
+| diagnostic | 211,788,713 | 705,696,347 | 510,342 | 27,868 | 5.4607% |
+
+Cycles and instructions corroborate the wall-clock ranking. Cache-reference
+counts varied by 12% to 76% across repetitions and are therefore diagnostic,
+not selection-grade; wall clock remains decisive.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_fixed_quadrature_hybrid_vjp.json`.
+
+Run validation and isolated timing with:
+
+```bash
+cmake --build build-enzyme \
+    --target enzyme_fixed_quadrature_vjp_hybrid_build
+ctest --test-dir build-enzyme \
+    -R '^enzyme_fixed_quadrature_vjp_hybrid$' --output-on-failure
+taskset -c 4 \
+    build-enzyme/test/ad/enzyme_fixed_quadrature_vjp_hybrid.enzyme/enzyme_fixed_quadrature_vjp_hybrid \
+    --benchmark analytical 1
+taskset -c 4 \
+    build-enzyme/test/ad/enzyme_fixed_quadrature_vjp_hybrid.enzyme/enzyme_fixed_quadrature_vjp_hybrid \
+    --benchmark hybrid 1
+```
+
 ## Vector-root candidate tournament
 
 The coupled vector tournament uses
