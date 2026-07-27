@@ -1501,6 +1501,7 @@ only sets the inactive weights.
 
 ```fortran
 subroutine integrate_fixed_jvp(dfdp, a, b, di_dp, status, epsabs, epsrel, key, ctx)
+subroutine integrate_moving_lower_jvp(f, dfdp, a, b, da_dp, di_dp, status, ...)
 subroutine integrate_qag_jvp(dfdp, result, di_dp, status, ctx)
 ```
 
@@ -1509,6 +1510,10 @@ whose bounds are inactive:
 `d/dp integral_a^b f(x,p) dx = integral_a^b (df/dp)(x,p) dx`.
 The caller supplies the contracted integrand tangent. Moving-boundary terms
 are not included in this interface.
+
+`integrate_moving_lower_jvp` adds the analytical Leibniz term for an active
+lower bound and inactive upper bound:
+`dI = integral_a^b df/dp dx - f(a,p) da/dp`.
 
 Differentiates at the frozen accepted subdivision the primal chose: `dI/dp` is
 the sum over accepted panels of the Gauss-Kronrod quadrature of `df/dp` at the

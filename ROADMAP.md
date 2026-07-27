@@ -85,7 +85,7 @@ independent validation plus measured application runtime and peak memory.
 ## Integration and quadrature
 
 - [x] Add analytical differentiation under a fixed-bound integral.
-- [ ] Add analytical moving-lower-bound terms.
+- [x] Add analytical moving-lower-bound terms.
 - [ ] Add analytical moving-upper-bound terms.
 - [ ] Compose autodiff integrand JVPs with analytical fixed quadrature.
 - [ ] Compose autodiff integrand VJPs with analytical fixed quadrature.

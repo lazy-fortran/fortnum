@@ -22,8 +22,8 @@ program test_integrate_ad
         AD_SMOOTH, AD_NONSMOOTH
     use fortnum_integrate, only: integrate_workspace_t, integrate_epstab_t, &
         integrate_result_t, integrate, integrate_qag, integrate_qags, &
-        integrate_qagp, integrate_qagiu, integrate_fixed_jvp, integrate_qag_jvp, &
-        integrate_qags_jvp, &
+        integrate_qagp, integrate_qagiu, integrate_fixed_jvp, &
+        integrate_moving_lower_jvp, integrate_qag_jvp, integrate_qags_jvp, &
         integrate_qagp_jvp, integrate_qagiu_jvp
     implicit none
 
@@ -37,6 +37,7 @@ program test_integrate_ad
 
     call test_smooth_exp(nfail)
     call test_fixed_bound_analytical_jvp(nfail)
+    call test_moving_lower_analytical_jvp(nfail)
     call test_nonsmooth_spike(nfail)
     call test_smooth_qags(nfail)
     call test_smooth_qagp(nfail)
@@ -83,6 +84,40 @@ contains
             nfail = nfail + 1
         end if
     end subroutine test_fixed_bound_analytical_jvp
+
+    subroutine test_moving_lower_analytical_jvp(nfail)
+        integer, intent(inout) :: nfail
+        real(dp), parameter :: bound_rate = 0.1_dp, h = 1.0e-6_dp
+        real(dp) :: derivative, exact, minus_value, p, plus_value
+        type(fortnum_status_t) :: status
+        type(pbox_t) :: box
+
+        p = 2.0_dp
+        box%p = p
+        call integrate_moving_lower_jvp(g_exp, dg_exp_dp, bound_rate*p, &
+            1.0_dp, bound_rate, derivative, status, epsrel=1.0e-12_dp, ctx=box)
+        exact = ((p - 1.0_dp)*exp(p) &
+            + (1.0_dp - 2.0_dp*bound_rate*p*p) &
+            *exp(bound_rate*p*p))/(p*p)
+        box%p = p + h
+        call integrate(g_exp, bound_rate*box%p, 1.0_dp, plus_value, status, &
+            epsrel=1.0e-12_dp, ctx=box)
+        box%p = p - h
+        call integrate(g_exp, bound_rate*box%p, 1.0_dp, minus_value, status, &
+            epsrel=1.0e-12_dp, ctx=box)
+
+        if (rel_err(derivative, exact) > 1.0e-11_dp) then
+            write (error_unit, '(a,es24.16)') &
+                "FAIL [moving_lower_jvp] analytical error=", derivative - exact
+            nfail = nfail + 1
+        end if
+        if (rel_err(derivative, (plus_value - minus_value)/(2.0_dp*h)) &
+                > 1.0e-8_dp) then
+            write (error_unit, '(a)') &
+                "FAIL [moving_lower_jvp] complete-integral FD mismatch"
+            nfail = nfail + 1
+        end if
+    end subroutine test_moving_lower_analytical_jvp
 
     ! ---------------------------------------------------------- smooth case
 

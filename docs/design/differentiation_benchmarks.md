@@ -407,6 +407,49 @@ perf stat -r 5 -e cycles,instructions,cache-references,cache-misses \
     taskset -c 4 fo exec bench_integrate_fixed_jvp analytical
 ```
 
+## Analytical moving-lower-bound term
+
+`integrate_moving_lower_jvp` implements the Leibniz rule
+
+```text
+dI/dp = integral_a^b df/dp dx - f(a,p) da/dp
+```
+
+for an active lower bound and inactive upper bound. The independent test uses
+`f(x,p)=exp(p*x)`, `a(p)=0.1*p`, and `b=1`. It compares against both a
+closed-form derivative and complete primal integrations at `p+h` and `p-h`,
+including the perturbed lower limit.
+
+The benchmark varies `p` over 101 values and computes 10,000 derivatives per
+sample. `analytical` integrates the tangent once and adds the endpoint term.
+The finite-difference diagnostic performs two complete adaptive integrations.
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, GNU Fortran 16.1.1, Release build,
+15 samples after three warmups.
+
+| Candidate | Mechanism | Median ns/JVP | MAD ns/JVP | Peak RSS |
+|---|---|---:|---:|---:|
+| tangent integral plus lower endpoint | `analytical` | 428.1954 | 2.6470 | 12,304,384 B |
+| complete moving-bound differences | diagnostic | 868.7511 | 3.4445 | 12,304,384 B |
+
+The `analytical` candidate is 2.0289 times faster in complete-workload wall
+clock, saving 440.5557 ns per derivative, with identical maximum observed
+process RSS.
+
+Linux `perf stat -r 5` over the same process gives:
+
+| Candidate | Cycles | Instructions | Cache references | Cache misses | Miss rate |
+|---|---:|---:|---:|---:|---:|
+| `analytical` | 658,611,224 | 1,538,209,367 | 25,879,115 | 4,602,608 | 17.7850% |
+| diagnostic | 946,269,077 | 2,391,248,616 | 29,936,298 | 4,577,791 | 15.2918% |
+
+The diagnostic uses 1.4368 times as many cycles, 1.5546 times as many
+instructions, and 1.1568 times as many cache references. The analytical path
+has 0.54% more absolute cache misses despite doing less total work;
+complete-workload wall clock still selects it.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_integrate_moving_lower_jvp.json`.
+
 ## Hybrid vector-root JVP
 
 This comparison computes the same two-component JVP of the converged root for
