@@ -1013,7 +1013,7 @@ trajectory tournament.
 The machine-readable record is
 `benchmark/reference/ryzen9_5950x_ode_discrete_adjoint.json`.
 
-## Cash–Karp parameter-adjoint scaling
+## Many-parameter Cash-Karp trajectory tournament
 
 `ode_integrate_parameter_vjp` extends the analytical discrete adjoint with a
 stage callback that accumulates
@@ -1075,6 +1075,10 @@ complete-gradient wall clock determines selection.
 
 The machine-readable record is
 `benchmark/reference/ryzen9_5950x_ode_parameter_adjoint_scaling.json`.
+This benchmark completes the many-parameter ODE trajectory item. Its requested
+object is the full parameter gradient of one scalar terminal objective. It does
+not infer a winner for multiple objectives; that output scaling requires a
+separate workload.
 
 ## Checkpointed Cash–Karp adjoint
 

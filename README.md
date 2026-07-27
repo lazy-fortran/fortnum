@@ -66,7 +66,9 @@ tangent sweeps.
 The discrete adjoint can accumulate RHS-parameter VJPs at every Runge–Kutta
 stage. One forward sweep wins for one active parameter, while reverse wins by
 2.54× at four parameters and 8.51× at sixteen; production selection therefore
-depends on parameter count.
+depends on parameter count. This is the many-parameter trajectory tournament:
+complete primal-plus-gradient wall clock selects forward at one parameter and
+reverse at four and sixteen.
 
 A checkpointed Cash–Karp adjoint can retain every fourth or sixteenth state and
 recompute intervening segments. On the measured 41-step trajectory it reduces
