@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "source_revision": "7a4cf6554973b9b543f994e7c6999760146b8688",
+  "operation": "batched length-8 complex FFT JVP/VJP",
+  "classification": "analytical",
+  "scope": "fixed length 8; this is not general-length GPU FFT support",
+  "derivative_contract": "JVP is the forward transform; VJP is the opposite-sign unnormalized transform under the real complex inner product",
+  "implementation": "one shared radix-2 Cooley-Tukey leaf with sign-selected twiddles",
+  "residency_policy": "transfer-inclusive and resident measured separately",
+  "device_execution_proof": "OpenACC NVIDIA device check and mandatory non-host OpenMP target check",
+  "workload": {
+    "transform_length": 8,
+    "batch_sizes": [256, 65536, 1048576],
+    "samples": 31,
+    "warmup_samples": 3,
+    "pinned_cpu": 4,
+    "small_batch_repetitions": "ceil(65536/batch_size), reported per call"
+  },
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "gpu": "NVIDIA GeForce RTX 5060 Ti",
+    "driver": "610.43.03"
+  },
+  "toolchain": {
+    "compiler": "NVHPC nvfortran 26.5",
+    "openacc_flags": "-fast -O3 -acc",
+    "openmp_flags": "-fast -O3 -mp=gpu -mp"
+  },
+  "validation": {
+    "points": 4096,
+    "oracle": "independent O(n^2) direct DFT for both signs and complex adjoint identity",
+    "relative_tolerance": 2e-13
+  },
+  "median_ms": {
+    "batch_sizes": [256, 65536, 1048576],
+    "jvp": {
+      "cpu": [0.005860, 1.094100, 18.909000],
+      "openacc_resident": [0.009297, 0.040000, 0.705900],
+      "openacc_transfer": [0.029984, 1.527100, 26.551900],
+      "openmp_resident": [0.009706, 0.040100, 0.705000],
+      "openmp_transfer": [0.030562, 1.589000, 25.676000]
+    },
+    "vjp": {
+      "cpu": [0.007094, 1.389000, 20.873100],
+      "openacc_resident": [0.008844, 0.040100, 0.705000],
+      "openacc_transfer": [0.030719, 1.646000, 24.382100],
+      "openmp_resident": [0.009008, 0.040100, 0.705900],
+      "openmp_transfer": [0.031180, 1.621000, 26.743000]
+    }
+  },
+  "mad_ms": {
+    "batch_sizes": [256, 65536, 1048576],
+    "jvp": {
+      "cpu": [0.000020, 0.005200, 0.330000],
+      "openacc_resident": [0.000027, 0.000200, 0.001800],
+      "openacc_transfer": [0.000125, 0.007200, 1.146100],
+      "openmp_resident": [0.000177, 0.000100, 0.001900],
+      "openmp_transfer": [0.000293, 0.016900, 0.488000]
+    },
+    "vjp": {
+      "cpu": [0.000023, 0.006200, 0.129300],
+      "openacc_resident": [0.000031, 0.000200, 0.001000],
+      "openacc_transfer": [0.000363, 0.027200, 0.270100],
+      "openmp_resident": [0.000012, 0.000300, 0.001200],
+      "openmp_transfer": [0.000504, 0.004800, 0.922200]
+    }
+  },
+  "peak_host_rss_bytes_at_n1048576": {
+    "live_numerical_arrays": 268435456,
+    "jvp": {
+      "cpu": 273887232,
+      "openacc_resident": 259444736,
+      "openacc_transfer": 391524352,
+      "openmp_resident": 265003008,
+      "openmp_transfer": 397312000
+    },
+    "vjp": {
+      "cpu": 273911808,
+      "openacc_resident": 258519040,
+      "openacc_transfer": 393826304,
+      "openmp_resident": 262868992,
+      "openmp_transfer": 399101952
+    }
+  },
+  "selection": {
+    "n256": "CPU for JVP and VJP",
+    "throughput_resident": "GPU; OpenACC and OpenMP practical tie",
+    "throughput_transfer": "CPU for JVP and VJP",
+    "reason": "minimum measured complete-workload wall clock"
+  },
+  "verdict": "resident GPU wins the largest batch by 26.8 times for JVP and 29.6 times for VJP; transfer-inclusive execution stays on CPU"
+}
