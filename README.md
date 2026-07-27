@@ -107,6 +107,14 @@ forward sweeps take 187.99 µs and sixteen analytical reverse sweeps take
 square workload. Peak RSS and cache counters are supporting evidence;
 complete-workload wall clock selects the implementation.
 
+For the short, 41-step nonstiff trajectory, the requested product determines
+the winner. One parameter JVP selects the analytical forward recurrence at
+9.32 µs, while one scalar-objective VJP with two active initial-state inputs
+selects the full-trace analytical reverse recurrence at 20.67 µs. The reverse
+VJP is 1.74 times faster than reconstruction from two forward sweeps.
+Checkpointing and recomputation reduce retained trace bytes but lose on
+complete wall clock and do not reduce measured application peak RSS.
+
 ## Build
 
 CMake is the primary build system with CTest integration:
