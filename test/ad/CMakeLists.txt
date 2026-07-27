@@ -68,6 +68,10 @@ add_executable(test_ode_discrete_adjoint
 target_link_libraries(test_ode_discrete_adjoint PRIVATE fortnum)
 add_test(NAME ad_ode_discrete_adjoint COMMAND test_ode_discrete_adjoint)
 
+add_executable(test_ode_parameter_adjoint test_ode_parameter_adjoint.f90)
+target_link_libraries(test_ode_parameter_adjoint PRIVATE fortnum)
+add_test(NAME ad_ode_parameter_adjoint COMMAND test_ode_parameter_adjoint)
+
 add_executable(test_roots_ad test_roots_ad.f90)
 target_link_libraries(test_roots_ad PRIVATE fortnum_ad_test_utils)
 add_test(NAME ad_roots COMMAND test_roots_ad)

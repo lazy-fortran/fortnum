@@ -63,6 +63,11 @@ trace. For a two-state system and one scalar terminal objective, one reverse
 adjoint is 1.71 times faster than reconstructing the VJP from two forward
 tangent sweeps.
 
+The discrete adjoint can accumulate RHS-parameter VJPs at every Runge–Kutta
+stage. One forward sweep wins for one active parameter, while reverse wins by
+2.54× at four parameters and 8.51× at sixteen; production selection therefore
+depends on parameter count.
+
 ## Build
 
 CMake is the primary build system with CTest integration:
