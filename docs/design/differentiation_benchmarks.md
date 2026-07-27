@@ -887,6 +887,69 @@ trajectory tournament.
 The machine-readable record is
 `benchmark/reference/ryzen9_5950x_ode_discrete_adjoint.json`.
 
+## Cash–Karp parameter-adjoint scaling
+
+`ode_integrate_parameter_vjp` extends the analytical discrete adjoint with a
+stage callback that accumulates
+
+\[
+\left(\frac{\partial f}{\partial p}\right)^T\bar f_i
+\]
+
+for every Runge–Kutta stage cotangent \(\bar f_i\). The callback owns the
+parameter layout, so the reverse trace does not form a state-by-parameter
+Jacobian.
+
+The scaling workload is
+\(y'=-\operatorname{mean}(p)y\), \(y(0)=1.3\), \(t_1=2\), with one scalar
+terminal objective and 1, 4, or 16 active parameters. Every gradient component
+has the closed form
+
+\[
+-\bar y_1 t_1 y_0
+\exp[-\operatorname{mean}(p)t_1]/n_p.
+\]
+
+The reverse candidate performs one primal and one adjoint trace regardless of
+parameter count. Forward performs one primal and one tangent trace per
+parameter. The diagnostic evaluates a base primal and two complete perturbed
+primal solves per parameter. Results are medians of three processes, each with
+31 samples of 200 complete gradients. Reference: AMD Ryzen 9 5950X, GNU
+Fortran 16.1.1, Release.
+
+| Candidate | Mechanism | 1 parameter | 4 parameters | 16 parameters |
+|---|---|---:|---:|---:|
+| one parameter-accumulating adjoint | `analytical` reverse | 21,043.5950 ns | 20,967.5000 ns | 22,712.5350 ns |
+| one tangent per parameter | `analytical` forward | 18,128.4000 ns | 53,328.5150 ns | 193,192.9500 ns |
+| complete-solve central differences | diagnostic | 18,766.0550 ns | 55,831.3800 ns | 206,896.3650 ns |
+
+Wall clock selects forward for one parameter: it is 1.1608 times faster than
+reverse. Reverse wins at four parameters by 2.5434 times and at sixteen by
+8.5060 times. From one to sixteen parameters, reverse grows only 1.0793 times,
+while forward grows 10.6569 times. This is the measured forward/reverse
+crossover the selector must preserve; neither mode is a universal default.
+
+Peak RSS stays between 5.32 and 5.50 MB for all candidates and parameter
+counts. The parameter gradient itself is the only storage proportional to
+\(n_p\); there is no parameter-sized trajectory tape.
+
+Selected `perf stat -r 3` results:
+
+| Candidate | Parameters | Cycles | Instructions | Cache references | Cache misses |
+|---|---:|---:|---:|---:|---:|
+| reverse | 1 | 606,161,833 | 1,889,467,959 | 5,010,051 | 250,626 |
+| forward | 1 | 549,756,725 | 1,600,964,051 | 5,290,049 | 252,998 |
+| reverse | 16 | 666,099,573 | 2,371,565,182 | 5,328,395 | 271,439 |
+| forward | 16 | 5,492,501,896 | 16,738,933,055 | 6,656,145 | 433,791 |
+| diagnostic | 16 | 5,899,163,995 | 17,719,627,576 | 7,548,423 | 358,595 |
+
+Cycles and instructions corroborate both the one-parameter forward winner and
+the sixteen-parameter reverse winner. Cache counts remain supporting evidence;
+complete-gradient wall clock determines selection.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_ode_parameter_adjoint_scaling.json`.
+
 ## Vector-root candidate tournament
 
 The coupled vector tournament uses

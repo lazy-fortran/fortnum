@@ -15,9 +15,9 @@ module fortnum_ode
     !   machine precision). Both take the caller-supplied variational RHS
     !   (ode_var_rhs_t): the forward one applies J_f, the adjoint one applies
     !   J_f^T. The Jacobian-w.r.t.-y action is supplied this way; the
-    !   PARAMETER-gradient quadrature df/dp^T lam (so the VJP returns the
-    !   parameter adjoint, not only the y0 adjoint) is the documented next step
-    !   and is not accumulated here. HVP is deferred: ode has no scalar primal
+    !   parameter adjoint is accumulated by ode_integrate_parameter_vjp through
+    !   a caller-supplied stage callback that adds df/dp^T times the stage
+    !   cotangent. HVP is deferred: ode has no scalar primal
     !   output, so a Hessian-vector product needs a caller-defined scalar loss
     !   and a second tangent pass; left to the loss-aware layer.
     !   Active: y0 (via the JVP seed s0), ctx parameters (via var_rhs), the
@@ -36,9 +36,10 @@ module fortnum_ode
     implicit none
     private
 
-    public :: ode_rhs_t, ode_event_t, ode_var_rhs_t
+    public :: ode_rhs_t, ode_event_t, ode_var_rhs_t, ode_param_vjp_t
     public :: ode_integrate, ode_solve
     public :: ode_integrate_jvp, ode_integrate_vjp
+    public :: ode_integrate_parameter_vjp
 
     integer, parameter, public :: ODE_EVENT_RISING  =  1
     integer, parameter, public :: ODE_EVENT_FALLING = -1
@@ -81,6 +82,19 @@ module fortnum_ode
             real(dp), intent(out) :: dydt(:)
             class(*), intent(in), optional :: ctx
         end subroutine ode_rhs_t
+    end interface
+
+    abstract interface
+        ! Add df/dp^T * rhs_cotangent for one Runge-Kutta stage to gradient.
+        ! The callback owns the parameter layout and must add, not overwrite.
+        subroutine ode_param_vjp_t(t, y, rhs_cotangent, gradient, ctx)
+            import :: dp
+            real(dp), intent(in) :: t
+            real(dp), intent(in) :: y(:)
+            real(dp), intent(in) :: rhs_cotangent(:)
+            real(dp), intent(inout) :: gradient(:)
+            class(*), intent(in), optional :: ctx
+        end subroutine ode_param_vjp_t
     end interface
 
     abstract interface
@@ -429,6 +443,68 @@ contains
         jtu = lam
     end subroutine ode_integrate_vjp
 
+    ! Discrete adjoint for both initial state and RHS parameters. param_vjp
+    ! accumulates df/dp^T times each stage cotangent directly into parameter_vjp.
+    subroutine ode_integrate_parameter_vjp(problem, var_rhs_adj, param_vjp, u, &
+            parameter_count, solution, jtu, parameter_vjp, status)
+        type(ode_problem_t),    intent(in)  :: problem
+        procedure(ode_var_rhs_t)            :: var_rhs_adj
+        procedure(ode_param_vjp_t)          :: param_vjp
+        real(dp),               intent(in)  :: u(:)
+        integer,                intent(in)  :: parameter_count
+        type(ode_solution_t),   intent(in)  :: solution
+        real(dp), allocatable,  intent(out) :: jtu(:)
+        real(dp), allocatable,  intent(out) :: parameter_vjp(:)
+        type(fortnum_status_t), intent(out) :: status
+
+        integer :: neq, i
+        real(dp) :: t, h
+        real(dp), allocatable :: y(:), lam(:)
+
+        call status_set(status, FORTNUM_OK, "")
+        if (.not. associated(problem%rhs)) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_integrate_parameter_vjp: rhs not associated")
+            return
+        end if
+        if (.not. allocated(solution%t)) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_integrate_parameter_vjp: empty trace")
+            return
+        end if
+        if (.not. allocated(solution%y)) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_integrate_parameter_vjp: empty trace")
+            return
+        end if
+
+        neq = size(solution%y, 1)
+        if (size(u) /= neq) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_integrate_parameter_vjp: u size mismatch")
+            return
+        end if
+        if (parameter_count < 1) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_integrate_parameter_vjp: parameter count must be positive")
+            return
+        end if
+
+        allocate(jtu(neq), parameter_vjp(parameter_count), y(neq), lam(neq))
+        lam = u
+        parameter_vjp = 0.0_dp
+
+        do i = solution%nsteps, 1, -1
+            t = solution%t(i)
+            h = solution%h(i)
+            y = solution%y(:, i)
+            call augmented_step_adj(problem%rhs, var_rhs_adj, t, y, lam, h, &
+                neq, param_vjp, parameter_vjp)
+        end do
+
+        jtu = lam
+    end subroutine ode_integrate_parameter_vjp
+
     ! One Cash-Karp step on the augmented state (y, s): the primal stages drive
     ! the tangent stages so they share the same internal states. h is taken from
     ! the frozen trace (signed). On return s holds the propagated sensitivity;
@@ -489,7 +565,8 @@ contains
     ! in the earlier sk_j; the adjoint propagates lam through the transposed
     ! chain. Implemented matrix-free: each stage's contribution to lam is
     ! var_rhs_adj(t_i, y_i, .)^T applied to the accumulated stage adjoint.
-    subroutine augmented_step_adj(rhs, var_rhs_adj, t, y, lam, h, neq)
+    subroutine augmented_step_adj(rhs, var_rhs_adj, t, y, lam, h, neq, &
+            param_vjp, parameter_gradient)
         procedure(ode_rhs_t)     :: rhs
         procedure(ode_var_rhs_t) :: var_rhs_adj
         real(dp), intent(in)     :: t
@@ -497,6 +574,8 @@ contains
         real(dp), intent(inout)  :: lam(:)
         real(dp), intent(in)     :: h
         integer,  intent(in)     :: neq
+        procedure(ode_param_vjp_t), optional :: param_vjp
+        real(dp), intent(inout), optional :: parameter_gradient(:)
 
         real(dp) :: yk1(neq), yk2(neq), yk3(neq), yk4(neq), yk5(neq), yk6(neq)
         real(dp) :: yt(neq)
@@ -542,6 +621,11 @@ contains
             skbar(:, i) = h * b(i) * lam
         end do
         do i = 6, 1, -1
+            if (present(param_vjp)) then
+                if (.not. present(parameter_gradient)) &
+                    error stop "missing ODE parameter gradient"
+                call param_vjp(tn(i), yn(:, i), skbar(:, i), parameter_gradient)
+            end if
             call var_rhs_adj(tn(i), yn(:, i), skbar(:, i), inbar) ! g_i^T skbar_i
             sbar = sbar + inbar
             do j = 1, i - 1

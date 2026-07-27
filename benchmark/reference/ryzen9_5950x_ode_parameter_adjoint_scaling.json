@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "cash_karp_parameter_adjoint",
+  "product": "scalar_objective_parameter_vjp",
+  "workload": "scalar y'=-mean(p)*y with 1, 4, or 16 active parameters, adaptive primal plus complete parameter gradient",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor"
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1",
+    "build": "Release"
+  },
+  "sampling": {
+    "processes": 3,
+    "samples_per_process": 31,
+    "workloads_per_sample": 200,
+    "runtime_aggregation": "median of process medians",
+    "dispersion_aggregation": "median of within-process MADs",
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum",
+    "perf_repetitions": 3
+  },
+  "validation": {
+    "oracle": "-terminal_cotangent*t1*y0*exp(-mean(p)*t1)/parameter_count",
+    "parameter_counts": [1, 4, 16],
+    "reverse_and_forward_absolute_tolerance": 2e-8,
+    "diagnostic_absolute_tolerance": 2e-7
+  },
+  "runtime_ns": {
+    "reverse": [21043.5950, 20967.5000, 22712.5350],
+    "forward": [18128.4000, 53328.5150, 193192.9500],
+    "diagnostic": [18766.0550, 55831.3800, 206896.3650]
+  },
+  "peak_rss_bytes": {
+    "reverse": [5410816, 5496832, 5451776],
+    "forward": [5427200, 5316608, 5390336],
+    "diagnostic": [5337088, 5316608, 5349376]
+  },
+  "perf": {
+    "reverse_1": {"cycles": 606161833, "instructions": 1889467959, "cache_references": 5010051, "cache_misses": 250626},
+    "forward_1": {"cycles": 549756725, "instructions": 1600964051, "cache_references": 5290049, "cache_misses": 252998},
+    "reverse_16": {"cycles": 666099573, "instructions": 2371565182, "cache_references": 5328395, "cache_misses": 271439},
+    "forward_16": {"cycles": 5492501896, "instructions": 16738933055, "cache_references": 6656145, "cache_misses": 433791},
+    "diagnostic_16": {"cycles": 5899163995, "instructions": 17719627576, "cache_references": 7548423, "cache_misses": 358595}
+  },
+  "selection": {
+    "criterion": "complete primal-plus-parameter-gradient wall clock",
+    "parameter_1": "forward",
+    "parameter_4": "reverse",
+    "parameter_16": "reverse",
+    "parameter_1_forward_speedup_over_reverse": 1.1608,
+    "parameter_4_reverse_speedup_over_forward": 2.5434,
+    "parameter_16_reverse_speedup_over_forward": 8.5060,
+    "reverse_scaling_1_to_16": 1.0793,
+    "forward_scaling_1_to_16": 10.6569,
+    "reason": "one forward sweep wins for one parameter, while one reverse trace amortizes across all parameters and wins from four measured parameters onward"
+  }
+}

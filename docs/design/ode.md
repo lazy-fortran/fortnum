@@ -247,10 +247,7 @@ reports `FORTNUM_DOMAIN_ERROR` with a message naming the non-transversal event,
 and the trace up to the event stays valid as a primal. A derivative product
 under #40 checks transversality before propagating an event sensitivity.
 
-## 7. Forward, reverse, and checkpointing (contract only, #40)
-
-No derivative code ships now. This section fixes names and hook points so #40 is
-additive (ad.md §6).
+## 7. Forward, reverse, and checkpointing
 
 - Forward sensitivity: `ode_integrate_jvp` solves the variational system
   `dot(S) = (df/dy) S + df/dp` on the frozen trace mesh from section 3.3,
@@ -258,8 +255,12 @@ additive (ad.md §6).
   workspace; the primal trace is the schedule it integrates against.
 - Reverse/adjoint: `ode_integrate_vjp` integrates the adjoint
   `dot(lambda) = -(df/dy)^T lambda` backward over the recorded mesh, then
-  contracts against `df/dp`. It consumes `solution%t`, `solution%y`,
+  returns the initial-state VJP. It consumes `solution%t`, `solution%y`, and
   `solution%h` as the fixed backward schedule.
+- Parameter adjoint: `ode_integrate_parameter_vjp` performs the same reverse
+  trace walk and calls `ode_param_vjp_t` at every Runge–Kutta stage. The
+  callback adds `(df/dp)^T` times the stage cotangent into the caller-defined
+  parameter layout. It returns both initial-state and parameter VJPs.
 - Checkpointing: the adjoint needs the forward state at each mesh point. The
   default keeps the full `solution%y`; a checkpointed variant stores a strided
   subset and re-integrates between checkpoints (Griewank-Walther revolve). The
@@ -267,5 +268,4 @@ additive (ad.md §6).
   `ode_problem_t`, so the primal types in section 3 do not change when #40 lands.
 
 These names follow ad.md §2 (`foo_jvp`, `foo_vjp`). The primal `ode_integrate`
-and `ode_solve` signatures in sections 4 and 5 are final; derivatives arrive as
-new public names beside them.
+and `ode_solve` signatures in sections 4 and 5 remain unchanged.
