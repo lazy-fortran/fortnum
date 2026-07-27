@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "vector_root",
+  "product": "jvp",
+  "workload": "two-state nonlinear residual, 2 active parameters, 2000000 directions per sample, shared analytical implicit boundary",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "flang_llvm": "22.1.8",
+    "enzyme_commit": "c96508349d9f",
+    "fortsym_commit": "15636e944b3b932283aff4f313c6a5f459d40692"
+  },
+  "sampling": {
+    "warmup_rounds": 3,
+    "samples": 15,
+    "calls_per_sample": 2000000,
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum"
+  },
+  "validation": {
+    "oracle": "central finite difference of complete 12-step Newton root solves at p+h*tp and p-h*tp",
+    "maximum_absolute_error_by_candidate": {
+      "analytical_residual_products": 9.718503779510001e-12,
+      "enzyme_forward_residual_products": 9.718503779510001e-12
+    },
+    "absolute_tolerance": 1e-9,
+    "enzyme_execution_proof": "the linked executable has no unresolved __enzyme_fwddiff intrinsic"
+  },
+  "memory_method": "getrusage(RUSAGE_SELF) inside each separately launched candidate",
+  "candidates": [
+    {
+      "id": "analytical_residual_products",
+      "mechanism": "analytical",
+      "median_ns_per_call": 83.8493,
+      "mad_ns_per_call": 1.1293,
+      "peak_rss_bytes": 2490368
+    },
+    {
+      "id": "enzyme_forward_residual_products",
+      "mechanism": "hybrid",
+      "median_ns_per_call": 81.8199,
+      "mad_ns_per_call": 0.6058,
+      "peak_rss_bytes": 2658304
+    }
+  ],
+  "selection": {
+    "selected": null,
+    "runtime_winner": "enzyme_forward_residual_products",
+    "memory_winner": "analytical_residual_products",
+    "runtime_speedup": 1.0248,
+    "reason": "both pass the independent complete-root oracle; hybrid is 1.0248x faster, while analytical uses 167936 fewer bytes of maximum observed candidate-process RSS, so an application workload must resolve the tradeoff"
+  }
+}
