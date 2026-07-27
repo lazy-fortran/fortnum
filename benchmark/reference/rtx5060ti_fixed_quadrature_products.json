@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "source_revision": "149b738ef26fe1b87e837a4c57ae660784d4f5c5",
+  "operation": "batched order-16 fixed-quadrature JVP/VJP",
+  "classification": "analytical",
+  "mathematical_problem": "I=sum_i w_i f_i with inactive rule and active sampled values",
+  "derivative_contract": "JVP=sum_i w_i v_i; VJP_i=u*w_i",
+  "implementation_ownership": "hand-written arbitrary-order reduction and scaling loops; symbolic generation would specialize and duplicate the existing linear rule",
+  "residency_policy": "transfer-inclusive and resident measured separately",
+  "device_execution_proof": "OpenACC NVIDIA device check and mandatory non-host OpenMP target check",
+  "workload": {
+    "rule_order": 16,
+    "batch_sizes": [256, 65536, 1048576],
+    "samples": 31,
+    "warmup_samples": 3,
+    "pinned_cpu": 4,
+    "small_batch_repetitions": "ceil(65536/batch_size), reported per call"
+  },
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "gpu": "NVIDIA GeForce RTX 5060 Ti",
+    "driver": "610.43.03"
+  },
+  "toolchain": {
+    "compiler": "NVHPC nvfortran 26.5",
+    "openacc_flags": "-fast -O3 -acc",
+    "openmp_flags": "-fast -O3 -mp=gpu -mp"
+  },
+  "validation": {
+    "points": 4096,
+    "oracle": "exact integral of x^4 plus a batch-dependent constant and adjoint identity",
+    "relative_tolerance": 2e-13
+  },
+  "median_ms": {
+    "batch_sizes": [256, 65536, 1048576],
+    "jvp": {
+      "cpu": [0.000856, 0.650900, 9.923000],
+      "openacc_resident": [0.008968, 0.375100, 5.878900],
+      "openacc_transfer": [0.027817, 1.122000, 19.553000],
+      "openmp_resident": [0.009356, 0.014000, 0.347900],
+      "openmp_transfer": [0.028558, 0.768900, 13.835900]
+    },
+    "vjp": {
+      "cpu": [0.000351, 0.160900, 8.952200],
+      "openacc_resident": [0.006664, 0.018900, 0.340900],
+      "openacc_transfer": [0.027520, 1.026000, 13.289000],
+      "openmp_resident": [0.007250, 0.025000, 0.334900],
+      "openmp_transfer": [0.028735, 0.952000, 13.122000]
+    }
+  },
+  "mad_ms": {
+    "batch_sizes": [256, 65536, 1048576],
+    "jvp": {
+      "cpu": [0.000015, 0.002900, 0.054800],
+      "openacc_resident": [0.000019, 0.000100, 0.000900],
+      "openacc_transfer": [0.000070, 0.005000, 0.265100],
+      "openmp_resident": [0.000032, 0.000100, 0.000800],
+      "openmp_transfer": [0.000156, 0.010900, 0.501900]
+    },
+    "vjp": {
+      "cpu": [0.000001, 0.005000, 0.156000],
+      "openacc_resident": [0.000015, 0.000200, 0.001900],
+      "openacc_transfer": [0.000122, 0.014200, 0.047900],
+      "openmp_resident": [0.000011, 0.000100, 0.002800],
+      "openmp_transfer": [0.000121, 0.022900, 0.096900]
+    }
+  },
+  "peak_host_rss_bytes_at_n1048576": {
+    "live_numerical_arrays": 142606464,
+    "jvp": {
+      "cpu": 147828736,
+      "openacc_resident": 257228800,
+      "openacc_transfer": 267186176,
+      "openmp_resident": 261324800,
+      "openmp_transfer": 269430784
+    },
+    "vjp": {
+      "cpu": 147824640,
+      "openacc_resident": 131420160,
+      "openacc_transfer": 267100160,
+      "openmp_resident": 137048064,
+      "openmp_transfer": 269647872
+    }
+  },
+  "selection": {
+    "n256": {
+      "jvp": "cpu",
+      "vjp": "cpu"
+    },
+    "n65536": {
+      "jvp_resident": "openmp",
+      "jvp_transfer": "cpu",
+      "vjp_resident": "openacc",
+      "vjp_transfer": "cpu"
+    },
+    "n1048576": {
+      "jvp_resident": "openmp",
+      "jvp_transfer": "cpu",
+      "vjp_resident": "openmp",
+      "vjp_transfer": "cpu"
+    },
+    "reason": "minimum measured complete-workload wall clock; mechanism and backend names do not select winners"
+  },
+  "verdict": "resident GPU wins throughput-scale products, but CPU wins every transfer-inclusive case; OpenMP target greatly outperforms OpenACC for the JVP reduction on this toolchain"
+}

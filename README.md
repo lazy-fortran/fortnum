@@ -78,8 +78,10 @@ covered by generated Lagrange value/JVP/VJP leaves. At 1,048,576 points the
 resident GPU is 15.0 times faster than CPU for JVP and 11.9 times faster for
 VJP. With transfers included, GPU still wins JVP by 1.31 times, while CPU wins
 VJP by 1.24 times because five adjoint arrays must return to the host. Fixed
-quadrature, fixed-size linear algebra, FFT rules, and fixed-trace ODE products
-remain explicit unchecked roadmap items.
+quadrature is also covered: at 1,048,576 order-16 rules the best resident GPU
+is 28.5 times faster for JVP and 26.7 times faster for VJP, but CPU wins when
+transfers are included. Fixed-size linear algebra, FFT rules, and fixed-trace
+ODE products remain explicit unchecked roadmap items.
 `fortnum` uses `fortsym` at build time for symbolic algebra and code
 generation. The first pinned generator is under `tools/codegen/`; generated
 production sources are committed under `src/generated/`. The
