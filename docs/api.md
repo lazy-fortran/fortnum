@@ -619,12 +619,12 @@ Accelerate the series with terms `terms(1:n)` (Levin-u sequence acceleration).
 
 Adaptive ODE integration with Cash-Karp RK5(4) and PI step-size control.
 
-Default derivative policy: `trace_rule` (ad.md §4). The accepted step schedule
-is data-dependent; a sensitivity differentiates the frozen recorded mesh in
-`ode_solution_t` with that schedule held fixed.
-
-Reserved derivative products for #40: `ode_integrate_jvp`, `ode_integrate_vjp`,
-`ode_at_jvp`, `ode_at_vjp`.
+The accepted step schedule is data-dependent. `ode_integrate_jvp` and
+`ode_integrate_vjp` hold the recorded mesh in `ode_solution_t` fixed.
+`ode_integrate_jvp` approximates the continuous variational IVP at fixed
+terminal time and converges under mesh refinement. Its finite-step recurrence
+is also the exact tangent of the frozen Cash-Karp map. `ode_integrate_vjp` is
+the corresponding discrete adjoint.
 
 Event direction constants:
 
@@ -1534,10 +1534,11 @@ subroutine ode_integrate_jvp(problem, var_rhs, s0, solution, s1, status)      ! 
 subroutine ode_integrate_vjp(problem, var_rhs_adj, u, solution, jtu, status)  ! discrete adjoint
 ```
 
-Both products re-run the Cash-Karp stepper over the recorded `solution%t` /
-`solution%h` schedule held fixed. The forward pass propagates primal and tangent
-in lockstep; the adjoint walks the same trace backward. HVP needs a
-caller-defined scalar loss on `y(t1)` and is deferred.
+Both products re-run the Cash-Karp stepper over the recorded `solution%t` and
+`solution%h` schedule held fixed. The forward pass propagates the continuous
+variational equation `dS/dt = f_y S + f_p v` with a Cash-Karp recurrence. It
+returns `S(t1)` at fixed terminal time. The adjoint walks the same recurrence
+backward. HVP needs a caller-defined scalar loss on `y(t1)` and is deferred.
 
 ### fortnum_roots (`implicit_rule`)
 

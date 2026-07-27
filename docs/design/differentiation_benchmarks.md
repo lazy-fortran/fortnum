@@ -837,6 +837,75 @@ selects the candidate.
 The machine-readable record is
 `benchmark/reference/ryzen9_5950x_ode_hybrid_forward_sensitivity.json`.
 
+## Continuous ODE sensitivity contract
+
+For
+
+\[
+\dot y=f(t,y,p), \qquad y(t_0,p)=y_0(p),
+\]
+
+the continuous directional sensitivity satisfies
+
+\[
+\dot S=f_yS+f_pv,\qquad
+S(t_0)=\frac{dy_0}{dp}v.
+\]
+
+`ode_integrate_jvp` approximates \(S(t_1)\) at fixed terminal time. It uses the
+accepted primal mesh as inactive data. The contract permits integration error
+at finite step size and requires convergence to the exact variational solution
+under mesh refinement.
+
+The independent test uses \(y'=-ky\), \(y(0)=1.3\), \(t_1=2\), whose exact
+parameter sensitivity is
+
+\[
+\frac{dy(t_1)}{dk}=-t_1y_0e^{-kt_1}.
+\]
+
+With maximum steps \(0.5\), \(0.25\), \(0.125\), and \(0.0625\), the absolute
+errors are \(1.4074\times10^{-6}\), \(5.8631\times10^{-8}\),
+\(1.9868\times10^{-9}\), and \(6.4019\times10^{-11}\). This refinement test
+targets the continuous problem. Exact agreement with a finite-step numerical
+map belongs to the separate discrete contract.
+
+The performance workload uses the normal adaptive primal at tight tolerances.
+`continuous` performs one primal solve and one frozen-trace tangent replay per
+direction. The diagnostic performs the same base primal and two complete
+perturbed primal solves per direction. Results are medians of three processes,
+each with 31 samples of 2,000 complete workloads. Reference: AMD Ryzen 9 5950X,
+GNU Fortran 16.1.1, Release.
+
+| Directions | Primal ns | Continuous ns | MAD ns | Diagnostic ns | MAD ns | Continuous speedup |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 6,859.7035 | 19,238.7305 | 595.8430 | 20,468.7980 | 636.8550 | 1.0639x |
+| 4 | 6,806.5785 | 56,659.6360 | 1,175.1940 | 61,021.9850 | 1,474.5030 | 1.0770x |
+| 16 | 6,853.9030 | 204,143.8925 | 3,207.3280 | 224,258.1705 | 3,591.5820 | 1.0985x |
+
+Complete-workload wall clock selects continuous sensitivity over finite
+differences in all three regimes. Both candidates process directions
+sequentially. From one to sixteen directions, continuous grows 10.6111 times
+and the diagnostic grows 10.9561 times. The sixteen-direction continuous
+workload costs 29.7851 primal solves in wall-clock units. This item establishes
+the contract and its current cost. It does not claim batched-direction
+efficiency.
+
+Peak RSS at sixteen directions is 3,796,992 bytes for the primal, continuous,
+and diagnostic processes. `perf stat -r 3` for the same direction count gives:
+
+| Candidate | Cycles | Instructions | Cache references | Cache misses |
+|---|---:|---:|---:|---:|
+| primal | 6,927,154,185 | 3,084,158,057 | 31,864,740 | 4,580,688 |
+| continuous | 25,075,830,011 | 56,732,991,925 | 53,552,049 | 4,903,812 |
+| diagnostic | 26,340,680,764 | 59,860,947,003 | 139,302,494 | 5,040,980 |
+
+Cycles and instructions corroborate the small continuous wall-clock advantage.
+Cache-counter dispersion reaches 34% for the short primal and 12% for the
+diagnostic, so counters are supporting evidence. Complete-workload wall clock
+selects the candidate. The machine-readable record is
+`benchmark/reference/ryzen9_5950x_ode_continuous_sensitivity.json`.
+
 ## Analytical Cash–Karp discrete adjoint
 
 `ode_integrate_vjp` is the exact transpose of the analytical Cash–Karp tangent

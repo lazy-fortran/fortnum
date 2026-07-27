@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "cash_karp_continuous_sensitivity",
+  "product": "parameter_jvp",
+  "workload": "adaptive scalar decay primal plus all sequential fixed-time continuous sensitivity directions",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor"
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1",
+    "build": "Release"
+  },
+  "sampling": {
+    "processes": 3,
+    "samples_per_process": 31,
+    "workloads_per_sample": 2000,
+    "runtime_aggregation": "median of process medians",
+    "dispersion_aggregation": "median of within-process MADs",
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum",
+    "perf_repetitions": 3
+  },
+  "validation": {
+    "oracle": "-t1*y0*exp(-k*t1)",
+    "maximum_steps": [0.5, 0.25, 0.125, 0.0625],
+    "absolute_errors": [1.4073920521218142e-6, 5.8630913901680515e-8, 1.9868442446835388e-9, 6.401867924665794e-11],
+    "strictly_decreasing": true
+  },
+  "scaling": [
+    {"directions": 1, "primal_median_ns": 6859.7035, "primal_mad_ns": 374.2650, "continuous_median_ns": 19238.7305, "continuous_mad_ns": 595.8430, "diagnostic_median_ns": 20468.7980, "diagnostic_mad_ns": 636.8550, "continuous_speedup": 1.0639},
+    {"directions": 4, "primal_median_ns": 6806.5785, "primal_mad_ns": 338.0620, "continuous_median_ns": 56659.6360, "continuous_mad_ns": 1175.1940, "diagnostic_median_ns": 61021.9850, "diagnostic_mad_ns": 1474.5030, "continuous_speedup": 1.0770},
+    {"directions": 16, "primal_median_ns": 6853.9030, "primal_mad_ns": 224.2425, "continuous_median_ns": 204143.8925, "continuous_mad_ns": 3207.3280, "diagnostic_median_ns": 224258.1705, "diagnostic_mad_ns": 3591.5820, "continuous_speedup": 1.0985}
+  ],
+  "memory": {
+    "directions": 16,
+    "primal_peak_rss_bytes": 3796992,
+    "continuous_peak_rss_bytes": 3796992,
+    "diagnostic_peak_rss_bytes": 3796992
+  },
+  "perf": {
+    "directions": 16,
+    "workloads_per_repetition": 20000,
+    "primal": {"cycles": 6927154185, "instructions": 3084158057, "cache_references": 31864740, "cache_misses": 4580688},
+    "continuous": {"cycles": 25075830011, "instructions": 56732991925, "cache_references": 53552049, "cache_misses": 4903812},
+    "diagnostic": {"cycles": 26340680764, "instructions": 59860947003, "cache_references": 139302494, "cache_misses": 5040980}
+  },
+  "selection": {
+    "selected": "continuous",
+    "criterion": "complete primal-plus-all-directions wall clock",
+    "reason": "the variational replay is faster than two complete perturbed adaptive solves per direction"
+  }
+}

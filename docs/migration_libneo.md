@@ -297,10 +297,11 @@ Interface differences:
   (DOP853) drop-ins for the very tight tolerances where the higher order pays
   off. Same carriers and same `trace_rule` policy as the Cash-Karp path.
 
-Derivative status (policy `trace_rule`):
-- Now: primal only.
-- Issue #40: `ode_integrate_jvp`, `ode_integrate_vjp`. Sensitivities
-  differentiate the frozen accepted-step mesh in `ode_solution_t`.
+Derivative status:
+- `ode_integrate_jvp` is the continuous variational sensitivity at fixed
+  terminal time, discretized on the frozen accepted-step mesh.
+- `ode_integrate_vjp` is the discrete adjoint of that frozen Cash-Karp
+  recurrence.
 
 ---
 

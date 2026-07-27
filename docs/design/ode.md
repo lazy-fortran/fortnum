@@ -290,5 +290,35 @@ and the trace up to the event stays valid as a primal.
   cotangents without forming `rhs_parameter_jacobian`. Multiple columns
   represent multiple scalar objectives.
 
+### 7.1 Continuous sensitivity contract
+
+For the exact initial-value problem
+
+```text
+dy/dt = f(t, y, p),  y(t0, p) = y0(p),
+```
+
+the continuous JVP is the solution of
+
+```text
+dS/dt = f_y S + f_p v,  S(t0) = (dy0/dp) v.
+```
+
+`ode_integrate_jvp` returns the numerical approximation to `S(t1)` at fixed
+terminal time. `var_rhs` must evaluate `f_y S + f_p v` for one contracted
+direction. `s0` supplies the initial-state part of that direction. Event-time
+motion is excluded and is composed separately with `ode_event_time_jvp`.
+
+The accepted `t` and `h` arrays are inactive data. The routine applies the
+Cash-Karp tangent recurrence to that frozen mesh. The result converges to the
+continuous sensitivity as the primal mesh is refined. At finite step size it
+has ordinary integration error relative to the exact variational IVP.
+Tolerances and adaptive decisions select the primal mesh but are not active
+arguments of the derivative.
+
+The finite-step recurrence is also the tangent of the frozen discrete
+Cash-Karp map. That discrete identity is a separate contract from convergence
+to the continuous variational solution.
+
 These names follow ad.md §2 (`foo_jvp`, `foo_vjp`). The primal `ode_integrate`
 and `ode_solve` signatures in sections 4 and 5 remain unchanged.

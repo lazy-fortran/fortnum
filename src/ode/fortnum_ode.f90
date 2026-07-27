@@ -524,12 +524,19 @@ contains
         end if
     end subroutine ode_solve
 
-    ! Forward sensitivity (JVP), trace_rule (ad.md sec 1, 4). Integrates the
-    ! variational equation d/dt(dy/dp.v) = J_f(t,y)(dy/dp.v) + df/dp.vp alongside
-    ! the primal over the FROZEN accepted-step schedule recorded in solution
-    ! (solution%t, solution%h). Returns s1 = dy(t1)/dp . v, the forward product
-    ! J(y0,p->y(t1)) applied to the perturbation direction encoded by the seed
-    ! s0 (the y0-part: s0 = dy0/dp.v) and by var_rhs (the parameter part).
+    ! Forward sensitivity (JVP), trace_rule (ad.md sec 1, 4). Its continuous
+    ! contract is the variational IVP
+    !
+    !   d/dt(dy/dp.v) = J_f(t,y)(dy/dp.v) + df/dp.vp
+    !
+    ! at fixed terminal time. Numerically it advances that IVP over the FROZEN
+    ! accepted-step schedule recorded in solution (solution%t, solution%h).
+    ! Thus it converges to the continuous sensitivity as the primal mesh is
+    ! refined. At finite mesh spacing the same recurrence is also the exact
+    ! tangent of the frozen Cash-Karp step composition; that separate discrete
+    ! contract does not imply zero error against the exact continuous solution.
+    ! Returns s1 = dy(t1)/dp . v, with the direction encoded by s0 (the
+    ! y0-part) and var_rhs (the RHS-parameter part).
     !
     ! Re-runs the primal stepper in lockstep with the tangent so the stage
     ! states match what the primal saw; the step sizes are taken verbatim from
