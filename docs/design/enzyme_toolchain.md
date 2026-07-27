@@ -88,6 +88,14 @@ cotangent. Both are passed to the normal Fortran analytical implicit boundary.
 Enzyme does not differentiate the root solver or its assumed-shape callback
 interface.
 
+The first vector-root forward candidate similarly keeps Enzyme inside local
+scalar residual-component functions. Six statically visible forward calls
+produce the four entries of the two-state Jacobian and the two entries of the
+contracted parameter JVP. The analytical implicit boundary solves the resulting
+two-state tangent system. A generic runtime function-pointer helper is not
+supported here because the standalone Enzyme pass must resolve each primal
+function statically.
+
 ### Argument activity in the wrapper
 
 - Reverse mode: an active array `x` is paired with a shadow array `dx` that
