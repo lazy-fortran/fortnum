@@ -28,7 +28,7 @@ implicit, hybrid, and finite-difference diagnostic candidates. Measured
 runtime, dispersion, peak memory, validation, hardware, and compiler evidence
 is committed in
 `docs/design/differentiation_benchmarks.md` and `benchmark/reference/`.
-The cumulative report in `docs/design/differentiation_report.md` summarizes 22
+The cumulative report in `docs/design/differentiation_report.md` summarizes 24
 mechanism tournaments and provides reproducible `fortplot` figure generation
 without committing generated PNGs.
 `ROADMAP.md` is the authoritative implementation checklist.
@@ -41,6 +41,11 @@ At 16 nodes the active-node analytical JVP is 2.31 times faster and the VJP is
 Within a fixed knot span, B-spline values also expose analytical products for
 active breakpoint locations. At 18 breakpoints analytical is 2.04 times faster
 for JVP and 2.09 times faster for VJP than complete finite differences.
+
+Fitted B-spline coefficients defined by a collocation solve expose
+factorization-reusing analytical implicit JVP and VJP products. At 16
+coefficients they are respectively 4.90 and 1,224 times faster than complete
+finite-difference diagnostics.
 
 Fixed-bound parameterized integrals also expose an analytical JVP based on
 differentiation under the integral sign, including the analytical Leibniz term

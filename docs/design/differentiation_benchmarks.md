@@ -968,6 +968,62 @@ taskset -c 4 fo exec bench_bspline_knots analytical vjp 18
 taskset -c 4 fo exec bench_bspline_knots diagnostic vjp 18
 ```
 
+## Implicit derivatives of fitted B-spline coefficients
+
+A fitted coefficient vector is defined by the collocation residual
+
+```text
+B*c - y = 0.
+```
+
+The analytical JVP reuses the primal factorization and solves
+`B*dc=dy-dB*c`. The analytical VJP reuses a factorization of `B^T`, solves
+`B^T*lambda=cbar`, and returns `ybar=lambda` and
+`Bbar=-lambda*c^T`. Neither product differentiates the elimination algorithm.
+
+The independent JVP oracle refactors and solves the two complete perturbed
+collocation systems. The VJP passes the adjoint identity against that
+independently validated JVP. The benchmark matrices are actual cubic B-spline
+collocation matrices at uniformly spaced sample points.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, GNU Fortran 16.1.1, Release,
+15 samples after three warmups.
+
+| Product | Coefficients | Analytical median (MAD) | Diagnostic median (MAD) | Analytical speedup |
+|---|---:|---:|---:|---:|
+| JVP | 4 | 107.9471 (5.1256) ns | 217.1521 (12.2135) ns | 2.012x |
+| JVP | 8 | 180.2261 (4.5686) ns | 526.1451 (19.3790) ns | 2.919x |
+| JVP | 16 | 422.9037 (7.8735) ns | 2,073.1364 (79.4412) ns | 4.902x |
+| VJP | 4 | 102.7678 (4.1876) ns | 4,177.7700 (364.5850) ns | 40.652x |
+| VJP | 8 | 186.1749 (8.8750) ns | 35,768.5300 (2,130.2650) ns | 192.127x |
+| VJP | 16 | 415.9960 (21.2385) ns | 509,326.8650 (8,776.8350) ns | 1,224.354x |
+
+The diagnostic VJP forms the same full `(Bbar,ybar)` result component by
+component, hence its steep scaling. All candidates remain within the
+4.03--4.35 MiB process-baseline peak-RSS band.
+
+At 16 coefficients, pinned `perf stat -r 3` counters are:
+
+| Product | Candidate | Cycles/product | Instructions/product | Cache references/product | Cache misses/product |
+|---|---|---:|---:|---:|---:|
+| JVP | analytical | 1,909 | 5,343 | 0.588 | 0.051 |
+| JVP | diagnostic | 9,050 | 41,896 | 6.661 | 0.205 |
+| VJP | analytical | 1,908 | 4,812 | 1.385 | 0.070 |
+| VJP | diagnostic | 2,354,220 | 10,577,328 | 504.883 | 34.386 |
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_bspline_fit_implicit.json`.
+
+```bash
+fo test test_bspline_ad
+cd benchmark
+fo build
+taskset -c 4 fo exec bench_bspline_fit analytical jvp 16
+taskset -c 4 fo exec bench_bspline_fit diagnostic jvp 16
+taskset -c 4 fo exec bench_bspline_fit analytical vjp 16
+taskset -c 4 fo exec bench_bspline_fit diagnostic vjp 16
+```
+
 ## Hybrid fixed-quadrature integrand JVP
 
 This workload applies a reusable 32-point Gauss-Legendre rule on `[0,1]` to

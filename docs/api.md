@@ -1612,20 +1612,28 @@ respect to the evaluation point. Support-node products hold the sampled values
 `f` fixed while `xp` moves; callers that define `f_i = f(xp_i)` must compose
 the resulting value tangents separately.
 
-### fortnum_bspline (`transparent`, fixed span)
+### fortnum_bspline (`analytical`, fixed span)
 
 ```fortran
 subroutine bspline_eval_jvp(ws, x, coef, vx, jv, status)   ! d/dx [sum c_i B_i(x)] vx
 subroutine bspline_eval_vjp(ws, x, coef, u, jtu, status)   ! (d/dx [sum c_i B_i(x)])^T u
 subroutine bspline_eval_knots_jvp(ws, x, coef, vbreak, jv, status)
 subroutine bspline_eval_knots_vjp(ws, x, coef, u, breakbar, status)
+subroutine bspline_fit_jvp_factored( &
+    factors, pivots, coef, dbasis, dvalues, dcoef, status)
+subroutine bspline_fit_vjp_factored( &
+    transpose_factors, pivots, coef, cbar, basis_bar, values_bar, status)
 ```
 
 The spline value is differentiated in `x` at the fixed span; the coefficients
 `coef` are inactive. The knot products differentiate the supplied breakpoints,
-including their clamped endpoint copies. Crossing a knot is non-smooth, so the caller holds the span
-fixed (the AD test checks this). Both directions match the analytic recurrence
-weights from `bspline_eval_deriv`.
+including their clamped endpoint copies. Crossing a knot is non-smooth, so the
+caller holds the span fixed; both evaluation-point directions match the
+recurrence weights from `bspline_eval_deriv`. For fitted coefficients
+satisfying `B*coef=values`, the factored products apply analytical implicit
+differentiation. The JVP solves
+`B*dcoef=dvalues-dB*coef`; the VJP performs one transposed solve and returns
+cotangents for both `B` and `values`.
 
 ### fortnum_rng (`primal_only`)
 

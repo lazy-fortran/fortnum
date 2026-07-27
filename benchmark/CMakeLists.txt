@@ -75,6 +75,9 @@ target_link_libraries(bench_lagrange_nodes PRIVATE bench_core)
 add_executable(bench_bspline_knots bench_bspline_knots.f90)
 target_link_libraries(bench_bspline_knots PRIVATE bench_core)
 
+add_executable(bench_bspline_fit bench_bspline_fit.f90)
+target_link_libraries(bench_bspline_fit PRIVATE bench_core)
+
 add_executable(bench_multiroot_preconditioner bench_multiroot_preconditioner.f90)
 target_link_libraries(bench_multiroot_preconditioner PRIVATE bench_core)
 

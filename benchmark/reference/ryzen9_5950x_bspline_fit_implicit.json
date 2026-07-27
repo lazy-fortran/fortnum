@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "product": "implicit derivatives of fitted B-spline coefficients B*c=y",
+  "selection_criterion": "complete product wall clock",
+  "hardware": "AMD Ryzen 9 5950X, CPU 4 pinned",
+  "compiler": "GNU Fortran 16.1.1, Release",
+  "validation": {
+    "jvp_oracle": "central finite difference of two independently refactored collocation solves",
+    "jvp_max_absolute_error": 3e-9,
+    "vjp_oracle": "adjoint identity against the independently validated JVP",
+    "vjp_relative_error_limit": 3e-13
+  },
+  "timings": [
+    {"product": "jvp", "coefficients": 4, "candidate": "analytical", "median_ns": 107.9471, "mad_ns": 5.1256},
+    {"product": "jvp", "coefficients": 4, "candidate": "diagnostic", "median_ns": 217.1521, "mad_ns": 12.2135},
+    {"product": "jvp", "coefficients": 8, "candidate": "analytical", "median_ns": 180.2261, "mad_ns": 4.5686},
+    {"product": "jvp", "coefficients": 8, "candidate": "diagnostic", "median_ns": 526.1451, "mad_ns": 19.3790},
+    {"product": "jvp", "coefficients": 16, "candidate": "analytical", "median_ns": 422.9037, "mad_ns": 7.8735},
+    {"product": "jvp", "coefficients": 16, "candidate": "diagnostic", "median_ns": 2073.1364, "mad_ns": 79.4412},
+    {"product": "vjp", "coefficients": 4, "candidate": "analytical", "median_ns": 102.7678, "mad_ns": 4.1876},
+    {"product": "vjp", "coefficients": 4, "candidate": "diagnostic", "median_ns": 4177.7700, "mad_ns": 364.5850},
+    {"product": "vjp", "coefficients": 8, "candidate": "analytical", "median_ns": 186.1749, "mad_ns": 8.8750},
+    {"product": "vjp", "coefficients": 8, "candidate": "diagnostic", "median_ns": 35768.5300, "mad_ns": 2130.2650},
+    {"product": "vjp", "coefficients": 16, "candidate": "analytical", "median_ns": 415.9960, "mad_ns": 21.2385},
+    {"product": "vjp", "coefficients": 16, "candidate": "diagnostic", "median_ns": 509326.8650, "mad_ns": 8776.8350}
+  ],
+  "peak_rss_bytes_at_16_coefficients": {
+    "analytical_jvp": 4214784,
+    "diagnostic_jvp": 4059136,
+    "analytical_vjp": 4345856,
+    "diagnostic_vjp": 4030464
+  },
+  "perf_stat_per_product_at_16_coefficients": {
+    "analytical_jvp": {"cycles": 1908.506, "instructions": 5343.303, "cache_references": 0.58826, "cache_misses": 0.05082},
+    "diagnostic_jvp": {"cycles": 9050.186, "instructions": 41896.088, "cache_references": 6.66116, "cache_misses": 0.20519},
+    "analytical_vjp": {"cycles": 1908.043, "instructions": 4811.506, "cache_references": 1.38475, "cache_misses": 0.07037},
+    "diagnostic_vjp": {"cycles": 2354219.920, "instructions": 10577327.617, "cache_references": 504.88268, "cache_misses": 34.38627}
+  },
+  "selection": {
+    "jvp": "analytical",
+    "vjp": "analytical",
+    "reason": "factorization reuse minimizes complete-product wall clock at every measured fit size"
+  }
+}

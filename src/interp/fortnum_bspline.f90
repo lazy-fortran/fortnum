@@ -33,6 +33,8 @@ module fortnum_bspline
     use, intrinsic :: iso_fortran_env, only: dp => real64
     use fortnum_status, only: fortnum_status_t, status_set, FORTNUM_OK, &
         FORTNUM_DOMAIN_ERROR
+    use fortnum_linalg, only: LINALG_OK, linear_solve_jvp_factored, &
+        linear_solve_vjp_factored
     implicit none
     private
 
@@ -50,6 +52,8 @@ module fortnum_bspline
     public :: bspline_eval_knots_vjp
     public :: bspline_eval_combined_jvp
     public :: bspline_eval_combined_vjp
+    public :: bspline_fit_jvp_factored
+    public :: bspline_fit_vjp_factored
 
     ! Caller-owned B-spline state. order, nbreak, ncoef and the augmented knot
     ! vector are filled by bspline_init / bspline_set_knots; no module-level
@@ -541,6 +545,73 @@ contains
             jv = jv + coef(span - ws%order + j)*dnb(j)
         end do
     end subroutine bspline_knots_direction
+
+    ! Analytical implicit JVP for fitted coefficients defined by B*c=y.
+    ! Reuse the primal collocation-matrix factorization:
+    ! B*dc = dy - dB*c.
+    subroutine bspline_fit_jvp_factored(factors, pivots, coef, dbasis, dvalues, &
+            dcoef, status)
+        real(dp), contiguous, intent(in) :: factors(:, :), coef(:)
+        real(dp), contiguous, intent(in) :: dbasis(:, :), dvalues(:)
+        integer, contiguous, intent(in) :: pivots(:)
+        real(dp), contiguous, intent(out) :: dcoef(:)
+        type(fortnum_status_t), intent(out) :: status
+        integer :: info, n
+
+        dcoef = 0.0_dp
+        n = size(coef)
+        if (size(factors, 1) /= n .or. size(factors, 2) /= n .or. &
+            size(dbasis, 1) /= n .or. size(dbasis, 2) /= n .or. &
+            size(pivots) /= n .or. size(dvalues) /= n .or. &
+            size(dcoef) /= n) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "bspline_fit_jvp_factored: shape mismatch")
+            return
+        end if
+        call linear_solve_jvp_factored(n, factors, pivots, coef, dbasis, &
+            dvalues, dcoef, info)
+        if (info /= LINALG_OK) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "bspline_fit_jvp_factored: singular factors")
+            return
+        end if
+        call status_set(status, FORTNUM_OK, "")
+    end subroutine bspline_fit_jvp_factored
+
+    ! Analytical implicit VJP for B*c=y. The supplied factors belong to B^T.
+    ! Solving B^T*lambda=cbar gives ybar=lambda and Bbar=-lambda*c^T.
+    subroutine bspline_fit_vjp_factored(transpose_factors, pivots, coef, cbar, &
+            basis_bar, values_bar, status)
+        real(dp), contiguous, intent(in) :: transpose_factors(:, :)
+        real(dp), contiguous, intent(in) :: coef(:), cbar(:)
+        integer, contiguous, intent(in) :: pivots(:)
+        real(dp), contiguous, intent(out) :: basis_bar(:, :), values_bar(:)
+        type(fortnum_status_t), intent(out) :: status
+        integer :: info, n
+
+        basis_bar = 0.0_dp
+        values_bar = 0.0_dp
+        n = size(coef)
+        if (size(transpose_factors, 1) /= n .or. &
+            size(transpose_factors, 2) /= n .or. &
+            size(basis_bar, 1) /= n .or. size(basis_bar, 2) /= n .or. &
+            size(pivots) /= n .or. size(cbar) /= n .or. &
+            size(values_bar) /= n) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "bspline_fit_vjp_factored: shape mismatch")
+            return
+        end if
+        call linear_solve_vjp_factored(n, transpose_factors, pivots, coef, &
+            cbar, basis_bar, values_bar, info)
+        if (info /= LINALG_OK) then
+            basis_bar = 0.0_dp
+            values_bar = 0.0_dp
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "bspline_fit_vjp_factored: singular factors")
+            return
+        end if
+        call status_set(status, FORTNUM_OK, "")
+    end subroutine bspline_fit_vjp_factored
 
     ! Hybrid interface rule for simultaneous activity in x and the spline
     ! coefficients. The product rule is evaluated from one shared basis pass.

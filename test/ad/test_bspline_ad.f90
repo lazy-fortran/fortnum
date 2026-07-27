@@ -20,7 +20,9 @@ program test_bspline_ad
         bspline_eval_vjp, bspline_span_index, bspline_eval_basis, &
         bspline_eval_coef_jvp, bspline_eval_coef_vjp, &
         bspline_eval_combined_jvp, bspline_eval_combined_vjp, &
-        bspline_eval_knots_jvp, bspline_eval_knots_vjp
+        bspline_eval_knots_jvp, bspline_eval_knots_vjp, &
+        bspline_fit_jvp_factored, bspline_fit_vjp_factored
+    use fortnum_linalg, only: lu_factor, lu_solve, LINALG_OK
     use fortnum_status, only: fortnum_status_t, FORTNUM_OK
     use fortnum_ad_test_utils, only: rel_err, fd_jvp_step, &
         check_smoothness, ad_status_t, AD_SMOOTH, AD_NONSMOOTH
@@ -35,6 +37,7 @@ program test_bspline_ad
     call test_span_boundary_nonsmooth(nfail)
     call test_coef_products(nfail)
     call test_knot_products(nfail)
+    call test_fit_products(nfail)
     call test_combined_products(nfail)
 
     if (nfail > 0) then
@@ -276,6 +279,65 @@ contains
             nfail = nfail + 1
         end if
     end subroutine test_knot_products
+
+    subroutine test_fit_products(nfail)
+        integer, intent(inout) :: nfail
+        integer, parameter :: n = 8
+        real(dp), parameter :: h = 1.0e-6_dp
+        type(bspline_workspace_t) :: ws
+        type(fortnum_status_t) :: s
+        real(dp), allocatable :: ignored(:)
+        real(dp) :: basis(n, n), factors(n, n), transpose_factors(n, n)
+        real(dp) :: dbasis(n, n), values(n), dvalues(n), coef(n), dcoef(n)
+        real(dp) :: plus_basis(n, n), minus_basis(n, n)
+        real(dp) :: plus_values(n), minus_values(n), plus_coef(n), minus_coef(n)
+        real(dp) :: cbar(n), basis_bar(n, n), values_bar(n), lhs, rhs
+        integer :: pivots(n), transpose_pivots(n), info, i, j
+
+        call setup(ws, ignored)
+        do i = 1, n
+            call bspline_eval_basis(ws, real(i - 1, dp)/real(n - 1, dp), &
+                basis(i, :), s)
+            coef(i) = sin(0.4_dp*real(i, dp))
+            dvalues(i) = 0.03_dp*real(mod(5*i, 7) - 3, dp)
+            cbar(i) = 0.05_dp*real(mod(3*i, 11) - 5, dp)
+            do j = 1, n
+                dbasis(i, j) = 0.002_dp*real(mod(3*i + 5*j, 13) - 6, dp)
+            end do
+        end do
+        values = matmul(basis, coef)
+        factors = basis
+        call lu_factor(n, factors, pivots, info)
+        if (info /= LINALG_OK) error stop "fit test factorization failed"
+        call bspline_fit_jvp_factored(factors, pivots, coef, dbasis, dvalues, &
+            dcoef, s)
+
+        plus_basis = basis + h*dbasis
+        minus_basis = basis - h*dbasis
+        plus_values = values + h*dvalues
+        minus_values = values - h*dvalues
+        plus_coef = plus_values
+        minus_coef = minus_values
+        call lu_solve(n, plus_basis, plus_coef, info)
+        call lu_solve(n, minus_basis, minus_coef, info)
+        if (maxval(abs(dcoef - (plus_coef - minus_coef)/(2.0_dp*h))) > &
+            3.0e-9_dp) then
+            write (error_unit, '(a)') "FAIL [fit_jvp]"
+            nfail = nfail + 1
+        end if
+
+        transpose_factors = transpose(basis)
+        call lu_factor(n, transpose_factors, transpose_pivots, info)
+        call bspline_fit_vjp_factored(transpose_factors, transpose_pivots, coef, &
+            cbar, basis_bar, values_bar, s)
+        lhs = dot_product(cbar, dcoef)
+        rhs = sum(basis_bar*dbasis) + dot_product(values_bar, dvalues)
+        if (rel_err(lhs, rhs) > 3.0e-13_dp) then
+            write (error_unit, '(a,es24.16,a,es24.16)') &
+                "FAIL [fit_adjoint] lhs=", lhs, " rhs=", rhs
+            nfail = nfail + 1
+        end if
+    end subroutine test_fit_products
 
     subroutine test_combined_products(nfail)
         integer, intent(inout) :: nfail
