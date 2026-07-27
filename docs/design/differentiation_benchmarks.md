@@ -117,12 +117,14 @@ after three warmups.
 
 | Candidate | Mechanism | Median ns/VJP | MAD ns/VJP | Peak RSS |
 |---|---|---:|---:|---:|
-| refactor transpose each VJP | `analytical` | 5,401.6115 | 55.3969 | 24,080,384 B |
-| reuse transposed primal LU | `analytical` | 1,207.9997 | 3.6217 | 23,900,160 B |
+| refactor transpose each VJP | `analytical` | 1,001.4936 | 2.9514 | 12,513,280 B |
+| reuse transposed primal LU | `analytical` | 341.5936 | 2.1059 | 12,578,816 B |
 
-Reusing the transpose factorization is 4.4715 times faster and its measured
-peak RSS is 180,224 bytes lower. As for the JVP benchmark, peak RSS includes the
-`fo exec` runner and is therefore an end-to-end process-tree measurement.
+Here “2.9318 times faster” compares the reuse row with the refactor row:
+`1001.4936 / 341.5936 = 2.9318`. Maximum observed candidate-process RSS is
+65,536 bytes higher for reuse. The target audit confirms this executable is
+built from `bench_linear_solve_vjp.f90`; its derivative oracle is the
+cotangent-contracted finite difference of the complete solve.
 
 The machine-readable record is
 `benchmark/reference/ryzen9_5950x_linear_solve_vjp_reuse.json`.
@@ -134,6 +136,8 @@ cd benchmark
 fo build
 taskset -c 4 fo exec bench_linear_solve_vjp refactor
 taskset -c 4 fo exec bench_linear_solve_vjp reuse
+fo exec bench_linear_solve_vjp refactor --peak-rss
+fo exec bench_linear_solve_vjp reuse --peak-rss
 ```
 
 ## Reusable preconditioner hook for implicit products

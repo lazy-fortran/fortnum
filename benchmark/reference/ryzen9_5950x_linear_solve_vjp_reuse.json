@@ -16,32 +16,34 @@
   "sampling": {
     "warmup_rounds": 3,
     "samples": 15,
-    "calls_per_sample": 200000
+    "calls_per_sample": 200000,
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum"
   },
   "validation": {
     "oracle": "central finite difference of cotangent-contracted complete solves in two directions",
     "absolute_tolerance": 2e-9
   },
-  "memory_method": "/usr/bin/time -v around taskset -c 4 fo exec",
+  "memory_method": "getrusage(RUSAGE_SELF) inside each separately launched candidate",
   "candidates": [
     {
       "id": "refactor_transpose_each_vjp",
       "mechanism": "analytical",
-      "median_ns_per_call": 5401.6115,
-      "mad_ns_per_call": 55.3969,
-      "peak_rss_bytes": 24080384
+      "median_ns_per_call": 1001.4936,
+      "mad_ns_per_call": 2.9514,
+      "peak_rss_bytes": 12513280
     },
     {
       "id": "reuse_transposed_primal_lu",
       "mechanism": "analytical",
-      "median_ns_per_call": 1207.9997,
-      "mad_ns_per_call": 3.6217,
-      "peak_rss_bytes": 23900160
+      "median_ns_per_call": 341.5936,
+      "mad_ns_per_call": 2.1059,
+      "peak_rss_bytes": 12578816
     }
   ],
   "selection": {
     "selected": "reuse_transposed_primal_lu",
-    "runtime_speedup": 4.4715,
-    "reason": "validated against the independent oracle, 4.4715x faster, and 180224 bytes lower in runner-inclusive peak RSS"
+    "runtime_speedup": 2.9318,
+    "reason": "validated against the independent oracle and 2.9318x faster; maximum observed candidate-process RSS is 65536 bytes higher"
   }
 }
