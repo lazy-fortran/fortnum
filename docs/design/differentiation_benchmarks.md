@@ -1030,6 +1030,68 @@ Cache counters explain part of the cost, but complete primal-plus-VJP wall
 clock is the selection criterion. The machine-readable record is
 `benchmark/reference/ryzen9_5950x_ode_recomputed_adjoint.json`.
 
+## Analytical implicit-stage tangent
+
+For a converged implicit stage
+
+\[
+Y-b-\alpha f(t,Y,p)=0,
+\]
+
+`ode_implicit_stage_jvp` applies the implicit function theorem:
+
+\[
+(I-\alpha f_Y)\dot Y=\dot b+\alpha f_p\dot p.
+\]
+
+The caller supplies \(f_Y\) at the converged stage and the contracted
+\(f_p\dot p\). The base tangent \(\dot b\) is the chain-rule interface for
+earlier stages. Direction columns share one LU factorization; the implementation
+does not differentiate the iterations used to find \(Y\).
+
+The independent oracle uses a diagonal linear RHS, for which each stage
+tangent has the closed form
+
+\[
+\dot Y_i =
+\frac{\dot b_i+\alpha(f_p\dot p)_i}{1+\alpha i}.
+\]
+
+The performance workload performs one primal implicit-stage solve plus all
+requested products. The diagnostic performs the same primal solve plus two
+complete perturbed stage solves per direction. A state count \(n\) has \(n\)
+outputs and \(2n\) active scalar inputs in the benchmark (the stage base and
+RHS parameter vector). Results are medians of three processes, each with 31
+samples of 20,000 complete workloads. Reference: AMD Ryzen 9 5950X, GNU
+Fortran 16.1.1, Release.
+
+| States | Active inputs | Outputs | Directions | Analytical ns | MAD ns | Diagnostic ns | MAD ns | Analytical speedup |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 2 | 1 | 1 | 190.9844 | 1.9252 | 265.6922 | 6.3099 | 1.3912x |
+| 4 | 8 | 4 | 1 | 509.7705 | 20.1941 | 801.2282 | 38.4515 | 1.5717x |
+| 16 | 32 | 16 | 1 | 10,425.4726 | 477.4802 | 15,860.3237 | 471.2975 | 1.5213x |
+| 4 | 8 | 4 | 4 | 767.9209 | 42.8282 | 2,231.5518 | 125.5390 | 2.9060x |
+| 4 | 8 | 4 | 16 | 1,673.7958 | 94.6358 | 8,164.0686 | 476.7889 | 4.8776x |
+
+Complete-workload wall clock selects `analytical` in every measured regime.
+At four states, increasing the direction count from one to sixteen grows the
+analytical workload by 3.2835 times but the diagnostic by 10.1894 times,
+because the analytical candidate reuses its factorization. Candidate-specific
+peak RSS for the largest measured 16-state, 16-direction workload is 3,592,192
+bytes for both candidates.
+
+For the four-state, sixteen-direction workload, `perf stat -r 3` reports:
+
+| Candidate | Cycles | Instructions | Cache references | Cache misses |
+|---|---:|---:|---:|---:|
+| analytical | 12,641,449,890 | 23,545,919,237 | 26,044,923 | 3,680,871 |
+| diagnostic | 41,489,332,033 | 129,013,319,067 | 25,051,384 | 3,006,351 |
+
+Cycles and instructions corroborate the wall-clock winner. Cache events have
+high dispersion for the analytical run and are diagnostic only; they do not
+override complete-workload wall clock. The machine-readable record is
+`benchmark/reference/ryzen9_5950x_ode_implicit_stage_tangent.json`.
+
 ## Vector-root candidate tournament
 
 The coupled vector tournament uses

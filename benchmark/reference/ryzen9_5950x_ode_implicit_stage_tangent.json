@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "implicit_ode_stage",
+  "product": "batched_jvp",
+  "workload": "one diagonal linear implicit-stage primal plus all requested tangent directions",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor"
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1",
+    "build": "Release"
+  },
+  "sampling": {
+    "processes": 3,
+    "samples_per_process": 31,
+    "workloads_per_sample": 20000,
+    "runtime_aggregation": "median of process medians",
+    "dispersion_aggregation": "median of within-process MADs",
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum",
+    "perf_repetitions": 3
+  },
+  "validation": {
+    "oracle": "componentwise closed form for a diagonal linear implicit stage",
+    "absolute_tolerance": 7.105427357601002e-15,
+    "singular_stage_rejected": true
+  },
+  "scaling": [
+    {"states": 1, "active_inputs": 2, "outputs": 1, "directions": 1, "analytical_median_ns": 190.9844, "analytical_mad_ns": 1.9252, "diagnostic_median_ns": 265.6922, "diagnostic_mad_ns": 6.3099, "analytical_speedup": 1.3912},
+    {"states": 4, "active_inputs": 8, "outputs": 4, "directions": 1, "analytical_median_ns": 509.7705, "analytical_mad_ns": 20.1941, "diagnostic_median_ns": 801.2282, "diagnostic_mad_ns": 38.4515, "analytical_speedup": 1.5717},
+    {"states": 16, "active_inputs": 32, "outputs": 16, "directions": 1, "analytical_median_ns": 10425.4726, "analytical_mad_ns": 477.4802, "diagnostic_median_ns": 15860.3237, "diagnostic_mad_ns": 471.2975, "analytical_speedup": 1.5213},
+    {"states": 4, "active_inputs": 8, "outputs": 4, "directions": 4, "analytical_median_ns": 767.9209, "analytical_mad_ns": 42.8282, "diagnostic_median_ns": 2231.5518, "diagnostic_mad_ns": 125.5390, "analytical_speedup": 2.9060},
+    {"states": 4, "active_inputs": 8, "outputs": 4, "directions": 16, "analytical_median_ns": 1673.7958, "analytical_mad_ns": 94.6358, "diagnostic_median_ns": 8164.0686, "diagnostic_mad_ns": 476.7889, "analytical_speedup": 4.8776}
+  ],
+  "memory": {
+    "states": 16,
+    "directions": 16,
+    "analytical_peak_rss_bytes": 3592192,
+    "diagnostic_peak_rss_bytes": 3592192
+  },
+  "perf": {
+    "states": 4,
+    "directions": 16,
+    "analytical": {"cycles": 12641449890, "instructions": 23545919237, "cache_references": 26044923, "cache_misses": 3680871},
+    "diagnostic": {"cycles": 41489332033, "instructions": 129013319067, "cache_references": 25051384, "cache_misses": 3006351}
+  },
+  "selection": {
+    "selected": "analytical",
+    "criterion": "complete primal-plus-all-directions wall clock",
+    "reason": "one implicit-stage Jacobian factorization is reused across all tangent directions"
+  }
+}

@@ -77,6 +77,11 @@ A recomputation-only candidate retains just the accepted schedule and initial
 state. It cuts retained trace storage by 59%, but repeated forward prefixes make
 the complete VJP 5.04 times slower; full trace remains selected by wall clock.
 
+Implicit ODE stages expose a batched `analytical` tangent solve for
+`stage - base - alpha*rhs = 0`. Reusing one stage-Jacobian factorization makes
+the measured four-state, sixteen-direction workload 4.88 times faster than
+complete-solve finite differences, with equal measured peak RSS.
+
 ## Build
 
 CMake is the primary build system with CTest integration:
