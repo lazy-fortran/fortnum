@@ -413,19 +413,32 @@ contains
     ! Generic analytical implicit adjoint boundary. First solve
     ! F_x^T*lambda=u, then evaluate and negate F_p^T*lambda.
     subroutine multiroot_implicit_vjp(state_jacobian, parameter_vjp, x, p, &
-            u, jtu, status, context)
+            u, jtu, status, context, reciprocal_condition, &
+            minimum_reciprocal_condition)
         procedure(multiroot_state_jacobian_t) :: state_jacobian
         procedure(multiroot_parameter_vjp_t) :: parameter_vjp
         real(dp), intent(in) :: x(:), p(:), u(:)
         real(dp), intent(out) :: jtu(:)
         type(fortnum_status_t), intent(out) :: status
         class(*), intent(inout), optional :: context
+        real(dp), intent(out), optional :: reciprocal_condition
+        real(dp), intent(in), optional :: minimum_reciprocal_condition
 
         real(dp) :: jac_x(size(x), size(x)), jac_x_t(size(x), size(x))
         real(dp) :: lambda(size(x)), f_p_t_lambda(size(p))
         integer :: ls_stat
+        logical :: reliable
 
         call state_jacobian(x, p, jac_x, context)
+        call assess_condition(jac_x, reciprocal_condition, &
+            minimum_reciprocal_condition, reliable)
+        if (.not. reliable) then
+            jtu = 0.0_dp
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "multiroot_implicit_vjp: ill-conditioned Jacobian; " // &
+                "derivative unreliable")
+            return
+        end if
         jac_x_t = transpose(jac_x)
         call solve_implicit_product(jac_x_t, u, lambda, ls_stat)
         if (ls_stat /= 0) then

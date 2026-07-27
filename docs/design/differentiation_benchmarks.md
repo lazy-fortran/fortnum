@@ -963,3 +963,47 @@ taskset -c 4 fo exec bench_multiroot_implicit_jvp_reliability reliability
 fo exec bench_multiroot_implicit_jvp_reliability plain --peak-rss
 fo exec bench_multiroot_implicit_jvp_reliability reliability --peak-rss
 ```
+
+## Reliability status at the implicit VJP boundary
+
+The callback-based `multiroot_implicit_vjp` now reports the same opt-in
+reliability information as its JVP counterpart. An independently known
+diagonal Jacobian with reciprocal condition `1e-8` is reported within `1e-22`,
+rejected by a `1e-6` threshold, and accepted by a `1e-9` threshold. Rejection
+zeroes the VJP and reports `FORTNUM_DOMAIN_ERROR`.
+
+The benchmark applies 10,000 cotangents per sample to a dense 16-state
+callback residual. Both rows evaluate the same state Jacobian, transposed
+implicit solve, and parameter VJP. The reliability row additionally requests
+the exact inverse-norm-based condition estimate and applies a passing
+threshold.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, GNU Fortran 16.1.1, Release build,
+15 samples after three warmups.
+
+| Candidate | Mechanism | Median ns/VJP | MAD ns/VJP | Peak RSS |
+|---|---|---:|---:|---:|
+| plain implicit VJP boundary | `analytical` | 1,348.4467 | 2.4196 | 12,197,888 B |
+| boundary plus reliability check | `analytical` | 16,751.9471 | 261.8053 | 12,275,712 B |
+
+Here “12.4231 times slower” means
+`16751.9471 / 1348.4467 = 12.4231`: reliability checking adds 15,403.5004 ns
+to the same VJP. It also adds 77,824 bytes of maximum observed self-process
+RSS. The plain product remains the repeated-cotangent selection; reliability
+is an explicit boundary diagnostic that callers should evaluate or cache
+outside hot loops.
+
+Peak memory is the maximum across five separately launched candidates,
+measured with `getrusage(RUSAGE_SELF)`. The machine-readable record is
+`benchmark/reference/ryzen9_5950x_multiroot_implicit_vjp_reliability.json`.
+
+Run the benchmark with:
+
+```bash
+cd benchmark
+fo build
+taskset -c 4 fo exec bench_multiroot_implicit_vjp_reliability plain
+taskset -c 4 fo exec bench_multiroot_implicit_vjp_reliability reliability
+fo exec bench_multiroot_implicit_vjp_reliability plain --peak-rss
+fo exec bench_multiroot_implicit_vjp_reliability reliability --peak-rss
+```

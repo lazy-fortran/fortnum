@@ -21,7 +21,7 @@ VJP boundaries for scalar and vector roots, analytical fixed-point and
 linear-solve products, real autodiff/analytical hybrid Dawson and scalar-root
 JVP/VJP boundaries, hybrid vector-root JVP/VJP candidates using Enzyme residual
 products, reusable converged vector-root Jacobians and JVP/VJP factorizations,
-opt-in vector-root JVP reliability reporting, and static benchmark-selected
+opt-in vector-root JVP/VJP reliability reporting, and static benchmark-selected
 candidates. Measured runtime, dispersion, peak memory, validation, hardware,
 and compiler evidence is committed in
 `docs/design/differentiation_benchmarks.md` and `benchmark/reference/`.

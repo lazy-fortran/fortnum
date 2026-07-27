@@ -53,6 +53,7 @@ program test_roots_ad
     call test_multiroot_implicit_tangent_boundary(nfail)
     call test_multiroot_implicit_jvp_reliability(nfail)
     call test_multiroot_implicit_adjoint_boundary(nfail)
+    call test_multiroot_implicit_vjp_reliability(nfail)
     call test_multiroot_factored_vjp_vs_fd(nfail)
     call test_multiroot_dot_product_id(nfail)
     call test_multiroot_singular(nfail)
@@ -612,6 +613,59 @@ contains
             nfail = nfail + 1
         end if
     end subroutine test_multiroot_implicit_adjoint_boundary
+
+    subroutine test_multiroot_implicit_vjp_reliability(nfail)
+        integer, intent(inout) :: nfail
+        real(dp) :: x(2), p(2), u(2), jtu(2), rcond
+        type(fortnum_status_t) :: st
+
+        x = [1.0_dp, 1.0e-8_dp]
+        p = 0.0_dp
+        u = [0.4_dp, -0.6_dp]
+        call multiroot_implicit_vjp(diagonal_state_jacobian, &
+            diagonal_parameter_vjp, x, p, u, jtu, st, &
+            reciprocal_condition=rcond, &
+            minimum_reciprocal_condition=1.0e-6_dp)
+        if (abs(rcond - 1.0e-8_dp) > 1.0e-22_dp) then
+            write (error_unit, '(a,es24.16)') &
+                "FAIL [implicit_vjp_reliability] rcond=", rcond
+            nfail = nfail + 1
+        end if
+        if (st%code /= FORTNUM_DOMAIN_ERROR .or. maxval(abs(jtu)) /= 0.0_dp) then
+            write (error_unit, '(a)') &
+                "FAIL [implicit_vjp_reliability] unreliable product accepted"
+            nfail = nfail + 1
+        end if
+
+        call multiroot_implicit_vjp(diagonal_state_jacobian, &
+            diagonal_parameter_vjp, x, p, u, jtu, st, &
+            minimum_reciprocal_condition=1.0e-9_dp)
+        if (.not. status_ok(st)) then
+            write (error_unit, '(a)') &
+                "FAIL [implicit_vjp_reliability] reliable product rejected"
+            nfail = nfail + 1
+        end if
+    end subroutine test_multiroot_implicit_vjp_reliability
+
+    subroutine diagonal_state_jacobian(x, p, jac_x, context)
+        real(dp), intent(in) :: x(:), p(:)
+        real(dp), intent(out) :: jac_x(size(x), size(x))
+        class(*), intent(inout), optional :: context
+
+        if (size(p) /= 2) error stop "diagonal residual expects two parameters"
+        jac_x = 0.0_dp
+        jac_x(1, 1) = x(1)
+        jac_x(2, 2) = x(2)
+    end subroutine diagonal_state_jacobian
+
+    subroutine diagonal_parameter_vjp(x, p, u, f_p_t_u, context)
+        real(dp), intent(in) :: x(:), p(:), u(:)
+        real(dp), intent(out) :: f_p_t_u(size(p))
+        class(*), intent(inout), optional :: context
+
+        if (size(x) /= 2) error stop "diagonal residual expects two states"
+        f_p_t_u = -u
+    end subroutine diagonal_parameter_vjp
 
     subroutine test_multiroot_factored_vjp_vs_fd(nfail)
         integer, intent(inout) :: nfail

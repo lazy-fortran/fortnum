@@ -71,7 +71,7 @@ independent validation plus measured application runtime and peak memory.
 - [x] Reuse converged root Jacobian factorizations for JVPs.
 - [x] Reuse converged transposed root Jacobian factorizations for VJPs.
 - [x] Report JVP reliability near singular root Jacobians.
-- [ ] Report VJP reliability near singular root Jacobians.
+- [x] Report VJP reliability near singular root Jacobians.
 - [ ] Benchmark analytical implicit, hybrid, autodiff-through-iterations, and
   finite-difference scalar-root candidates.
 - [ ] Benchmark analytical implicit, hybrid, autodiff-through-iterations, and

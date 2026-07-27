@@ -950,6 +950,16 @@ the converged transpose state Jacobian once. It solves
 factorization for multiple root cotangents. Invalid or singular factors report
 `FORTNUM_DOMAIN_ERROR`.
 
+#### `multiroot_implicit_vjp(... [, reciprocal_condition, minimum_reciprocal_condition])`
+
+The callback-based analytical or hybrid implicit VJP accepts the same opt-in
+reliability arguments as `multiroot_implicit_jvp`. `reciprocal_condition`
+returns the estimated reciprocal 1-norm condition of the converged state
+Jacobian. When `minimum_reciprocal_condition` is present and the estimate is
+smaller, `jtu` is zeroed and `status` reports `FORTNUM_DOMAIN_ERROR`. Request
+or cache the condition estimate at solver or optimization boundaries rather
+than repeating it for every cotangent.
+
 #### `deriv_central(f, x, h, result, abserr, status [, ctx])`
 
 ```fortran

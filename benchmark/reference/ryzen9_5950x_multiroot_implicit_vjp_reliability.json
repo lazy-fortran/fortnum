@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "vector_root_implicit_boundary",
+  "product": "vjp",
+  "workload": "dense 16-state residual callbacks and implicit VJP, 10000 varying cotangents per sample",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1",
+    "build": "Release"
+  },
+  "sampling": {
+    "warmup_rounds": 3,
+    "samples": 15,
+    "calls_per_sample": 10000,
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum"
+  },
+  "validation": {
+    "oracle": "diagonal Jacobian with exact reciprocal 1-norm condition 1e-8",
+    "absolute_condition_error_tolerance": 1e-22,
+    "rejected_threshold": 1e-6,
+    "accepted_threshold": 1e-9,
+    "rejection_status": "FORTNUM_DOMAIN_ERROR",
+    "rejection_product": "zero"
+  },
+  "memory_method": "getrusage(RUSAGE_SELF) inside each separately launched candidate",
+  "candidates": [
+    {
+      "id": "plain_implicit_vjp_boundary",
+      "mechanism": "analytical",
+      "median_ns_per_call": 1348.4467,
+      "mad_ns_per_call": 2.4196,
+      "peak_rss_bytes": 12197888
+    },
+    {
+      "id": "implicit_vjp_boundary_with_reliability",
+      "mechanism": "analytical",
+      "median_ns_per_call": 16751.9471,
+      "mad_ns_per_call": 261.8053,
+      "peak_rss_bytes": 12275712
+    }
+  ],
+  "selection": {
+    "selected_for_repeated_cotangents": "plain_implicit_vjp_boundary",
+    "runtime_overhead_factor": 12.4231,
+    "reason": "reliability checking is an explicit boundary diagnostic; it is 12.4231x slower and uses 77824 more bytes of maximum observed candidate-process RSS"
+  }
+}
