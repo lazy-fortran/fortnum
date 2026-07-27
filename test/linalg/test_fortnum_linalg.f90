@@ -5,9 +5,9 @@ program test_fortnum_linalg
     ! systems at several sizes including a pivot-required case, an inv3 cross
     ! check, and the singular-status contract for inv2/inv3/lu_solve.
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
-    use fortnum_linalg, only: det2, det3, inv2, inv3, jacobian_ok3, lu_solve, &
-        linear_solve_jvp, linear_solve_vjp, LINALG_OK, LINALG_SINGULAR, &
-        LINALG_MAX_N
+    use fortnum_linalg, only: det2, det3, inv2, inv3, jacobian_ok3, lu_factor, &
+        lu_solve, linear_solve_jvp, linear_solve_jvp_factored, linear_solve_vjp, &
+        LINALG_OK, LINALG_SINGULAR, LINALG_MAX_N
     implicit none
 
     integer :: nfail
@@ -203,10 +203,10 @@ contains
     subroutine test_linear_solve_products(nfail)
         integer, intent(inout) :: nfail
         real(dp), parameter :: h = 1.0e-6_dp
-        real(dp) :: a(3, 3), da(3, 3), b(3), db(3), x(3), dx(3)
+        real(dp) :: a(3, 3), da(3, 3), b(3), db(3), x(3), dx(3), dx_reused(3)
         real(dp) :: xp(3), xm(3), ap(3, 3), am(3, 3), bp(3), bm(3)
-        real(dp) :: u(3), abar(3, 3), bbar(3), lhs, rhs
-        integer :: info
+        real(dp) :: u(3), abar(3, 3), bbar(3), lhs, rhs, factors(3, 3)
+        integer :: info, ipiv(3)
 
         a = reshape([4.0_dp, 1.0_dp, -1.0_dp, &
             0.5_dp, 3.0_dp, 0.25_dp, &
@@ -221,6 +221,9 @@ contains
         x = b
         call lu_solve(3, ap, x, info)
         call linear_solve_jvp(3, a, x, da, db, dx, info)
+        factors = a
+        call lu_factor(3, factors, ipiv, info)
+        call linear_solve_jvp_factored(3, factors, ipiv, x, da, db, dx_reused, info)
 
         ap = a + h*da
         am = a - h*da
@@ -232,10 +235,26 @@ contains
         call lu_solve(3, am, xm, info)
         call check("linear_jvp_fd", &
             maxval(abs(dx - (xp - xm)/(2.0_dp*h))), 0.0_dp, 2.0e-9_dp, nfail)
+        call check("linear_jvp_reused_fd_1", &
+            maxval(abs(dx_reused - (xp - xm)/(2.0_dp*h))), 0.0_dp, 2.0e-9_dp, nfail)
+
+        da = 0.5_dp*da
+        db = [-0.1_dp, 0.4_dp, 0.2_dp]
+        call linear_solve_jvp_factored(3, factors, ipiv, x, da, db, dx_reused, info)
+        ap = a + h*da
+        am = a - h*da
+        bp = b + h*db
+        bm = b - h*db
+        xp = bp
+        xm = bm
+        call lu_solve(3, ap, xp, info)
+        call lu_solve(3, am, xm, info)
+        call check("linear_jvp_reused_fd_2", &
+            maxval(abs(dx_reused - (xp - xm)/(2.0_dp*h))), 0.0_dp, 2.0e-9_dp, nfail)
 
         u = [0.7_dp, -0.4_dp, 1.2_dp]
         call linear_solve_vjp(3, a, x, u, abar, bbar, info)
-        lhs = dot_product(u, dx)
+        lhs = dot_product(u, dx_reused)
         rhs = sum(abar*da) + dot_product(bbar, db)
         call check("linear_adjoint", lhs, rhs, 2.0e-14_dp, nfail)
     end subroutine test_linear_solve_products

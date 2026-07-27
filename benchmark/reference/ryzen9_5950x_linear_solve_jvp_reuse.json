@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "linear_solve",
+  "product": "jvp",
+  "workload": "16x16 dense system, 200000 directions per sample, primal LU reusable",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "gfortran": "16.1.1 20260625",
+    "cmake": "4.4.0",
+    "fortsym_commit": "15636e944b3b932283aff4f313c6a5f459d40692"
+  },
+  "sampling": {
+    "warmup_rounds": 3,
+    "samples": 15,
+    "calls_per_sample": 200000
+  },
+  "validation": {
+    "oracle": "central finite difference of the complete solve in two directions",
+    "absolute_tolerance": 2e-9
+  },
+  "memory_method": "/usr/bin/time -v around taskset -c 4 fo exec",
+  "candidates": [
+    {
+      "id": "refactor_each_jvp",
+      "mechanism": "analytical",
+      "median_ns_per_call": 4863.9215,
+      "mad_ns_per_call": 82.1883,
+      "peak_rss_bytes": 23453696
+    },
+    {
+      "id": "reuse_primal_lu",
+      "mechanism": "analytical",
+      "median_ns_per_call": 813.4458,
+      "mad_ns_per_call": 4.2406,
+      "peak_rss_bytes": 23977984
+    }
+  ],
+  "selection": {
+    "selected": "reuse_primal_lu",
+    "runtime_speedup": 5.9794,
+    "reason": "validated against the independent oracle and 5.9794x faster; runner-inclusive peak RSS is 524288 bytes higher"
+  }
+}
