@@ -1,8 +1,9 @@
 module adaptive_frozen_trace_kernel
     use, intrinsic :: iso_c_binding, only: c_double, c_funloc, c_funptr
-    use adaptive_integrand_autodiff, only: integrand_jvp
-    use fortnum_integrate, only: integrate_workspace_t, integrate_result_t, &
-        integrate_qag, integrate_qag_jvp
+    use adaptive_integrand_autodiff, only: integrand_jvp, singular_integrand_jvp
+    use fortnum_integrate, only: integrate_workspace_t, integrate_epstab_t, &
+        integrate_result_t, integrate_qag, integrate_qag_jvp, integrate_qags, &
+        integrate_qags_jvp
     use fortnum_kinds, only: dp
     use fortnum_status, only: fortnum_status_t, status_ok
     implicit none
@@ -25,6 +26,25 @@ module adaptive_frozen_trace_kernel
         0.1903505780647854099132564024210_dp, &
         0.2044329400752988924141619992346_dp, &
         0.2094821410847278280129991748917_dp]
+    real(dp), parameter :: xgk21(11) = [ &
+        0.9956571630258080807355272806890_dp, 0.9739065285171717200779640120845_dp, &
+        0.9301574913557082260012071800595_dp, 0.8650633666889845107320966884235_dp, &
+        0.7808177265864168970637175783450_dp, 0.6794095682990244062343273651149_dp, &
+        0.5627571346686046833390000992727_dp, 0.4333953941292471907992659431658_dp, &
+        0.2943928627014601981311266031039_dp, 0.1488743389816312108848260011297_dp, &
+        0.0_dp]
+    real(dp), parameter :: wgk21(11) = [ &
+        0.01169463886737187427806439606219_dp, 0.03255816230796472747881897245939_dp, &
+        0.05475589657435199603138130024458_dp, 0.07503967481091995276704314091619_dp, &
+        0.09312545458369760553506546508337_dp, 0.1093871588022976418992105903258_dp, &
+        0.1234919762620658510779581098311_dp, 0.1347092173114733259280540017717_dp, &
+        0.1427759385770600807970942731387_dp, 0.1477391049013384913748415159721_dp, &
+        0.1494455540029169056649364683898_dp]
+    integer, parameter :: singular_trace_n = 6
+    real(dp), parameter :: singular_trace_a(singular_trace_n) = [ &
+        0.0_dp, 0.03125_dp, 0.0625_dp, 0.125_dp, 0.25_dp, 0.5_dp]
+    real(dp), parameter :: singular_trace_b(singular_trace_n) = [ &
+        0.03125_dp, 0.0625_dp, 0.125_dp, 0.25_dp, 0.5_dp, 1.0_dp]
 
     type :: parameter_t
         real(dp) :: value
@@ -33,6 +53,10 @@ module adaptive_frozen_trace_kernel
     public :: analytical_value_jvp, compact_analytical_value_jvp
     public :: autodiff_value_jvp, hybrid_value_jvp, compact_hybrid_value_jvp
     public :: diagnostic_value_jvp, exact_jvp
+    public :: singular_analytical_value_jvp, singular_compact_analytical_value_jvp
+    public :: singular_autodiff_value_jvp, singular_hybrid_value_jvp
+    public :: singular_compact_hybrid_value_jvp, singular_diagnostic_value_jvp
+    public :: singular_exact_jvp
 
     interface
         function enzyme_fwddiff(f, p, dp_seed) result(derivative) &
@@ -90,6 +114,52 @@ contains
         end do
         value = half_length*value
     end function panel_tangent_value
+
+    function singular_frozen_trace_value(p) result(value) &
+            bind(c, name="fortnum_singular_frozen_trace_value")
+        real(c_double), value :: p
+        real(c_double) :: value
+        integer :: panel
+
+        value = 0.0_dp
+        do panel = 1, singular_trace_n
+            value = value + singular_panel_value(p, singular_trace_a(panel), &
+                singular_trace_b(panel))
+        end do
+    end function singular_frozen_trace_value
+
+    pure function singular_panel_value(p, a, b) result(value)
+        real(dp), intent(in) :: p, a, b
+        real(dp) :: value, center, half_length, offset
+        integer :: node
+
+        center = 0.5_dp*(a + b)
+        half_length = 0.5_dp*(b - a)
+        value = wgk21(11)*exp(p)/sqrt(center)
+        do node = 1, 10
+            offset = half_length*xgk21(node)
+            value = value + wgk21(node)*exp(p)*( &
+                1.0_dp/sqrt(center - offset) + 1.0_dp/sqrt(center + offset))
+        end do
+        value = half_length*value
+    end function singular_panel_value
+
+    function singular_panel_hybrid_tangent(p, a, b) result(value)
+        real(dp), intent(in) :: p, a, b
+        real(dp) :: value, center, half_length, offset
+        integer :: node
+
+        center = 0.5_dp*(a + b)
+        half_length = 0.5_dp*(b - a)
+        value = wgk21(11)*singular_integrand_jvp(center, p)
+        do node = 1, 10
+            offset = half_length*xgk21(node)
+            value = value + wgk21(node)*( &
+                singular_integrand_jvp(center - offset, p) + &
+                singular_integrand_jvp(center + offset, p))
+        end do
+        value = half_length*value
+    end function singular_panel_hybrid_tangent
 
     function panel_hybrid_tangent_value(p, a, b) result(value)
         real(dp), intent(in) :: p, a, b
@@ -202,6 +272,133 @@ contains
             /(2.0_dp*h)
     end function diagnostic_value_jvp
 
+    function singular_analytical_value_jvp(p) result(derivative)
+        real(dp), intent(in) :: p
+        real(dp) :: derivative
+        type(parameter_t) :: parameter
+        type(integrate_workspace_t) :: workspace
+        type(integrate_result_t) :: result
+        type(fortnum_status_t) :: status
+
+        parameter%value = p
+        call build_singular_trace(parameter, workspace, result, status)
+        call configure_singular_trace(result, status)
+        call integrate_qags_jvp(singular_tangent_integrand, result, derivative, &
+            status, ctx=parameter)
+        if (.not. status_ok(status)) error stop "singular analytical JVP failed"
+    end function singular_analytical_value_jvp
+
+    function singular_compact_analytical_value_jvp(p) result(derivative)
+        real(dp), intent(in) :: p
+        real(dp) :: derivative
+        type(parameter_t) :: parameter
+        type(integrate_workspace_t) :: workspace
+        type(integrate_result_t) :: result
+        type(fortnum_status_t) :: status
+
+        parameter%value = p
+        call build_singular_trace(parameter, workspace, result, status)
+        call configure_singular_trace(result, status)
+        derivative = singular_frozen_trace_value(p)
+    end function singular_compact_analytical_value_jvp
+
+    function singular_autodiff_value_jvp(p) result(derivative)
+        real(dp), intent(in) :: p
+        real(dp) :: derivative
+        type(parameter_t) :: parameter
+        type(integrate_workspace_t) :: workspace
+        type(integrate_result_t) :: result
+        type(fortnum_status_t) :: status
+
+        parameter%value = p
+        call build_singular_trace(parameter, workspace, result, status)
+        call configure_singular_trace(result, status)
+        derivative = enzyme_fwddiff(c_funloc(singular_frozen_trace_value), p, &
+            1.0_dp)
+    end function singular_autodiff_value_jvp
+
+    function singular_hybrid_value_jvp(p) result(derivative)
+        real(dp), intent(in) :: p
+        real(dp) :: derivative
+        type(parameter_t) :: parameter
+        type(integrate_workspace_t) :: workspace
+        type(integrate_result_t) :: result
+        type(fortnum_status_t) :: status
+
+        parameter%value = p
+        call build_singular_trace(parameter, workspace, result, status)
+        call configure_singular_trace(result, status)
+        call integrate_qags_jvp(singular_autodiff_tangent_integrand, result, &
+            derivative, status, ctx=parameter)
+        if (.not. status_ok(status)) error stop "singular hybrid JVP failed"
+    end function singular_hybrid_value_jvp
+
+    function singular_compact_hybrid_value_jvp(p) result(derivative)
+        real(dp), intent(in) :: p
+        real(dp) :: derivative
+        type(parameter_t) :: parameter
+        type(integrate_workspace_t) :: workspace
+        type(integrate_result_t) :: result
+        type(fortnum_status_t) :: status
+        integer :: panel
+
+        parameter%value = p
+        call build_singular_trace(parameter, workspace, result, status)
+        call configure_singular_trace(result, status)
+        derivative = 0.0_dp
+        do panel = 1, singular_trace_n
+            derivative = derivative + singular_panel_hybrid_tangent(p, &
+                singular_trace_a(panel), singular_trace_b(panel))
+        end do
+    end function singular_compact_hybrid_value_jvp
+
+    function singular_diagnostic_value_jvp(p) result(derivative)
+        real(dp), intent(in) :: p
+        real(dp), parameter :: h = 1.0e-6_dp
+        real(dp) :: derivative
+        type(parameter_t) :: parameter
+        type(integrate_workspace_t) :: workspace
+        type(integrate_result_t) :: result
+        type(fortnum_status_t) :: status
+
+        parameter%value = p
+        call build_singular_trace(parameter, workspace, result, status)
+        call configure_singular_trace(result, status)
+        derivative = (singular_frozen_trace_value(p + h) - &
+            singular_frozen_trace_value(p - h))/(2.0_dp*h)
+    end function singular_diagnostic_value_jvp
+
+    subroutine build_singular_trace(parameter, workspace, result, status)
+        type(parameter_t), intent(in) :: parameter
+        type(integrate_workspace_t), intent(inout) :: workspace
+        type(integrate_result_t), intent(inout) :: result
+        type(fortnum_status_t), intent(out) :: status
+        type(integrate_epstab_t) :: epstab
+
+        call integrate_qags(singular_primal_integrand, 0.0_dp, 1.0_dp, &
+            0.0_dp, 1.0e-10_dp, workspace, epstab, result, status, &
+            ctx=parameter)
+    end subroutine build_singular_trace
+
+    subroutine configure_singular_trace(result, status)
+        type(integrate_result_t), intent(in) :: result
+        type(fortnum_status_t), intent(in) :: status
+
+        if (.not. status_ok(status)) error stop "singular QAGS trace failed"
+        if (result%nsub /= singular_trace_n) &
+            error stop "unexpected singular QAGS trace size"
+        if (any(result%sub_a(1:singular_trace_n) /= singular_trace_a) .or. &
+            any(result%sub_b(1:singular_trace_n) /= singular_trace_b)) &
+            error stop "singular QAGS trace panels changed"
+    end subroutine configure_singular_trace
+
+    pure function singular_exact_jvp(p) result(derivative)
+        real(dp), intent(in) :: p
+        real(dp) :: derivative
+
+        derivative = 2.0_dp*exp(p)
+    end function singular_exact_jvp
+
     subroutine build_trace(parameter, workspace, result, status)
         type(parameter_t), intent(in) :: parameter
         type(integrate_workspace_t), intent(inout) :: workspace
@@ -279,6 +476,45 @@ contains
         end select
     end function autodiff_tangent_integrand
 
+    function singular_primal_integrand(x, context) result(value)
+        real(dp), intent(in) :: x
+        class(*), intent(in), optional :: context
+        real(dp) :: value
+
+        select type (context)
+            type is (parameter_t)
+            value = exp(context%value)/sqrt(x)
+        class default
+            error stop "missing singular parameter"
+        end select
+    end function singular_primal_integrand
+
+    function singular_tangent_integrand(x, context) result(value)
+        real(dp), intent(in) :: x
+        class(*), intent(in), optional :: context
+        real(dp) :: value
+
+        select type (context)
+            type is (parameter_t)
+            value = exp(context%value)/sqrt(x)
+        class default
+            error stop "missing singular parameter"
+        end select
+    end function singular_tangent_integrand
+
+    function singular_autodiff_tangent_integrand(x, context) result(value)
+        real(dp), intent(in) :: x
+        class(*), intent(in), optional :: context
+        real(dp) :: value
+
+        select type (context)
+            type is (parameter_t)
+            value = singular_integrand_jvp(x, context%value)
+        class default
+            error stop "missing singular parameter"
+        end select
+    end function singular_autodiff_tangent_integrand
+
 end module adaptive_frozen_trace_kernel
 
 program enzyme_adaptive_frozen_trace_jvp
@@ -287,6 +523,10 @@ program enzyme_adaptive_frozen_trace_jvp
     use adaptive_frozen_trace_kernel, only: analytical_value_jvp, &
         compact_analytical_value_jvp, autodiff_value_jvp, hybrid_value_jvp, &
         compact_hybrid_value_jvp, diagnostic_value_jvp, exact_jvp
+    use adaptive_frozen_trace_kernel, only: singular_analytical_value_jvp, &
+        singular_compact_analytical_value_jvp, singular_autodiff_value_jvp, &
+        singular_hybrid_value_jvp, singular_compact_hybrid_value_jvp, &
+        singular_diagnostic_value_jvp, singular_exact_jvp
     implicit none
 
     interface
@@ -304,6 +544,12 @@ program enzyme_adaptive_frozen_trace_jvp
     call get_command_argument(2, candidate)
     if (trim(argument) == "--tournament") then
         call run_tournament()
+    else if (trim(argument) == "--singular-tournament") then
+        call run_singular_tournament()
+    else if (trim(argument) == "--singular-benchmark") then
+        call run_singular_benchmark(trim(candidate))
+    else if (trim(argument) == "--singular-peak-rss") then
+        call run_singular_peak_rss(trim(candidate))
     else if (trim(argument) == "--benchmark") then
         call run_benchmark(trim(candidate))
     else if (trim(argument) == "--peak-rss") then
@@ -321,6 +567,7 @@ program enzyme_adaptive_frozen_trace_jvp
             print *, "adaptive frozen-trace JVP mismatch", errors
             error stop 1
         end if
+        call validate_singular_candidates()
         print *, "PASS adaptive frozen-trace autodiff JVP", errors
     end if
 
@@ -351,6 +598,119 @@ contains
                 reps)
         end do
     end subroutine run_tournament
+
+    subroutine run_singular_tournament()
+        integer, parameter :: candidate_count = 6, samples = 31
+        integer(int64), parameter :: reps = 2000_int64
+        character(20), parameter :: names(candidate_count) = [ &
+            character(20) :: "analytical", "analytical_compact", "autodiff", &
+            "hybrid", "hybrid_compact", "diagnostic"]
+        real(dp) :: elapsed(candidate_count, samples), sink
+        integer :: candidate_index, order_index, sample
+
+        call validate_singular_candidates()
+        do candidate_index = 1, candidate_count
+            call time_singular_candidate(names(candidate_index), reps/10_int64, &
+                sink)
+        end do
+        do sample = 1, samples
+            do order_index = 1, candidate_count
+                candidate_index = 1 + mod(sample + order_index - 2, &
+                    candidate_count)
+                call time_singular_candidate(names(candidate_index), reps, &
+                    elapsed(candidate_index, sample))
+            end do
+        end do
+        do candidate_index = 1, candidate_count
+            call report(names(candidate_index), elapsed(candidate_index, :), reps)
+        end do
+    end subroutine run_singular_tournament
+
+    subroutine run_singular_benchmark(name)
+        character(*), intent(in) :: name
+        integer, parameter :: samples = 15
+        integer(int64), parameter :: reps = 5000_int64
+        real(dp) :: elapsed(samples), sink
+        integer :: sample
+
+        call validate_singular_name(name)
+        do sample = 1, 3
+            call time_singular_candidate(name, reps/10_int64, sink)
+        end do
+        do sample = 1, samples
+            call time_singular_candidate(name, reps, elapsed(sample))
+        end do
+        call report(name, elapsed, reps)
+    end subroutine run_singular_benchmark
+
+    subroutine run_singular_peak_rss(name)
+        character(*), intent(in) :: name
+        integer(int64), parameter :: reps = 5000_int64
+        real(dp) :: elapsed
+
+        call validate_singular_name(name)
+        call time_singular_candidate(name, reps, elapsed)
+        write (*, "(i0)") peak_rss_bytes()
+    end subroutine run_singular_peak_rss
+
+    subroutine validate_singular_name(name)
+        character(*), intent(in) :: name
+
+        if ((name /= "analytical") .and. (name /= "analytical_compact") .and. &
+            (name /= "autodiff") .and. (name /= "hybrid") .and. &
+            (name /= "hybrid_compact") .and. (name /= "diagnostic")) then
+            error stop "unknown singular adaptive candidate"
+        end if
+    end subroutine validate_singular_name
+
+    subroutine validate_singular_candidates()
+        real(dp) :: values(6), reference
+
+        reference = singular_diagnostic_value_jvp(0.7_dp)
+        values(1) = singular_analytical_value_jvp(0.7_dp)
+        values(2) = singular_compact_analytical_value_jvp(0.7_dp)
+        values(3) = singular_autodiff_value_jvp(0.7_dp)
+        values(4) = singular_hybrid_value_jvp(0.7_dp)
+        values(5) = singular_compact_hybrid_value_jvp(0.7_dp)
+        values(6) = reference
+        if (maxval(abs(values(1:5) - reference)) > 2.0e-8_dp .or. &
+            abs(reference - singular_exact_jvp(0.7_dp)) > 2.0e-2_dp) then
+            print *, "singular frozen-trace JVP mismatch", values - reference
+            error stop 1
+        end if
+    end subroutine validate_singular_candidates
+
+    subroutine time_singular_candidate(name, reps, elapsed_ns)
+        character(*), intent(in) :: name
+        integer(int64), intent(in) :: reps
+        real(dp), intent(out) :: elapsed_ns
+        integer(int64) :: iteration, start, finish, rate
+        real(dp) :: p, sink
+
+        sink = 0.0_dp
+        call system_clock(start, rate)
+        do iteration = 1, reps
+            p = 0.7_dp
+            select case (name)
+            case ("analytical")
+                sink = sink + singular_analytical_value_jvp(p)
+            case ("analytical_compact")
+                sink = sink + singular_compact_analytical_value_jvp(p)
+            case ("autodiff")
+                sink = sink + singular_autodiff_value_jvp(p)
+            case ("hybrid")
+                sink = sink + singular_hybrid_value_jvp(p)
+            case ("hybrid_compact")
+                sink = sink + singular_compact_hybrid_value_jvp(p)
+            case ("diagnostic")
+                sink = sink + singular_diagnostic_value_jvp(p)
+            end select
+        end do
+        call system_clock(finish)
+        elapsed_ns = 1.0e9_dp*real(finish - start, dp)/ &
+            (real(rate, dp)*real(reps, dp))
+        if (sink == huge(sink)) print *, sink
+    end subroutine time_singular_candidate
 
     subroutine run_benchmark(name)
         character(*), intent(in) :: name
