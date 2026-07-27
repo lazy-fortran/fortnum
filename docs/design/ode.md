@@ -268,6 +268,10 @@ under #40 checks transversality before propagating an event sensitivity.
   walk. The checkpoint stride is an inactive derivative control. The current
   builder compresses an existing full trace, so it reduces retained reverse
   storage but not the peak memory already reached by the primal.
+- Recomputation only: `ode_build_recompute_trace` retains the accepted `t` and
+  `h` schedule plus `y0`. `ode_integrate_vjp_recomputed` reconstructs the
+  forward prefix from `y0` for every backward step. This uses constant state
+  storage beyond the scalar schedule, at quadratic work in the step count.
 
 These names follow ad.md §2 (`foo_jvp`, `foo_vjp`). The primal `ode_integrate`
 and `ode_solve` signatures in sections 4 and 5 remain unchanged.

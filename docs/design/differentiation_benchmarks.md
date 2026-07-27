@@ -991,6 +991,45 @@ selected candidate for this short trajectory. Wall clock remains decisive.
 The machine-readable record is
 `benchmark/reference/ryzen9_5950x_ode_checkpointed_adjoint.json`.
 
+## Recomputation-only Cash–Karp adjoint
+
+`ode_build_recompute_trace` retains only the accepted time and step-size
+schedule plus the initial state. `ode_integrate_vjp_recomputed` reconstructs
+the complete forward prefix from the initial state for every backward step,
+then applies the same analytical discrete-adjoint step as the full-trace
+candidate. This is \(O(n^2)\) work for \(n\) accepted steps and constant state
+storage beyond the scalar schedule. The test deallocates the original full
+state trace before reverse evaluation and validates against both the full-trace
+VJP and the independent \(\exp(A^Tt)u\) oracle.
+
+The workload is the same 41-step, two-state linear Cash–Karp trajectory used by
+the full-trace and checkpoint tournaments. Timings include primal integration,
+trace compression, all recomputation, and the VJP. Results are medians of three
+processes with 31 samples of 1,000 complete workloads. Reference: AMD Ryzen 9
+5950X, GNU Fortran 16.1.1, Release.
+
+| Candidate | Median ns/primal+VJP | MAD ns | Retained trace | Peak RSS |
+|---|---:|---:|---:|---:|
+| full trace | 20,714.4100 | 662.9200 | 1,664 B | 5,464,064 B |
+| recompute from initial state | 104,315.1290 | 2,145.7030 | 680 B | 5,427,200 B |
+
+Complete-workload wall clock selects the full trace. Recomputation is 5.0359
+times slower, although it reduces retained trace storage by 59.13%. The
+measured peak RSS is effectively unchanged because the current primal first
+constructs the full state trace and only then compresses it. Thus the candidate
+does not provide an application-level memory benefit in its current form.
+
+Linux `perf stat -r 3` corroborates the repeated-work cost:
+
+| Candidate | Cycles | Instructions | Cache references | Cache misses |
+|---|---:|---:|---:|---:|
+| full trace | 2,960,420,406 | 10,991,705,927 | 20,377,560 | 341,733 |
+| recompute from initial state | 14,870,500,020 | 64,689,586,708 | 33,537,737 | 1,308,877 |
+
+Cache counters explain part of the cost, but complete primal-plus-VJP wall
+clock is the selection criterion. The machine-readable record is
+`benchmark/reference/ryzen9_5950x_ode_recomputed_adjoint.json`.
+
 ## Vector-root candidate tournament
 
 The coupled vector tournament uses

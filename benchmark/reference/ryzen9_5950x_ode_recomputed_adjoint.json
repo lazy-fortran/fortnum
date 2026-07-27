@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "cash_karp_recomputed_discrete_adjoint",
+  "product": "scalar_objective_vjp",
+  "workload": "41-step two-state linear Cash-Karp trace, complete primal plus reverse VJP",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor"
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1",
+    "build": "Release"
+  },
+  "sampling": {
+    "processes": 3,
+    "samples_per_process": 31,
+    "workloads_per_sample": 1000,
+    "runtime_aggregation": "median of process medians",
+    "dispersion_aggregation": "median of within-process MADs",
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum",
+    "perf_repetitions": 3
+  },
+  "validation": {
+    "oracle": "exp(transpose(A)*t)*terminal_cotangent",
+    "full_trace_identity": true,
+    "absolute_tolerance": 2e-8
+  },
+  "candidates": [
+    {"id": "full_trace", "mechanism": "analytical", "median_ns": 20714.4100, "mad_ns": 662.9200, "peak_rss_bytes": 5464064, "retained_trace_bytes": 1664, "cycles": 2960420406, "instructions": 10991705927, "cache_references": 20377560, "cache_misses": 341733},
+    {"id": "recompute_from_initial_state", "mechanism": "analytical", "median_ns": 104315.1290, "mad_ns": 2145.7030, "peak_rss_bytes": 5427200, "retained_trace_bytes": 680, "cycles": 14870500020, "instructions": 64689586708, "cache_references": 33537737, "cache_misses": 1308877}
+  ],
+  "selection": {
+    "selected": "full_trace",
+    "criterion": "complete primal-plus-VJP wall clock",
+    "recompute_slowdown": 5.0359,
+    "retained_trace_reduction": 0.5913,
+    "reason": "recomputation retains only schedule and initial state but repeats the forward prefix for every reverse step, increasing wall clock by five times without reducing the full-primal high-water RSS"
+  }
+}
