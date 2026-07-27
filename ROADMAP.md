@@ -158,7 +158,7 @@ independent validation plus measured application runtime and peak memory.
   generated numerical-kernel banner.
 - [x] Regenerate Dawson, determinant, and inverse kernels with current module,
   purity, line-wrapping, operation-count, and `fo` regeneration metadata.
-- [ ] Add a temporary-directory regeneration check that byte-compares every
+- [x] Add a temporary-directory regeneration check that byte-compares every
   committed generated numerical kernel.
 - [ ] Run generated-source drift checking in CTest and CI.
 - [ ] Record compiler flags, native symbol size, `fortsym` revision, and

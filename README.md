@@ -18,7 +18,9 @@ production sources are committed under `src/generated/`. The
 `tools/codegen/fortsym.lock` file pins the generator dependency, and every
 generated numerical kernel records that full revision in its banner. Generated
 modules use pure procedures where valid, current `fortsym` line wrapping, and
-`fo exec` regeneration commands.
+`fo exec` regeneration commands. Run `tools/codegen/check_generated.sh` from
+its directory to regenerate into a temporary directory and byte-compare all
+committed numerical kernels.
 
 Current derivative infrastructure includes generic analytical implicit JVP and
 VJP boundaries for scalar and vector roots, analytical fixed-point and

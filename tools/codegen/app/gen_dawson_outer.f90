@@ -9,11 +9,10 @@ program gen_dawson_outer
         operation_count_t, KERNEL_SUBROUTINE
     use fortsym_engine, only: engine_result_t
     use fortsym_engine_symengine, only: symengine_engine_t, make_symengine_engine
-    use fortnum_codegen_provenance, only: fortsym_revision
+    use fortnum_codegen_provenance, only: fortsym_revision, generated_path
     implicit none
 
-    character(*), parameter :: output = &
-        "../../src/generated/fortnum_dawson_outer_kernel.f90"
+    character(:), allocatable :: output
     type(arena_t), target :: arena
     type(symengine_engine_t) :: engine
     type(expr_t) :: x, f, v, value, roots(2), candidate(2)
@@ -25,6 +24,7 @@ program gen_dawson_outer
 
     call arena%init()
     engine = make_symengine_engine(arena)
+    output = generated_path("fortnum_dawson_outer_kernel.f90")
     x = sym(arena, "x")
     f = sym(arena, "f")
     v = sym(arena, "v")

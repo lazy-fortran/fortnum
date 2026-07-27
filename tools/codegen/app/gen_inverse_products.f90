@@ -7,7 +7,7 @@ program gen_inverse_products
         operation_count_t, KERNEL_SUBROUTINE
     use fortsym_engine, only: engine_result_t
     use fortsym_engine_symengine, only: symengine_engine_t, make_symengine_engine
-    use fortnum_codegen_provenance, only: fortsym_revision
+    use fortnum_codegen_provenance, only: fortsym_revision, generated_path
     implicit none
 
     type(arena_t), target :: arena
@@ -16,16 +16,16 @@ program gen_inverse_products
     call arena%init()
     engine = make_symengine_engine(arena)
     call generate_kernel(2, .false., &
-        "../../src/generated/fortnum_inv2_jvp_kernel.f90", &
+        generated_path("fortnum_inv2_jvp_kernel.f90"), &
         "fortnum_inv2_jvp_kernel", "fortnum_generated_inv2_jvp")
     call generate_kernel(3, .false., &
-        "../../src/generated/fortnum_inv3_jvp_kernel.f90", &
+        generated_path("fortnum_inv3_jvp_kernel.f90"), &
         "fortnum_inv3_jvp_kernel", "fortnum_generated_inv3_jvp")
     call generate_kernel(2, .true., &
-        "../../src/generated/fortnum_inv2_vjp_kernel.f90", &
+        generated_path("fortnum_inv2_vjp_kernel.f90"), &
         "fortnum_inv2_vjp_kernel", "fortnum_generated_inv2_vjp")
     call generate_kernel(3, .true., &
-        "../../src/generated/fortnum_inv3_vjp_kernel.f90", &
+        generated_path("fortnum_inv3_vjp_kernel.f90"), &
         "fortnum_inv3_vjp_kernel", "fortnum_generated_inv3_vjp")
 
 contains

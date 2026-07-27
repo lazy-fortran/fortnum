@@ -227,6 +227,12 @@ and 315 for each 2 by 2 and 3 by 3 inverse product. Warm regeneration takes
 0.01 s per generator group with 43,364 KB to 44,240 KB peak RSS. The
 normalization changes no arithmetic statements.
 
+`tools/codegen/check_generated.sh` builds the generators once, writes all nine
+kernels to a fresh temporary directory, and byte-compares them with
+`src/generated/`. It leaves the committed files untouched. A complete warm
+check takes 1.33 s and 289,780 KB peak RSS on the reference host. This is
+development tooling and adds no production runtime or memory cost.
+
 ## 8. Selection and dispatch
 
 Each product is selected independently. A fast Jacobian implementation does not
