@@ -102,6 +102,9 @@ Small determinant products now expose `fortsym`-generated analytical JVPs.
 For a complete 3x3 determinant value plus 64 directional products, analytical
 takes 1.198 µs versus 2.208 µs for central finite differences, a 1.843×
 wall-clock win with no derivative-workspace allocation.
+The matching scalar-output VJP returns all nine 3x3 input sensitivities in
+29.01 ns versus 159.54 ns for componentwise finite differences, a 5.50×
+complete-workload wall-clock win.
 
 The ODE forward sensitivity now has an explicit continuous contract: it
 approximates the variational IVP at fixed terminal time on the primal's frozen

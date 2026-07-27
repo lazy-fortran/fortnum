@@ -14,8 +14,8 @@ module fortnum_linalg
     ! LINALG_OK == FORTNUM_OK == 0, so host callers map the flag trivially.
     !
     ! DERIVATIVE POLICY (ad.md S1): det2/det3 have fortsym-generated analytical
-    !   JVP candidates. inv2/inv3/jacobian_ok3 remain primal-only standalone
-    !   algebra. lu_solve realises the linear map x = A^{-1} b; the
+    !   JVP and VJP candidates. inv2/inv3/jacobian_ok3 remain primal-only
+    !   standalone algebra. lu_solve realises the linear map x = A^{-1} b; the
     !   implicit/linear-solve rule (d x = A^{-1}(d b - dA x)) belongs to the
     !   consumer that owns A and b, not to the in-place factorisation here.
     !   Do not differentiate through the elimination.
@@ -25,7 +25,9 @@ module fortnum_linalg
     ! jacobian_ok (|det| > 1e-8 * scale**rank, scale = sqrt(sum(A**2))).
     use fortnum_kinds, only: dp
     use fortnum_generated_det2_jvp, only: fortnum_det2_jvp_kernel
+    use fortnum_generated_det2_vjp, only: fortnum_det2_vjp_kernel
     use fortnum_generated_det3_jvp, only: fortnum_det3_jvp_kernel
+    use fortnum_generated_det3_vjp, only: fortnum_det3_vjp_kernel
     implicit none
     private
 
@@ -44,7 +46,8 @@ module fortnum_linalg
     ! the FO Boris guard so the chartmap inversion behaviour is preserved.
     real(dp), parameter :: SING_TOL_REL = 1.0e-8_dp
 
-    public :: det2, det3, det2_jvp, det3_jvp, inv2, inv3, jacobian_ok3
+    public :: det2, det3, det2_jvp, det3_jvp, det2_vjp, det3_vjp
+    public :: inv2, inv3, jacobian_ok3
     public :: lu_factor, lu_solve_factored, lu_solve
     public :: linear_solve_jvp, linear_solve_jvp_factored
     public :: linear_solve_vjp, linear_solve_vjp_factored
@@ -90,6 +93,28 @@ contains
             va(1, 1), va(2, 1), va(3, 1), va(1, 2), va(2, 2), va(3, 2), &
             va(1, 3), va(2, 3), va(3, 3), jv)
     end subroutine det3_jvp
+
+    ! Fortsym-generated analytical transpose product for det2.
+    pure subroutine det2_vjp(a, u, abar)
+        !$acc routine seq
+        real(dp), intent(in) :: a(2, 2), u
+        real(dp), intent(out) :: abar(2, 2)
+
+        call fortnum_det2_vjp_kernel(a(1, 1), a(2, 1), a(1, 2), a(2, 2), u, &
+            abar(1, 1), abar(2, 1), abar(1, 2), abar(2, 2))
+    end subroutine det2_vjp
+
+    ! Fortsym-generated analytical transpose product for det3.
+    pure subroutine det3_vjp(a, u, abar)
+        !$acc routine seq
+        real(dp), intent(in) :: a(3, 3), u
+        real(dp), intent(out) :: abar(3, 3)
+
+        call fortnum_det3_vjp_kernel(a(1, 1), a(2, 1), a(3, 1), &
+            a(1, 2), a(2, 2), a(3, 2), a(1, 3), a(2, 3), a(3, 3), u, &
+            abar(1, 1), abar(2, 1), abar(3, 1), abar(1, 2), abar(2, 2), &
+            abar(3, 2), abar(1, 3), abar(2, 3), abar(3, 3))
+    end subroutine det3_vjp
 
     ! Near-singular predicate for a 3x3 Jacobian, byte-identical to the FO
     ! Boris guard: reject NaN, then require |det| above a scale-cubed floor.

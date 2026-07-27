@@ -60,13 +60,63 @@ and run a sample with:
 
 ```bash
 cd tools/codegen
-fo exec gen_determinant_jvp
+fo exec gen_determinant_products
 cd ../..
 fo test test_determinant_jvp
 taskset -c 4 env FORTNUM_DET_ACTION=--benchmark \
     FORTNUM_DET_CANDIDATE=analytical FORTNUM_DET_SIZE=3 \
     FORTNUM_DET_DIRECTIONS=64 FORTNUM_DET_ITERATIONS=100000 \
     fo exec --no-build test_determinant_jvp
+```
+
+## Small determinant VJP
+
+`det2_vjp` and `det3_vjp` map one scalar output cotangent to every active matrix
+entry. The timed workload computes one primal determinant value and one complete
+VJP. The diagnostic computes the same value and perturbs every active input in
+both directions: eight primal evaluations for 2x2 and eighteen for 3x3. The
+independent oracle is componentwise central difference; the adjoint identity
+against the JVP is a second check. No determinant `autodiff` or `hybrid`
+candidate exists yet.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, GNU Fortran 16.1.1, Release build.
+Each row is the median of 31 independently launched samples containing one
+million complete workloads.
+
+| Matrix | Active inputs | Scalar outputs | Returned sensitivities | Primal ns | Analytical ns | MAD ns | Diagnostic ns | MAD ns | Analytical speedup |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 2x2 | 4 | 1 | 4 | 11.2129 | 13.3300 | 0.0558 | 54.5745 | 0.2007 | 4.0941x |
+| 3x3 | 9 | 1 | 9 | 11.8311 | 29.0132 | 0.1587 | 159.5405 | 0.5109 | 5.4989x |
+
+The 3x3 workload selects `analytical` on complete wall-clock time. Maximum
+process RSS across five launches was 4,255,744 bytes for analytical and
+4,268,032 bytes for the diagnostic. Both candidates use fixed stack storage and
+allocate no derivative workspace.
+
+Linux `perf stat -r 3` over ten million 3x3 workloads measured:
+
+| Candidate | Cycles/workload | Instructions/workload | Cache references/workload | Cache misses/workload |
+|---|---:|---:|---:|---:|
+| `analytical` | 128.803 | 502.399 | 0.020 | 0.005 |
+| diagnostic | 749.721 | 2,474.399 | 0.096 | 0.021 |
+
+The diagnostic executes 4.925 times as many instructions and takes 5.499 times
+as long. Unlike the JVP cache sample, counter dispersion is below 7%; the
+wall-clock result still determines selection.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_determinant_vjp.json`. Run validation and one
+sample with:
+
+```bash
+cd tools/codegen
+fo exec gen_determinant_products
+cd ../..
+fo test test_determinant_vjp
+taskset -c 4 env FORTNUM_DET_VJP_ACTION=--benchmark \
+    FORTNUM_DET_VJP_CANDIDATE=analytical FORTNUM_DET_VJP_SIZE=3 \
+    FORTNUM_DET_VJP_ITERATIONS=1000000 \
+    fo exec --no-build test_determinant_vjp
 ```
 
 ## Dawson outer-expression JVP
