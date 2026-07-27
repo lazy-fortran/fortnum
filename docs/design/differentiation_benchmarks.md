@@ -561,6 +561,46 @@ taskset -c 4 \
     --benchmark autodiff
 ```
 
+## Hybrid integrand JVP inside the frozen trace
+
+The adaptive `hybrid` candidate keeps the accepted subdivision and
+Gauss-Kronrod trace walk analytical while Enzyme forward mode supplies the
+local derivative of `exp(p*x)` at each frozen node. It uses the same adaptive
+primal, three-panel identity check, closed-form oracle, compiler, and
+10,000-workload timing scope as the preceding frozen-trace comparison.
+
+| Candidate | Mechanism | Median ns/value+JVP | MAD ns | Peak RSS |
+|---|---|---:|---:|---:|
+| generic explicit-tangent trace replay | `analytical` | 2,564.1478 | 39.2610 | 2,715,648 B |
+| Enzyme integrand JVP + generic trace replay | `hybrid` | 2,604.6500 | 25.3158 | 2,957,312 B |
+| Enzyme through compact fixed trace | `autodiff` | 1,306.9523 | 2.4366 | 2,547,712 B |
+| frozen weighted-sum central difference | diagnostic | 1,423.0742 | 6.0043 | 2,580,480 B |
+
+The `hybrid` is 1.0158 times slower than explicit `analytical` integrand
+products and 1.9929 times slower than compact trace `autodiff`. This isolates
+the interface cost: replacing the explicit local derivative with Enzyme barely
+changes complete wall clock, while both generic trace-walk candidates retain
+the expensive panel error bookkeeping. The later smooth-adaptive tournament
+should test a compact analytical/hybrid replay before selecting a production
+winner.
+
+Linux `perf stat -r 5` for the hybrid process records 98,243,999 cycles,
+222,301,272 instructions, 721,774 cache references, and 23,962 cache misses
+(3.3199%). Cache references varied by 29% across repetitions and remain
+diagnostic. Complete-workload wall clock selects the existing compact
+`autodiff` candidate for this workload class.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_integrate_frozen_hybrid_jvp.json`.
+
+Run the hybrid benchmark with:
+
+```bash
+taskset -c 4 \
+    build-enzyme/test/ad/enzyme_adaptive_frozen_trace_jvp.enzyme/enzyme_adaptive_frozen_trace_jvp \
+    --benchmark hybrid
+```
+
 ## Vector-root candidate tournament
 
 The coupled vector tournament uses

@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "adaptive_qag_frozen_trace",
+  "product": "value_plus_jvp",
+  "workload": "adaptive integral of exp(p*x) on [0,1], p near 12, key 15, three-panel accepted trace, 10000 varying parameters per sample",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "enzyme_commit": "c96508349d9f",
+    "build": "Release -O2"
+  },
+  "sampling": {
+    "warmup_rounds": 3,
+    "samples": 15,
+    "workloads_per_sample": 10000,
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum",
+    "perf_repetitions": 5
+  },
+  "validation": {
+    "oracle": "closed-form derivative of the exactly integrated exponential",
+    "trace_panels": [[0.0, 0.5], [0.5, 0.75], [0.75, 1.0]],
+    "hybrid_absolute_tolerance": 1e-7,
+    "trace_identity_checked": true
+  },
+  "timing_scope": "adaptive primal trace construction plus derivative product",
+  "candidate": {
+    "id": "enzyme_integrand_jvp_generic_trace_replay",
+    "mechanism": "hybrid",
+    "median_ns_per_value_plus_jvp": 2604.6500,
+    "mad_ns_per_value_plus_jvp": 25.3158,
+    "peak_rss_bytes": 2957312,
+    "cycles": 98243999,
+    "instructions": 222301272,
+    "cache_references": 721774,
+    "cache_misses": 23962
+  },
+  "comparators": {
+    "analytical_ns_per_value_plus_jvp": 2564.1478,
+    "autodiff_ns_per_value_plus_jvp": 1306.9523,
+    "diagnostic_ns_per_value_plus_jvp": 1423.0742
+  },
+  "selection": {
+    "selected": "enzyme_fixed_weighted_sum",
+    "criterion": "complete value-plus-derivative wall clock",
+    "hybrid_slowdown_vs_analytical": 1.0158,
+    "hybrid_slowdown_vs_autodiff": 1.9929,
+    "reason": "the hybrid passes the oracle but the generic trace walk dominates its wall clock"
+  }
+}

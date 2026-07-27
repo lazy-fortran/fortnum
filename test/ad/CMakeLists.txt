@@ -182,6 +182,7 @@ if(FORTNUM_ENABLE_ENZYME)
             ${CMAKE_SOURCE_DIR}/src/quadrature/fortnum_integrate_gk.f90
             ${CMAKE_SOURCE_DIR}/src/quadrature/fortnum_integrate.f90
             ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/adaptive_integrand_jvp.f90
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/adaptive_frozen_trace_jvp.f90
         MODE forward
         OPT_LEVEL O2)
