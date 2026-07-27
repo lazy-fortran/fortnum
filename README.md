@@ -123,6 +123,9 @@ interface rather than the selected hot-loop implementation.
 The matching multiple-cotangent adjoint interface reuses one transposed
 factorization. At 16 cotangents, repeated scalar VJPs take 18.925 µs versus
 20.401 µs batched, so repeated scalar remains selected by wall clock.
+A real forward-Enzyme comparator differentiates a 4×4 direct elimination
+kernel. For 16 value-plus-JVP directions, analytical implicit differentiation
+takes 0.774 µs, finite differences 0.982 µs, and `autodiff` 2.719 µs.
 
 The ODE forward sensitivity now has an explicit continuous contract: it
 approximates the variational IVP at fixed terminal time on the primal's frozen

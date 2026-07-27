@@ -406,6 +406,63 @@ taskset -c 4 env FORTNUM_JVP_MANY_ACTION=--benchmark \
     fo exec --no-build test_linear_solve_jvp_many
 ```
 
+## Forward-autodiff direct-solver JVP
+
+This tournament differentiates a fixed 4x4 direct elimination kernel with
+forward Enzyme. The complete workload returns the primal solution and one
+vector JVP per direction. The `analytical` candidate solves
+\(A\,dx=db-dA\,x\); the diagnostic uses two perturbed complete solves.
+All candidates agree with the analytical implicit result and a central
+finite-difference oracle.
+
+The current interoperable Enzyme boundary returns one scalar solution component
+per differentiated call. Recovering the four-component JVP therefore requires
+four forward-autodiff sweeps per direction. This is part of the measured
+interface cost, not excluded kernel overhead.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, Flang/LLVM/Enzyme 22, `-O2`.
+Rows are medians of 31 independently launched CTest samples with 20,000
+complete workloads.
+
+| Directions | Analytical ns | MAD ns | Autodiff ns | MAD ns | Diagnostic ns | MAD ns | Selected |
+|---:|---:|---:|---:|---:|---:|---:|---|
+| 1 | 55.3112 | 3.0086 | 189.4243 | 5.4333 | 72.1650 | 3.6218 | `analytical` |
+| 4 | 207.7022 | 9.1838 | 720.9454 | 14.4998 | 257.4344 | 6.8599 | `analytical` |
+| 16 | 773.7058 | 14.4652 | 2,719.0076 | 76.7951 | 982.2762 | 26.9302 | `analytical` |
+
+All three candidates scale linearly in direction count. At 16 directions,
+`analytical` is 3.5143 times faster than `autodiff` and 1.2696 times faster
+than the diagnostic. Forward `autodiff` is 2.7681 times slower than central
+differences for this interface.
+
+Maximum process RSS across five launches was 2,965,504 bytes for analytical,
+2,789,376 bytes for autodiff, and 2,772,992 bytes for the diagnostic. No
+candidate allocates direction-sized workspace; process-level differences are
+not algorithmic memory results.
+
+Linux `perf stat -r 3` over 200,000 sixteen-direction workloads measured:
+
+| Candidate | Cycles/workload | Instructions/workload | Cache references/workload | Cache misses/workload |
+|---|---:|---:|---:|---:|
+| `analytical` | 3,427.365 | 6,564.963 | 5.526 | 0.938 |
+| `autodiff` | 11,900.171 | 30,596.968 | 6.058 | 0.963 |
+| diagnostic | 4,371.518 | 9,252.961 | 6.566 | 1.013 |
+
+Wall clock selects `analytical`; cache counters are supporting evidence only.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_direct_solver_jvp_enzyme.json`. Validate with
+`ctest --test-dir build-enzyme -R enzyme_direct_solver_jvp`. Reproduce one
+benchmark sample without invoking a build-tree binary directly:
+
+```bash
+env FORTNUM_DIRECT_SOLVER_ACTION=--benchmark \
+    FORTNUM_DIRECT_SOLVER_CANDIDATE=autodiff \
+    FORTNUM_DIRECT_SOLVER_DIRECTIONS=16 \
+    FORTNUM_DIRECT_SOLVER_ITERATIONS=20000 \
+    ctest --test-dir build-enzyme -V -R '^enzyme_direct_solver_jvp$'
+```
+
 ## Multiple-right-hand-side adjoint solves
 
 `linear_solve_vjp_factored_many` accepts several output cotangents and reuses

@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "direct_linear_solve",
+  "product": "value_plus_jvp",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "autodiff": "Enzyme 22",
+    "optimization": "O2"
+  },
+  "sampling": {
+    "independent_processes": 31,
+    "workloads_per_process": 20000,
+    "runtime_aggregation": "median",
+    "dispersion": "median absolute deviation",
+    "memory_processes_per_candidate": 5,
+    "perf_repetitions": 3
+  },
+  "validation": {
+    "primary_oracle": "analytical implicit JVP A*dx=db-dA*x",
+    "independent_oracle": "central differences of complete primal solves",
+    "directions_checked": 16,
+    "autodiff_absolute_tolerance": 2e-12,
+    "diagnostic_absolute_tolerance": 2e-10
+  },
+  "scaling": [
+    {
+      "directions": 1,
+      "analytical_median_ns": 55.311200,
+      "analytical_mad_ns": 3.008600,
+      "autodiff_median_ns": 189.424250,
+      "autodiff_mad_ns": 5.433250,
+      "diagnostic_median_ns": 72.164950,
+      "diagnostic_mad_ns": 3.621800
+    },
+    {
+      "directions": 4,
+      "analytical_median_ns": 207.702200,
+      "analytical_mad_ns": 9.183800,
+      "autodiff_median_ns": 720.945350,
+      "autodiff_mad_ns": 14.499800,
+      "diagnostic_median_ns": 257.434400,
+      "diagnostic_mad_ns": 6.859900
+    },
+    {
+      "directions": 16,
+      "analytical_median_ns": 773.705750,
+      "analytical_mad_ns": 14.465200,
+      "autodiff_median_ns": 2719.007600,
+      "autodiff_mad_ns": 76.795100,
+      "diagnostic_median_ns": 982.276200,
+      "diagnostic_mad_ns": 26.930200
+    }
+  ],
+  "memory": {
+    "directions": 16,
+    "analytical_peak_rss_bytes": 2965504,
+    "autodiff_peak_rss_bytes": 2789376,
+    "diagnostic_peak_rss_bytes": 2772992
+  },
+  "perf": {
+    "directions": 16,
+    "workloads_per_repetition": 200000,
+    "analytical": {
+      "cycles_per_workload": 3427.365,
+      "instructions_per_workload": 6564.963,
+      "cache_references_per_workload": 5.526,
+      "cache_misses_per_workload": 0.938
+    },
+    "autodiff": {
+      "cycles_per_workload": 11900.171,
+      "instructions_per_workload": 30596.968,
+      "cache_references_per_workload": 6.058,
+      "cache_misses_per_workload": 0.963
+    },
+    "diagnostic": {
+      "cycles_per_workload": 4371.518,
+      "instructions_per_workload": 9252.961,
+      "cache_references_per_workload": 6.566,
+      "cache_misses_per_workload": 1.013
+    }
+  },
+  "selection": {
+    "selected": "analytical",
+    "criterion": "complete value-plus-JVP wall clock",
+    "directions": 16,
+    "speedup_over_autodiff": 3.5143,
+    "speedup_over_diagnostic": 1.2696,
+    "reason": "the implicit tangent needs one additional solve per direction"
+  }
+}
