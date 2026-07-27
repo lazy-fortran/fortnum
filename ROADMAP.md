@@ -122,7 +122,7 @@ independent validation plus measured application runtime and peak memory.
 - [x] Add an analytical inverse JVP for callers that require an inverse.
 - [x] Add an analytical inverse VJP for callers that require an inverse.
 - [x] Add a reusable LU factorization object.
-- [ ] Add multiple-right-hand-side tangent solves.
+- [x] Add multiple-right-hand-side tangent solves.
 - [ ] Add multiple-right-hand-side adjoint solves.
 - [ ] Add a forward-mode autodiff direct-solver JVP comparator.
 - [ ] Add a reverse-mode autodiff direct-solver VJP comparator.

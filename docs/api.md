@@ -1086,6 +1086,10 @@ type(lu_factorization_t) :: factorization
 call factorization%factor(a, info)  ! stores factors and pivots
 call factorization%solve(b, info)   ! overwrites b; object remains reusable
 
+pure subroutine linear_solve_jvp_factored_many( &
+    n, direction_count, factors, pivots, x, da, db, dx, info)
+    ! da(n,n,direction_count), db/dx(n,direction_count)
+
 pure subroutine lu_solve(n, a, b, info)
     integer,  intent(in)    :: n               ! 1 <= n <= LINALG_MAX_N
     real(dp), intent(inout) :: a(n, n)         ! overwritten with LU factors

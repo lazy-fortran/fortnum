@@ -116,6 +116,10 @@ A fixed-capacity `lu_factorization_t` now owns reusable LU factors and pivots.
 For the measured 16×16 solve workload its type-bound solve takes 1.118 µs
 versus 1.104 µs for the raw factored API, so raw reuse remains the hot-loop
 winner while the object provides safer ownership.
+Analytical linear-solve JVPs also accept multiple directions over one reused
+factorization. On the 16×16 workload, repeated scalar products remain faster:
+12.835 µs versus 22.584 µs for 16 directions, so batching is a convenience
+interface rather than the selected hot-loop implementation.
 
 The ODE forward sensitivity now has an explicit continuous contract: it
 approximates the variational IVP at fixed terminal time on the primal's frozen
