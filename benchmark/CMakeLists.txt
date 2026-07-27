@@ -34,6 +34,10 @@ add_library(bench_core STATIC
     ${FORTNUM_CORE_DIR}/fortnum_status.f90
     ${FORTNUM_CORE_DIR}/fortnum_version.f90
     ${FORTNUM_CORE_DIR}/generated/fortnum_dawson_outer_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_dawson_outer_jvp_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_dawson_outer_value_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_dawson_outer_value_vjp_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_dawson_outer_vjp_kernel.f90
     ${FORTNUM_CORE_DIR}/generated/fortnum_det2_jvp_kernel.f90
     ${FORTNUM_CORE_DIR}/generated/fortnum_det2_vjp_kernel.f90
     ${FORTNUM_CORE_DIR}/generated/fortnum_det3_jvp_kernel.f90
@@ -63,6 +67,10 @@ target_link_libraries(bench_main PRIVATE bench_core)
 # adds real JVP/VJP/grad/HVP entries as the derivative products land.
 add_executable(bench_ad_overheads bench_ad_overheads.f90)
 target_link_libraries(bench_ad_overheads PRIVATE bench_core)
+
+add_executable(bench_dawson_generated_family
+    bench_dawson_generated_family.f90)
+target_link_libraries(bench_dawson_generated_family PRIVATE bench_core)
 
 add_executable(bench_linear_solve_jvp bench_linear_solve_jvp.f90)
 target_link_libraries(bench_linear_solve_jvp PRIVATE bench_core)

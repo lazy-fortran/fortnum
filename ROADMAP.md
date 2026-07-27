@@ -188,7 +188,7 @@ composition with at least one analytical rule.
 - [x] Run generated-source drift checking in CTest and CI.
 - [x] Record compiler flags, native symbol size, `fortsym` revision, and
   structural operation counts in relevant benchmark records.
-- [ ] Generate fused value/JVP, fused value/VJP, separate JVP/VJP, and
+- [x] Generate fused value/JVP, fused value/VJP, separate JVP/VJP, and
   contracted products from one symbolic DAG.
 
 ## Reliable performance-portable GPU execution
