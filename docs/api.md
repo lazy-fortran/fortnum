@@ -1037,7 +1037,8 @@ closed-form inverses, the failing pivot column `k > 0` for `lu_solve`).
 `LINALG_MAX_N` is the documented upper bound for `lu_solve`.
 
 Policy: determinant JVPs and VJPs are `fortsym`-generated `analytical`
-contracted products. `inv2`/`inv3`/`jacobian_ok3` remain primal-only.
+contracted products. `inv2_jvp` and `inv3_jvp` fuse the guarded primal inverse
+with the generated analytical product. `jacobian_ok3` remains primal-only.
 `lu_solve` realises x = A^{-1} b, whose linear-solve sensitivity belongs to the
 consumer that owns A and b, not to the in-place factorisation.
 
@@ -1058,6 +1059,16 @@ pure subroutine inv2(a, ainv, info)
 pure subroutine inv3(a, ainv, info)
     real(dp), intent(in)  :: a(3, 3)
     real(dp), intent(out) :: ainv(3, 3)
+    integer,  intent(out) :: info
+
+pure subroutine inv2_jvp(a, va, ainv, vainv, info)
+    real(dp), intent(in)  :: a(2, 2), va(2, 2)
+    real(dp), intent(out) :: ainv(2, 2), vainv(2, 2)
+    integer,  intent(out) :: info
+
+pure subroutine inv3_jvp(a, va, ainv, vainv, info)
+    real(dp), intent(in)  :: a(3, 3), va(3, 3)
+    real(dp), intent(out) :: ainv(3, 3), vainv(3, 3)
     integer,  intent(out) :: info
 
 pure subroutine lu_solve(n, a, b, info)

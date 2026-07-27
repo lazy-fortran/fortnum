@@ -105,6 +105,10 @@ wall-clock win with no derivative-workspace allocation.
 The matching scalar-output VJP returns all nine 3x3 input sensitivities in
 29.01 ns versus 159.54 ns for componentwise finite differences, a 5.50×
 complete-workload wall-clock win.
+For callers that require an explicit inverse, the fused 3x3 inverse-plus-JVP
+uses the analytical identity `dAinv = -Ainv*dA*Ainv`: 125.08 ns versus
+160.00 ns for a nominal inverse plus central differences, a 1.279× wall-clock
+win.
 
 The ODE forward sensitivity now has an explicit continuous contract: it
 approximates the variational IVP at fixed terminal time on the primal's frozen

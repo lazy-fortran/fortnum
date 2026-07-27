@@ -99,6 +99,10 @@ add_executable(test_determinant_vjp test_determinant_vjp.f90)
 target_link_libraries(test_determinant_vjp PRIVATE fortnum)
 add_test(NAME ad_determinant_vjp COMMAND test_determinant_vjp)
 
+add_executable(test_inverse_jvp test_inverse_jvp.f90)
+target_link_libraries(test_inverse_jvp PRIVATE fortnum)
+add_test(NAME ad_inverse_jvp COMMAND test_inverse_jvp)
+
 add_executable(test_ode_continuous_sensitivity
     test_ode_continuous_sensitivity.f90)
 target_link_libraries(test_ode_continuous_sensitivity PRIVATE fortnum)
@@ -198,6 +202,8 @@ if(FORTNUM_ENABLE_ENZYME)
             ${CMAKE_SOURCE_DIR}/src/generated/fortnum_det2_vjp_kernel.f90
             ${CMAKE_SOURCE_DIR}/src/generated/fortnum_det3_jvp_kernel.f90
             ${CMAKE_SOURCE_DIR}/src/generated/fortnum_det3_vjp_kernel.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_inv2_jvp_kernel.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_inv3_jvp_kernel.f90
             ${CMAKE_SOURCE_DIR}/src/linalg/fortnum_linalg.f90
             ${CMAKE_SOURCE_DIR}/src/roots/fortnum_multiroot.f90
             ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
@@ -213,6 +219,8 @@ if(FORTNUM_ENABLE_ENZYME)
             ${CMAKE_SOURCE_DIR}/src/generated/fortnum_det2_vjp_kernel.f90
             ${CMAKE_SOURCE_DIR}/src/generated/fortnum_det3_jvp_kernel.f90
             ${CMAKE_SOURCE_DIR}/src/generated/fortnum_det3_vjp_kernel.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_inv2_jvp_kernel.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_inv3_jvp_kernel.f90
             ${CMAKE_SOURCE_DIR}/src/linalg/fortnum_linalg.f90
             ${CMAKE_SOURCE_DIR}/src/roots/fortnum_multiroot.f90
             ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
@@ -260,6 +268,8 @@ if(FORTNUM_ENABLE_ENZYME)
             ${CMAKE_SOURCE_DIR}/src/generated/fortnum_det2_vjp_kernel.f90
             ${CMAKE_SOURCE_DIR}/src/generated/fortnum_det3_jvp_kernel.f90
             ${CMAKE_SOURCE_DIR}/src/generated/fortnum_det3_vjp_kernel.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_inv2_jvp_kernel.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_inv3_jvp_kernel.f90
             ${CMAKE_SOURCE_DIR}/src/linalg/fortnum_linalg.f90
             ${CMAKE_SOURCE_DIR}/src/ode/fortnum_ode_cash_karp.f90
             ${CMAKE_SOURCE_DIR}/src/ode/fortnum_ode.f90
