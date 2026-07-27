@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "multiroot_implicit",
+  "product": "jvp",
+  "workload": "16x16 dense residual Jacobian, 200000 parameter directions per sample",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "gfortran": "16.1.1 20260625",
+    "cmake": "4.4.0",
+    "fortsym_commit": "15636e944b3b932283aff4f313c6a5f459d40692"
+  },
+  "sampling": {
+    "warmup_rounds": 3,
+    "samples": 15,
+    "calls_per_sample": 200000
+  },
+  "validation": {
+    "oracle": "central finite difference of the complete root solve and cotangent contraction",
+    "absolute_tolerance": 1e-7,
+    "reused_context_call_count": 2
+  },
+  "memory_method": "/usr/bin/time -v around taskset -c 4 fo exec",
+  "candidates": [
+    {
+      "id": "default_dense_solve",
+      "mechanism": "analytical",
+      "median_ns_per_call": 2967.4902,
+      "mad_ns_per_call": 38.2232,
+      "peak_rss_bytes": 23982080
+    },
+    {
+      "id": "diagonal_preconditioned_hook",
+      "mechanism": "analytical",
+      "median_ns_per_call": 5338.7971,
+      "mad_ns_per_call": 166.7145,
+      "peak_rss_bytes": 23887872
+    }
+  ],
+  "selection": {
+    "selected": "default_dense_solve",
+    "preconditioned_runtime_ratio": 1.7991,
+    "reason": "both candidates validate; diagonal preconditioning does not reduce direct-solve work and is 1.7991x slower on this dense workload"
+  }
+}

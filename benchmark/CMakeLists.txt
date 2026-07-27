@@ -28,8 +28,10 @@ set(FORTNUM_CORE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../src)
 # ninja rejects ("multiple rules generate include/fortnum_version.mod").
 add_library(bench_core STATIC
     ${FORTNUM_CORE_DIR}/fortnum_kinds.f90
+    ${FORTNUM_CORE_DIR}/fortnum_status.f90
     ${FORTNUM_CORE_DIR}/fortnum_version.f90
     ${FORTNUM_CORE_DIR}/linalg/fortnum_linalg.f90
+    ${FORTNUM_CORE_DIR}/roots/fortnum_multiroot.f90
     fortnum_benchmark.f90
 )
 
@@ -46,3 +48,6 @@ target_link_libraries(bench_linear_solve_jvp PRIVATE bench_core)
 
 add_executable(bench_linear_solve_vjp bench_linear_solve_vjp.f90)
 target_link_libraries(bench_linear_solve_vjp PRIVATE bench_core)
+
+add_executable(bench_multiroot_preconditioner bench_multiroot_preconditioner.f90)
+target_link_libraries(bench_multiroot_preconditioner PRIVATE bench_core)

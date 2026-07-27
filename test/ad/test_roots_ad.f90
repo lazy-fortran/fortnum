@@ -21,6 +21,11 @@ program test_roots_ad
         multiroot_vjp, multiroot_grad
     implicit none
 
+    type :: diagonal_preconditioner_t
+        real(dp) :: inverse_diagonal(2)
+        integer :: calls = 0
+    end type diagonal_preconditioner_t
+
     ! p_solve is shared between solve_x2mp and f_x2mp via host association.
     real(dp) :: p_solve
     ! p_mr is shared between solve_mr and fdf_mr via host association.
@@ -39,6 +44,7 @@ program test_roots_ad
     call test_multiroot_jvp_vs_fd(nfail)
     call test_multiroot_dot_product_id(nfail)
     call test_multiroot_singular(nfail)
+    call test_multiroot_preconditioner_hook(nfail)
 
     if (nfail > 0) then
         write (error_unit, '(i0,a)') nfail, " test(s) failed"
@@ -316,6 +322,73 @@ contains
             end if
         end do
     end subroutine test_multiroot_jvp_vs_fd
+
+    subroutine test_multiroot_preconditioner_hook(nfail)
+        integer, intent(inout) :: nfail
+        real(dp), parameter :: h = 1.0e-5_dp
+        real(dp) :: jac_x(2, 2), f_p(2, 2), tp(2), u(2)
+        real(dp) :: dx(2), jtu(2), dx_fd(2), xp(2), xm(2), pbase(2)
+        real(dp) :: lhs, rhs
+        type(diagonal_preconditioner_t) :: preconditioner
+        type(fortnum_status_t) :: st
+
+        pbase = [2.0_dp, 2.0_dp]
+        jac_x = reshape([2.0_dp, 1.0_dp, 1.0_dp, 2.0_dp], [2, 2])
+        f_p = reshape([-1.0_dp, 0.0_dp, 0.0_dp, -1.0_dp], [2, 2])
+        tp = [0.3_dp, -0.5_dp]
+        u = [1.7_dp, -0.4_dp]
+        preconditioner%inverse_diagonal = [0.5_dp, 0.5_dp]
+
+        call multiroot_jvp(jac_x, f_p, tp, dx, st, diagonal_solve, preconditioner)
+        call solve_mr(pbase + h*tp, xp)
+        call solve_mr(pbase - h*tp, xm)
+        dx_fd = (xp - xm)/(2.0_dp*h)
+        if (maxval(abs(dx - dx_fd)) > 1.0e-7_dp) then
+            write (error_unit, '(a)') "FAIL [mr_preconditioner] JVP vs FD"
+            nfail = nfail + 1
+        end if
+
+        call multiroot_vjp(jac_x, f_p, u, jtu, st, diagonal_solve, preconditioner)
+        lhs = dot_product(u, dx_fd)
+        rhs = dot_product(tp, jtu)
+        if (abs(lhs - rhs) > 1.0e-7_dp) then
+            write (error_unit, '(a)') "FAIL [mr_preconditioner] VJP vs FD"
+            nfail = nfail + 1
+        end if
+        if (preconditioner%calls /= 2) then
+            write (error_unit, '(a,i0)') &
+                "FAIL [mr_preconditioner] hook calls=", preconditioner%calls
+            nfail = nfail + 1
+        end if
+    end subroutine test_multiroot_preconditioner_hook
+
+    subroutine diagonal_solve(a, b, x, info, context)
+        real(dp), intent(in) :: a(:, :), b(:)
+        real(dp), intent(out) :: x(:)
+        integer, intent(out) :: info
+        class(*), intent(inout), optional :: context
+        real(dp) :: pa(2, 2), pb(2), determinant
+        integer :: i
+
+        info = 1
+        if (.not. present(context)) return
+        select type (preconditioner => context)
+        type is (diagonal_preconditioner_t)
+            do i = 1, 2
+                pa(i, :) = preconditioner%inverse_diagonal(i)*a(i, :)
+                pb(i) = preconditioner%inverse_diagonal(i)*b(i)
+            end do
+            preconditioner%calls = preconditioner%calls + 1
+        class default
+            return
+        end select
+
+        determinant = pa(1, 1)*pa(2, 2) - pa(1, 2)*pa(2, 1)
+        if (abs(determinant) <= epsilon(1.0_dp)) return
+        x(1) = (pb(1)*pa(2, 2) - pa(1, 2)*pb(2))/determinant
+        x(2) = (pa(1, 1)*pb(2) - pb(1)*pa(2, 1))/determinant
+        info = 0
+    end subroutine diagonal_solve
 
     ! Test 9: adjoint identity u.(M tp) = tp.(M^T u) for multiroot_jvp/vjp.
     subroutine test_multiroot_dot_product_id(nfail)

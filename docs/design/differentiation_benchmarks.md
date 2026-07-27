@@ -125,3 +125,38 @@ fo build
 taskset -c 4 fo exec bench_linear_solve_vjp refactor
 taskset -c 4 fo exec bench_linear_solve_vjp reuse
 ```
+
+## Reusable preconditioner hook for implicit products
+
+The multiroot analytical JVP, VJP, and scalar gradient accept an optional
+preconditioned-solve callback plus caller-owned reusable context. The validation
+applies one diagonal preconditioner across a JVP and VJP, checks that the same
+context is invoked twice, and compares both products with finite differences of
+the complete root solve.
+
+The benchmark applies 200,000 JVP directions to a dense 16-by-16 residual
+Jacobian. The hook candidate applies a reusable diagonal left preconditioner
+before the direct solve; this is deliberately a simple reference implementation,
+not a claim that diagonal preconditioning suits dense direct solves.
+
+| Candidate | Mechanism | Median ns/JVP | MAD ns/JVP | Peak RSS |
+|---|---|---:|---:|---:|
+| default dense solve | `analytical` | 2,967.4902 | 38.2232 | 23,982,080 B |
+| diagonal preconditioned hook | `analytical` | 5,338.7971 | 166.7145 | 23,887,872 B |
+
+The preconditioned hook is 1.7991 times slower on this workload, so evidence
+retains the default dense solve. The reusable hook is intended for later
+iterative and application-specific candidates where iteration reduction can
+repay its cost. Peak RSS again measures the complete `fo exec` process tree.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_multiroot_preconditioner.json`.
+
+Run the benchmark with:
+
+```bash
+cd benchmark
+fo build
+taskset -c 4 fo exec bench_multiroot_preconditioner default
+taskset -c 4 fo exec bench_multiroot_preconditioner preconditioned
+```
