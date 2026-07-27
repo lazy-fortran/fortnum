@@ -129,7 +129,7 @@ independent validation plus measured application runtime and peak memory.
 - [x] Add an autodiff iterative-solver comparator where applicable.
 - [x] Add a hybrid BLAS or LAPACK custom-rule candidate where measurement
   justifies it.
-- [ ] Benchmark all implemented linear-algebra candidates.
+- [x] Benchmark all implemented linear-algebra candidates.
 
 ## Evidence report
 

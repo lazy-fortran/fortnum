@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "module": "linear_algebra",
+  "selection_criterion": "complete workload wall clock",
+  "hardware": "AMD Ryzen 9 5950X, CPU 4 pinned",
+  "workloads": [
+    {
+      "name": "determinant_jvp",
+      "scale": "3x3, 64 directions",
+      "winner": "analytical",
+      "winner_ns": 1198.339110,
+      "runner_up": "diagnostic",
+      "runner_up_ns": 2208.371760,
+      "speedup": 1.8429,
+      "record": "ryzen9_5950x_determinant_jvp.json"
+    },
+    {
+      "name": "determinant_vjp",
+      "scale": "3x3, 9 sensitivities",
+      "winner": "analytical",
+      "winner_ns": 29.013223,
+      "runner_up": "diagnostic",
+      "runner_up_ns": 159.540497,
+      "speedup": 5.4989,
+      "record": "ryzen9_5950x_determinant_vjp.json"
+    },
+    {
+      "name": "inverse_jvp",
+      "scale": "3x3",
+      "winner": "analytical",
+      "winner_ns": 125.082176,
+      "runner_up": "diagnostic",
+      "runner_up_ns": 160.003325,
+      "speedup": 1.2792,
+      "record": "ryzen9_5950x_inverse_jvp.json"
+    },
+    {
+      "name": "inverse_vjp",
+      "scale": "3x3, 9 sensitivities",
+      "winner": "analytical",
+      "winner_ns": 113.428233,
+      "runner_up": "diagnostic",
+      "runner_up_ns": 929.100516,
+      "speedup": 8.1911,
+      "record": "ryzen9_5950x_inverse_vjp.json"
+    },
+    {
+      "name": "lu_ownership_interface",
+      "scale": "16x16",
+      "winner": "analytical_raw_factored_arrays",
+      "winner_ns": 1103.596635,
+      "runner_up": "analytical_factorization_object",
+      "runner_up_ns": 1117.585595,
+      "speedup": 1.0127,
+      "record": "ryzen9_5950x_lu_factorization_object.json"
+    },
+    {
+      "name": "linear_solve_jvp_factor_reuse",
+      "scale": "16x16",
+      "winner": "analytical_reuse",
+      "winner_ns": 348.694600,
+      "runner_up": "analytical_refactor",
+      "runner_up_ns": 981.847200,
+      "speedup": 2.8158,
+      "record": "ryzen9_5950x_linear_solve_jvp_reuse.json"
+    },
+    {
+      "name": "linear_solve_vjp_factor_reuse",
+      "scale": "16x16",
+      "winner": "analytical_reuse",
+      "winner_ns": 341.593600,
+      "runner_up": "analytical_refactor",
+      "runner_up_ns": 1001.493600,
+      "speedup": 2.9318,
+      "record": "ryzen9_5950x_linear_solve_vjp_reuse.json"
+    },
+    {
+      "name": "multiple_jvp_interface",
+      "scale": "16 directions",
+      "winner": "analytical_repeated_scalar",
+      "winner_ns": 12834.572550,
+      "runner_up": "analytical_batched",
+      "runner_up_ns": 22583.637500,
+      "speedup": 1.7599,
+      "record": "ryzen9_5950x_linear_solve_jvp_many.json"
+    },
+    {
+      "name": "multiple_vjp_interface",
+      "scale": "16 cotangents",
+      "winner": "analytical_repeated_scalar",
+      "winner_ns": 18924.946200,
+      "runner_up": "analytical_batched",
+      "runner_up_ns": 20400.698200,
+      "speedup": 1.0780,
+      "record": "ryzen9_5950x_linear_solve_vjp_many.json"
+    },
+    {
+      "name": "direct_solve_jvp",
+      "scale": "16 directions",
+      "winner": "analytical",
+      "winner_ns": 773.705750,
+      "runner_up": "diagnostic",
+      "runner_up_ns": 982.276200,
+      "speedup": 1.2696,
+      "record": "ryzen9_5950x_direct_solver_jvp_enzyme.json"
+    },
+    {
+      "name": "direct_solve_vjp",
+      "scale": "16 cotangents",
+      "winner": "analytical",
+      "winner_ns": 852.922000,
+      "runner_up": "autodiff",
+      "runner_up_ns": 1089.863000,
+      "speedup": 1.2778,
+      "record": "ryzen9_5950x_direct_solver_vjp_enzyme.json"
+    },
+    {
+      "name": "iterative_fixed_trace_jvp",
+      "scale": "32 steps, 16 directions",
+      "winner": "analytical",
+      "winner_ns": 5226.153400,
+      "runner_up": "diagnostic",
+      "runner_up_ns": 8143.140800,
+      "speedup": 1.5582,
+      "record": "ryzen9_5950x_iterative_solver_jvp_enzyme.json"
+    }
+  ],
+  "overall": {
+    "workloads": 12,
+    "analytical_wins": 12,
+    "autodiff_wins": 0,
+    "diagnostic_wins": 0,
+    "hybrid_wins": 0,
+    "closest_mechanism_contest": "direct_solve_vjp",
+    "closest_mechanism_speedup": 1.2778
+  }
+}
