@@ -12,6 +12,10 @@ measured application runtime and peak memory select the production candidate.
 
 See `docs/performance_optimal_differentiation.md` for the rationale and
 `docs/design/differentiation_plan.md` for the implementation plan.
+The current CPU/GPU support matrix and the strict device-leaf contract are in
+`docs/design/gpu.md`. GPU differentiation is not yet a supported production
+path: initial offload work is limited to validated generated `analytical`
+leaves, and silent host fallback is a test failure.
 `fortnum` uses `fortsym` at build time for symbolic algebra and code
 generation. The first pinned generator is under `tools/codegen/`; generated
 production sources are committed under `src/generated/`. The
