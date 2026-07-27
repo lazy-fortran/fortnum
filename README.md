@@ -25,10 +25,12 @@ The benchmark pilot uses one shared Dawson batch loop for OpenACC and OpenMP
 target; both schedules call the same generated `analytical` leaf. The OpenACC
 path now has proven NVIDIA execution and independent CPU validation. On the
 reference RTX 5060 Ti its transfer-inclusive 1,048,576-element workload is
-2.006 times faster than the CPU generated-leaf loop; resident-data timing is
-still pending and this pilot is not a general GPU-support claim.
+2.006 times faster than the CPU generated-leaf loop; this pilot is not a
+general GPU-support claim.
 The identical OpenMP-target pilot also proves non-host execution and is 1.6585
 times faster than its CPU generated-leaf loop in the recorded run.
+Keeping the Dawson batch resident reduces synchronous call time from 3.9251 ms
+to 0.2098 ms with OpenACC and from 3.9800 ms to 0.2101 ms with OpenMP target.
 `fortnum` uses `fortsym` at build time for symbolic algebra and code
 generation. The first pinned generator is under `tools/codegen/`; generated
 production sources are committed under `src/generated/`. The

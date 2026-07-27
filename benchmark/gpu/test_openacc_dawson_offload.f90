@@ -7,7 +7,6 @@ program test_openacc_dawson_offload
     integer, parameter :: n = 4096
     real(dp), parameter :: tolerance = 2.0e-14_dp
     real(dp), allocatable :: x(:), f(:), v(:), values(:), products(:)
-    real(dp) :: expected_value, expected_product
     logical :: executed_on_nvidia
     integer :: i
 
@@ -29,16 +28,32 @@ program test_openacc_dawson_offload
     !$acc data copyin(x, f, v) copyout(values, products)
     call dawson_value_jvp_batch(n, x, f, v, values, products)
     !$acc end data
+    call validate_outputs()
 
-    do i = 1, n
-        expected_value = sin(f(i)) + f(i)*f(i)
-        expected_product = v(i)*(1.0_dp - 2.0_dp*x(i)*f(i))* &
-            (cos(f(i)) + 2.0_dp*f(i))
-        if (abs(values(i) - expected_value) > tolerance) then
-            error stop "OpenACC Dawson value disagrees with analytical oracle"
-        end if
-        if (abs(products(i) - expected_product) > tolerance) then
-            error stop "OpenACC Dawson JVP disagrees with analytical oracle"
-        end if
-    end do
+    !$acc data copyin(x, f, v) create(values, products)
+    call dawson_value_jvp_batch(n, x, f, v, values, products)
+    !$acc update self(values, products)
+    !$acc end data
+    call validate_outputs()
+
+contains
+
+    subroutine validate_outputs()
+        real(dp) :: expected_value, expected_product
+
+        do i = 1, n
+            expected_value = sin(f(i)) + f(i)*f(i)
+            expected_product = v(i)*(1.0_dp - 2.0_dp*x(i)*f(i))* &
+                (cos(f(i)) + 2.0_dp*f(i))
+            if (abs(values(i) - expected_value) > tolerance) then
+                error stop &
+                    "OpenACC Dawson value disagrees with analytical oracle"
+            end if
+            if (abs(products(i) - expected_product) > tolerance) then
+                error stop &
+                    "OpenACC Dawson JVP disagrees with analytical oracle"
+            end if
+        end do
+    end subroutine validate_outputs
+
 end program test_openacc_dawson_offload

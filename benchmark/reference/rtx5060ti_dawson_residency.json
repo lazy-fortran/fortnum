@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "operation": "generated analytical Dawson fused value/JVP GPU residency",
+  "workload": {
+    "batch_size": 1048576,
+    "samples": 31,
+    "warmup_samples": 3,
+    "pinned_cpu": 4,
+    "transfer_inclusive": "three inputs copied to and two outputs copied from device per timed call",
+    "resident": "initial copies and final output update outside timed calls"
+  },
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "gpu": "NVIDIA GeForce RTX 5060 Ti",
+    "gpu_memory_mib": 16311,
+    "driver": "610.43.03"
+  },
+  "toolchain": {
+    "compiler": "NVHPC nvfortran 26.5",
+    "openacc_flags": "-fast -O3 -acc",
+    "openmp_flags": "-fast -O3 -mp=gpu -mp",
+    "fortsym_revision": "bba0d57c3278dce36abb991739e8128d1f3cfc53"
+  },
+  "validation": {
+    "openacc_device_proof": "acc_on_device(acc_device_nvidia) true inside device region",
+    "openmp_device_proof": "OMP_TARGET_OFFLOAD=MANDATORY and omp_is_initial_device() false inside target region",
+    "oracle": "independently evaluated sin(f)+f*f and v*(1-2*x*f)*(cos(f)+2*f)",
+    "points_per_residency_path": 4096,
+    "absolute_tolerance": 2e-14
+  },
+  "candidates": [
+    {
+      "candidate": "openacc_transfer_inclusive",
+      "median_ms": 3.9251,
+      "mad_ms": 0.0839,
+      "host_peak_rss_bytes": 159031296
+    },
+    {
+      "candidate": "openacc_resident",
+      "median_ms": 0.2098,
+      "mad_ms": 0.0003,
+      "host_peak_rss_bytes": 144572416
+    },
+    {
+      "candidate": "openmp_target_transfer_inclusive",
+      "median_ms": 3.9800,
+      "mad_ms": 0.0990,
+      "host_peak_rss_bytes": 163774464
+    },
+    {
+      "candidate": "openmp_target_resident",
+      "median_ms": 0.2101,
+      "mad_ms": 0.0003,
+      "host_peak_rss_bytes": 149323776
+    }
+  ],
+  "verdict": "persistent data is 18.7088 times faster for OpenACC and 18.9434 times faster for OpenMP target; resident backend times differ by 0.14 percent"
+}

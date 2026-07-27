@@ -153,6 +153,31 @@ batch. As with the OpenACC result, resident-data kernel time and peak device
 allocation are not part of this item. Machine-readable evidence is in
 `benchmark/reference/rtx5060ti_openmp_dawson_transfer.json`.
 
+## Persistent-data Dawson pilot
+
+Both validated backends now keep the three input arrays and two output arrays
+on the device across timed calls. Initial copies and the final output update
+are outside the resident-data timing. Each synchronous timed call still
+launches the shared 1,048,576-element batch wrapper. The behavioral tests run
+both transfer-inclusive and resident paths and check both results against the
+independent analytical CPU oracle.
+
+On the same RTX 5060 Ti, NVHPC 26.5, CPU 4 pinned, with 31 samples:
+
+| Backend and residency | Median ms | MAD ms | Host peak RSS |
+| --- | ---: | ---: | ---: |
+| OpenACC, transfers included | 3.9251 | 0.0839 | 159,031,296 B |
+| OpenACC, resident | 0.2098 | 0.0003 | 144,572,416 B |
+| OpenMP target, transfers included | 3.9800 | 0.0990 | 163,774,464 B |
+| OpenMP target, resident | 0.2101 | 0.0003 | 149,323,776 B |
+
+Persistent data reduces complete-call wall clock by 18.7088 times for OpenACC
+and 18.9434 times for OpenMP target in this workload. The two resident paths
+are within 0.14 percent of one another, so this measurement does not select a
+backend. Peak device allocation is deliberately deferred to its dedicated
+profiling checklist item. Machine-readable evidence is in
+`benchmark/reference/rtx5060ti_dawson_residency.json`.
+
 ## Immediate implementation order
 
 The first pilot is the generated Dawson fused value/JVP leaf:
