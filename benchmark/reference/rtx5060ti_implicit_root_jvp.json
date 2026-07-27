@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "source_revision": "dfdc214d610c1b836dd2db9b8052634d12cdbda6",
+  "operation": "analytical implicit scalar-root JVP with generated local residual products",
+  "classification": "analytical",
+  "mathematical_problem": "R(x,p)=x^2-p=0, positive root",
+  "derivative_contract": "dx=-(R_p*dp)/R_x; primal Newton iterations are inactive",
+  "residency_policy": "transfer-inclusive and resident measured separately",
+  "device_execution_proof": "OpenACC NVIDIA device check and mandatory non-host OpenMP target check",
+  "workload": {
+    "batch_sizes": [256, 65536, 1048576],
+    "newton_iterations": 8,
+    "samples": 31,
+    "warmup_samples": 3,
+    "pinned_cpu": 4
+  },
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "gpu": "NVIDIA GeForce RTX 5060 Ti",
+    "driver": "610.43.03"
+  },
+  "toolchain": {
+    "compiler": "NVHPC nvfortran 26.5",
+    "openacc_flags": "-fast -O3 -acc",
+    "openmp_flags": "-fast -O3 -mp=gpu -mp",
+    "fortsym_revision": "0e3deee5fa2ed3d30ebfce607cc96794f4b8fed3"
+  },
+  "validation": {
+    "points": 4096,
+    "oracle": "closed-form x=sqrt(p) and dx=dp/(2*sqrt(p))",
+    "relative_tolerance": 8e-14,
+    "generated_outputs": ["residual", "R_x", "R_p*dp"],
+    "near_singular_status": "shared analytical scalar-root core"
+  },
+  "median_ms": {
+    "batch_sizes": [256, 65536, 1048576],
+    "cpu": [0.0031, 0.7281, 11.7090],
+    "openacc_resident": [0.0100, 0.0430, 0.5379],
+    "openacc_transfer": [0.0501, 0.3522, 3.9380],
+    "openmp_resident": [0.0100, 0.0429, 0.5370],
+    "openmp_transfer": [0.0489, 0.3519, 4.1499]
+  },
+  "mad_ms": {
+    "batch_sizes": [256, 65536, 1048576],
+    "cpu": [0.0003, 0.0042, 0.0491],
+    "openacc_resident": [0.0001, 0.0002, 0.0003],
+    "openacc_transfer": [0.0003, 0.0022, 0.0530],
+    "openmp_resident": [0.0000, 0.0003, 0.0001],
+    "openmp_transfer": [0.0010, 0.0019, 0.0799]
+  },
+  "peak_host_rss_bytes_at_n1048576": {
+    "cpu": 42979328,
+    "openacc_resident": 140550144,
+    "openacc_transfer": 159965184,
+    "openmp_resident": 141746176,
+    "openmp_transfer": 165502976,
+    "live_numerical_arrays": 37748736
+  },
+  "selection": {
+    "n256": "cpu",
+    "n65536_resident": "openmp",
+    "n65536_transfer": "openmp",
+    "n1048576_resident": "openmp",
+    "n1048576_transfer": "openacc",
+    "reason": "minimum measured complete-workload wall clock; backend differences below three percent remain practical ties"
+  },
+  "verdict": "CPU wins the launch-bound batch; GPU wins from 65536 points even with transfers; resident GPU is 17.0 to 21.8 times faster than CPU"
+}

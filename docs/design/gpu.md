@@ -462,6 +462,50 @@ The exact workload table and selection rule are in
 `benchmark/reference/rtx5060ti_gpu_backend_selection.json`. Real-device tests
 exercise every measured lookup and prove that an unmeasured size is rejected.
 
+## Analytical implicit-composition pilot
+
+The first GPU implicit pilot is the positive solution of
+
+```text
+R(x,p) = x^2 - p = 0.
+```
+
+Each thread performs eight primal Newton iterations. Those iterations are
+inactive for differentiation. From the single residual specification,
+`fortsym` generates a five-operation device leaf returning `R`, `R_x`, and the
+contracted `R_p*dp`. The existing scalar-root core then applies
+`dx=-(R_p*dp)/R_x`, including the same near-singular reliability test used by
+the public CPU boundary. The complete composition is `analytical`: it contains
+no autodiff and is therefore not `hybrid`.
+
+Both real-device tests compare 4,096 nonuniform cases with the independent
+closed forms `x=sqrt(p)` and `dx=dp/(2*sqrt(p))` at relative tolerance
+`8e-14`. They also require every derivative to pass the root reliability
+guard.
+
+Complete-workload 31-sample medians are:
+
+| Points | CPU ms | OpenACC resident/transfer ms | OpenMP resident/transfer ms |
+| ---: | ---: | ---: | ---: |
+| 256 | 0.0031 | 0.0100 / 0.0501 | 0.0100 / 0.0489 |
+| 65,536 | 0.7281 | 0.0430 / 0.3522 | 0.0429 / 0.3519 |
+| 1,048,576 | 11.7090 | 0.5379 / 3.9380 | 0.5370 / 4.1499 |
+
+CPU is 3.2 times faster at 256 roots. At 65,536 roots, the best resident GPU is
+17.0 times faster and the best transfer-inclusive GPU is 2.1 times faster. At
+1,048,576 roots those speedups are 21.8 and 3.0 times. Backend differences
+below three percent remain practical ties; OpenACC is 5.4 percent faster only
+for the largest transfer-inclusive case.
+
+The five live output/input arrays occupy 37,748,736 B at the largest batch.
+Measured host peak RSS is 42,979,328 B for CPU, 140,550,144 B resident and
+159,965,184 B transfer-inclusive for OpenACC, and 141,746,176 B resident and
+165,502,976 B transfer-inclusive for OpenMP target.
+
+Machine-readable wall clock, dispersion, memory, exact source/toolchain
+provenance, classification, and validation are in
+`benchmark/reference/rtx5060ti_implicit_root_jvp.json`.
+
 ## Immediate implementation order
 
 The first pilot is the generated Dawson fused value/JVP leaf:
