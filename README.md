@@ -33,6 +33,12 @@ mechanism tournaments and provides reproducible `fortplot` figure generation
 without committing generated PNGs.
 `ROADMAP.md` is the authoritative implementation checklist.
 
+Generated-source ownership is explicit. Symbolic specifications, generators,
+selected numerical kernels, provenance, and benchmark evidence are committed.
+Temporary algebraic candidates and routine Enzyme wrappers are generated in
+the build tree. Stable recurrences, solver orchestration, traces, and
+independent validation oracles remain hand-written.
+
 Lagrange interpolation exposes analytical JVP and VJP products for active
 support-node locations as well as active evaluation points and sampled values.
 At 16 nodes the active-node analytical JVP is 2.31 times faster and the VJP is

@@ -147,6 +147,78 @@ independent validation plus measured application runtime and peak memory.
 - [x] Benchmark separate and fused combined-active B-spline products.
 - [x] Compare analytical basis products with fixed-span autodiff candidates.
 
+## Generated-kernel policy and reproducibility
+
+- [x] Document which symbolic, generated numerical, generated Enzyme, and
+  hand-written artifacts are committed, and record the current duplication
+  baseline.
+- [ ] Add a `fortsym` revision lock and emit the exact revision in every
+  generated numerical-kernel banner.
+- [ ] Extend and test `fortsym` provenance support in its own repository when
+  the emitter needs capabilities beyond its current public interface.
+- [ ] Regenerate Dawson, determinant, and inverse kernels with current module,
+  purity, line-wrapping, operation-count, and `fo` regeneration metadata.
+- [ ] Add a temporary-directory regeneration check that byte-compares every
+  committed generated numerical kernel.
+- [ ] Run generated-source drift checking in CTest and CI.
+- [ ] Record compiler flags, native symbol size, `fortsym` revision, and
+  structural operation counts in relevant benchmark records.
+- [ ] Generate fused value/JVP, fused value/VJP, separate JVP/VJP, and
+  contracted products from one symbolic DAG.
+- [ ] Generate several algebraic variants, prove them equivalent, and rank
+  them by post-CSE operation count before native benchmarking.
+- [ ] Commit only the measured production kernel and the generator inputs
+  needed to reproduce temporary losing variants.
+
+## Shared Enzyme infrastructure
+
+- [ ] Record a machine-readable baseline for Enzyme fixture duplication,
+  build time, runtime, peak RSS, and native code size.
+- [ ] Add one internal support module for environment parsing, timing, warmups,
+  median/MAD, standardized output, and peak-RSS access.
+- [ ] Generate wrappers for the proven scalar-kernel shape with one to four
+  active scalar inputs, scalar output, forward JVP, reverse VJP, and an
+  optional analytical forward custom rule.
+- [ ] Add shared custom-rule counter support that proves analytical rule
+  selection without kernel-specific counter boilerplate.
+- [ ] Migrate the Bessel fixture as the pilot and require equivalent validation
+  plus no complete-workload regression beyond 3% or combined dispersion.
+- [ ] Migrate Dawson and the scalar Enzyme smoke fixtures.
+- [ ] Migrate fixed-span B-spline Enzyme fixtures.
+- [ ] Migrate direct-solver JVP and VJP Enzyme fixtures.
+- [ ] Migrate the iterative-solver Enzyme fixture.
+- [ ] Migrate scalar-root JVP and VJP Enzyme fixtures.
+- [ ] Migrate vector-root JVP and VJP Enzyme fixtures.
+- [ ] Migrate fixed-quadrature JVP and VJP Enzyme fixtures.
+- [ ] Migrate adaptive-integration Enzyme fixtures.
+- [ ] Migrate the ODE forward-sensitivity Enzyme fixture.
+- [ ] Remove superseded duplicate helpers and reject new copies in repository
+  checks.
+
+## Analytical and hybrid generation migration
+
+- [ ] Inventory every derivative kernel as `fortsym`-generated, hand-written
+  algorithmic, hand-written stable recurrence, implicit solve, frozen trace,
+  or generated hybrid boundary.
+- [ ] Replace manually transcribed explicit chain-rule expressions with
+  `fortsym` value/JVP/VJP generation where the generated candidate is admissible.
+- [ ] Generate contracted JVP expressions directly without materializing a
+  Jacobian.
+- [ ] Generate contracted VJP expressions directly without materializing a
+  Jacobian.
+- [ ] Generate fused and separate value/product variants from one symbolic
+  definition.
+- [ ] Generate special-function outer kernels while retaining stable primal
+  algorithms and recurrences at operator boundaries.
+- [ ] Generate explicit local residual products while retaining hand-written
+  implicit tangent and adjoint solves.
+- [ ] Add stability-preserving symbolic transformations with equivalence and
+  numerical boundary tests.
+- [ ] Add target-aware factoring only when native complete-workload benchmarks
+  justify it.
+- [ ] Re-run candidate selection and cumulative reports after the generation
+  migration.
+
 ## Special functions
 
 - [x] Run an analytical, autodiff, and hybrid Bessel tournament.
@@ -168,19 +240,6 @@ independent validation plus measured application runtime and peak memory.
 - [ ] Benchmark scalar FFT workloads.
 - [ ] Benchmark batched FFT workloads.
 - [ ] Benchmark an FFT-based spectral objective.
-
-## `fortsym`
-
-- [ ] Normalize generated algebraic signs and constant products.
-- [ ] Generate contracted JVP expressions directly.
-- [ ] Generate contracted VJP expressions directly.
-- [ ] Generate and retain several algebraic variants.
-- [ ] Rank generated variants by structural operation count before compilation.
-- [ ] Add stability-preserving transformations.
-- [ ] Add target-aware factoring only when benchmarks justify it.
-- [ ] Record generated native code size.
-- [ ] Add generated-source drift checking to CI.
-- [ ] Record the exact `fortsym` revision for every generated artifact.
 
 ## Module tournaments
 

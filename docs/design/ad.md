@@ -168,6 +168,45 @@ symbolic engine inside `fortnum`. Generated kernels are build-time artifacts
 committed under `src/generated/`; production `fortnum` does not dynamically
 depend on `fortsym`.
 
+### 7.1 Source ownership
+
+The symbolic specification, generator, selected numerical kernel, provenance,
+and benchmark evidence are committed. A selected generated kernel must remain
+buildable without `fortsym`; normal consumers never run a CAS.
+
+Temporary algebraic variants and routine Enzyme wrappers are generated in the
+build tree. They are reproducible from committed inputs but are not committed.
+Generated PNG reports are likewise excluded. Shared Enzyme timing, statistics,
+RSS, and environment support is hand-written once and committed.
+
+The following code remains hand-written when symbolic expansion would erase
+useful numerical structure:
+
+- stable recurrences and region selection
+- adaptive and frozen traces
+- solver, factorization, and preconditioner orchestration
+- implicit tangent and adjoint solves
+- kernel-specific independent validation oracles
+
+`fortsym` generates explicit local algebra, contracted products, fused
+value/product kernels, and outer chain rules around those operator boundaries.
+Candidate selection still uses native complete-workload measurements.
+
+### 7.2 Current duplication baseline
+
+Before the shared Enzyme migration, `cmake/enzyme/hybrid/` contains 5,190
+Fortran and C lines across 20 fixtures. The repeated declarations include 12
+forward Enzyme interfaces, 7 reverse interfaces, 13 peak-RSS interfaces, and 9
+copies each of sorting and result-report code. This is the baseline for source
+reduction; numerical kernels and independent oracles are not counted as
+removable boilerplate.
+
+This documentation-only policy change affects no compiled source. The current
+reference performance baseline remains the committed 32-tournament data set.
+For example, the 16-product Bessel series JVP takes 917.276 ns for the selected
+analytical candidate, and the recurrence JVP takes 3,788.275 ns for selected
+autodiff.
+
 ## 8. Selection and dispatch
 
 Each product is selected independently. A fast Jacobian implementation does not
