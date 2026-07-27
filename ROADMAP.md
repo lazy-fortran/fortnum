@@ -212,7 +212,7 @@ derivatives. CPU Enzyme remains the `autodiff` backend and supplies CPU
 - [ ] Extend and test `fortsym` device-leaf emission in its own repository,
   limited to optional OpenMP `declare target` and OpenACC `routine seq`
   annotations; add no scheduling or GPU runtime abstraction.
-- [ ] Pin the tested `fortsym` revision in `fortnum`, regenerate the Dawson
+- [x] Pin the tested `fortsym` revision in `fortnum`, regenerate the Dawson
   leaf with device annotations, and prove byte-stable regeneration.
 - [ ] Add the build-time choice
   `FORTNUM_GPU_BACKEND=NONE|OPENACC|OPENMP`, defaulting to `NONE`; selecting an

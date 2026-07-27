@@ -83,8 +83,10 @@ mechanism name cannot select the winner.
 
 The first pilot is the generated Dawson fused value/JVP leaf:
 
-1. add annotation-only device emission to `fortsym`;
+1. add annotation-only device emission to `fortsym`; complete at
+   `349bc6257a22b416093624bd04dd1ed8a83852d0`;
 2. regenerate the same mathematical leaf with both optional annotations;
+   complete, with byte-stable regeneration;
 3. add `FORTNUM_GPU_BACKEND=NONE|OPENACC|OPENMP`, with unavailable selections
    failing configuration;
 4. add one shared batch-wrapper template;

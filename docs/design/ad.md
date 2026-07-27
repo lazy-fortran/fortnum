@@ -161,11 +161,12 @@ The supported integration surface is deliberately narrow and demonstrated by
 `tools/codegen/app/gen_dawson_outer.f90`: expression construction, differentiation,
 engine simplification, fused kernel emission, post-CSE operation counting, and
 an exact regeneration command in the generated banner. Revision
-`fortsym@59c2949` adds the tested `generator_revision` field needed to place an
-exact dependency revision in that banner. `tools/codegen/fortsym.lock` pins the
-full revision `59c2949ecf52887f91248d3e32cde54020e2fca6`. The Dawson,
+`fortsym@59c2949` added the tested `generator_revision` field needed to place an
+exact dependency revision in that banner. `tools/codegen/fortsym.lock`
+currently pins `349bc6257a22b416093624bd04dd1ed8a83852d0`, which also emits
+optional OpenACC and OpenMP device-leaf annotations. The Dawson,
 determinant, and inverse generators read that lock through one support module.
-All nine generated numerical kernels carry the same full revision.
+All committed generated numerical kernels carry the same full revision.
 
 `fortsym` remains under development. New work may extend it, with independent
 tests in that repository, but must not guess an unimplemented API or duplicate a

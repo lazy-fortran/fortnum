@@ -114,6 +114,8 @@ contains
         spec%regenerate_command = str( &
             "cd tools/codegen && fo exec gen_dawson_outer")
         spec%pure_procedure = .true.
+        spec%openmp_declare_target = .true.
+        spec%openacc_routine_seq = .true.
         allocate (spec%args(size(arguments)), spec%outputs(size(outputs)))
         do k = 1, size(arguments)
             spec%args(k) = str(trim(arguments(k)))

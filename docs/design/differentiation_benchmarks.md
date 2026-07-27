@@ -46,16 +46,19 @@ warmups. Each sample contains 10 million complete value-plus-product workloads.
 
 | Product | Candidate | Median ns | MAD ns | Peak RSS bytes | Measured result |
 |---|---|---:|---:|---:|---|
-| JVP | fused value/JVP | 9.7824 | 0.0399 | 4,149,248 | 1.5689x faster |
-| JVP | value plus separate JVP | 15.3477 | 0.1193 | 4,190,208 | baseline |
-| VJP | fused value/VJP | 10.0041 | 0.1234 | 4,091,904 | 1.6749x faster |
-| VJP | value plus separate VJP | 16.7554 | 0.3835 | 4,304,896 | baseline |
+| JVP | fused value/JVP | 9.7304 | 0.0178 | 12,611,584 | 1.5699x faster |
+| JVP | value plus separate JVP | 15.2758 | 0.1186 | 12,292,096 | baseline |
+| VJP | fused value/VJP | 9.7754 | 0.0152 | 12,275,712 | 1.6779x faster |
+| VJP | value plus separate VJP | 16.4021 | 0.1732 | 11,866,112 | baseline |
 
 “Faster” compares the two rows for the same product and complete workload.
 Every leaf uses fixed scalar storage and performs no allocation. The
 process-RSS differences do not establish an algorithmic memory advantage. The
 machine-readable record is
 `benchmark/reference/ryzen9_5950x_dawson_generated_family.json`.
+This refresh uses `fortsym`
+`349bc6257a22b416093624bd04dd1ed8a83852d0`; the optional OpenACC and OpenMP
+device annotations caused no CPU wall-clock regression.
 
 Reproduce the generated source, validation, timing, and memory measurements
 with:
