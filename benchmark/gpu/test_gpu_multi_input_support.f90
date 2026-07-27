@@ -4,6 +4,8 @@ module test_gpu_multi_input_support
         multi_input_p2_jvp_batch, multi_input_p2_vjp_batch, &
         multi_input_p4_jvp_batch, multi_input_p4_vjp_batch, &
         multi_input_p8_jvp_batch, multi_input_p8_vjp_batch, &
+        multi_input_p8_jvp_active_first_batch, &
+        multi_input_p8_vjp_active_first_batch, &
         multi_input_p16_jvp_batch, multi_input_p16_vjp_batch
     implicit none
     private
@@ -19,6 +21,7 @@ contains
         do i = 1, size(active_sizes)
             call test_size(active_sizes(i))
         end do
+        call test_p8_layouts()
     end subroutine run_multi_input_tests
 
     subroutine test_size(nactive)
@@ -105,5 +108,66 @@ contains
             error stop "multi-input products violate adjoint identity"
         end if
     end subroutine test_size
+
+    subroutine test_p8_layouts()
+        integer, parameter :: n = 1024, p = 8
+        real(dp), parameter :: tolerance = 3.0e-13_dp
+        real(dp) :: x_batch(n, p), direction_batch(n, p)
+        real(dp) :: x_active(p, n), direction_active(p, n)
+        real(dp) :: cotangent(n), values_batch(n), values_active(n)
+        real(dp) :: products_batch(n), products_active(n)
+        real(dp) :: adjoints_batch(n, p), adjoints_active(p, n)
+        integer :: i, j
+
+        do j = 1, p
+            do i = 1, n
+                x_batch(i, j) = -0.4_dp + 0.8_dp* &
+                    real(mod(17*i + 11*j, 257), dp)/256.0_dp
+                direction_batch(i, j) = -0.7_dp + 1.4_dp* &
+                    real(mod(13*i + 19*j, 251), dp)/250.0_dp
+                x_active(j, i) = x_batch(i, j)
+                direction_active(j, i) = direction_batch(i, j)
+            end do
+        end do
+        do i = 1, n
+            cotangent(i) = -0.8_dp + 1.6_dp* &
+                real(mod(23*i, 263), dp)/262.0_dp
+        end do
+
+        !$acc data copyin(x_batch, direction_batch, x_active, &
+        !$acc& direction_active, cotangent) create(values_batch, &
+        !$acc& values_active, products_batch, products_active, &
+        !$acc& adjoints_batch, adjoints_active)
+        !$omp target data map(to: x_batch, direction_batch, x_active, &
+        !$omp& direction_active, cotangent) map(alloc: values_batch, &
+        !$omp& values_active, products_batch, products_active, &
+        !$omp& adjoints_batch, adjoints_active)
+        call multi_input_p8_jvp_batch( &
+            n, x_batch, direction_batch, values_batch, products_batch)
+        call multi_input_p8_jvp_active_first_batch( &
+            n, x_active, direction_active, values_active, products_active)
+        call multi_input_p8_vjp_batch( &
+            n, x_batch, cotangent, values_batch, adjoints_batch)
+        call multi_input_p8_vjp_active_first_batch( &
+            n, x_active, cotangent, values_active, adjoints_active)
+        !$omp target update from(values_batch, values_active, &
+        !$omp& products_batch, products_active, adjoints_batch, &
+        !$omp& adjoints_active)
+        !$omp end target data
+        !$acc update self(values_batch, values_active, products_batch, &
+        !$acc& products_active, adjoints_batch, adjoints_active)
+        !$acc end data
+
+        if (maxval(abs(values_batch - values_active)) > tolerance) then
+            error stop "multi-input layouts disagree on value"
+        end if
+        if (maxval(abs(products_batch - products_active)) > tolerance) then
+            error stop "multi-input layouts disagree on JVP"
+        end if
+        if (maxval(abs(adjoints_batch - transpose(adjoints_active))) > &
+            tolerance) then
+            error stop "multi-input layouts disagree on VJP"
+        end if
+    end subroutine test_p8_layouts
 
 end module test_gpu_multi_input_support

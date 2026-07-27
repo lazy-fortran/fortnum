@@ -43,6 +43,11 @@ depending on product and active-input count; at 256 points the CPU remains
 faster. Both product costs scale linearly, and OpenACC and OpenMP target are
 effectively tied while data is resident. Full wall-clock and memory evidence
 is in `docs/design/gpu.md`.
+The selected multi-input layout is `x(batch,active)`: it preserves coalesced
+access across GPU threads, is never materially slower in resident workloads,
+and beats `x(active,batch)` by 4.9 to 5.8 percent for the mid-size resident
+VJP. Transfer-only differences were noisy and inconsistent, so they did not
+override the resident and CPU evidence.
 `fortnum` uses `fortsym` at build time for symbolic algebra and code
 generation. The first pinned generator is under `tools/codegen/`; generated
 production sources are committed under `src/generated/`. The

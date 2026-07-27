@@ -234,7 +234,7 @@ derivatives. CPU Enzyme remains the `autodiff` backend and supplies CPU
 - [x] Offload a generated multi-input scalar-output kernel and measure
   analytical JVP and VJP scaling over active inputs, derivative directions,
   output cotangents where applicable, and batch sizes.
-- [ ] Compare admissible array layouts by complete-workload wall clock and
+- [x] Compare admissible array layouts by complete-workload wall clock and
   select one coalesced layout without exposing a general layout framework.
 - [ ] Record peak device allocation, achieved bandwidth, occupancy, register
   use, and spills with released profiling tools.

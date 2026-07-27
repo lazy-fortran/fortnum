@@ -321,6 +321,50 @@ Machine-readable medians, MADs, memory, exact toolchain, and validation
 evidence are in
 `benchmark/reference/rtx5060ti_multi_input_products.json`.
 
+## Multi-input layout selection
+
+The same generated eight-input leaves were benchmarked with the only two
+admissible fixed layouts:
+
+- `x(batch,active)`, where adjacent GPU threads access contiguous elements;
+- `x(active,batch)`, where one thread's eight inputs are contiguous but
+  adjacent threads access with stride eight.
+
+Both layouts use the same leaf, arithmetic, launch schedule, allocation size,
+and transfer volume. Real-device tests compare their value, JVP, and every VJP
+component at 1,024 points. No layout abstraction or runtime dispatch was
+introduced.
+
+Resident 31-sample medians are:
+
+| Product | Points | CPU batch/active ms | OpenACC batch/active ms | OpenMP batch/active ms |
+| --- | ---: | ---: | ---: | ---: |
+| JVP | 256 | 0.0129 / 0.0131 | 0.0141 / 0.0141 | 0.0141 / 0.0141 |
+| JVP | 65,536 | 3.0458 / 3.0949 | 0.1040 / 0.1040 | 0.1049 / 0.1040 |
+| JVP | 1,048,576 | 49.0649 / 49.7191 | 1.4620 / 1.4620 | 1.4620 / 1.4620 |
+| VJP | 256 | 0.0131 / 0.0131 | 0.0141 / 0.0148 | 0.0140 / 0.0150 |
+| VJP | 65,536 | 3.0690 / 3.0871 | 0.1011 / 0.1061 | 0.1011 / 0.1070 |
+| VJP | 1,048,576 | 49.3751 / 49.2291 | 1.4181 / 1.4222 | 1.4172 / 1.4191 |
+
+The layouts tie for resident GPU JVP within measurement resolution.
+Batch-first is 4.9 percent faster for the 65,536-point OpenACC VJP and
+5.8 percent faster for OpenMP target, and is 1.3 to 1.6 percent faster for the
+larger CPU JVPs. Large transfer-inclusive measurements varied by more than the
+layout effect and did not consistently favor either ordering even over 155
+samples. Since transfer byte counts are identical, that noise is not used to
+select the numerical layout.
+
+At 1,048,576 points, both layouts require the same 150,994,944 live array
+bytes. CPU peak RSS is 156.2 to 156.3 MB. GPU-process host peak RSS ranges from
+196.8 to 260.6 MB with no consistent layout advantage.
+
+`x(batch,active)` is selected: it provides the expected coalesced mapping, is
+never materially slower while resident, wins the mid-size VJP, and is slightly
+better for CPU JVP. The alternate wrappers remain benchmark-only evidence;
+they are not a public layout framework. Full medians, repeated transfer
+measurements, memory, validation, and toolchain provenance are in
+`benchmark/reference/rtx5060ti_multi_input_layout.json`.
+
 ## Immediate implementation order
 
 The first pilot is the generated Dawson fused value/JVP leaf:

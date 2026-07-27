@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "operation": "generated eight-input analytical JVP and VJP layout comparison",
+  "layouts": {
+    "batch_first": "x(batch,active), adjacent GPU threads access contiguous elements",
+    "active_first": "x(active,batch), each thread accesses its active inputs contiguously"
+  },
+  "workload": {
+    "batch_sizes": [256, 65536, 1048576],
+    "samples": 31,
+    "warmup_samples": 3,
+    "pinned_cpu": 4
+  },
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "gpu": "NVIDIA GeForce RTX 5060 Ti",
+    "driver": "610.43.03"
+  },
+  "toolchain": {
+    "compiler": "NVHPC nvfortran 26.5",
+    "openacc_flags": "-fast -O3 -acc",
+    "openmp_flags": "-fast -O3 -mp=gpu -mp",
+    "fortsym_revision": "0e3deee5fa2ed3d30ebfce607cc96794f4b8fed3"
+  },
+  "validation": {
+    "device_paths": "mandatory real NVIDIA execution for OpenACC and OpenMP target",
+    "oracle": "both layouts agree componentwise for value, JVP, and VJP at 1024 nonuniform points"
+  },
+  "resident_median_ms": {
+    "batch_sizes": [256, 65536, 1048576],
+    "cpu_jvp_batch_first": [0.0129, 3.0458, 49.0649],
+    "cpu_jvp_active_first": [0.0131, 3.0949, 49.7191],
+    "cpu_vjp_batch_first": [0.0131, 3.0690, 49.3751],
+    "cpu_vjp_active_first": [0.0131, 3.0871, 49.2291],
+    "openacc_jvp_batch_first": [0.0141, 0.1040, 1.4620],
+    "openacc_jvp_active_first": [0.0141, 0.1040, 1.4620],
+    "openacc_vjp_batch_first": [0.0141, 0.1011, 1.4181],
+    "openacc_vjp_active_first": [0.0148, 0.1061, 1.4222],
+    "openmp_jvp_batch_first": [0.0141, 0.1049, 1.4620],
+    "openmp_jvp_active_first": [0.0141, 0.1040, 1.4620],
+    "openmp_vjp_batch_first": [0.0140, 0.1011, 1.4172],
+    "openmp_vjp_active_first": [0.0150, 0.1070, 1.4191]
+  },
+  "transfer_median_ms": {
+    "batch_sizes": [256, 65536, 1048576],
+    "openacc_jvp_batch_first": [0.0439, 0.9320, 16.7680],
+    "openacc_jvp_active_first": [0.0448, 0.9439, 15.3962],
+    "openacc_vjp_batch_first": [0.0450, 1.0252, 15.1992],
+    "openacc_vjp_active_first": [0.0451, 1.0211, 14.5800],
+    "openmp_jvp_batch_first": [0.0451, 0.9408, 16.2072],
+    "openmp_jvp_active_first": [0.0448, 0.9621, 15.8041],
+    "openmp_vjp_batch_first": [0.0442, 1.0209, 15.1231],
+    "openmp_vjp_active_first": [0.0479, 1.0309, 14.5979]
+  },
+  "repeated_large_transfer_median_155_ms": {
+    "openacc_jvp_batch_first": 16.0310,
+    "openacc_jvp_active_first": 15.0308,
+    "openacc_vjp_batch_first": 15.3520,
+    "openacc_vjp_active_first": 16.4499,
+    "openmp_jvp_batch_first": 15.6560,
+    "openmp_jvp_active_first": 16.4171,
+    "openmp_vjp_batch_first": 16.0010,
+    "openmp_vjp_active_first": 16.0170
+  },
+  "peak_host_rss_bytes_n1048576_resident": {
+    "cpu_jvp_batch_first": 156246016,
+    "cpu_jvp_active_first": 156266496,
+    "cpu_vjp_batch_first": 156246016,
+    "cpu_vjp_active_first": 156258304,
+    "openacc_jvp_batch_first": 255836160,
+    "openacc_jvp_active_first": 256860160,
+    "openacc_vjp_batch_first": 198094848,
+    "openacc_vjp_active_first": 196751360,
+    "openmp_jvp_batch_first": 260624384,
+    "openmp_jvp_active_first": 258396160,
+    "openmp_vjp_batch_first": 200122368,
+    "openmp_vjp_active_first": 202129408
+  },
+  "selection": "batch_first",
+  "verdict": "batch-first preserves GPU coalescing, is never materially slower while resident, wins the mid-size resident VJP by 4.9 to 5.8 percent, and is slightly faster for CPU JVP; transfer differences are noisy and inconsistent"
+}
