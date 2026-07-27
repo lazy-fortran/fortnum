@@ -87,6 +87,9 @@ add_test(NAME ad_ode_implicit_stage_adjoint
 add_executable(test_ode_event_time_tangent test_ode_event_time_tangent.f90)
 target_link_libraries(test_ode_event_time_tangent PRIVATE fortnum)
 add_test(NAME ad_ode_event_time_tangent COMMAND test_ode_event_time_tangent)
+add_test(NAME ad_ode_event_driven COMMAND test_ode_event_time_tangent)
+set_tests_properties(ad_ode_event_driven PROPERTIES
+    ENVIRONMENT "FORTNUM_EVENT_OUTPUT=state")
 
 add_executable(test_ode_continuous_sensitivity
     test_ode_continuous_sensitivity.f90)

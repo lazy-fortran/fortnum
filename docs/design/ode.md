@@ -243,7 +243,11 @@ the total derivative `g_t + grad_y g . f` is nonzero at the root, so
 `ode_event_time_jvp` applies the implicit function theorem
 `d t_event = -d g|_t / (g_t + grad_y g . f)`. Its residual tangent is evaluated
 with event time fixed and may include state and parameter directions. Multiple
-directions reuse the same located crossing. When the crossing is tangential
+directions reuse the same located crossing. `ode_event_state_jvp` composes the
+moving-time chain rule
+`d y_event = d y|_t + f(t_event,y_event) d t_event`. The fixed-time state
+tangent and event velocity may come from `analytical`, `autodiff`, or `hybrid`
+local products. When the crossing is tangential
 (`dg/dt` within `event_tol` of zero) or `g` is non-smooth at the root, the event
 time is not a differentiable function of `y0` or the parameters; the integrator
 reports `FORTNUM_DOMAIN_ERROR` with a message naming the non-transversal event,

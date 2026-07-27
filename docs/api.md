@@ -1532,6 +1532,8 @@ sensitivity, so no separate `vjp`/`grad` is shipped.
 subroutine ode_var_rhs_t(t, y, s, dsdt, ctx)   ! abstract interface: variational/tangent RHS
 subroutine ode_integrate_jvp(problem, var_rhs, s0, solution, s1, status)      ! forward sensitivity
 subroutine ode_integrate_vjp(problem, var_rhs_adj, u, solution, jtu, status)  ! discrete adjoint
+subroutine ode_event_time_jvp(result, residual_tangent, time_tangent, status)
+subroutine ode_event_state_jvp(result, fixed_state_tangent, event_velocity, time_tangent, state_tangent, status)
 ```
 
 Both products re-run the Cash-Karp stepper over the recorded `solution%t` and
@@ -1539,6 +1541,9 @@ Both products re-run the Cash-Karp stepper over the recorded `solution%t` and
 variational equation `dS/dt = f_y S + f_p v` with a Cash-Karp recurrence. It
 returns `S(t1)` at fixed terminal time. The adjoint walks the same recurrence
 backward. HVP needs a caller-defined scalar loss on `y(t1)` and is deferred.
+At a transversal event, `ode_event_time_jvp` differentiates the event residual
+implicitly. `ode_event_state_jvp` then applies
+`dy_event = dy_fixed + f_event*dt_event` for one or more contracted directions.
 
 ### fortnum_roots (`implicit_rule`)
 
