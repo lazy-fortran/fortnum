@@ -786,6 +786,57 @@ The benchmark is launched through CTest by setting `FORTNUM_BATCH_ACTION`,
 `FORTNUM_BATCH_CANDIDATE`, and `FORTNUM_BATCH_SIZE`; the ordinary test path
 continues to run only independent validation.
 
+## Hybrid ODE forward sensitivity
+
+The first ODE `hybrid` candidate uses Enzyme forward mode only at the local RHS
+boundary. `ode_integrate_jvp` remains the analytical composition layer and
+advances
+
+\[
+\dot s = J_f(t,y)s + f_k(t,y)\dot k
+\]
+
+over the Cash–Karp step schedule recorded by the adaptive primal. The workload
+uses \(y'=-ky\), \(y(0)=1.3\), \(t_1=2\), and \(k\) near 0.7. The independent
+oracles are the closed-form sensitivity
+\(-t_1y_0\exp(-kt_1)\) and central differences of complete primal solves.
+
+Every timed analytical or hybrid workload includes adaptive primal integration
+and one frozen-trace parameter JVP. The diagnostic includes a base primal plus
+the two perturbed primal solves. Results are medians of three processes, each
+with 31 samples of 2,000 complete workloads. Reference: AMD Ryzen 9 5950X,
+Flang/LLVM 22.1.8, Enzyme `c96508349d9f`, Release `-O2`.
+
+| Candidate | Mechanism | Median ns/value+JVP | MAD ns | Peak RSS |
+|---|---|---:|---:|---:|
+| explicit RHS tangent + frozen trace | `analytical` | 9,322.0850 | 177.4240 | 3,145,728 B |
+| Enzyme RHS JVP + frozen trace | `hybrid` | 9,690.5995 | 364.6070 | 3,035,136 B |
+| complete-solve central difference | diagnostic | 14,965.7690 | 345.1100 | 3,076,096 B |
+
+Complete-workload wall clock selects `analytical`. It is 1.0395 times faster
+than `hybrid` and 1.6054 times faster than finite differences. The hybrid is
+1.5444 times faster than finite differences, showing that the local Enzyme
+boundary removes most derivative-maintenance work without differentiating
+adaptive control flow. This scalar one-input, one-output item does not establish
+a forward-versus-reverse scaling verdict; the later many-parameter trajectory
+tournament must do that.
+
+Linux `perf stat -r 3` over CTest-launched benchmark processes records:
+
+| Candidate | Cycles | Instructions | Cache references | Cache misses |
+|---|---:|---:|---:|---:|
+| `analytical` | 2,689,394,152 | 7,819,202,627 | 14,776,466 | 383,372 |
+| `hybrid` | 2,680,804,009 | 7,775,468,150 | 11,247,531 | 332,953 |
+| diagnostic | 4,282,025,762 | 10,540,903,123 | 11,526,373 | 468,168 |
+
+Analytical and hybrid cycle counts are effectively tied even though analytical
+has the lower wall-clock median. Cache-reference dispersion is 35% for
+analytical and 7% for hybrid, so counters are diagnostic only and wall clock
+selects the candidate.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_ode_hybrid_forward_sensitivity.json`.
+
 ## Vector-root candidate tournament
 
 The coupled vector tournament uses

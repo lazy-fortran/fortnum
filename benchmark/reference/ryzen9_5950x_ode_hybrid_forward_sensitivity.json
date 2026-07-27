@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "cash_karp_frozen_trace_forward_sensitivity",
+  "product": "value_plus_jvp",
+  "workload": "y'=-k*y, y(0)=1.3, t1=2, k near 0.7, adaptive primal trace plus one parameter JVP",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor"
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "enzyme_commit": "c96508349d9f",
+    "build": "Release -O2"
+  },
+  "sampling": {
+    "processes": 3,
+    "samples_per_process": 31,
+    "workloads_per_sample": 2000,
+    "runtime_aggregation": "median of process medians",
+    "dispersion_aggregation": "median of within-process MADs",
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum",
+    "perf_repetitions": 3
+  },
+  "validation": {
+    "closed_form_oracle": "-t1*y0*exp(-k*t1)",
+    "complete_solve_central_difference": true,
+    "analytical_and_hybrid_absolute_tolerance": 2e-8,
+    "diagnostic_absolute_tolerance": 2e-7
+  },
+  "candidates": [
+    {"id": "explicit_rhs_jvp", "mechanism": "analytical", "median_ns": 9322.0850, "mad_ns": 177.4240, "peak_rss_bytes": 3145728, "cycles": 2689394152, "instructions": 7819202627, "cache_references": 14776466, "cache_misses": 383372},
+    {"id": "enzyme_rhs_jvp_frozen_trace", "mechanism": "hybrid", "median_ns": 9690.5995, "mad_ns": 364.6070, "peak_rss_bytes": 3035136, "cycles": 2680804009, "instructions": 7775468150, "cache_references": 11247531, "cache_misses": 332953},
+    {"id": "complete_solve_central_difference", "mechanism": "diagnostic", "median_ns": 14965.7690, "mad_ns": 345.1100, "peak_rss_bytes": 3076096, "cycles": 4282025762, "instructions": 10540903123, "cache_references": 11526373, "cache_misses": 468168}
+  ],
+  "selection": {
+    "selected": "explicit_rhs_jvp",
+    "criterion": "complete primal-trajectory-plus-JVP wall clock",
+    "speedup_over_hybrid": 1.0395,
+    "speedup_over_diagnostic": 1.6054,
+    "hybrid_speedup_over_diagnostic": 1.5444,
+    "reason": "explicit and Enzyme RHS products ride the same frozen trace; explicit analytical has the lowest measured complete-workload wall clock"
+  }
+}

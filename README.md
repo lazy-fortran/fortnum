@@ -53,6 +53,11 @@ output, the full-Jacobian tournament selects reverse `analytical`. At batch 16
 it is 4.16 times faster than four forward analytical sweeps and scales nearly
 linearly without material batch-sized memory growth.
 
+ODE forward sensitivities can compose an Enzyme-generated RHS JVP with the
+analytical frozen Cash–Karp trace. On the first scalar trajectory this `hybrid`
+is 4.0% slower than an explicit RHS derivative but 1.54 times faster than
+complete-solve finite differences.
+
 ## Build
 
 CMake is the primary build system with CTest integration:
