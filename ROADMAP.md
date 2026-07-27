@@ -52,8 +52,8 @@ independent validation plus measured application runtime and peak memory.
 - [x] Add conditioning diagnostics to implicit derivative products.
 - [x] Add derivative-reliability status for ill-conditioned implicit products.
 - [x] Measure candidate-specific peak memory instead of shared-process RSS.
-- [ ] Correct the linear-solve VJP benchmark target source and rerun its
-  committed evidence.
+- [x] Audit the linear-solve VJP benchmark target and refresh its committed
+  Release and candidate-memory evidence.
 
 ## Roots and residual equations
 
