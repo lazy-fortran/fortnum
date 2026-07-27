@@ -578,6 +578,50 @@ fo exec bench_multiroot_jacobian_reuse reevaluate --peak-rss
 fo exec bench_multiroot_jacobian_reuse reuse --peak-rss
 ```
 
+## Vector-root JVP factorization reuse
+
+`multiroot_jvp_factored` accepts the compact LU arrays and pivots obtained by
+factoring the converged state Jacobian once. It forms the contracted residual
+tangent and applies the analytical implicit solve without refactorizing
+`F_x` for every parameter direction.
+
+The independent oracle compares the factored JVP with a central difference of
+complete nonlinear root solves at `p+h*tp` and `p-h*tp`. Its maximum absolute
+error was `6.0430e-12`.
+
+The benchmark uses a dense 16-state Jacobian and parameter Jacobian. The
+baseline `multiroot_jvp` factors the same converged Jacobian for every
+direction. The reuse candidate factors once before timing and applies those
+factors to 200,000 varying directions per sample.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, GNU Fortran 16.1.1, Release build,
+15 samples after three warmups.
+
+| Candidate | Mechanism | Median ns/JVP | MAD ns/JVP | Peak RSS |
+|---|---|---:|---:|---:|
+| refactor converged Jacobian per JVP | `analytical` | 1,052.7729 | 17.6672 | 12,484,608 B |
+| reuse converged Jacobian LU | `analytical` | 356.1775 | 1.3245 | 12,312,576 B |
+
+Here “2.9558 times faster” means
+`1052.7729 / 356.1775 = 2.9558`: factor reuse saves 696.5954 ns for the same
+JVP. Reuse also lowers maximum observed self-process RSS by 172,032 bytes and
+is the measured selection for this workload.
+
+Peak memory is the maximum across five separately launched candidates,
+measured with `getrusage(RUSAGE_SELF)`. The machine-readable record is
+`benchmark/reference/ryzen9_5950x_multiroot_jvp_factorization.json`.
+
+Run the benchmark with:
+
+```bash
+cd benchmark
+fo build
+taskset -c 4 fo exec bench_multiroot_jvp_factorization refactor
+taskset -c 4 fo exec bench_multiroot_jvp_factorization reuse
+fo exec bench_multiroot_jvp_factorization refactor --peak-rss
+fo exec bench_multiroot_jvp_factorization reuse --peak-rss
+```
+
 ## Analytical implicit tangent product for fixed points
 
 For a converged fixed point `x = G(x,p)`, the new analytical JVP solves

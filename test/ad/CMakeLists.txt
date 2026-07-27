@@ -139,6 +139,7 @@ if(FORTNUM_ENABLE_ENZYME)
         SOURCES
             ${CMAKE_SOURCE_DIR}/src/fortnum_kinds.f90
             ${CMAKE_SOURCE_DIR}/src/fortnum_status.f90
+            ${CMAKE_SOURCE_DIR}/src/linalg/fortnum_linalg.f90
             ${CMAKE_SOURCE_DIR}/src/roots/fortnum_multiroot.f90
             ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/vector_root_jvp.f90
@@ -149,6 +150,7 @@ if(FORTNUM_ENABLE_ENZYME)
         SOURCES
             ${CMAKE_SOURCE_DIR}/src/fortnum_kinds.f90
             ${CMAKE_SOURCE_DIR}/src/fortnum_status.f90
+            ${CMAKE_SOURCE_DIR}/src/linalg/fortnum_linalg.f90
             ${CMAKE_SOURCE_DIR}/src/roots/fortnum_multiroot.f90
             ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/vector_root_vjp.f90
