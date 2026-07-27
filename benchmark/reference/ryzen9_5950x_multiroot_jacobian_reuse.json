@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "vector_root",
+  "product": "converged_state_jacobian",
+  "workload": "8-state dense nonlinear solve with trigonometric residual terms, followed by availability of the converged Jacobian, 5000 workloads per sample",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1",
+    "build": "Release"
+  },
+  "sampling": {
+    "warmup_rounds": 3,
+    "samples": 15,
+    "calls_per_sample": 5000,
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum"
+  },
+  "validation": {
+    "oracle": "central finite-difference residual Jacobians at converged roots for Rosenbrock-gradient, Powell-singular, and circle-line systems",
+    "maximum_absolute_error": 1.0702194686018629e-8,
+    "absolute_tolerance": 1e-5
+  },
+  "memory_method": "getrusage(RUSAGE_SELF) inside each separately launched candidate",
+  "candidates": [
+    {
+      "id": "solve_then_reevaluate_jacobian",
+      "mechanism": "analytical",
+      "median_ns_per_workload": 2042.0032,
+      "mad_ns_per_workload": 18.8718,
+      "peak_rss_bytes": 12521472
+    },
+    {
+      "id": "return_and_reuse_converged_jacobian",
+      "mechanism": "analytical",
+      "median_ns_per_workload": 1963.0000,
+      "mad_ns_per_workload": 10.2972,
+      "peak_rss_bytes": 12316672
+    }
+  ],
+  "selection": {
+    "selected": "return_and_reuse_converged_jacobian",
+    "runtime_speedup": 1.0402,
+    "reason": "both expose the same validated converged Jacobian; reuse is 1.0402x faster and uses 204800 fewer bytes of maximum observed candidate-process RSS"
+  }
+}
