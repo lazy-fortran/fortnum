@@ -27,7 +27,9 @@ set(FORTNUM_CORE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../src)
 # made two targets emit the same .mod into the shared module directory, which
 # ninja rejects ("multiple rules generate include/fortnum_version.mod").
 add_library(bench_core STATIC
+    ${FORTNUM_CORE_DIR}/fortnum_kinds.f90
     ${FORTNUM_CORE_DIR}/fortnum_version.f90
+    ${FORTNUM_CORE_DIR}/linalg/fortnum_linalg.f90
     fortnum_benchmark.f90
 )
 
@@ -38,3 +40,6 @@ target_link_libraries(bench_main PRIVATE bench_core)
 # adds real JVP/VJP/grad/HVP entries as the derivative products land.
 add_executable(bench_ad_overheads bench_ad_overheads.f90)
 target_link_libraries(bench_ad_overheads PRIVATE bench_core)
+
+add_executable(bench_linear_solve_jvp bench_linear_solve_jvp.f90)
+target_link_libraries(bench_linear_solve_jvp PRIVATE bench_core)

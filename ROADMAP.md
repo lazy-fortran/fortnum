@@ -44,7 +44,7 @@ independent validation plus measured application runtime and peak memory.
 
 ## Core infrastructure
 
-- [ ] Add factorization reuse to the analytical linear-solve JVP.
+- [x] Add factorization reuse to the analytical linear-solve JVP.
 - [ ] Add transpose-factorization reuse to the analytical linear-solve VJP.
 - [ ] Add reusable preconditioner hooks for implicit products.
 - [ ] Connect committed benchmark records to build-time candidate selection.

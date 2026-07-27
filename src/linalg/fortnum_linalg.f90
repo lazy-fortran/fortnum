@@ -43,8 +43,9 @@ module fortnum_linalg
     ! the FO Boris guard so the chartmap inversion behaviour is preserved.
     real(dp), parameter :: SING_TOL_REL = 1.0e-8_dp
 
-    public :: det2, det3, inv2, inv3, jacobian_ok3, lu_solve
-    public :: linear_solve_jvp, linear_solve_vjp
+    public :: det2, det3, inv2, inv3, jacobian_ok3
+    public :: lu_factor, lu_solve_factored, lu_solve
+    public :: linear_solve_jvp, linear_solve_jvp_factored, linear_solve_vjp
 
 contains
 
@@ -126,22 +127,21 @@ contains
         ainv(3, 3) = (a(1, 1)*a(2, 2) - a(1, 2)*a(2, 1))/d
     end subroutine inv3
 
-    ! Solve A x = b (n x n, 1 <= n <= LINALG_MAX_N) by Gaussian elimination with
-    ! row partial pivoting, in place: A is overwritten with the elimination
-    ! factors and b carries the solution on return.  info = 0 on success; info =
-    ! k > 0 when column k has a pivot at or below the scaled singularity
-    ! threshold (eps*maxval(|A|)*n), the same relative test as the multiroot
-    ! solver.  No scratch arrays, so the routine is valid under routine seq.
-    pure subroutine lu_solve(n, a, b, info)
+    ! Compact LU factorization with partial pivoting. A is overwritten by L and
+    ! U, while ipiv records each row swap for reuse by subsequent solves.
+    pure subroutine lu_factor(n, a, ipiv, info)
         !$acc routine seq
         integer, intent(in) :: n
         real(dp), intent(inout) :: a(n, n)
-        real(dp), intent(inout) :: b(n)
+        integer, intent(out) :: ipiv(n)
         integer, intent(out) :: info
-        real(dp) :: factor, pivmax, s, sing_tol, amax, tmp
+        real(dp) :: factor, pivmax, sing_tol, amax, tmp
         integer :: i, j, k, p
 
         info = LINALG_OK
+        do i = 1, n
+            ipiv(i) = i
+        end do
         amax = 0.0_dp
         do j = 1, n
             do i = 1, n
@@ -164,20 +164,20 @@ contains
                 info = k
                 return
             end if
+            ipiv(k) = p
             if (p /= k) then
                 do j = 1, n
                     tmp = a(k, j)
                     a(k, j) = a(p, j)
                     a(p, j) = tmp
                 end do
-                s = b(k); b(k) = b(p); b(p) = s
             end if
             do i = k + 1, n
                 factor = a(i, k)/a(k, k)
-                do j = k, n
+                a(i, k) = factor
+                do j = k + 1, n
                     a(i, j) = a(i, j) - factor*a(k, j)
                 end do
-                b(i) = b(i) - factor*b(k)
             end do
         end do
 
@@ -185,15 +185,67 @@ contains
             info = n
             return
         end if
+    end subroutine lu_factor
 
-        ! Back substitution; b is overwritten with the solution.
+    ! Solve A x = b from a successful lu_factor result without refactorizing A.
+    pure subroutine lu_solve_factored(n, a, ipiv, b, info)
+        !$acc routine seq
+        integer, intent(in) :: n
+        real(dp), intent(in) :: a(n, n)
+        integer, intent(in) :: ipiv(n)
+        real(dp), intent(inout) :: b(n)
+        integer, intent(out) :: info
+        real(dp) :: s
+        integer :: i, j, k, p
+
+        info = LINALG_OK
+        do k = 1, n - 1
+            p = ipiv(k)
+            if ((p < k) .or. (p > n)) then
+                info = k
+                return
+            end if
+            if (p /= k) then
+                s = b(k)
+                b(k) = b(p)
+                b(p) = s
+            end if
+        end do
+
+        do i = 2, n
+            s = b(i)
+            do j = 1, i - 1
+                s = s - a(i, j)*b(j)
+            end do
+            b(i) = s
+        end do
+
         do i = n, 1, -1
             s = b(i)
             do j = i + 1, n
                 s = s - a(i, j)*b(j)
             end do
+            if (a(i, i) == 0.0_dp) then
+                info = i
+                return
+            end if
             b(i) = s/a(i, i)
         end do
+    end subroutine lu_solve_factored
+
+    ! Solve A x = b (n x n, 1 <= n <= LINALG_MAX_N) in place. This compatibility
+    ! entry point factors once and immediately consumes the factors.
+    pure subroutine lu_solve(n, a, b, info)
+        !$acc routine seq
+        integer, intent(in) :: n
+        real(dp), intent(inout) :: a(n, n)
+        real(dp), intent(inout) :: b(n)
+        integer, intent(out) :: info
+        integer :: ipiv(n)
+
+        call lu_factor(n, a, ipiv, info)
+        if (info /= LINALG_OK) return
+        call lu_solve_factored(n, a, ipiv, b, info)
     end subroutine lu_solve
 
     ! Analytical implicit JVP for A x = b: A dx = db - dA x. The caller
@@ -205,12 +257,29 @@ contains
         real(dp), intent(out) :: dx(n)
         integer, intent(out) :: info
         real(dp) :: work_a(n, n)
+        integer :: ipiv(n)
 
         work_a = a
-        dx = db - matmul(da, x)
-        call lu_solve(n, work_a, dx, info)
-        if (info /= LINALG_OK) dx = 0.0_dp
+        call lu_factor(n, work_a, ipiv, info)
+        if (info /= LINALG_OK) then
+            dx = 0.0_dp
+            return
+        end if
+        call linear_solve_jvp_factored(n, work_a, ipiv, x, da, db, dx, info)
     end subroutine linear_solve_jvp
+
+    ! Analytical JVP using a reusable factorization of the primal matrix.
+    pure subroutine linear_solve_jvp_factored(n, a, ipiv, x, da, db, dx, info)
+        integer, intent(in) :: n
+        real(dp), intent(in) :: a(n, n), x(n), da(n, n), db(n)
+        integer, intent(in) :: ipiv(n)
+        real(dp), intent(out) :: dx(n)
+        integer, intent(out) :: info
+
+        dx = db - matmul(da, x)
+        call lu_solve_factored(n, a, ipiv, dx, info)
+        if (info /= LINALG_OK) dx = 0.0_dp
+    end subroutine linear_solve_jvp_factored
 
     ! Analytical implicit VJP. Solving A^T lambda = u gives
     ! b_bar=lambda and A_bar=-lambda*x^T.

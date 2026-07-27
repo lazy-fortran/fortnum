@@ -61,3 +61,35 @@ taskset -c 4 /usr/bin/time -v \
   ./build-enzyme/test/ad/enzyme_dawson_hybrid.enzyme/enzyme_dawson_hybrid \
   --benchmark
 ```
+
+## Analytical linear-solve JVP factorization reuse
+
+This workload applies 200,000 JVP directions to one dense 16-by-16 primal
+system. It compares refactorizing the primal matrix for every analytical JVP
+with reusing one compact partial-pivoted LU factorization. Two directions are
+validated independently by central finite differences of the complete solve.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, GNU Fortran 16.1.1, 15 samples
+after three warmups.
+
+| Candidate | Mechanism | Median ns/JVP | MAD ns/JVP | Peak RSS |
+|---|---|---:|---:|---:|
+| refactor each JVP | `analytical` | 4,863.9215 | 82.1883 | 23,453,696 B |
+| reuse primal LU | `analytical` | 813.4458 | 4.2406 | 23,977,984 B |
+
+Reusing the factorization is 5.9794 times faster. Its measured peak RSS is
+524,288 bytes higher. Peak RSS was measured with `/usr/bin/time -v` around the
+`fo exec` process tree, so it includes the runner and is a conservative
+end-to-end number, not candidate-private allocation.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_linear_solve_jvp_reuse.json`.
+
+Run the benchmark with:
+
+```bash
+cd benchmark
+fo build
+taskset -c 4 fo exec bench_linear_solve_jvp refactor
+taskset -c 4 fo exec bench_linear_solve_jvp reuse
+```
