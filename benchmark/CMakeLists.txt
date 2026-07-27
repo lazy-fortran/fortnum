@@ -91,6 +91,16 @@ if(FORTNUM_GPU_BACKEND STREQUAL "OPENACC")
     add_executable(bench_openacc_dawson_offload
         gpu/bench_openacc_dawson_offload.f90)
     target_link_libraries(bench_openacc_dawson_offload PRIVATE bench_core)
+elseif(FORTNUM_GPU_BACKEND STREQUAL "OPENMP")
+    add_executable(test_openmp_dawson_offload
+        gpu/test_openmp_dawson_offload.f90)
+    target_link_libraries(test_openmp_dawson_offload PRIVATE bench_core)
+    add_test(NAME openmp_dawson_offload
+        COMMAND test_openmp_dawson_offload)
+
+    add_executable(bench_openmp_dawson_offload
+        gpu/bench_openmp_dawson_offload.f90)
+    target_link_libraries(bench_openmp_dawson_offload PRIVATE bench_core)
 endif()
 
 add_executable(bench_linear_solve_jvp bench_linear_solve_jvp.f90)

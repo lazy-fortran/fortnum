@@ -15,7 +15,7 @@ must not silently behave as a supported one.
 | --- | --- | --- | --- |
 | Serial and parallel CPU | Supported selectively through the pinned Flang/Enzyme pipeline | Supported | Supported selectively as Enzyme composition with analytical custom rules |
 | OpenACC GPU | Not supported | Dawson fused value/JVP pilot | Not supported |
-| OpenMP-target GPU | Not supported | Planned, one generated leaf at a time | Not supported |
+| OpenMP-target GPU | Not supported | Dawson fused value/JVP pilot | Not supported |
 
 CPU remains the complete feature path. Initial GPU work supports only explicit
 `analytical` leaves that independently pass the device gates below. A missing
@@ -125,6 +125,34 @@ on every sample. It does not measure resident-data kernel time or peak device
 allocation; those belong to later checklist items. Machine-readable evidence
 is in `benchmark/reference/rtx5060ti_openacc_dawson_transfer.json`.
 
+## OpenMP-target Dawson pilot
+
+The same generated analytical leaf, shared batch loop, flat array layout, and
+1,048,576-element workload are compiled by NVHPC for OpenMP target. The
+behavioral test runs with `OMP_TARGET_OFFLOAD=MANDATORY` and requires
+`omp_is_initial_device()` to be false inside a target region. It then checks
+the GPU value and JVP against the same independently evaluated CPU formulas at
+4,096 points.
+
+The released NVHPC compiler exposed that its device linker did not resolve the
+previous module-list form of `declare target`. `fortsym` now emits the
+procedure-local Fortran form documented by NVIDIA, at revision
+`bba0d57c3278dce36abb991739e8128d1f3cfc53`. No numerical expression or
+execution schedule was duplicated to fix it.
+
+On the same NVIDIA GeForce RTX 5060 Ti with driver 610.43.03, NVHPC 26.5
+`nvfortran -fast -O3 -mp=gpu -mp`, CPU 4 pinned, 31 samples:
+
+| Complete workload | Median ms | MAD ms | Host peak RSS |
+| --- | ---: | ---: | ---: |
+| OpenMP target, transfers included | 4.0091 | 0.0741 | 165,863,424 B |
+| CPU generated-leaf loop | 6.6490 | 0.0370 | 54,300,672 B |
+
+The transfer-inclusive OpenMP-target workload was 1.6585 times faster for this
+batch. As with the OpenACC result, resident-data kernel time and peak device
+allocation are not part of this item. Machine-readable evidence is in
+`benchmark/reference/rtx5060ti_openmp_dawson_transfer.json`.
+
 ## Immediate implementation order
 
 The first pilot is the generated Dawson fused value/JVP leaf:
@@ -137,7 +165,7 @@ The first pilot is the generated Dawson fused value/JVP leaf:
    failing configuration; complete;
 4. add one shared batch-wrapper template; complete for fused Dawson value/JVP;
 5. validate and measure OpenACC and OpenMP-target execution independently;
-   OpenACC is complete for the Dawson fused value/JVP pilot; and
+   both are complete for the Dawson fused value/JVP pilot; and
 6. retain only paths that pass the acceptance gates.
 
 Coverage then expands by measured kernel family. No general portability
