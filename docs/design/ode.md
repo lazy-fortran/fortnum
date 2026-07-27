@@ -262,10 +262,12 @@ under #40 checks transversality before propagating an event sensitivity.
   callback adds `(df/dp)^T` times the stage cotangent into the caller-defined
   parameter layout. It returns both initial-state and parameter VJPs.
 - Checkpointing: the adjoint needs the forward state at each mesh point. The
-  default keeps the full `solution%y`; a checkpointed variant stores a strided
-  subset and re-integrates between checkpoints (Griewank-Walther revolve). The
-  checkpoint stride is an inactive control on the sensitivity workspace, not on
-  `ode_problem_t`, so the primal types in section 3 do not change when #40 lands.
+  default keeps the full `solution%y`. `ode_build_checkpoints` stores a strided
+  subset plus the accepted `t` and `h` schedule;
+  `ode_integrate_vjp_checkpointed` re-integrates each segment before its reverse
+  walk. The checkpoint stride is an inactive derivative control. The current
+  builder compresses an existing full trace, so it reduces retained reverse
+  storage but not the peak memory already reached by the primal.
 
 These names follow ad.md §2 (`foo_jvp`, `foo_vjp`). The primal `ode_integrate`
 and `ode_solve` signatures in sections 4 and 5 remain unchanged.

@@ -40,6 +40,7 @@ module fortnum_ode
     public :: ode_integrate, ode_solve
     public :: ode_integrate_jvp, ode_integrate_vjp
     public :: ode_integrate_parameter_vjp
+    public :: ode_build_checkpoints, ode_integrate_vjp_checkpointed
 
     integer, parameter, public :: ODE_EVENT_RISING  =  1
     integer, parameter, public :: ODE_EVENT_FALLING = -1
@@ -165,6 +166,15 @@ module fortnum_ode
         real(dp), allocatable :: y_event(:)
         type(fortnum_status_t) :: status
     end type ode_solution_t
+
+    type, public :: ode_checkpoint_t
+        integer :: nsteps = 0
+        integer :: stride = 0
+        integer, allocatable :: step(:)
+        real(dp), allocatable :: t(:)
+        real(dp), allocatable :: h(:)
+        real(dp), allocatable :: y(:,:)
+    end type ode_checkpoint_t
 
 contains
 
@@ -504,6 +514,123 @@ contains
 
         jtu = lam
     end subroutine ode_integrate_parameter_vjp
+
+    subroutine ode_build_checkpoints(solution, stride, checkpoints, status)
+        type(ode_solution_t), intent(in) :: solution
+        integer, intent(in) :: stride
+        type(ode_checkpoint_t), intent(out) :: checkpoints
+        type(fortnum_status_t), intent(out) :: status
+
+        integer :: checkpoint, checkpoint_count, step
+
+        call status_set(status, FORTNUM_OK, "")
+        if (stride < 1) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_build_checkpoints: stride must be positive")
+            return
+        end if
+        if (.not. allocated(solution%t)) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_build_checkpoints: empty trace")
+            return
+        end if
+        if (.not. allocated(solution%y)) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_build_checkpoints: empty trace")
+            return
+        end if
+        if (.not. allocated(solution%h)) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_build_checkpoints: empty trace")
+            return
+        end if
+
+        checkpoint_count = 1 + &
+            (solution%nsteps + stride - 1)/stride
+        allocate(checkpoints%step(checkpoint_count))
+        allocate(checkpoints%t(solution%nsteps + 1))
+        allocate(checkpoints%h(solution%nsteps))
+        allocate(checkpoints%y(size(solution%y, 1), checkpoint_count))
+        checkpoints%nsteps = solution%nsteps
+        checkpoints%stride = stride
+        checkpoints%t = solution%t
+        checkpoints%h = solution%h
+        do checkpoint = 1, checkpoint_count
+            step = min((checkpoint - 1)*stride, solution%nsteps)
+            checkpoints%step(checkpoint) = step
+            checkpoints%y(:, checkpoint) = solution%y(:, step + 1)
+        end do
+    end subroutine ode_build_checkpoints
+
+    subroutine ode_integrate_vjp_checkpointed(problem, var_rhs_adj, u, &
+            checkpoints, jtu, status)
+        type(ode_problem_t), intent(in) :: problem
+        procedure(ode_var_rhs_t) :: var_rhs_adj
+        real(dp), intent(in) :: u(:)
+        type(ode_checkpoint_t), intent(in) :: checkpoints
+        real(dp), allocatable, intent(out) :: jtu(:)
+        type(fortnum_status_t), intent(out) :: status
+
+        integer :: neq, checkpoint, start_step, end_step, segment_length
+        integer :: local_step, global_step, nfev
+        real(dp), allocatable :: states(:,:), lam(:)
+        real(dp), allocatable :: k1(:), k2(:), k3(:), k4(:), k5(:), k6(:)
+        real(dp), allocatable :: scratch(:), next_state(:), error_estimate(:)
+
+        call status_set(status, FORTNUM_OK, "")
+        if (.not. associated(problem%rhs)) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_integrate_vjp_checkpointed: rhs not associated")
+            return
+        end if
+        if (.not. allocated(checkpoints%step)) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_integrate_vjp_checkpointed: empty checkpoints")
+            return
+        end if
+        if (.not. allocated(checkpoints%y)) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_integrate_vjp_checkpointed: empty checkpoints")
+            return
+        end if
+
+        neq = size(checkpoints%y, 1)
+        if (size(u) /= neq) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_integrate_vjp_checkpointed: u size mismatch")
+            return
+        end if
+
+        allocate(jtu(neq), lam(neq))
+        allocate(states(neq, checkpoints%stride + 1))
+        allocate(k1(neq), k2(neq), k3(neq), k4(neq), k5(neq), k6(neq))
+        allocate(scratch(neq), next_state(neq), error_estimate(neq))
+        lam = u
+        nfev = 0
+
+        do checkpoint = size(checkpoints%step) - 1, 1, -1
+            start_step = checkpoints%step(checkpoint)
+            end_step = checkpoints%step(checkpoint + 1)
+            segment_length = end_step - start_step
+            states(:, 1) = checkpoints%y(:, checkpoint)
+            do local_step = 1, segment_length
+                global_step = start_step + local_step
+                call cash_karp_step(problem%rhs, checkpoints%t(global_step), &
+                    states(:, local_step), checkpoints%h(global_step), .false., &
+                    k1, k2, k3, k4, k5, k6, scratch, next_state, &
+                    error_estimate, nfev)
+                states(:, local_step + 1) = next_state
+            end do
+            do global_step = end_step, start_step + 1, -1
+                local_step = global_step - start_step
+                call augmented_step_adj(problem%rhs, var_rhs_adj, &
+                    checkpoints%t(global_step), states(:, local_step), lam, &
+                    checkpoints%h(global_step), neq)
+            end do
+        end do
+
+        jtu = lam
+    end subroutine ode_integrate_vjp_checkpointed
 
     ! One Cash-Karp step on the augmented state (y, s): the primal stages drive
     ! the tangent stages so they share the same internal states. h is taken from

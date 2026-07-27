@@ -1,7 +1,8 @@
 module test_ode_discrete_adjoint_kernel
     use, intrinsic :: iso_fortran_env, only: dp => real64
     use fortnum_ode, only: ode_problem_t, ode_workspace_t, ode_solution_t, &
-        ode_integrate, ode_integrate_jvp, ode_integrate_vjp
+        ode_checkpoint_t, ode_integrate, ode_integrate_jvp, ode_integrate_vjp, &
+        ode_build_checkpoints, ode_integrate_vjp_checkpointed
     use fortnum_status, only: fortnum_status_t, status_ok
     implicit none
     private
@@ -10,7 +11,8 @@ module test_ode_discrete_adjoint_kernel
         -0.3_dp, 0.7_dp, -1.1_dp, 0.2_dp], [2, 2])
     real(dp), parameter :: final_time = 1.3_dp
 
-    public :: reverse_vjp, forward_reconstruction_vjp, diagnostic_vjp, exact_vjp
+    public :: reverse_vjp, checkpointed_vjp, forward_reconstruction_vjp
+    public :: diagnostic_vjp, exact_vjp
 
 contains
 
@@ -31,6 +33,29 @@ contains
         if (.not. status_ok(status)) error stop "discrete adjoint failed"
         vjp = result
     end function reverse_vjp
+
+    function checkpointed_vjp(y0, cotangent, stride) result(vjp)
+        real(dp), intent(in) :: y0(2), cotangent(2)
+        integer, intent(in) :: stride
+        real(dp) :: vjp(2)
+        type(ode_problem_t) :: problem
+        type(ode_workspace_t) :: workspace
+        type(ode_solution_t) :: solution
+        type(ode_checkpoint_t) :: checkpoints
+        type(fortnum_status_t) :: status
+        real(dp), allocatable :: result(:)
+
+        call make_problem(y0, problem)
+        call ode_integrate(problem, workspace, solution, status)
+        if (.not. status_ok(status)) error stop "checkpoint primal failed"
+        call ode_build_checkpoints(solution, stride, checkpoints, status)
+        if (.not. status_ok(status)) error stop "checkpoint build failed"
+        deallocate(solution%y)
+        call ode_integrate_vjp_checkpointed(problem, adjoint_rhs, cotangent, &
+            checkpoints, result, status)
+        if (.not. status_ok(status)) error stop "checkpoint adjoint failed"
+        vjp = result
+    end function checkpointed_vjp
 
     function forward_reconstruction_vjp(y0, cotangent) result(vjp)
         real(dp), intent(in) :: y0(2), cotangent(2)
@@ -160,7 +185,7 @@ end module test_ode_discrete_adjoint_kernel
 
 program test_ode_discrete_adjoint
     use, intrinsic :: iso_fortran_env, only: dp => real64, int64
-    use test_ode_discrete_adjoint_kernel, only: reverse_vjp, &
+    use test_ode_discrete_adjoint_kernel, only: reverse_vjp, checkpointed_vjp, &
         forward_reconstruction_vjp, diagnostic_vjp, exact_vjp
     implicit none
 
@@ -202,7 +227,7 @@ contains
     subroutine validate_candidates()
         real(dp), parameter :: y0(2) = [1.5_dp, -0.4_dp]
         real(dp), parameter :: cotangent(2) = [0.6_dp, -1.2_dp]
-        real(dp) :: reference(2), candidate_value(2), errors(3)
+        real(dp) :: reference(2), candidate_value(2), errors(5)
 
         reference = exact_vjp(cotangent)
         candidate_value = reverse_vjp(y0, cotangent)
@@ -211,7 +236,11 @@ contains
         errors(2) = maxval(abs(candidate_value - reference))
         candidate_value = diagnostic_vjp(y0, cotangent)
         errors(3) = maxval(abs(candidate_value - reference))
-        if (maxval(errors(1:2)) > 2.0e-8_dp .or. &
+        candidate_value = checkpointed_vjp(y0, cotangent, 4)
+        errors(4) = maxval(abs(candidate_value - reference))
+        candidate_value = checkpointed_vjp(y0, cotangent, 16)
+        errors(5) = maxval(abs(candidate_value - reference))
+        if (max(errors(1), errors(2), errors(4), errors(5)) > 2.0e-8_dp .or. &
             errors(3) > 2.0e-7_dp) then
             print *, "ODE discrete-adjoint mismatch", errors
             error stop 1
@@ -249,9 +278,10 @@ contains
     subroutine validate_name(name)
         character(*), intent(in) :: name
 
-        if ((name /= "reverse") .and. (name /= "forward") .and. &
+        if ((name /= "reverse") .and. (name /= "checkpoint4") .and. &
+            (name /= "checkpoint16") .and. (name /= "forward") .and. &
             (name /= "diagnostic")) then
-            error stop "adjoint candidate must be reverse, forward, or diagnostic"
+            error stop "unknown ODE adjoint candidate"
         end if
     end subroutine validate_name
 
@@ -272,6 +302,10 @@ contains
             select case (name)
             case ("reverse")
                 result = reverse_vjp(y0, cotangent)
+            case ("checkpoint4")
+                result = checkpointed_vjp(y0, cotangent, 4)
+            case ("checkpoint16")
+                result = checkpointed_vjp(y0, cotangent, 16)
             case ("forward")
                 result = forward_reconstruction_vjp(y0, cotangent)
             case ("diagnostic")

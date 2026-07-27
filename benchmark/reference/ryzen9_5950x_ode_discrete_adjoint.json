@@ -29,15 +29,15 @@
     "diagnostic_absolute_tolerance": 2e-7
   },
   "candidates": [
-    {"id": "one_reverse_discrete_adjoint", "mechanism": "analytical", "median_ns": 34270.5560, "mad_ns": 1023.0970, "peak_rss_bytes": 5345280, "cycles": 4926950485, "instructions": 18091883235, "cache_references": 22343502, "cache_misses": 382233},
-    {"id": "two_forward_tangent_sweeps", "mechanism": "analytical", "median_ns": 58768.7470, "mad_ns": 1074.3040, "peak_rss_bytes": 5382144, "cycles": 8317476053, "instructions": 28965614332, "cache_references": 23260473, "cache_misses": 445412},
-    {"id": "complete_solve_central_difference", "mechanism": "diagnostic", "median_ns": 62939.3870, "mad_ns": 1150.4480, "peak_rss_bytes": 5292032, "cycles": 8850465175, "instructions": 30614064380, "cache_references": 18595675, "cache_misses": 411590}
+    {"id": "one_reverse_discrete_adjoint", "mechanism": "analytical", "median_ns": 20668.4510, "mad_ns": 487.7800, "peak_rss_bytes": 5341184, "cycles": 2895811348, "instructions": 10991701420, "cache_references": 18176085, "cache_misses": 292015},
+    {"id": "two_forward_tangent_sweeps", "mechanism": "analytical", "median_ns": 35911.4100, "mad_ns": 1221.1510, "peak_rss_bytes": 5382144, "cycles": 5079552126, "instructions": 17087552315, "cache_references": 21902057, "cache_misses": 405576},
+    {"id": "complete_solve_central_difference", "mechanism": "diagnostic", "median_ns": 38526.2070, "mad_ns": 941.6840, "peak_rss_bytes": 5292032, "cycles": 5436906700, "instructions": 18723541309, "cache_references": 5099721, "cache_misses": 358090}
   ],
   "selection": {
     "selected": "one_reverse_discrete_adjoint",
     "criterion": "complete primal-plus-scalar-objective-VJP wall clock",
-    "speedup_over_forward_reconstruction": 1.7149,
-    "speedup_over_diagnostic": 1.8365,
+    "speedup_over_forward_reconstruction": 1.7375,
+    "speedup_over_diagnostic": 1.8640,
     "reason": "one reverse trace computes the requested scalar-objective VJP with the lowest measured complete-workload wall clock"
   }
 }

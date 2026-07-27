@@ -60,13 +60,18 @@ complete-solve finite differences.
 
 Cash–Karp also has an analytical discrete adjoint over its frozen accepted-step
 trace. For a two-state system and one scalar terminal objective, one reverse
-adjoint is 1.71 times faster than reconstructing the VJP from two forward
+adjoint is 1.74 times faster than reconstructing the VJP from two forward
 tangent sweeps.
 
 The discrete adjoint can accumulate RHS-parameter VJPs at every Runge–Kutta
 stage. One forward sweep wins for one active parameter, while reverse wins by
 2.54× at four parameters and 8.51× at sixteen; production selection therefore
 depends on parameter count.
+
+A checkpointed Cash–Karp adjoint can retain every fourth or sixteenth state and
+recompute intervening segments. On the measured 41-step trajectory it reduces
+retained trace storage by 46–55%, but is 23–26% slower and does not reduce
+end-to-end peak RSS because the current primal is compressed after integration.
 
 ## Build
 

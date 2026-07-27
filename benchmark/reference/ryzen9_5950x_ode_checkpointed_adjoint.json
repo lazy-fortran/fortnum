@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "cash_karp_checkpointed_discrete_adjoint",
+  "product": "scalar_objective_vjp",
+  "workload": "41-step two-state linear Cash-Karp trace, complete primal plus reverse VJP",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor"
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1",
+    "build": "Release"
+  },
+  "sampling": {
+    "processes": 3,
+    "samples_per_process": 31,
+    "workloads_per_sample": 1000,
+    "runtime_aggregation": "median of process medians",
+    "dispersion_aggregation": "median of within-process MADs",
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum",
+    "perf_repetitions": 3
+  },
+  "validation": {
+    "oracle": "exp(transpose(A)*t)*terminal_cotangent",
+    "full_trace_identity": true,
+    "checkpoint_strides": [4, 16],
+    "absolute_tolerance": 2e-8
+  },
+  "candidates": [
+    {"id": "full_trace", "mechanism": "analytical", "median_ns": 20668.4510, "mad_ns": 487.7800, "peak_rss_bytes": 5341184, "retained_trace_bytes": 1664, "cycles": 2895811348, "instructions": 10991701420, "cache_references": 18176085, "cache_misses": 292015},
+    {"id": "checkpoint_stride_4", "mechanism": "analytical", "median_ns": 26091.4380, "mad_ns": 527.9850, "peak_rss_bytes": 5373952, "retained_trace_bytes": 904, "cycles": 3765759991, "instructions": 13879097742, "cache_references": 25986236, "cache_misses": 393256},
+    {"id": "checkpoint_stride_16", "mechanism": "analytical", "median_ns": 25406.8980, "mad_ns": 546.0590, "peak_rss_bytes": 5410816, "retained_trace_bytes": 744, "cycles": 3625909433, "instructions": 13833570851, "cache_references": 25705987, "cache_misses": 321866}
+  ],
+  "selection": {
+    "selected": "full_trace",
+    "criterion": "complete primal-plus-VJP wall clock",
+    "checkpoint_4_slowdown": 1.2624,
+    "checkpoint_16_slowdown": 1.2293,
+    "checkpoint_4_retained_trace_reduction": 0.4567,
+    "checkpoint_16_retained_trace_reduction": 0.5529,
+    "reason": "checkpointing reduces retained reverse-state storage but recomputation is slower and the current compress-after-primal path does not reduce complete-workload peak RSS"
+  }
+}
