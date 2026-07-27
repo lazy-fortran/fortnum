@@ -71,6 +71,7 @@ add_library(bench_core STATIC
     ${FORTNUM_CORE_DIR}/roots/fortnum_roots.f90
     gpu/fortnum_gpu_batch_wrappers.f90
     gpu/fortnum_gpu_multi_input_wrappers.f90
+    gpu/fortnum_gpu_backend_selection.f90
     gpu/test_gpu_multi_input_support.f90
     fortnum_benchmark.f90
     fortnum_benchmark_memory.f90

@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "operator": "generated multi-input scalar-output GPU wrapper",
+  "products": ["jvp", "vjp"],
+  "batch_sizes": [256, 65536, 1048576],
+  "residency_policies": ["resident", "transfer-inclusive"],
+  "candidates": ["openacc", "openmp"],
+  "selection_rule": {
+    "primary": "validated complete-workload median wall clock",
+    "timing_tie_fraction": 0.03,
+    "secondary": "peak device allocation",
+    "unknown_workload": "unavailable; no interpolation or silent default"
+  },
+  "evidence": {
+    "runtime": "rtx5060ti_multi_input_layout.json",
+    "memory": "rtx5060ti_multi_input_profile.json",
+    "openacc_peak_device_allocation_bytes": 153051422,
+    "openmp_peak_device_allocation_bytes": 153125080
+  },
+  "selected_backend": {
+    "jvp_resident": ["openacc", "openacc", "openacc"],
+    "jvp_transfer": ["openacc", "openacc", "openacc"],
+    "vjp_resident": ["openacc", "openacc", "openacc"],
+    "vjp_transfer": ["openacc", "openacc", "openacc"]
+  },
+  "verdict": "all measured backend wall clocks are tied within three percent after repeated large-transfer sampling; OpenACC wins the deterministic secondary comparison by 73658 bytes of peak device allocation"
+}

@@ -7,6 +7,7 @@ module test_gpu_multi_input_support
         multi_input_p8_jvp_active_first_batch, &
         multi_input_p8_vjp_active_first_batch, &
         multi_input_p16_jvp_batch, multi_input_p16_vjp_batch
+    use fortnum_gpu_backend_selection, only: select_multi_input_gpu_backend
     implicit none
     private
 
@@ -22,6 +23,7 @@ contains
             call test_size(active_sizes(i))
         end do
         call test_p8_layouts()
+        call test_backend_selection()
     end subroutine run_multi_input_tests
 
     subroutine test_size(nactive)
@@ -169,5 +171,38 @@ contains
             error stop "multi-input layouts disagree on VJP"
         end if
     end subroutine test_p8_layouts
+
+    subroutine test_backend_selection()
+        integer, parameter :: batch_sizes(3) = [256, 65536, 1048576]
+        character(7) :: backend
+        logical :: found
+        integer :: i
+
+        do i = 1, size(batch_sizes)
+            call check_selection("jvp", batch_sizes(i), .true.)
+            call check_selection("jvp", batch_sizes(i), .false.)
+            call check_selection("vjp", batch_sizes(i), .true.)
+            call check_selection("vjp", batch_sizes(i), .false.)
+        end do
+        call select_multi_input_gpu_backend( &
+            "jvp", 1024, .true., backend, found)
+        if (found .or. len_trim(backend) /= 0) then
+            error stop "unmeasured GPU workload was selected"
+        end if
+    end subroutine test_backend_selection
+
+    subroutine check_selection(product, batch_size, is_resident)
+        character(*), intent(in) :: product
+        integer, intent(in) :: batch_size
+        logical, intent(in) :: is_resident
+        character(7) :: backend
+        logical :: found
+
+        call select_multi_input_gpu_backend( &
+            product, batch_size, is_resident, backend, found)
+        if (.not. found .or. trim(backend) /= "openacc") then
+            error stop "measured GPU workload selection disagrees with evidence"
+        end if
+    end subroutine check_selection
 
 end module test_gpu_multi_input_support

@@ -242,7 +242,7 @@ derivatives. CPU Enzyme remains the `autodiff` backend and supplies CPU
   scaling, memory, bandwidth, and backend crossovers; commit no PNG files.
 - [x] Record GPU compiler, device, flags, driver, `fortsym` revision, source
   revision, residency policy, and device-execution proof in benchmark records.
-- [ ] Select OpenACC or OpenMP target per measured workload before entering
+- [x] Select OpenACC or OpenMP target per measured workload before entering
   the launch loop; neither backend name nor derivative mechanism selects a
   winner.
 - [ ] Add released Flang/OpenMP-target as a supported compiler combination only
