@@ -78,6 +78,9 @@ target_link_libraries(bench_vector_root_adjoint PRIVATE bench_core)
 add_executable(bench_fixed_point_tangent bench_fixed_point_tangent.f90)
 target_link_libraries(bench_fixed_point_tangent PRIVATE bench_core)
 
+add_executable(bench_fixed_point_adjoint bench_fixed_point_adjoint.f90)
+target_link_libraries(bench_fixed_point_adjoint PRIVATE bench_core)
+
 add_executable(bench_static_registry bench_static_registry.f90)
 target_link_libraries(bench_static_registry PRIVATE bench_core)
 

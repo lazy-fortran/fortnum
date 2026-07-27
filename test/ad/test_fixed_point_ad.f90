@@ -1,13 +1,15 @@
 program test_fixed_point_ad
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
-    use fortnum_fixed_point, only: fixed_point_jvp
+    use fortnum_fixed_point, only: fixed_point_jvp, fixed_point_vjp
     use fortnum_status, only: fortnum_status_t, status_ok
     implicit none
 
     real(dp) :: p(2), pp(2), pm(2), tp(2)
     real(dp) :: xstar(2), xp(2), xm(2), dx(2), dx_fd(2)
+    real(dp) :: u(2), jtu(2), jtu_fd(2)
     real(dp) :: map_x(2, 2), map_p(2, 2), h
     type(fortnum_status_t) :: status
+    integer :: i
 
     p = [0.1_dp, -0.2_dp]
     tp = [0.4_dp, -0.6_dp]
@@ -29,6 +31,29 @@ program test_fixed_point_ad
     if (maxval(abs(dx - dx_fd)) > 1.0e-9_dp) then
         write (error_unit, '(a,2es24.16)') "FAIL fixed-point implicit=", dx
         write (error_unit, '(a,2es24.16)') "FAIL fixed-point finite difference=", dx_fd
+        stop 1
+    end if
+
+    u = [1.3_dp, -0.4_dp]
+    call fixed_point_vjp(map_x, map_p, u, jtu, status)
+    do i = 1, 2
+        pp = p
+        pm = p
+        pp(i) = pp(i) + h
+        pm(i) = pm(i) - h
+        call solve_fixed_point(pp, xp)
+        call solve_fixed_point(pm, xm)
+        jtu_fd(i) = dot_product(u, xp - xm)/(2.0_dp*h)
+    end do
+
+    if (.not. status_ok(status)) then
+        write (error_unit, '(a)') "FAIL fixed-point adjoint status"
+        stop 1
+    end if
+    if (maxval(abs(jtu - jtu_fd)) > 1.0e-9_dp) then
+        write (error_unit, '(a,2es24.16)') "FAIL fixed-point adjoint=", jtu
+        write (error_unit, '(a,2es24.16)') &
+            "FAIL fixed-point objective finite difference=", jtu_fd
         stop 1
     end if
 
