@@ -278,6 +278,84 @@ taskset -c 4 \
     --benchmark
 ```
 
+## Hybrid fixed-quadrature integrand JVP
+
+This workload applies a reusable 32-point Gauss-Legendre rule on `[0,1]` to
+
+```text
+f(x,p) = exp(p1*x) + sin(p2*x) + p3*x^2 + p4*x^3.
+```
+
+The `analytical` candidate evaluates the explicit integrand directional
+derivative and calls `gauss_legendre_jvp`. The `hybrid` candidate obtains each
+integrand directional derivative with Enzyme forward mode, then calls the same
+analytical quadrature contraction. The diagnostic centrally differences two
+complete fixed-quadrature evaluations. Rule construction is outside all three
+timed paths because the fixed nodes and weights are reusable.
+
+An independently integrated closed form validates four parameter directions.
+The `analytical` and `hybrid` errors must be below `2e-14`; the diagnostic error
+must be below `2e-10`.
+
+The timed workload requests one, two, or four JVP directions for one scalar
+integral output. Each row is a fresh process pinned to CPU 4, with 31 samples
+of 10,000 complete workloads after three warmups. Reference: AMD Ryzen 9
+5950X, Flang/LLVM 22.1.8, Enzyme `c96508349d9f`, Release `-O2`.
+
+| Directions | Candidate | Mechanism | Median ns/workload | MAD ns | Peak RSS |
+|---:|---|---|---:|---:|---:|
+| 1 | explicit integrand JVP + fixed quadrature | `analytical` | 312.6325 | 4.0857 | 3,035,136 B |
+| 1 | Enzyme integrand JVP + fixed quadrature | `hybrid` | 313.4861 | 1.0931 | 3,047,424 B |
+| 1 | two complete quadrature evaluations | diagnostic | 572.1548 | 2.9014 | 3,051,520 B |
+| 2 | explicit integrand JVP + fixed quadrature | `analytical` | 629.2495 | 3.1329 | 2,797,568 B |
+| 2 | Enzyme integrand JVP + fixed quadrature | `hybrid` | 633.8662 | 2.8634 | 2,838,528 B |
+| 2 | two complete quadrature evaluations per direction | diagnostic | 1,148.1500 | 4.9874 | 2,789,376 B |
+| 4 | explicit integrand JVP + fixed quadrature | `analytical` | 1,247.7167 | 5.8860 | 2,797,568 B |
+| 4 | Enzyme integrand JVP + fixed quadrature | `hybrid` | 1,263.4433 | 10.5408 | 2,797,568 B |
+| 4 | two complete quadrature evaluations per direction | diagnostic | 2,316.5791 | 20.7341 | 2,801,664 B |
+
+Complete-workload wall clock selects `analytical` for this integrand, but only
+by 1.0027, 1.0073, and 1.0126 times at one, two, and four directions. The
+`hybrid` path remains 1.8113 to 1.8335 times faster than the diagnostic.
+All candidates scale approximately linearly because each requested forward
+direction repeats the complete JVP: four-direction wall time is 3.9910 times
+the one-direction time for `analytical`, 4.0303 for `hybrid`, and 4.0489 for
+the diagnostic. This scalar-output JVP experiment does not establish the
+forward/reverse crossover; the following VJP item supplies the reverse-side
+composition.
+
+Linux `perf stat -r 5` for 20,000 four-direction workloads gives:
+
+| Candidate | Cycles | Instructions | Cache references | Cache misses | Miss rate |
+|---|---:|---:|---:|---:|---:|
+| `analytical` | 113,267,878 | 401,594,792 | 122,880 | 16,090 | 13.0941% |
+| `hybrid` | 114,276,069 | 405,914,614 | 89,225 | 15,535 | 17.4110% |
+| diagnostic | 210,217,773 | 727,036,238 | 174,804 | 18,374 | 10.5112% |
+
+The cycle and instruction counts corroborate the wall-clock verdict.
+Hardware cache-reference counts varied by 32% to 40% across repetitions on
+this host, so they are diagnostic rather than selection-grade evidence;
+absolute cache misses were close and do not change the winner. Peak RSS also
+does not provide a meaningful discriminator at this small fixed rule size.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_fixed_quadrature_hybrid_jvp.json`.
+
+Run validation and isolated candidate timing with:
+
+```bash
+cmake --build build-enzyme \
+    --target enzyme_fixed_quadrature_jvp_hybrid_build
+ctest --test-dir build-enzyme \
+    -R '^enzyme_fixed_quadrature_jvp_hybrid$' --output-on-failure
+taskset -c 4 \
+    build-enzyme/test/ad/enzyme_fixed_quadrature_jvp_hybrid.enzyme/enzyme_fixed_quadrature_jvp_hybrid \
+    --benchmark analytical 4
+taskset -c 4 \
+    build-enzyme/test/ad/enzyme_fixed_quadrature_jvp_hybrid.enzyme/enzyme_fixed_quadrature_jvp_hybrid \
+    --benchmark hybrid 4
+```
+
 ## Vector-root candidate tournament
 
 The coupled vector tournament uses

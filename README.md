@@ -32,9 +32,12 @@ is committed in
 
 Fixed-bound parameterized integrals also expose an analytical JVP based on
 differentiation under the integral sign, including the analytical Leibniz term
-for an active lower or upper bound. Candidate selection prioritizes
-complete-workload wall clock and records peak memory, input/output scaling,
-and cache behavior where supported.
+for an active lower or upper bound. A measured `hybrid` candidate uses Enzyme
+forward mode for integrand JVPs and the analytical fixed-quadrature contraction;
+its one-, two-, and four-direction scaling is compared with explicit
+`analytical` integrand derivatives and a complete-quadrature finite-difference
+diagnostic. Candidate selection prioritizes complete-workload wall clock and
+records peak memory, input/output scaling, and cache behavior where supported.
 
 ## Build
 
