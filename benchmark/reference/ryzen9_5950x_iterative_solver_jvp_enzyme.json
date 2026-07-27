@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "fixed_trace_iterative_linear_solve",
+  "product": "value_plus_jvp",
+  "contract": "derivative of the executed Richardson trace",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "autodiff": "Enzyme 22",
+    "optimization": "O2"
+  },
+  "sampling": {
+    "independent_processes": 31,
+    "workloads_per_process": 5000,
+    "runtime_aggregation": "median",
+    "dispersion": "median absolute deviation",
+    "memory_processes_per_candidate": 5,
+    "perf_repetitions": 3
+  },
+  "validation": {
+    "oracle": "central differences of the same frozen iteration trace",
+    "iteration_range": [4, 64],
+    "directions_checked": 16,
+    "autodiff_absolute_tolerance": 3e-12,
+    "diagnostic_absolute_tolerance": 3e-10
+  },
+  "direction_scaling_at_32_steps": [
+    {
+      "directions": 1,
+      "analytical_median_ns": 351.277800,
+      "analytical_mad_ns": 15.174600,
+      "autodiff_median_ns": 1319.852400,
+      "autodiff_mad_ns": 33.639400,
+      "diagnostic_median_ns": 565.292800,
+      "diagnostic_mad_ns": 22.147600
+    },
+    {
+      "directions": 4,
+      "analytical_median_ns": 1351.622400,
+      "analytical_mad_ns": 40.454200,
+      "autodiff_median_ns": 5212.012800,
+      "autodiff_mad_ns": 128.075000,
+      "diagnostic_median_ns": 2185.559400,
+      "diagnostic_mad_ns": 52.815600
+    },
+    {
+      "directions": 16,
+      "analytical_median_ns": 5226.153400,
+      "analytical_mad_ns": 98.910400,
+      "autodiff_median_ns": 19764.235600,
+      "autodiff_mad_ns": 366.577000,
+      "diagnostic_median_ns": 8143.140800,
+      "diagnostic_mad_ns": 210.358000
+    }
+  ],
+  "iteration_scaling_at_one_direction": [
+    {
+      "iterations": 4,
+      "analytical_median_ns": 53.450800,
+      "autodiff_median_ns": 183.433600,
+      "diagnostic_median_ns": 70.895600
+    },
+    {
+      "iterations": 16,
+      "analytical_median_ns": 192.719200,
+      "autodiff_median_ns": 672.793400,
+      "diagnostic_median_ns": 285.369600
+    },
+    {
+      "iterations": 64,
+      "analytical_median_ns": 685.946200,
+      "autodiff_median_ns": 2581.735800,
+      "diagnostic_median_ns": 1117.182600
+    }
+  ],
+  "memory": {
+    "directions": 16,
+    "iterations": 32,
+    "analytical_peak_rss_bytes": 3014656,
+    "autodiff_peak_rss_bytes": 2969600,
+    "diagnostic_peak_rss_bytes": 2981888
+  },
+  "perf": {
+    "directions": 16,
+    "iterations": 32,
+    "workloads_per_repetition": 50000,
+    "analytical": {
+      "cycles_per_workload": 22598.105,
+      "instructions_per_workload": 59397.894,
+      "cache_references_per_workload": 22.324,
+      "cache_misses_per_workload": 3.760
+    },
+    "autodiff": {
+      "cycles_per_workload": 87828.189,
+      "instructions_per_workload": 252933.944,
+      "cache_references_per_workload": 26.157,
+      "cache_misses_per_workload": 4.011
+    },
+    "diagnostic": {
+      "cycles_per_workload": 36376.767,
+      "instructions_per_workload": 65381.900,
+      "cache_references_per_workload": 24.302,
+      "cache_misses_per_workload": 4.063
+    }
+  },
+  "selection": {
+    "selected": "analytical",
+    "criterion": "complete frozen-trace value-plus-JVP wall clock",
+    "directions": 16,
+    "iterations": 32,
+    "speedup_over_autodiff": 3.7818,
+    "speedup_over_diagnostic": 1.5582,
+    "reason": "the explicit tangent recurrence propagates the full vector JVP once"
+  }
+}
