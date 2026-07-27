@@ -1500,8 +1500,15 @@ only sets the inactive weights.
 ### fortnum_integrate (`trace_rule`)
 
 ```fortran
+subroutine integrate_fixed_jvp(dfdp, a, b, di_dp, status, epsabs, epsrel, key, ctx)
 subroutine integrate_qag_jvp(dfdp, result, di_dp, status, ctx)
 ```
+
+`integrate_fixed_jvp` applies analytical differentiation under an integral
+whose bounds are inactive:
+`d/dp integral_a^b f(x,p) dx = integral_a^b (df/dp)(x,p) dx`.
+The caller supplies the contracted integrand tangent. Moving-boundary terms
+are not included in this interface.
 
 Differentiates at the frozen accepted subdivision the primal chose: `dI/dp` is
 the sum over accepted panels of the Gauss-Kronrod quadrature of `df/dp` at the

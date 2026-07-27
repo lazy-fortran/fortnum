@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "fixed_bound_integral",
+  "product": "jvp",
+  "workload": "integral of exp(p*x) on [0,1], one active input, one scalar output, 10000 varying parameters per sample",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1",
+    "build": "Release"
+  },
+  "sampling": {
+    "warmup_rounds": 3,
+    "samples": 15,
+    "calls_per_sample": 10000,
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum",
+    "perf_repetitions": 5
+  },
+  "validation": {
+    "oracles": [
+      "closed-form derivative of (exp(p)-1)/p",
+      "central difference of two complete adaptive primal integrations"
+    ],
+    "closed_form_relative_tolerance": 1e-11,
+    "finite_difference_relative_tolerance": 1e-8
+  },
+  "memory_method": "getrusage(RUSAGE_SELF) inside each separately launched candidate",
+  "candidates": [
+    {
+      "id": "integrated_analytical_tangent",
+      "mechanism": "analytical",
+      "median_ns_per_call": 430.3008,
+      "mad_ns_per_call": 3.5697,
+      "peak_rss_bytes": 12550144,
+      "cycles": 649863590,
+      "instructions": 1499721281,
+      "cache_references": 25971138,
+      "cache_misses": 4477666
+    },
+    {
+      "id": "complete_integral_central_difference",
+      "mechanism": "diagnostic",
+      "median_ns_per_call": 820.7775,
+      "mad_ns_per_call": 14.6786,
+      "peak_rss_bytes": 12177408,
+      "cycles": 1111056138,
+      "instructions": 2366450831,
+      "cache_references": 33800218,
+      "cache_misses": 4597997
+    }
+  ],
+  "selection": {
+    "selected": "integrated_analytical_tangent",
+    "wall_clock_speedup": 1.9075,
+    "reason": "analytical minimizes complete-workload wall clock and absolute cache work while passing both independent oracles; it uses 372736 more peak-RSS bytes"
+  }
+}
