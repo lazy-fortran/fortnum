@@ -64,6 +64,7 @@ module fortnum_linalg
     public :: inv2, inv3, inv2_jvp, inv3_jvp, inv2_vjp, inv3_vjp, jacobian_ok3
     public :: lu_factor, lu_solve_factored, lu_solve
     public :: linear_solve_jvp, linear_solve_jvp_factored
+    public :: linear_solve_jvp_factored_many
     public :: linear_solve_vjp, linear_solve_vjp_factored
 
 contains
@@ -467,6 +468,34 @@ contains
         call lu_solve_factored(n, a, ipiv, dx, info)
         if (info /= LINALG_OK) dx = 0.0_dp
     end subroutine linear_solve_jvp_factored
+
+    ! Batched analytical JVPs sharing one primal factorization.
+    pure subroutine linear_solve_jvp_factored_many( &
+            n, direction_count, a, ipiv, x, da, db, dx, info)
+        integer, intent(in) :: n, direction_count
+        real(dp), intent(in) :: a(n, n), x(n)
+        real(dp), intent(in) :: da(n, n, direction_count)
+        real(dp), intent(in) :: db(n, direction_count)
+        integer, intent(in) :: ipiv(n)
+        real(dp), intent(out) :: dx(n, direction_count)
+        integer, intent(out) :: info
+        integer :: direction, i, j
+
+        do direction = 1, direction_count
+            do i = 1, n
+                dx(i, direction) = db(i, direction)
+                do j = 1, n
+                    dx(i, direction) = dx(i, direction) &
+                        - da(i, j, direction)*x(j)
+                end do
+            end do
+            call lu_solve_factored(n, a, ipiv, dx(:, direction), info)
+            if (info /= LINALG_OK) then
+                dx = 0.0_dp
+                return
+            end if
+        end do
+    end subroutine linear_solve_jvp_factored_many
 
     ! Analytical implicit VJP. Solving A^T lambda = u gives
     ! b_bar=lambda and A_bar=-lambda*x^T.

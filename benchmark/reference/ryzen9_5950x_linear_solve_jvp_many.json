@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "linear_solve",
+  "product": "multiple_jvp",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1",
+    "build": "Release"
+  },
+  "sampling": {
+    "independent_processes": 31,
+    "workloads_per_process": 20000,
+    "runtime_aggregation": "median",
+    "dispersion": "median absolute deviation",
+    "memory_processes_per_candidate": 5,
+    "perf_repetitions": 3
+  },
+  "validation": {
+    "oracle": "central differences of complete primal solves",
+    "directions_checked": 16,
+    "absolute_tolerance": 3e-9
+  },
+  "scaling": [
+    {
+      "directions": 1,
+      "scalar_median_ns": 808.472400,
+      "scalar_mad_ns": 1.893050,
+      "batched_median_ns": 1438.108850,
+      "batched_mad_ns": 8.899250
+    },
+    {
+      "directions": 4,
+      "scalar_median_ns": 3224.015600,
+      "scalar_mad_ns": 7.894350,
+      "batched_median_ns": 5895.543100,
+      "batched_mad_ns": 231.792000
+    },
+    {
+      "directions": 16,
+      "scalar_median_ns": 12834.572550,
+      "scalar_mad_ns": 20.100400,
+      "batched_median_ns": 22583.637500,
+      "batched_mad_ns": 69.876200
+    }
+  ],
+  "memory": {
+    "directions": 16,
+    "scalar_peak_rss_bytes": 4235264,
+    "batched_peak_rss_bytes": 4259840
+  },
+  "perf": {
+    "directions": 16,
+    "workloads_per_repetition": 200000,
+    "scalar": {
+      "cycles_per_workload": 58803.547,
+      "instructions_per_workload": 157120.488,
+      "cache_references_per_workload": 538.229,
+      "cache_misses_per_workload": 16.603
+    },
+    "batched": {
+      "cycles_per_workload": 102779.468,
+      "instructions_per_workload": 322938.495,
+      "cache_references_per_workload": 515.003,
+      "cache_misses_per_workload": 31.312
+    }
+  },
+  "selection": {
+    "selected": "repeated_scalar",
+    "criterion": "complete workload wall clock",
+    "directions": 16,
+    "speedup": 1.7599,
+    "reason": "the compiler optimizes the existing compact scalar product better"
+  }
+}
