@@ -1,6 +1,9 @@
 {
   "schema_version": 1,
   "date": "2026-07-28",
+  "source_revision": "39ae1c216caecf2a8d8de887cc63cf8224a497cd",
+  "residency_policy": "transfer-inclusive and resident measured separately",
+  "device_execution_proof": "OpenACC NVIDIA device check and mandatory non-host OpenMP target check",
   "operation": "generated analytical Dawson contracted VJP GPU offload",
   "workload": {
     "batch_size": 1048576,

@@ -1,6 +1,9 @@
 {
   "schema_version": 1,
   "date": "2026-07-28",
+  "source_revision": "a8c918f67b94659f7973afaa38ce5b9db054f721",
+  "residency_policy": "transfer-inclusive and resident measured separately",
+  "device_execution_proof": "OpenACC NVIDIA device check and mandatory non-host OpenMP target check",
   "operation": "generated analytical Dawson fused value/JVP GPU residency",
   "workload": {
     "batch_size": 1048576,

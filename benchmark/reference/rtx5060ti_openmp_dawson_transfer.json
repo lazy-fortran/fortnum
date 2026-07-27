@@ -1,6 +1,9 @@
 {
   "schema_version": 1,
   "date": "2026-07-28",
+  "source_revision": "9418c779e27b727ba4f235b334dc7e2200172841",
+  "residency_policy": "transfer-inclusive",
+  "device_execution_proof": "OMP_TARGET_OFFLOAD=MANDATORY and omp_is_initial_device() false",
   "operation": "generated analytical Dawson fused value/JVP OpenMP-target offload",
   "workload": {
     "batch_size": 1048576,

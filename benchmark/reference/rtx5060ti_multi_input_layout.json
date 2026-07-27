@@ -1,6 +1,9 @@
 {
   "schema_version": 1,
   "date": "2026-07-28",
+  "source_revision": "c22074eb4e3aba64d5d0e52ee4e02f99374d18b6",
+  "residency_policy": "transfer-inclusive and resident measured separately",
+  "device_execution_proof": "mandatory real NVIDIA execution for OpenACC and OpenMP target",
   "operation": "generated eight-input analytical JVP and VJP layout comparison",
   "layouts": {
     "batch_first": "x(batch,active), adjacent GPU threads access contiguous elements",

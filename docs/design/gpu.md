@@ -427,6 +427,16 @@ fo exec plot_gpu_report \
 The repository commits the generator and data only. `benchmark/report` ignores
 its output directory and all PNG files.
 
+## Benchmark provenance
+
+Every committed RTX 5060 Ti benchmark record now carries the same auditable
+provenance fields: exact fortnum source revision, residency policy,
+device-execution proof, GPU and driver, compiler and flags, and exact `fortsym`
+revision. Historical records point to the commit that introduced the measured
+executable and evidence; the profile record points to the selected-layout
+source it measured. These identifiers describe the measured state rather than
+the later documentation-only commit that added normalized provenance keys.
+
 ## Immediate implementation order
 
 The first pilot is the generated Dawson fused value/JVP leaf:
