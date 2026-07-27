@@ -119,6 +119,57 @@ taskset -c 4 env FORTNUM_DET_VJP_ACTION=--benchmark \
     fo exec --no-build test_determinant_vjp
 ```
 
+## Small inverse JVP
+
+`inv2_jvp` and `inv3_jvp` fuse the guarded primal inverse with
+\(dA^{-1}=-A^{-1}(dA)A^{-1}\). `fortsym` generates the fixed-size product
+kernel from that matrix identity. The diagnostic computes the nominal inverse
+and central differences of two perturbed inverses, so both rows return the same
+inverse value and full matrix JVP. Step-refined central differences and the
+tangent residual \(A\,dA^{-1}+dA\,A^{-1}=0\) are independent oracles.
+
+Reference: AMD Ryzen 9 5950X, CPU 4 pinned, GNU Fortran 16.1.1, Release build.
+Each row is the median of 31 independently launched samples containing one
+million complete workloads. No inverse `autodiff` or `hybrid` candidate exists
+yet.
+
+| Matrix | Active inputs | Value outputs | JVP outputs | Primal ns | Analytical ns | MAD ns | Diagnostic ns | MAD ns | Analytical speedup |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 2x2 | 4 | 4 | 4 | 20.2395 | 32.9897 | 0.1044 | 65.0265 | 0.4423 | 1.9711x |
+| 3x3 | 9 | 9 | 9 | 49.9749 | 125.0822 | 0.5508 | 160.0033 | 0.4078 | 1.2792x |
+
+The complete 3x3 workload selects `analytical`: 125.08 ns versus 160.00 ns.
+Maximum process RSS across five launches was 4,317,184 bytes for analytical and
+4,222,976 bytes for the diagnostic. Both candidates use fixed stack storage and
+allocate no derivative workspace; the process-level RSS difference is not an
+algorithmic memory result.
+
+Linux `perf stat -r 3` over ten million 3x3 workloads measured:
+
+| Candidate | Cycles/workload | Instructions/workload | Cache references/workload | Cache misses/workload |
+|---|---:|---:|---:|---:|
+| `analytical` | 565.190 | 1,624.399 | 0.042 | 0.005 |
+| diagnostic | 735.933 | 2,257.399 | 0.054 | 0.008 |
+
+The diagnostic executes 1.390 times as many instructions and takes 1.279 times
+as long. Cache-reference and cache-miss dispersion for the diagnostic was 17%
+and 23%, respectively, so wall clock remains the decisive evidence.
+
+The machine-readable record is
+`benchmark/reference/ryzen9_5950x_inverse_jvp.json`. Run validation and one
+sample with:
+
+```bash
+cd tools/codegen
+fo exec gen_inverse_jvp
+cd ../..
+fo test test_inverse_jvp
+taskset -c 4 env FORTNUM_INV_JVP_ACTION=--benchmark \
+    FORTNUM_INV_JVP_CANDIDATE=analytical FORTNUM_INV_JVP_SIZE=3 \
+    FORTNUM_INV_JVP_ITERATIONS=1000000 \
+    fo exec --no-build test_inverse_jvp
+```
+
 ## Dawson outer-expression JVP
 
 The workload is

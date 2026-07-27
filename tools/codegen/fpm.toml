@@ -21,3 +21,8 @@ main = "gen_dawson_outer.f90"
 name = "gen_determinant_products"
 source-dir = "app"
 main = "gen_determinant_products.f90"
+
+[[executable]]
+name = "gen_inverse_jvp"
+source-dir = "app"
+main = "gen_inverse_jvp.f90"

@@ -8,7 +8,8 @@ module fortnum_generated_det3_jvp
     public :: fortnum_det3_jvp_kernel
 contains
 
-    pure subroutine fortnum_det3_jvp_kernel(a, b, c, d, f, g, h, j, k, ta, tb, tc, td, tf, tg, th, tj, tk, jvp)
+    pure subroutine fortnum_det3_jvp_kernel(a, b, c, d, f, g, h, j, k, ta, tb, tc, td, tf, tg, th, tj, &
+             tk, jvp)
         !$acc routine seq
         use, intrinsic :: iso_fortran_env, only: dp => real64
         implicit none
