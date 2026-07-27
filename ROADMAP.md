@@ -209,7 +209,7 @@ derivatives. CPU Enzyme remains the `autodiff` backend and supplies CPU
   device-leaf contract: pure procedures, explicit contiguous data, and no
   allocation, I/O, mutable global state, polymorphism, procedure pointers, or
   unsupported descriptors.
-- [ ] Extend and test `fortsym` device-leaf emission in its own repository,
+- [x] Extend and test `fortsym` device-leaf emission in its own repository,
   limited to optional OpenMP `declare target` and OpenACC `routine seq`
   annotations; add no scheduling or GPU runtime abstraction.
 - [x] Pin the tested `fortsym` revision in `fortnum`, regenerate the Dawson
