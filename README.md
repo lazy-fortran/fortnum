@@ -70,6 +70,12 @@ with the shared analytical scalar-root boundary. It is `analytical`, not
 `hybrid`: no autodiff participates, and solver iterations remain inactive.
 Resident GPU execution is 17.0 to 21.8 times faster than CPU at 65,536 and
 1,048,576 roots; CPU wins the 256-root launch-bound case.
+GPU family coverage is tracked separately rather than as one oversized
+milestone. Special functions are covered by the generated Dawson
+value/JVP/VJP pilots, and residual kernels are covered by the generated
+scalar-root residual plus analytical implicit JVP. Interpolation, fixed
+quadrature, fixed-size linear algebra, FFT rules, and fixed-trace ODE products
+remain explicit unchecked roadmap items.
 `fortnum` uses `fortsym` at build time for symbolic algebra and code
 generation. The first pinned generator is under `tools/codegen/`; generated
 production sources are committed under `src/generated/`. The

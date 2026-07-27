@@ -251,9 +251,16 @@ derivatives. CPU Enzyme remains the `autodiff` backend and supplies CPU
 - [x] Add one analytical GPU implicit-composition pilot using generated local
   residual products and the existing analytical tangent or adjoint boundary;
   classify the complete candidate as `analytical`.
-- [ ] Expand GPU coverage one family at a time: special functions,
-  interpolation, fixed quadrature, fixed-size linear algebra, FFT rules,
-  residual kernels, and fixed-trace ODE products.
+- [x] Expand GPU coverage to special functions with generated Dawson
+  value/JVP/VJP leaves, real-device validation, resident and
+  transfer-inclusive wall clock, and peak-memory evidence.
+- [ ] Expand GPU coverage to interpolation.
+- [ ] Expand GPU coverage to fixed quadrature.
+- [ ] Expand GPU coverage to fixed-size linear algebra.
+- [ ] Expand GPU coverage to FFT rules.
+- [ ] Expand GPU coverage to residual kernels through the generated scalar-root
+  residual and analytical implicit JVP pilot.
+- [ ] Expand GPU coverage to fixed-trace ODE products.
 - [ ] Run an application-level GPU benchmark with persistent data and select
   candidates from end-to-end wall clock and peak memory rather than isolated
   kernel latency.
