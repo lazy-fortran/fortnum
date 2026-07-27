@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "operator": "small_inverse",
+  "product": "value_plus_vjp",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1",
+    "build": "Release",
+    "generator": "fortsym c30e8c0"
+  },
+  "sampling": {
+    "independent_processes": 31,
+    "workloads_per_process": 1000000,
+    "runtime_aggregation": "median",
+    "dispersion": "median absolute deviation",
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum",
+    "perf_repetitions": 3
+  },
+  "validation": {
+    "oracle": "componentwise central finite difference at h and h/2",
+    "secondary_check": "JVP/VJP adjoint identity",
+    "det2_absolute_tolerance": 2e-10,
+    "det3_absolute_tolerance": 2e-9,
+    "adjoint_tolerance": 2e-14,
+    "singular_status_and_zero_outputs_checked": true
+  },
+  "scaling": [
+    {
+      "matrix_size": 2,
+      "active_inputs": 4,
+      "value_outputs": 4,
+      "vjp_outputs": 4,
+      "primal_median_ns": 19.869680,
+      "primal_mad_ns": 0.057959,
+      "analytical_median_ns": 32.844539,
+      "analytical_mad_ns": 0.075763,
+      "diagnostic_median_ns": 137.843128,
+      "diagnostic_mad_ns": 0.480865,
+      "analytical_speedup": 4.1968
+    },
+    {
+      "matrix_size": 3,
+      "active_inputs": 9,
+      "value_outputs": 9,
+      "vjp_outputs": 9,
+      "primal_median_ns": 48.928876,
+      "primal_mad_ns": 0.126468,
+      "analytical_median_ns": 113.428233,
+      "analytical_mad_ns": 0.162346,
+      "diagnostic_median_ns": 929.100516,
+      "diagnostic_mad_ns": 1.436970,
+      "analytical_speedup": 8.1911
+    }
+  ],
+  "memory": {
+    "matrix_size": 3,
+    "analytical_peak_rss_bytes": 4268032,
+    "diagnostic_peak_rss_bytes": 4055040,
+    "derivative_workspace_allocations": 0
+  },
+  "perf": {
+    "matrix_size": 3,
+    "workloads_per_repetition": 10000000,
+    "analytical": {
+      "cycles_per_workload": 517.068,
+      "instructions_per_workload": 1624.399,
+      "cache_references_per_workload": 0.040,
+      "cache_misses_per_workload": 0.005
+    },
+    "diagnostic": {
+      "cycles_per_workload": 4213.871,
+      "instructions_per_workload": 11415.401,
+      "cache_references_per_workload": 0.208,
+      "cache_misses_per_workload": 0.011
+    }
+  },
+  "unimplemented_candidates": ["autodiff", "hybrid"],
+  "selection": {
+    "selected": "analytical",
+    "criterion": "complete guarded inverse-value-plus-VJP wall clock",
+    "matrix_size": 3,
+    "speedup": 8.1911,
+    "reason": "one contracted product returns every input sensitivity"
+  }
+}

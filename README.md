@@ -109,6 +109,9 @@ For callers that require an explicit inverse, the fused 3x3 inverse-plus-JVP
 uses the analytical identity `dAinv = -Ainv*dA*Ainv`: 125.08 ns versus
 160.00 ns for a nominal inverse plus central differences, a 1.279× wall-clock
 win.
+The matching inverse-plus-VJP returns all nine input sensitivities in 113.43 ns
+versus 929.10 ns for componentwise central differences, an 8.19× complete
+wall-clock win.
 
 The ODE forward sensitivity now has an explicit continuous contract: it
 approximates the variational IVP at fixed terminal time on the primal's frozen
