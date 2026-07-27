@@ -238,7 +238,7 @@ derivatives. CPU Enzyme remains the `autodiff` backend and supplies CPU
   select one coalesced layout without exposing a general layout framework.
 - [x] Record peak device allocation, achieved bandwidth, occupancy, register
   use, and spills with released profiling tools.
-- [ ] Add reproducible GPU tables and `fortplot` source generators for runtime,
+- [x] Add reproducible GPU tables and `fortplot` source generators for runtime,
   scaling, memory, bandwidth, and backend crossovers; commit no PNG files.
 - [ ] Record GPU compiler, device, flags, driver, `fortsym` revision, source
   revision, residency policy, and device-execution proof in benchmark records.

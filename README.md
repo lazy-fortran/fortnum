@@ -54,6 +54,10 @@ local-memory spills, and about 153.1 MB peak device allocation for the
 1,048,576-point resident workload. Compute throughput is about 84.7 percent
 while DRAM throughput is about 23 percent, so this generated kernel is
 compute-throughput limited rather than bandwidth limited.
+The GPU evidence also has a pinned `fortplot` generator for batch and
+active-input scaling, CPU/GPU crossover, achieved bandwidth, and peak device
+allocation. Its normalized CSV inputs and Fortran source are committed under
+`benchmark/report/`; generated PNGs remain ignored and are never committed.
 `fortnum` uses `fortsym` at build time for symbolic algebra and code
 generation. The first pinned generator is under `tools/codegen/`; generated
 production sources are committed under `src/generated/`. The
