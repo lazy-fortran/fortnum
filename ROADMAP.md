@@ -248,7 +248,7 @@ derivatives. CPU Enzyme remains the `autodiff` backend and supplies CPU
 - [ ] Add released Flang/OpenMP-target as a supported compiler combination only
   after it passes the same device-execution, oracle, memory, and wall-clock
   gates.
-- [ ] Add one analytical GPU implicit-composition pilot using generated local
+- [x] Add one analytical GPU implicit-composition pilot using generated local
   residual products and the existing analytical tangent or adjoint boundary;
   classify the complete candidate as `analytical`.
 - [ ] Expand GPU coverage one family at a time: special functions,

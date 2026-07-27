@@ -64,6 +64,12 @@ therefore selects OpenACC using its 73,658-byte lower peak device allocation;
 unmeasured workload keys return unavailable instead of guessing. Selection
 occurs before choosing the separately compiled backend executable, never
 inside the launch loop.
+The first implicit GPU composition solves \(x^2-p=0\) with primal Newton
+iterations, then combines `fortsym`-generated \(R\), \(R_x\), and \(R_p\,dp\)
+with the shared analytical scalar-root boundary. It is `analytical`, not
+`hybrid`: no autodiff participates, and solver iterations remain inactive.
+Resident GPU execution is 17.0 to 21.8 times faster than CPU at 65,536 and
+1,048,576 roots; CPU wins the 256-root launch-bound case.
 `fortnum` uses `fortsym` at build time for symbolic algebra and code
 generation. The first pinned generator is under `tools/codegen/`; generated
 production sources are committed under `src/generated/`. The
