@@ -312,7 +312,7 @@ support.
 - [x] Generate wrappers for the proven scalar-kernel shape with one to four
   active scalar inputs, scalar output, forward JVP, reverse VJP, and an
   optional analytical forward custom rule.
-- [ ] Add shared custom-rule counter support that proves analytical rule
+- [x] Add shared custom-rule counter support that proves analytical rule
   selection without kernel-specific counter boilerplate.
 - [ ] Migrate the Bessel fixture as the pilot and require equivalent validation
   plus no complete-workload regression beyond 3% or combined dispersion.

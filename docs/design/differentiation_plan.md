@@ -71,9 +71,11 @@ The first implementation slice now also contains:
 - `fortsym`-generated forward-JVP and reverse-VJP wrappers for the proven
   one-to-four-active-scalar ABI, including an optional analytical forward-rule
   hook and no committed generated-wrapper copies
+- one shared generated-rule counter with reset, exact-call query, disable, and
+  record operations; production timing disables it
 
 Remaining work is tracked item by item in `ROADMAP.md`; the next CPU Enzyme
-step centralizes custom-rule counters before migrating fixtures.
+step migrates Bessel as the first measured fixture.
 
 ## 3. Terminology
 
