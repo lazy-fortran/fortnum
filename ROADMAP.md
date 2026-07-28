@@ -404,7 +404,7 @@ Every tournament record must include:
 - [x] Generated or native code size where relevant.
 - [x] Hardware and compiler identity.
 - [x] Reusable primal state.
-- [ ] The selected candidate and deterministic selection rationale.
+- [x] The selected candidate and deterministic selection rationale.
 - [ ] Scaling over representative active-input and output counts.
 - [ ] Forward-mode versus reverse-mode crossover evidence.
 - [ ] CPU work and cache counters where supported.

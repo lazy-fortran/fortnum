@@ -148,5 +148,10 @@
     "stiff_trajectory": "the committed stiff record compares differentiation candidates around the explicit Cash-Karp primal",
     "production_stiff_solver": "not selected because fortnum has no differentiable stiff primal candidate",
     "record": "ryzen9_5950x_ode_stiff.json"
+  },
+  "selection_policy": {
+    "selected": "the workload-specific candidates listed in verdicts",
+    "criterion": "validated complete primal-plus-product median wall clock under the stated reusable-state and memory contract",
+    "rationale": "no single ODE mechanism wins every product or scale; forward, reverse, hybrid, implicit, and trace-storage choices are resolved independently from the committed measurements"
   }
 }

@@ -4,6 +4,7 @@
   "module": "linear_algebra",
   "source_revision": "d6d265a696d27a6e09786dea4656d3ae455259b4",
   "selection_criterion": "complete workload wall clock",
+  "selection_rationale": "each winner passes its independent oracle; median complete-workload wall clock decides unless a measured peak-memory limit rejects it, with ties resolved by the documented practical-tie rule",
   "hardware": "AMD Ryzen 9 5950X, CPU 4 pinned",
   "toolchains": [
     "GNU Fortran 16.1.1 Release -O3",
