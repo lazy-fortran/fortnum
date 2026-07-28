@@ -198,6 +198,7 @@ if(FORTNUM_ENABLE_ENZYME)
             NAME enzyme_generated_scalar_wrappers
             SOURCES
                 ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
+                ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_rule_counter.c
                 ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
                 ${_fortnum_scalar_wrapper_sources}
                 ${CMAKE_SOURCE_DIR}/cmake/enzyme/generated/test_scalar_wrappers.f90
