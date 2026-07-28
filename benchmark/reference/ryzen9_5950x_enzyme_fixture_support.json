@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "source_revision": "66f63d65e40ee6e69315699c18750d862ad36ca0",
+  "component": "shared internal CPU Enzyme fixture support",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor"
+  },
+  "toolchain": {
+    "flang": "22.1.8",
+    "llvm_opt": "22.1.8",
+    "enzyme_commit": "c96508349d9f121957292308c646b4a1fd53c507",
+    "optimization": "O2"
+  },
+  "provided_behavior": [
+    "environment string and integer parsing",
+    "default warmup and sample counts",
+    "warmup-discarding sample collection",
+    "monotonic wall-clock timing",
+    "odd and even median/MAD",
+    "standard CSV result output",
+    "peak-RSS access"
+  ],
+  "validation": {
+    "plain_compiler_test": "passed",
+    "flang_enzyme_pipeline_test": "passed",
+    "existing_enzyme_fixtures_passed": 17,
+    "oracle": "configured/missing/invalid environment cases, exact sample sequence, exact odd/even statistics, exact output record, monotonic timer, and positive OS peak RSS"
+  },
+  "support_self_test": {
+    "clean_build_wall_s": 0.38,
+    "clean_build_peak_rss_bytes": 126021632,
+    "runtime_samples": 31,
+    "runtime_warmups": 3,
+    "runtime_median_ms": 0.601553,
+    "runtime_mean_ms": 0.58884774,
+    "runtime_stddev_ms": 0.07182696,
+    "runtime_min_ms": 0.500232,
+    "runtime_max_ms": 0.845283,
+    "runtime_peak_rss_bytes": 2514944,
+    "executable_file_bytes": 2160960,
+    "elf_text_bytes": 1976169,
+    "timing_scope": "complete self-test process including launch and independent behavioral checks; not hot-helper latency"
+  },
+  "migration_status": {
+    "fixtures_using_support": 0,
+    "reason": "fixture migration and before/after performance acceptance begin with the later dedicated Bessel roadmap item"
+  }
+}

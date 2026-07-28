@@ -1006,6 +1006,17 @@ per-fixture memory and native-size table, toolchain provenance, build timing,
 and runtime dispersion are in
 `benchmark/reference/ryzen9_5950x_enzyme_fixture_baseline.json`.
 
+The shared internal support module is now independently checked with both the
+plain compiler and the complete Flang/Enzyme pipeline. Its self-test validates
+environment defaults and errors, warmup exclusion, exact odd/even median and
+MAD values, standardized output, monotonic timing, and OS-reported peak RSS.
+The complete self-test process has a 0.601553 ms median over 31 launches,
+2,514,944 B peak RSS, and 1,976,169 B of ELF text. These are process-level
+guard numbers, not a claim about hot helper latency. All 17 pre-existing
+Enzyme fixtures remain unchanged and pass. Detailed build, runtime dispersion,
+memory, native size, and toolchain data are in
+`benchmark/reference/ryzen9_5950x_enzyme_fixture_support.json`.
+
 ## Active Lagrange support-node products
 
 For

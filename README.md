@@ -138,6 +138,10 @@ fixture execution has a 27.5859 ms median and 3.6 MB peak RSS. The inventory
 also records 13 duplicated peak-memory interfaces, nine median/MAD
 implementations, and 22 raw Enzyme interfaces; these are the measured starting
 point for the shared-scaffolding migration.
+One internal support module now centralizes environment parsing, warmup/sample
+collection, timing, median/MAD, standard output, and peak-RSS access. Its
+independent plain-compiler and Flang/Enzyme tests pass; existing numerical
+fixtures are intentionally unchanged until their dedicated migration items.
 The cumulative report in `docs/design/differentiation_report.md` summarizes 32
 mechanism tournaments and provides reproducible `fortplot` figure generation
 without committing generated PNGs.
