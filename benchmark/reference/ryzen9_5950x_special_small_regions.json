@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "source_revision": "fd9320494f52932ddeda6c8b4910de3941a6845e",
+  "workload": "16 JVP directions or 16 VJP cotangents in representative small-argument special-function regions",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor"
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "autodiff": "Enzyme 22",
+    "optimization": "O2"
+  },
+  "sampling": {
+    "samples": 15,
+    "warmup_samples": 3
+  },
+  "validation": {
+    "oracle": "central difference of each complete bounded objective plus adjoint identities",
+    "source_records": [
+      "ryzen9_5950x_bessel_tournament.json",
+      "ryzen9_5950x_gamma_tournament.json",
+      "ryzen9_5950x_erf_tournament.json"
+    ]
+  },
+  "regions": [
+    {
+      "kernel": "modified Bessel I0 outer objective",
+      "region": "series",
+      "x": 1.0,
+      "jvp_median_ns": {
+        "analytical": 818.10677,
+        "autodiff": 887.268485,
+        "hybrid": 824.7294
+      },
+      "vjp_median_ns": {
+        "analytical": 817.35739,
+        "autodiff": 3201.6002
+      },
+      "peak_rss_bytes": {
+        "jvp_analytical": 2736128,
+        "jvp_autodiff": 2809856,
+        "jvp_hybrid": 2846720,
+        "vjp_analytical": 2822144,
+        "vjp_autodiff": 2715648
+      },
+      "selection": {
+        "jvp": "analytical",
+        "vjp": "analytical",
+        "reason": "analytical has the lowest wall clock; its JVP is a practical tie with hybrid and its VJP is 3.92x faster than autodiff"
+      }
+    },
+    {
+      "kernel": "regularized incomplete gamma P(2.5,x) outer objective",
+      "region": "series",
+      "x": 0.5,
+      "jvp_median_ns": {
+        "analytical": 2705.98712,
+        "autodiff": 1524.358,
+        "hybrid": 2718.91785
+      },
+      "vjp_median_ns": {
+        "analytical": 2653.60036,
+        "autodiff": 3898.02377
+      },
+      "peak_rss_bytes": {
+        "jvp_analytical": 3207168,
+        "jvp_autodiff": 3387392,
+        "jvp_hybrid": 3076096,
+        "vjp_analytical": 3346432,
+        "vjp_autodiff": 3289088
+      },
+      "selection": {
+        "jvp": "autodiff",
+        "vjp": "analytical",
+        "reason": "autodiff JVP is 1.78x faster; analytical VJP is 1.47x faster"
+      }
+    },
+    {
+      "kernel": "erf outer objective",
+      "region": "small",
+      "x": 0.1,
+      "jvp_median_ns": {
+        "analytical": 312.87247,
+        "autodiff": 298.09772,
+        "hybrid": 312.79653
+      },
+      "vjp_median_ns": {
+        "analytical": 307.07604,
+        "autodiff": 305.03288
+      },
+      "peak_rss_bytes": {
+        "jvp_analytical": 3166208,
+        "jvp_autodiff": 2723840,
+        "jvp_hybrid": 2744320,
+        "vjp_analytical": 2850816,
+        "vjp_autodiff": 3158016
+      },
+      "selection": {
+        "jvp": "analytical",
+        "vjp": "analytical",
+        "raw_fastest": "autodiff",
+        "reason": "the 4.96% JVP and 0.67% VJP raw gaps are practical ties; analytical is normal-build and device-portable"
+      }
+    }
+  ],
+  "perf_stat_five_run_aggregate": {
+    "bessel": {
+      "jvp_analytical": [774873381, 1565247749, 55570, 11536],
+      "jvp_hybrid": [786604692, 1584448090, 86833, 14109],
+      "vjp_analytical": [778554368, 1558847769, 59584, 12512],
+      "vjp_autodiff": [2931934943, 11034047100, 588989, 58523]
+    },
+    "gamma": {
+      "jvp_autodiff": [726792447, 1167050462, 118934, 16763],
+      "jvp_analytical": [1279895073, 2711051690, 232995, 26399],
+      "vjp_analytical": [1243037645, 2696651684, 880921, 26660],
+      "vjp_autodiff": [1790936399, 4717449706, 4230370, 31713]
+    },
+    "erf": {
+      "jvp_autodiff": [137483405, 364948171, 27211, 9395],
+      "jvp_analytical": [139626661, 374548111, 25932, 9160],
+      "vjp_autodiff": [140281374, 366548164, 25888, 9186],
+      "vjp_analytical": [143720866, 364948127, 54430, 10608]
+    },
+    "counter_order": ["cycles", "instructions", "cache_references", "cache_misses"]
+  }
+}

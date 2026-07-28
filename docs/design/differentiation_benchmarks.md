@@ -91,6 +91,15 @@ through Flang's `log_gamma` lowering, so that unreliable candidate is neither
 selected nor normalized. Full shape derivatives remain available through the
 independently tested analytical products.
 
+Small-argument measurements do not admit one mechanism-wide winner. At 16
+products, analytical Bessel takes 818 ns for both JVP and VJP, while the
+closest hybrid JVP takes 825 ns and autodiff VJP takes 3,202 ns. Gamma selects
+autodiff for its 1,524 ns JVP but analytical for its 2,654 ns VJP. Erf is a
+practical tie: raw autodiff takes 298 ns for JVP and 305 ns for VJP, versus
+313 and 307 ns analytically; the normal-build, device-portable analytical
+candidate remains selected. The corresponding record includes peak RSS and
+cache counters.
+
 The hypergeometric tournament activates real `z` at fixed real parameters.
 Because Enzyme 22 cannot differentiate Flang's complex `cexp`, its candidate
 uses a real specialization of the same Kummer, Taylor, and asymptotic

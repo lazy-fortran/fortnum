@@ -372,7 +372,7 @@ support.
 - [x] Run an analytical, autodiff, and hybrid hypergeometric tournament.
 - [x] Generate region-specific analytical candidates with `fortsym`.
 - [x] Benchmark fused and separate value/JVP special-function candidates.
-- [ ] Benchmark representative small-argument regions.
+- [x] Benchmark representative small-argument regions.
 - [ ] Benchmark representative transition regions.
 - [ ] Benchmark representative asymptotic regions.
 
