@@ -42,6 +42,16 @@ checks the committed baseline, and retains raw JSON, peak-RSS, cache-counter,
 host, compiler, and source-revision evidence as a workflow artifact. It never
 rewrites or commits the baseline automatically.
 
+The hosted CI runner also re-selects the fused and separate Dawson JVP and VJP
+candidates. Reproduce its machine-readable wall-clock, peak-RSS, validation,
+and cache-counter record with:
+
+```bash
+python3 benchmark/collect_dawson_family.py \
+  --executable build-bench/bin/bench_dawson_generated_family \
+  --output dawson-family.json
+```
+
 For the downstream `itpplasma/SIMPLE` comparison, build the same SIMPLE
 revision once with this checkout through
 `FETCHCONTENT_SOURCE_DIR_FORTNUM` and once with SIMPLE's pinned fortnum

@@ -198,6 +198,23 @@ jobs:
             --run bench-run.json \
             --factor 4.0
 
+      - name: Re-select Dawson candidates on hosted hardware
+        run: |
+          set -euo pipefail
+          lscpu > new-target-host.txt
+          python3 benchmark/collect_dawson_family.py \
+            --executable build-bench/bin/bench_dawson_generated_family \
+            --output new-target-dawson-family.json
+
+      - name: Upload hosted-hardware selection
+        uses: actions/upload-artifact@v4
+        with:
+          name: hosted-dawson-selection-${{ github.sha }}
+          path: |
+            new-target-dawson-family.json
+            new-target-host.txt
+          retention-days: 30
+
   enzyme:
     name: released Flang 22 + pinned Enzyme
     runs-on: ubuntu-24.04

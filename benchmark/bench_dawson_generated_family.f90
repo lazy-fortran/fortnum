@@ -10,6 +10,7 @@ program bench_dawson_generated_family
         fortnum_dawson_outer_value_vjp_kernel
     use fortnum_generated_dawson_outer_vjp, only: &
         fortnum_dawson_outer_vjp_kernel
+    use fortnum_special_dawson, only: dawson
     implicit none
 
     integer, parameter :: samples = 31
@@ -28,6 +29,9 @@ program bench_dawson_generated_family
         error stop "product must be jvp or vjp"
     end if
 
+    call validate_candidates()
+    if (trim(mode) == "--validate") stop
+
     if (trim(mode) == "--peak-rss") then
         warmup = run_sample(reps/10_int64)
         write (*, "(i0)") peak_rss_bytes()
@@ -42,6 +46,39 @@ program bench_dawson_generated_family
     end do
 
 contains
+
+    subroutine validate_candidates()
+        real(dp), parameter :: h = 1.0e-6_dp
+        real(dp), parameter :: x = 0.9_dp
+        real(dp), parameter :: direction = -0.4_dp
+        real(dp), parameter :: cotangent = 1.7_dp
+        real(dp) :: f, f_plus, f_minus, value, separate_value
+        real(dp) :: jvp, separate_jvp, vjp, separate_vjp, reference
+
+        f = dawson(x)
+        f_plus = dawson(x + h*direction)
+        f_minus = dawson(x - h*direction)
+        reference = ((sin(f_plus) + f_plus**2) - &
+            (sin(f_minus) + f_minus**2))/(2.0_dp*h)
+        call fortnum_dawson_outer_kernel(x, f, direction, value, jvp)
+        call fortnum_dawson_outer_value_kernel(f, separate_value)
+        call fortnum_dawson_outer_jvp_kernel(x, f, direction, separate_jvp)
+        call fortnum_dawson_outer_value_vjp_kernel( &
+            x, f, cotangent, value, vjp)
+        call fortnum_dawson_outer_vjp_kernel( &
+            x, f, cotangent, separate_vjp)
+
+        if (abs(value - separate_value) > 1.0e-13_dp) &
+            error stop "fused and separate values disagree"
+        if (abs(jvp - separate_jvp) > 1.0e-13_dp) &
+            error stop "fused and separate JVPs disagree"
+        if (abs(jvp - reference) > 1.0e-7_dp) &
+            error stop "JVP disagrees with central difference"
+        if (abs(vjp - separate_vjp) > 1.0e-13_dp) &
+            error stop "fused and separate VJPs disagree"
+        if (abs(cotangent*jvp - direction*vjp) > 1.0e-13_dp) &
+            error stop "JVP and VJP fail the adjoint identity"
+    end subroutine validate_candidates
 
     function run_sample(count) result(ns_per_workload)
         integer(int64), intent(in) :: count
