@@ -2,6 +2,11 @@
 
 Status: normalized report for the committed tournament CSV.
 
+Post-generation-migration refresh: 2026-07-28. Revalidation retained all 32
+product-specific selections. The eight temporary figures generated in 0.67 s
+wall clock with 27.4 MB peak RSS; generated PNGs were inspected but are not
+repository artifacts.
+
 ## Scope
 
 `benchmark/report/data/mechanism_tournaments.csv` contains 32 derivative
@@ -29,6 +34,12 @@ runner-up within 20%.
 
 These counts describe the measured workload set. They do not select new
 kernels.
+
+The migration replaced eligible transcribed algebra and Enzyme scaffolding
+with generated sources. Its same-mechanism raw/simplified/factored and
+generated/manual records remain outside this table, so they cannot inflate the
+cross-mechanism totals. No measured production selection changed in this
+refresh.
 
 ## Current verdict by family
 

@@ -361,7 +361,7 @@ support.
   numerical boundary tests.
 - [x] Add target-aware factoring only when native complete-workload benchmarks
   justify it.
-- [ ] Re-run candidate selection and cumulative reports after the generation
+- [x] Re-run candidate selection and cumulative reports after the generation
   migration.
 
 ## Special functions
