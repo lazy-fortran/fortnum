@@ -80,9 +80,12 @@ The first implementation slice now also contains:
   `fortsym` wrappers; Dawson shares benchmark/counter support, while the square
   smoke binary deliberately excludes benchmark support to avoid 0.54 MB of
   measured test-only binary bloat
+- a `fortsym` scalar-plus-fixed-vector wrapper profile consumed by the
+  fixed-span B-spline JVP/VJP fixture, with generated wrappers remaining
+  temporary and only one hand-written numerical basis implementation
 
 Remaining work is tracked item by item in `ROADMAP.md`; the next CPU Enzyme
-step migrates fixed-span B-spline fixtures.
+step migrates direct-solver JVP and VJP fixtures.
 
 ## 3. Terminology
 

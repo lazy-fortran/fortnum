@@ -1452,6 +1452,35 @@ The machine-readable record is
 `fortplot` report generator produces both scaling figures; generated PNG files
 remain ignored and are not committed.
 
+### Generated-wrapper migration
+
+`fortsym` now generates the mixed one-scalar-plus-fixed-vector JVP/VJP wrapper
+used by this fixture. The numerical cubic basis and its stable analytical
+derivative remain one hand-written implementation. Environment parsing,
+warmups, 15-sample median/MAD, timing, and peak-RSS measurement use the shared
+fixture support. Candidate and product strings are resolved once before the
+timed loop instead of once per derivative call.
+
+| Product | Products | Analytical ns (MAD) | Autodiff ns (MAD) | Winner |
+|---|---:|---:|---:|---|
+| JVP | 1 | 10.5269 (0.0268) | 11.8792 (0.0675) | `analytical` |
+| JVP | 4 | 18.1400 (0.1522) | 23.4665 (0.1150) | `analytical` |
+| JVP | 16 | 47.4649 (0.0561) | 59.3971 (0.1045) | `analytical` |
+| VJP | 1 | 10.1044 (0.0307) | 11.2739 (0.0635) | `analytical` |
+| VJP | 4 | 16.2127 (0.0295) | 19.4712 (0.2338) | `analytical` |
+| VJP | 16 | 52.3574 (0.0865) | 58.3091 (0.1128) | `analytical` |
+
+The width-16 JVP selection changes from autodiff to analytical. Relative to
+the prior selected complete workloads, JVP wall clock improves by 66.4% and
+VJP by 60.4%. At width 16 the selected JVP uses 232 cycles, 664 instructions,
+and 0.050 cache misses per workload; selected VJP uses 256 cycles, 568
+instructions, and 0.013 cache misses. Peak RSS is 2.46--2.54 MB.
+
+The staged executable grows by 5,752 bytes, or 0.27%. Incremental fixture build
+time changes from 0.40 to 0.57 s with 125,404 KiB after-build peak RSS. The
+machine-readable controlled comparison is
+`benchmark/reference/ryzen9_5950x_bspline_fixed_span_fixture_migration.json`.
+
 ```bash
 env FORTNUM_BSPLINE_SPAN_ACTION=--benchmark \
     FORTNUM_BSPLINE_SPAN_CANDIDATE=autodiff \

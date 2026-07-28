@@ -163,14 +163,14 @@ contains
     subroutine plot_bspline_span_scaling(output_path)
         character(len=*), intent(in) :: output_path
         real(dp), parameter :: products(3) = [1.0_dp, 4.0_dp, 16.0_dp]
-        real(dp), parameter :: jvp_analytical(3) = [17.818276_dp, &
-            47.715964_dp, 145.199818_dp]
-        real(dp), parameter :: jvp_autodiff(3) = [17.569297_dp, &
-            42.261756_dp, 141.266038_dp]
-        real(dp), parameter :: vjp_analytical(3) = [17.387243_dp, &
-            43.595300_dp, 132.050065_dp]
-        real(dp), parameter :: vjp_autodiff(3) = [17.484877_dp, &
-            42.066517_dp, 140.726378_dp]
+        real(dp), parameter :: jvp_analytical(3) = [10.526851_dp, &
+            18.140033_dp, 47.464897_dp]
+        real(dp), parameter :: jvp_autodiff(3) = [11.879239_dp, &
+            23.466467_dp, 59.397135_dp]
+        real(dp), parameter :: vjp_analytical(3) = [10.104365_dp, &
+            16.212672_dp, 52.357353_dp]
+        real(dp), parameter :: vjp_autodiff(3) = [11.273858_dp, &
+            19.471211_dp, 58.309106_dp]
 
         call two_candidate_scaling_figure(products, jvp_analytical, &
             jvp_autodiff, 'Fixed-span B-spline JVP scaling', &
