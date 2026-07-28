@@ -35,6 +35,11 @@ elseif(FORTNUM_GPU_BACKEND STREQUAL "OPENMP")
             "FORTNUM_OPENMP_TARGET_FLAGS for a real offload target; "
             "host-only OpenMP is not accepted")
     endif()
+    if(NOT CMAKE_Fortran_COMPILER_ID STREQUAL "NVHPC")
+        message(FATAL_ERROR
+            "FORTNUM_GPU_BACKEND=OPENMP currently supports only the "
+            "validated NVHPC nvfortran compiler")
+    endif()
     find_package(OpenMP QUIET COMPONENTS Fortran)
     if(NOT TARGET OpenMP::OpenMP_Fortran)
         message(FATAL_ERROR

@@ -245,9 +245,9 @@ derivatives. CPU Enzyme remains the `autodiff` backend and supplies CPU
 - [x] Select OpenACC or OpenMP target per measured workload before entering
   the launch loop; neither backend name nor derivative mechanism selects a
   winner.
-- [ ] Add released Flang/OpenMP-target as a supported compiler combination only
-  after it passes the same device-execution, oracle, memory, and wall-clock
-  gates.
+- [x] Allow only released compiler combinations that pass the device-execution,
+  oracle, memory, and wall-clock gates: NVHPC `nvfortran` is accepted for
+  OpenMP target; Flang and other unvalidated compilers fail configuration.
 - [x] Add one analytical GPU implicit-composition pilot using generated local
   residual products and the existing analytical tangent or adjoint boundary;
   classify the complete candidate as `analytical`.

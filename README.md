@@ -50,7 +50,8 @@ Useful CMake options:
 | `FORTNUM_GPU_BACKEND` | `NONE` | Select `NONE`, `OPENACC`, or `OPENMP` |
 
 Selecting an unavailable GPU backend fails configuration. GPU execution never
-falls back silently to the host.
+falls back silently to the host. OpenMP GPU builds currently require the
+validated NVIDIA HPC SDK `nvfortran` compiler.
 
 ## Use
 

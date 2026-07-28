@@ -54,9 +54,9 @@ annotations. It does not generate launch schedules or data regions.
 The default is `NONE`. OpenMP target also requires explicit
 `FORTNUM_OPENMP_TARGET_FLAGS`, because host-only OpenMP is not a GPU backend.
 
-Released NVHPC supplies both validated NVIDIA paths. Flang/OpenMP target becomes
-a supported combination only after it passes the same gates on released
-software.
+Released NVHPC supplies both validated NVIDIA paths. OpenMP target is accepted
+only with `nvfortran`; other compilers fail configuration until they pass the
+same gates on released software.
 
 ## Acceptance gates
 
