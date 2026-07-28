@@ -31,6 +31,13 @@
       1.443292707570265e-11
     ]
   },
+  "native_code": {
+    "generated_residual_vjp_symbol_bytes": 55,
+    "analytical_root_vjp_symbol_bytes": 182,
+    "hybrid_root_vjp_symbol_bytes": 182,
+    "autodiff_iteration_vjp_symbol_bytes": 40,
+    "generated_newton_vjp_symbol_bytes": 3301
+  },
   "memory_method": "getrusage(RUSAGE_SELF) inside each separately launched candidate",
   "candidates": [
     {

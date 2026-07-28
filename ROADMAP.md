@@ -401,7 +401,7 @@ Every tournament record must include:
 - [x] Independent validation error.
 - [x] Median runtime and dispersion.
 - [x] Candidate-specific peak memory.
-- [ ] Generated or native code size where relevant.
+- [x] Generated or native code size where relevant.
 - [ ] Hardware and compiler identity.
 - [ ] Reusable primal state.
 - [ ] The selected candidate and deterministic selection rationale.
