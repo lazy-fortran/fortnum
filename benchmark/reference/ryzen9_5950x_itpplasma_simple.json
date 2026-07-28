@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "operator": "itpplasma_simple_symplectic_orbits",
+  "product": "complete_primal_application",
+  "workload": {
+    "repository": "itpplasma/SIMPLE",
+    "revision": "69fe8c364d55452ee203bbf06836510caafa7540",
+    "case": "test/golden_record/test_tokamak_classifier/simple.in",
+    "description": "32 deterministic particles in the analytic circular-tokamak field, midpoint symplectic integration, trace_time=1e-2",
+    "fortnum_use": "multiroot_hybrids solves the implicit midpoint residual at each orbit step",
+    "field_evaluations": 460064
+  },
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4,
+    "threads": 1
+  },
+  "toolchain": {
+    "gfortran": "16.1.1 20260625",
+    "cmake": "4.4.0",
+    "kernel": "7.1.3-2-cachyos",
+    "flags": "-O3 -ffast-math -ffp-contract=fast -funroll-loops -march=x86-64-v2 -mtune=native -fopenmp"
+  },
+  "sampling": {
+    "warmups": 3,
+    "samples": 15,
+    "timer": "date +%s%N around the complete process",
+    "memory": "/usr/bin/time -v around a separate complete process",
+    "cache": "perf stat around a separate complete process"
+  },
+  "validation": {
+    "oracle": "SIMPLE deterministic analytic-field case; current and pinned fortnum builds must produce byte-identical class_parts.dat, confined_fraction.dat, orbit_exit_code.dat, and times_lost.dat",
+    "result": "pass",
+    "output_hashes": {
+      "class_parts.dat": "1997b162a3647b4d06f30d479afbdf3d8047f835bae73201c4accdfa08de2167",
+      "confined_fraction.dat": "ccfd69b9c17daa586757f18eca204c4967cb68ac2d470f305ffacf73b0e40f75",
+      "orbit_exit_code.dat": "10cf8fdcdc0736e6f0ac52e0e94ca1a8518dd91d95f7517d655d2dc5f6d077fe",
+      "times_lost.dat": "6b667e4cbd69b395586e07237dd562d84e13c175172aec6fbe7a3895feb489da"
+    }
+  },
+  "candidates": [
+    {
+      "id": "fortnum_main",
+      "fortnum_revision": "642b1b58e0bb9607011640e75b1abce04b3012cd",
+      "median_wall_ms": 118.2592,
+      "mad_wall_ms": 0.46208,
+      "peak_rss_bytes": 20582400,
+      "cycles": 334949209,
+      "instructions": 908602742,
+      "cache_references": 7898913,
+      "cache_misses": 428328
+    },
+    {
+      "id": "simple_pinned_fortnum",
+      "fortnum_revision": "92de6e949a772cfffc73bb5295fe5e2b056b9c18",
+      "median_wall_ms": 122.354944,
+      "mad_wall_ms": 2.36493,
+      "peak_rss_bytes": 20451328,
+      "cycles": 338509622,
+      "instructions": 908668918,
+      "cache_references": 7952782,
+      "cache_misses": 391742
+    }
+  ],
+  "selection": {
+    "selected": "fortnum_main",
+    "speedup": 1.034634,
+    "wall_time_reduction_percent": 3.3474,
+    "peak_rss_increase_bytes": 131072,
+    "reason": "current fortnum preserves byte-identical application outputs and reduces complete-application median wall clock; the 128 KiB RSS increase is process-level noise"
+  },
+  "reproduction": "benchmark/itpplasma_simple_benchmark.sh CURRENT_SIMPLE PINNED_SIMPLE SIMPLE_IN OUTPUT_DIR"
+}
