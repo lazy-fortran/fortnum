@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "source_revision": "02cdf79df5213f25d140e1e2eb115d63746937a9",
+  "operator": "unnormalized forward complex FFT of length 8",
+  "product": "jvp",
+  "active_inputs": 16,
+  "outputs": 16,
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor"
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "autodiff": "Enzyme 22",
+    "optimization": "O2"
+  },
+  "candidates": {
+    "analytical": "apply the production radix-8 FFT execution leaf to each direction",
+    "autodiff": "Enzyme forward mode through the same production radix-8 execution leaf"
+  },
+  "boundary": {
+    "active": "16 interleaved real and imaginary input components",
+    "inactive": "length, sign, and plan construction",
+    "reason": "Enzyme 22 has no forward rule for Flang _FortranAAssign used by plan construction"
+  },
+  "sampling": {
+    "samples": 15,
+    "warmup_samples": 3,
+    "calls_per_sample": 10000,
+    "direction_counts": [1, 4, 16]
+  },
+  "validation": {
+    "oracle": "independent O(n^2) direct DFT",
+    "relative_tolerance": 4e-13,
+    "production_dispatch": "the public fft_c2c size-8 path calls the benchmarked execution leaf",
+    "external_oracle": "the existing NumPy CSV oracle covers the public size-8 transform"
+  },
+  "median_ns": {
+    "analytical": [251.3887, 655.3660, 2463.8690],
+    "autodiff": [273.5485, 696.3181, 2360.4381]
+  },
+  "mad_ns": {
+    "analytical": [0.8937, 4.2230, 86.4730],
+    "autodiff": [1.5088, 20.5637, 18.5049]
+  },
+  "peak_rss_bytes_at_16_directions": {
+    "analytical": 2887680,
+    "autodiff": 2977792
+  },
+  "native_symbol_bytes": {
+    "analytical_fft_c2c8": 615,
+    "generated_autodiff_wrapper_and_jvp": 931
+  },
+  "perf_stat_five_run_aggregate": {
+    "counter_order": ["cycles", "instructions", "cache_references", "cache_misses"],
+    "d1": {
+      "analytical": [121283187, 369257355, 29747, 9195],
+      "autodiff": [126484180, 371057404, 95717, 12917]
+    },
+    "d16": {
+      "analytical": [1084607647, 3386757652, 162184, 15659],
+      "autodiff": [1116762281, 3415557757, 1487073, 23554]
+    }
+  },
+  "selection": {
+    "mechanism": "analytical",
+    "raw_fastest": "analytical at 1 and 4 directions; autodiff at 16",
+    "reason": "the 16-direction raw gap is 4.4% but perf counters favor analytical; analytical has lower RSS, fewer instructions and misses, normal-build availability, and device portability",
+    "autodiff_over_analytical_time_ratio": [1.0882, 1.0625, 0.9580]
+  }
+}

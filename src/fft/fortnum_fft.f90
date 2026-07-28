@@ -13,13 +13,10 @@ module fortnum_fft
     ! all other lengths (Bluestein, IEEE Trans. Audio Electroacoust. 18 (1970)
     ! 451).
     !
-    ! Derivative policy (ad.md §1, §4):
-    !   Default class: transparent.
-    !   The DFT is linear; Enzyme differentiates the implementation directly.
-    !   Active arguments: z (fft_c2c), x and c (fft_r2c).
-    !   Inactive arguments: sign, plan, all integers.
-    !   Derivative entry points (ad.md §2): fft_c2c_jvp, fft_c2c_vjp,
-    !   fft_r2c_jvp, fft_r2c_vjp — none implemented yet (M1 primal only).
+    ! Differentiation contract (ad.md):
+    !   Analytical products apply the DFT or its adjoint as a linear operator.
+    !   Autodiff of execution kernels remains a competing candidate; plan
+    !   construction, signs, sizes, and integer control flow are inactive.
     !
     ! No module-level state. Pass a caller-owned fortnum_fft_plan_t to reuse
     ! twiddle tables across transforms of the same length (thread safe: plans
@@ -27,6 +24,7 @@ module fortnum_fft
 
     use, intrinsic :: iso_fortran_env, only: int64
     use fortnum_kinds, only: dp
+    use fortnum_fft8_kernel, only: fft_c2c8
     implicit none
     private
 
@@ -112,6 +110,10 @@ contains
 
         if (size(z) < 1) error stop "fft_c2c: empty input"
         if (abs(sign) /= 1) error stop "fft_c2c: sign must be -1 or +1"
+        if (size(z) == 8) then
+            call fft_c2c8(z(1), z(2), z(3), z(4), z(5), z(6), z(7), z(8), sign)
+            return
+        end if
         plan%n = size(z)
         plan%ncpx = size(z)
         call init_core(plan, plan%ncpx)

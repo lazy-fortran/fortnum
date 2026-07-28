@@ -294,6 +294,8 @@ if(FORTNUM_ENABLE_ENZYME)
             "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_singular_frozen_trace.f90")
         set(_fortnum_ode_forward_wrapper_source
             "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_ode_scalar_rhs.f90")
+        set(_fortnum_fft_jvp_wrapper_source
+            "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_fft8.f90")
         foreach(_wrapper
                 ${_fortnum_dawson_wrapper_sources}
                 "${_fortnum_square_wrapper_source}"
@@ -309,7 +311,8 @@ if(FORTNUM_ENABLE_ENZYME)
                 ${_fortnum_vector_root_vjp_wrapper_sources}
                 ${_fortnum_fixed_quadrature_wrapper_sources}
                 ${_fortnum_adaptive_wrapper_sources}
-                "${_fortnum_ode_forward_wrapper_source}")
+                "${_fortnum_ode_forward_wrapper_source}"
+                "${_fortnum_fft_jvp_wrapper_source}")
             if(NOT EXISTS "${_wrapper}")
                 message(FATAL_ERROR "Missing generated Enzyme wrapper: ${_wrapper}")
             endif()
@@ -583,6 +586,17 @@ if(FORTNUM_ENABLE_ENZYME)
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/hyperg_tournament.f90
         FORWARD_RULES
             fortnum_hyperg_kernel_hybrid=fortnum_hyperg_kernel_hybrid_derivative
+        MODE forward
+        OPT_LEVEL O2)
+    fortnum_add_enzyme_test(
+        NAME enzyme_fft_jvp_tournament
+        SOURCES
+            ${CMAKE_SOURCE_DIR}/src/fortnum_kinds.f90
+            ${CMAKE_SOURCE_DIR}/src/fft/fortnum_fft8_kernel.f90
+            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${_fortnum_fft_jvp_wrapper_source}
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/fft_jvp_tournament.f90
         MODE forward
         OPT_LEVEL O2)
 endif()
