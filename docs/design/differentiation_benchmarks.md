@@ -30,6 +30,7 @@ primal evaluations required by the stated oracle.
 | Family | Record pattern | Products and comparisons | Independent validation |
 | --- | --- | --- | --- |
 | generated algebra | `ryzen9_5950x_dawson_generated_family.json`, determinant and inverse records | fused/separate, generated/diagnostic, JVP/VJP | formulas, finite differences, matrix identities, adjoint identities |
+| FFT | `ryzen9_5950x_fft8_jvp_tournament.json` | analytical transform versus forward Enzyme, direction scaling | direct DFT and NumPy transform oracle |
 | special functions | `ryzen9_5950x_bessel_*.json`, gamma, erf, and hypergeometric tournament records | analytical, autodiff, hybrid across numerical regions | complete-objective finite differences and custom-rule provenance |
 | Enzyme infrastructure | `ryzen9_5950x_enzyme_*.json`, `*_fixture_migration.json` | wrapper ABI, shared support, code size, migration regression | real Enzyme formulas, adjoint identities, negative repository guards |
 | interpolation | `ryzen9_5950x_lagrange_*.json`, `ryzen9_5950x_bspline_*.json` | active points, values, nodes, knots, coefficients, fused products | independent cubic formulas, finite differences, adjoint identities, crossing status |
@@ -115,6 +116,15 @@ Hypergeometric is the important exception enabled by code generation: its
 fortsym-generated asymptotic products take 59 ns for JVP and 67 ns for VJP,
 3.94× and 6.42× faster than Enzyme. The selected generated kernels also use
 slightly less process RSS and fewer measured instructions.
+
+For the length-eight complex FFT JVP, analytical and Enzyme candidates share
+the same production radix execution leaf. Analytical takes 251, 655, and
+2,464 ns for 1, 4, and 16 directions; Enzyme takes 274, 696, and 2,360 ns.
+The 16-direction raw gap is 4.4%, but repeated hardware counters favor
+analytical, which also has lower RSS, fewer instructions and misses, and is
+available in normal and device builds. Plan construction is correctly
+inactive: Enzyme 22 cannot differentiate Flang's `_FortranAAssign`, and plan
+derivatives are not part of the mathematical FFT contract.
 
 The hypergeometric tournament activates real `z` at fixed real parameters.
 Because Enzyme 22 cannot differentiate Flang's complex `cexp`, its candidate

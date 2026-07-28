@@ -137,7 +137,11 @@ replay the accepted subdivision stored in `integrate_result_t`.
 - `fft_r2c_jvp`, `fft_r2c_vjp`
 
 FFT products apply the linear transform or its adjoint. Check the `sign` and
-normalization contract when composing complex VJPs.
+normalization contract when composing complex VJPs. Length-eight complex
+transforms dispatch to a fixed production execution leaf shared by the
+analytical product and its autodiff benchmark candidate.
+That internal leaf lives in `fortnum_fft8_kernel`; callers should continue
+through `fortnum_fft`.
 
 ## ODEs
 

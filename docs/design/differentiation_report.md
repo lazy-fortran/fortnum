@@ -12,7 +12,7 @@ artifacts.
 
 ## Scope
 
-`benchmark/report/data/mechanism_tournaments.csv` contains 50 derivative
+`benchmark/report/data/mechanism_tournaments.csv` contains 51 derivative
 workloads with competing mechanism timings. Every row names its source JSON
 record.
 
@@ -26,13 +26,13 @@ Finite differences are diagnostics and win no current production selection.
 
 | Mechanism | Selected workloads | Share | Raw fastest workloads |
 | --- | ---: | ---: | ---: |
-| `analytical` | 37 | 74.0% | 31 |
-| `autodiff` | 11 | 22.0% | 14 |
-| `hybrid` | 2 | 4.0% | 5 |
+| `analytical` | 38 | 74.5% | 31 |
+| `autodiff` | 11 | 21.6% | 15 |
+| `hybrid` | 2 | 3.9% | 5 |
 | diagnostic | 0 | 0.0% | 0 |
 
 The second-fastest/fastest wall-clock ratio ranges from 1.001 to 1,224.355.
-Its median is 1.465 and geometric mean is 1.937. 19 workloads have a
+Its median is 1.438 and geometric mean is 1.914. 20 workloads have a
 runner-up within 20%.
 
 These counts describe the measured workload set. They do not select new
@@ -53,6 +53,7 @@ refresh.
 | regularized gamma, fixed shape | product-specific | forward autodiff reuses the primal iteration and wins JVPs; the analytical scalar adjoint wins VJPs |
 | erf | `analytical` practical tie | autodiff is under 1% raw-faster for JVP; generated analytical wins VJP and avoids an optional runtime dependency |
 | hypergeometric, fixed real parameters | region-specific | autodiff wins Kummer and series regions; fortsym-generated pure-elemental analytical products win the asymptotic region by 3.73× for 16 JVPs and 7.34× for 16 VJPs |
+| length-eight complex FFT JVP | `analytical` practical tie | applying the transform directly wins at 1–4 directions; Enzyme is 4.4% raw-faster at 16, but analytical wins hardware counters and has no optional dependency |
 | fixed quadrature | `analytical` | fixed linear contractions beat Enzyme and complete finite differences |
 | adaptive integration | mixed | whole-trace autodiff narrowly wins two measured JVP workloads; normal-build analytical remains for an optional hybrid raw win |
 | scalar/vector roots | product-specific | hybrid residual JVP can win; analytical implicit VJP and factor reuse remain strongest |
