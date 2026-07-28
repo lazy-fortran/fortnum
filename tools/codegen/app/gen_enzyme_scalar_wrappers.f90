@@ -16,6 +16,13 @@ program gen_enzyme_scalar_wrappers
         "fortnum_generated_enzyme_bessel_outer", &
         "fortnum_enzyme_bessel_outer", "fortnum_bessel_outer", &
         "fortnum_enzyme_bessel_outer.f90")
+    call write_named_wrapper(output_directory, &
+        "fortnum_generated_enzyme_dawson_outer", &
+        "fortnum_enzyme_dawson_outer", "fortnum_dawson_outer", &
+        "fortnum_enzyme_dawson_outer.f90")
+    call write_named_wrapper(output_directory, &
+        "fortnum_generated_enzyme_square", "fortnum_enzyme_square", &
+        "fortnum_smoke_square", "fortnum_enzyme_square.f90")
 
 contains
 
