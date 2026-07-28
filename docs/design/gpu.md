@@ -731,6 +731,33 @@ The largest live numerical state occupies 92,276,736 B. CPU peak host RSS is
 B. Exact dispersion, backend selection, memory, and provenance are in
 `benchmark/reference/rtx5060ti_ode_terminal_objective.json`.
 
+### Algebraic-variant tournament
+
+`gen_dawson_jvp_variants` derives one analytical Dawson outer-identity JVP and
+emits raw, SymEngine-simplified, and factored candidates into a temporary
+directory. `fortsym` proves both transformed candidates equivalent to the raw
+directional derivative before compilation. The generated losers are not
+committed.
+
+Post-CSE operation counts are 30, 10, and 10. Native medians for 1,048,576
+products are:
+
+| Variant | CPU ms | OpenACC resident ms | OpenMP resident ms | CPU symbol B |
+| --- | ---: | ---: | ---: | ---: |
+| raw | 6.6221 | 0.1509 | 0.1510 | 160 |
+| simplified | 5.2008 | 0.1381 | 0.1390 | 96 |
+| factored | 5.4641 | 0.1390 | 0.1399 | 104 |
+
+The simplified candidate wins: it is 1.27 times faster than raw on CPU and
+about 1.09 times faster on either resident GPU path. Simplified and factored
+are practical GPU ties, so native CPU wall clock and smaller code size decide.
+Transfer-inclusive measurements are retained, but transfers dominate them and
+do not select the algebra. CPU cache references are effectively unchanged;
+simplification reduces instructions by 15.0% and cache misses by 7.5% relative
+to raw. Exact scaling, dispersion, peak host RSS, cache counters, proof
+provenance, and transfer-inclusive timings are in
+`benchmark/reference/rtx5060ti_dawson_jvp_algebraic_variants.json`.
+
 ## Immediate implementation order
 
 The first pilot is the generated Dawson fused value/JVP leaf:

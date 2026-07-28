@@ -294,7 +294,7 @@ that boundary. Reconsider these exclusions only when a released upstream
 toolchain supports the complete path reliably and a concrete consumer
 justifies the complexity.
 
-- [ ] Generate several algebraic variants, prove them equivalent, and rank
+- [x] Generate several algebraic variants, prove them equivalent, and rank
   them by post-CSE operation count before native CPU, OpenACC, and OpenMP-target
   benchmarking.
 - [ ] Commit only the measured production kernel and the generator inputs

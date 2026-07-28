@@ -36,6 +36,13 @@ on both devices and takes 0.1690 ms per resident 1,048,576-element call.
 Generated value/product fusion wins all 24 Dawson GPU comparisons across
 launch-, throughput-, and transfer/memory-dominated batches. Resident fusion
 is 1.45 to 1.96 times faster than two separate generated-kernel launches.
+For the Dawson JVP, `fortsym` also proves raw, simplified, and factored
+algebraic candidates equivalent before native benchmarking. The simplified
+candidate reduces the post-CSE count from 30 to 10 operations and is 1.27
+times faster than raw on the largest CPU workload and about 1.09 times faster
+resident on either GPU. The simplified and factored GPU results are practical
+ties, so CPU wall clock and the smaller 96-byte native symbol select the
+simplified form. Temporary losing kernels are not committed.
 The generated multi-input scalar-output pilot covers 2, 4, 8, and 16 active
 inputs and 1, 4, and 16 JVP directions or VJP cotangents. At 65,536 points,
 resident GPU execution is 20.6 to 38.7 times faster than the pinned CPU,
