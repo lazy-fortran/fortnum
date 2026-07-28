@@ -6,7 +6,7 @@ module fft_jvp_tournament_kernel
 
     integer, parameter, public :: fft_size = 8
     integer, parameter, public :: real_size = 2*fft_size
-    public :: fft8_primal, analytical_jvp
+    public :: fft8_primal, analytical_jvp, analytical_vjp
 
 contains
 
@@ -30,6 +30,17 @@ contains
             tangent(5), tangent(6), tangent(7), tangent(8), -1)
         call unpack_complex(tangent, product)
     end subroutine analytical_jvp
+
+    subroutine analytical_vjp(cotangent, product)
+        real(c_double), intent(in) :: cotangent(real_size)
+        real(c_double), intent(out) :: product(real_size)
+        complex(c_double) :: adjoint(fft_size)
+
+        call pack_complex(cotangent, adjoint)
+        call fft_c2c8(adjoint(1), adjoint(2), adjoint(3), adjoint(4), &
+            adjoint(5), adjoint(6), adjoint(7), adjoint(8), 1)
+        call unpack_complex(adjoint, product)
+    end subroutine analytical_vjp
 
     pure subroutine pack_complex(input, output)
         real(c_double), intent(in) :: input(real_size)
@@ -57,7 +68,7 @@ end module fft_jvp_tournament_kernel
 program enzyme_fft_jvp_tournament
     use, intrinsic :: iso_c_binding, only: c_double
     use fft_jvp_tournament_kernel, only: fft8_primal, analytical_jvp, &
-        fft_size, real_size
+        analytical_vjp, fft_size, real_size
     use fortnum_generated_enzyme_fft8, only: fortnum_enzyme_fft8_jvp
     use fortnum_enzyme_fixture_support, only: collect_fixture_samples, &
         fixture_peak_rss_bytes, fixture_sample_count, fixture_timer_t, &
@@ -66,7 +77,7 @@ program enzyme_fft_jvp_tournament
     implicit none
 
     real(c_double) :: samples(fixture_sample_count), sink
-    character(32) :: action, candidate
+    character(32) :: action, candidate, product_kind
     integer :: directions, iterations
     logical :: valid
 
@@ -77,12 +88,15 @@ program enzyme_fft_jvp_tournament
         stop
     end if
     call read_fixture_environment("FORTNUM_FFT_CANDIDATE", "analytical", candidate)
+    call read_fixture_environment("FORTNUM_FFT_PRODUCT", "jvp", product_kind)
     call read_fixture_integer("FORTNUM_FFT_DIRECTIONS", 16, directions, valid)
     if (.not. valid) error stop "invalid direction count"
     call read_fixture_integer("FORTNUM_FFT_ITERATIONS", 10000, iterations, valid)
     if (.not. valid) error stop "invalid iteration count"
     if (trim(candidate) /= "analytical" .and. trim(candidate) /= "autodiff") &
         error stop "candidate must be analytical or autodiff"
+    if (trim(product_kind) /= "jvp" .and. trim(product_kind) /= "vjp") &
+        error stop "product must be jvp or vjp"
     if (directions < 1 .or. directions > 16) &
         error stop "directions must be 1..16"
     if (iterations < 1) error stop "iterations must be positive"
@@ -106,7 +120,7 @@ contains
         real(c_double) :: x(real_size), direction(real_size)
         real(c_double) :: primal(real_size), enzyme_primal(real_size)
         real(c_double) :: expected(real_size), analytical(real_size)
-        real(c_double) :: autodiff(real_size), scale
+        real(c_double) :: autodiff(real_size), scale, lhs, rhs
         integer :: i
 
         do i = 1, real_size
@@ -129,6 +143,21 @@ contains
             error stop "Enzyme FFT primal disagrees with production"
         if (maxval(abs(autodiff - expected)) > tolerance*scale) &
             error stop "autodiff FFT JVP disagrees with direct DFT"
+
+        call analytical_vjp(direction, analytical)
+        call direct_dft_adjoint(direction, expected)
+        scale = max(1.0_c_double, maxval(abs(expected)))
+        if (maxval(abs(analytical - expected)) > tolerance*scale) &
+            error stop "analytical FFT VJP disagrees with direct adjoint DFT"
+
+        lhs = dot_product(direction, primal)
+        rhs = dot_product(analytical, x)
+        if (abs(lhs - rhs) > tolerance*max(1.0_c_double, abs(lhs), abs(rhs))) &
+            error stop "FFT adjoint dot identity failed"
+
+        call autodiff_vjp(x, direction, autodiff)
+        if (maxval(abs(autodiff - expected)) > tolerance*scale) &
+            error stop "autodiff FFT VJP disagrees with direct adjoint DFT"
     end subroutine validate_candidates
 
     function measure_candidate() result(elapsed_ns)
@@ -149,10 +178,18 @@ contains
                     direction(i) = cos(0.017_c_double* &
                         real(i + 3*direction_index, c_double))
                 end do
-                if (trim(candidate) == "analytical") then
-                    call analytical_jvp(direction, product)
+                if (trim(product_kind) == "jvp") then
+                    if (trim(candidate) == "analytical") then
+                        call analytical_jvp(direction, product)
+                    else
+                        call fortnum_enzyme_fft8_jvp(x, direction, primal, product)
+                    end if
                 else
-                    call fortnum_enzyme_fft8_jvp(x, direction, primal, product)
+                    if (trim(candidate) == "analytical") then
+                        call analytical_vjp(direction, product)
+                    else
+                        call autodiff_vjp(x, direction, product)
+                    end if
                 end if
                 local_sink = local_sink + product( &
                     1 + mod(direction_index - 1, real_size))
@@ -167,7 +204,8 @@ contains
         character(96) :: name
 
         call median_mad(samples, median, mad)
-        write (name, "('fft8_',a,'_jvp_d',i0)") trim(candidate), directions
+        write (name, "('fft8_',a,'_',a,'_d',i0)") &
+            trim(candidate), trim(product_kind), directions
         call write_fixture_result(trim(name), iterations, median, mad)
     end subroutine report_samples
 
@@ -195,5 +233,45 @@ contains
             output(2*frequency + 2) = aimag(value)
         end do
     end subroutine direct_dft
+
+    subroutine autodiff_vjp(x, cotangent, product)
+        real(c_double), intent(in) :: x(real_size), cotangent(real_size)
+        real(c_double), intent(out) :: product(real_size)
+        real(c_double) :: basis(real_size), primal(real_size)
+        real(c_double) :: column(real_size)
+        integer :: input_index
+
+        do input_index = 1, real_size
+            basis = 0.0_c_double
+            basis(input_index) = 1.0_c_double
+            call fortnum_enzyme_fft8_jvp(x, basis, primal, column)
+            product(input_index) = dot_product(cotangent, column)
+        end do
+    end subroutine autodiff_vjp
+
+    pure subroutine direct_dft_adjoint(input, output)
+        real(c_double), intent(in) :: input(real_size)
+        real(c_double), intent(out) :: output(real_size)
+        real(c_double), parameter :: pi = &
+            3.141592653589793238462643383279502884_c_double
+        complex(c_double) :: value, z(fft_size)
+        real(c_double) :: angle
+        integer :: frequency, i, sample
+
+        do i = 1, fft_size
+            z(i) = cmplx(input(2*i - 1), input(2*i), c_double)
+        end do
+        do sample = 0, fft_size - 1
+            value = cmplx(0.0_c_double, 0.0_c_double, c_double)
+            do frequency = 0, fft_size - 1
+                angle = 2.0_c_double*pi* &
+                    real(frequency*sample, c_double)/real(fft_size, c_double)
+                value = value + z(frequency + 1)* &
+                    cmplx(cos(angle), sin(angle), c_double)
+            end do
+            output(2*sample + 1) = real(value, c_double)
+            output(2*sample + 2) = aimag(value)
+        end do
+    end subroutine direct_dft_adjoint
 
 end program enzyme_fft_jvp_tournament
