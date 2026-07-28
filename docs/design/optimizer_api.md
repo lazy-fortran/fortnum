@@ -67,6 +67,11 @@ H(x)v=A^T\left[
 The benchmark implementation keeps only residual-sized work arrays and does
 not form \(J\) or \(H\).
 
+The two mixed-mode Enzyme fixtures use a closed-form Hessian contraction as
+their oracle. The analytical application candidate is independently checked
+by complex-step differentiation of the gradient; its current maximum absolute
+error is \(6.94\times10^{-18}\).
+
 ## Candidate opacity
 
 The callback shape does not expose `autodiff`, `analytical`, or `hybrid`

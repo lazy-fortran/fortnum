@@ -431,7 +431,7 @@ Every tournament record must include:
 - [x] Add an autodiff forward-over-reverse HVP candidate.
 - [x] Add an autodiff reverse-over-forward HVP candidate.
 - [x] Add an analytical or hybrid implicit HVP where justified.
-- [ ] Validate HVPs with an independent second-directional or high-precision
+- [x] Validate HVPs with an independent second-directional or high-precision
   oracle.
 - [ ] Measure HVP runtime and peak memory.
 - [ ] Add a full Hessian only when a measured consumer requires one.
