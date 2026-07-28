@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "source_revision": "bf17e433d38d200a15ff4e2ec897a751f41f672f",
+  "operator": "single unnormalized complex FFT derivative product",
+  "mechanism": "analytical",
+  "products": ["jvp", "vjp"],
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor"
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1",
+    "optimization": "Release"
+  },
+  "workload": {
+    "lengths": [8, 64, 256, 1024],
+    "batch_size": 1,
+    "samples": 15,
+    "warmup_samples": 3,
+    "plan_policy": "the public complex FFT product constructs its execution plan inside each call for lengths other than 8"
+  },
+  "validation": {
+    "oracles": [
+      "independent O(n^2) direct DFT for the JVP",
+      "independent O(n^2) direct adjoint DFT for the VJP"
+    ],
+    "lengths": [8, 30, 31],
+    "relative_tolerance": 4e-12
+  },
+  "median_ns": {
+    "jvp": [177.7106, 1621.7764, 6165.1267, 27017.5361],
+    "vjp": [169.9557, 1582.3019, 6548.8892, 26299.3555]
+  },
+  "mad_ns": {
+    "jvp": [5.1920, 42.5642, 23.1416, 887.3759],
+    "vjp": [5.1064, 9.5725, 236.9260, 147.8867]
+  },
+  "peak_rss_bytes_at_length_1024": {
+    "jvp": 2859008,
+    "vjp": 2912256
+  },
+  "native_symbol_bytes": {
+    "fft_c2c8": 1007,
+    "fft_c2c_jvp": 163,
+    "fft_c2c_vjp": 182,
+    "fft_c2c": 1416
+  },
+  "perf_stat_single_run": {
+    "counter_order": ["cycles", "instructions", "cache_references", "cache_misses"],
+    "length_8_repetitions_500000": {
+      "jvp": [6082592170, 19282089949, 3099963, 324132],
+      "vjp": [5917639171, 18473589403, 1968222, 269588]
+    },
+    "length_1024_repetitions_20000": {
+      "jvp": [37441081633, 120411837787, 1113501367, 11688161],
+      "vjp": [38130894828, 124178061062, 1131868566, 14326478]
+    }
+  },
+  "result": {
+    "vjp_over_jvp_time_ratio": [0.9564, 0.9757, 1.0622, 0.9734],
+    "interpretation": "JVP and VJP have the same transform complexity; complete scalar cost grows from about 0.18 microseconds at length 8 to about 27 microseconds at length 1024"
+  }
+}
