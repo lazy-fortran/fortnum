@@ -23,7 +23,28 @@ if(NOT FORTNUM_ENABLE_ENZYME)
     return()
 endif()
 
-# --- Flang driver. Default flang-new; allow override via cache var. ---
+# LLVM 23 is the preferred Enzyme toolchain. Set this to /usr for the
+# co-installed LLVM 22 toolchain, or override individual tools below.
+set(FORTNUM_LLVM_ROOT "/usr/lib/llvm23" CACHE PATH
+    "Root of the LLVM toolchain used by the Enzyme pipeline")
+
+if(NOT DEFINED FORTNUM_FLANG_EXECUTABLE
+        AND EXISTS "${FORTNUM_LLVM_ROOT}/bin/flang")
+    set(FORTNUM_FLANG_EXECUTABLE "${FORTNUM_LLVM_ROOT}/bin/flang"
+        CACHE FILEPATH "Flang driver used for LLVM IR emission and final link")
+endif()
+if(NOT DEFINED FORTNUM_CLANG_EXECUTABLE
+        AND EXISTS "${FORTNUM_LLVM_ROOT}/bin/clang")
+    set(FORTNUM_CLANG_EXECUTABLE "${FORTNUM_LLVM_ROOT}/bin/clang"
+        CACHE FILEPATH "Clang driver used for Enzyme custom-rule helper IR")
+endif()
+if(NOT DEFINED FORTNUM_LLVM_OPT_EXECUTABLE
+        AND EXISTS "${FORTNUM_LLVM_ROOT}/bin/opt")
+    set(FORTNUM_LLVM_OPT_EXECUTABLE "${FORTNUM_LLVM_ROOT}/bin/opt"
+        CACHE FILEPATH "LLVM opt driver used to run the Enzyme pass")
+endif()
+
+# --- Flang driver. Allow override via cache var. ---
 find_program(FORTNUM_FLANG_EXECUTABLE
     NAMES flang-new flang
     DOC "Flang driver used for LLVM IR emission and final link")
@@ -64,11 +85,21 @@ set(_fortnum_enzyme_plugin_names
     LLVMEnzyme-${_fortnum_llvm_major}.dylib
     LLVMEnzyme.dylib)
 
+if(NOT DEFINED FORTNUM_ENZYME_PLUGIN
+        AND EXISTS
+            "${FORTNUM_LLVM_ROOT}/lib/LLVMEnzyme-${_fortnum_llvm_major}.so")
+    set(FORTNUM_ENZYME_PLUGIN
+        "${FORTNUM_LLVM_ROOT}/lib/LLVMEnzyme-${_fortnum_llvm_major}.so"
+        CACHE FILEPATH
+        "Enzyme LLVM pass plugin shared object (set manually to activate)")
+endif()
+
 find_library(FORTNUM_ENZYME_PLUGIN
     NAMES ${_fortnum_enzyme_plugin_names}
           LLVMEnzyme-${_fortnum_llvm_major}
           LLVMEnzyme
     PATHS
+        ${FORTNUM_LLVM_ROOT}/lib
         /usr/lib
         /usr/lib64
         /usr/local/lib

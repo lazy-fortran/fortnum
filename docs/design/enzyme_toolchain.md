@@ -34,11 +34,13 @@ Fortran build; each Enzyme test uses Flang at the derivative boundary.
 
 ```bash
 cmake -S . -B build-enzyme -G Ninja \
-  -DFORTNUM_ENABLE_ENZYME=ON \
-  -DFORTNUM_ENZYME_PLUGIN=/path/to/LLVMEnzyme-MAJOR.so
+  -DFORTNUM_ENABLE_ENZYME=ON
 cmake --build build-enzyme
 ctest --test-dir build-enzyme -R enzyme --output-on-failure
 ```
+
+The default `FORTNUM_LLVM_ROOT=/usr/lib/llvm23` selects the co-installed LLVM
+23 toolchain. Use `-DFORTNUM_LLVM_ROOT=/usr` to select LLVM 22.
 
 Discovery sets the Flang, LLVM utility, version, plugin, and availability cache
 variables. With `FORTNUM_ENZYME_REQUIRED=OFF`, an unavailable plugin skips the
