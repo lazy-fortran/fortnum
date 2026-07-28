@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
-  "date": "2026-07-27",
+  "date": "2026-07-28",
+  "source_revision": "15baf17d8972c1be343d91a0d6b45a4f2599bbd9",
   "operation": "Dawson outer generated value/JVP/VJP family",
   "workload": "one value and one contracted product per scalar call",
   "hardware": {
@@ -10,7 +11,7 @@
   "toolchain": {
     "compiler": "GNU Fortran 16.1.1",
     "compiler_flags": "-O3",
-    "fortsym_revision": "349bc6257a22b416093624bd04dd1ed8a83852d0"
+    "fortsym_revision": "0fb62d205c6bd41dc8f99e5b259d33bfa49afe8c"
   },
   "sampling": {
     "warmup_rounds": 3,
@@ -55,35 +56,67 @@
     {
       "product": "jvp",
       "candidate": "fused",
-      "median_ns_per_workload": 9.7304,
-      "mad_ns_per_workload": 0.0178,
-      "peak_rss_bytes": 12611584
+      "median_ns_per_workload": 9.6746,
+      "mad_ns_per_workload": 0.0133,
+      "peak_rss_bytes": 2875392
     },
     {
       "product": "jvp",
       "candidate": "separate",
-      "median_ns_per_workload": 15.2758,
-      "mad_ns_per_workload": 0.1186,
-      "peak_rss_bytes": 12292096
+      "median_ns_per_workload": 15.2823,
+      "mad_ns_per_workload": 0.1486,
+      "peak_rss_bytes": 2834432
     },
     {
       "product": "vjp",
       "candidate": "fused",
-      "median_ns_per_workload": 9.7754,
-      "mad_ns_per_workload": 0.0152,
-      "peak_rss_bytes": 12275712
+      "median_ns_per_workload": 9.7521,
+      "mad_ns_per_workload": 0.0304,
+      "peak_rss_bytes": 2875392
     },
     {
       "product": "vjp",
       "candidate": "separate",
-      "median_ns_per_workload": 16.4021,
-      "mad_ns_per_workload": 0.1732,
-      "peak_rss_bytes": 11866112
+      "median_ns_per_workload": 15.8124,
+      "mad_ns_per_workload": 0.2739,
+      "peak_rss_bytes": 2916352
     }
   ],
+  "perf_stat_five_run_aggregate": {
+    "calls_per_run": 1000000,
+    "jvp": {
+      "fused": {
+        "cycles": 44839927,
+        "instructions": 162663499,
+        "cache_references": 34768,
+        "cache_misses": 10902
+      },
+      "separate": {
+        "cycles": 69419006,
+        "instructions": 209664068,
+        "cache_references": 35797,
+        "cache_misses": 11339
+      }
+    },
+    "vjp": {
+      "fused": {
+        "cycles": 44662361,
+        "instructions": 162663466,
+        "cache_references": 35913,
+        "cache_misses": 11370
+      },
+      "separate": {
+        "cycles": 75187003,
+        "instructions": 209664038,
+        "cache_references": 36551,
+        "cache_misses": 11493
+      }
+    }
+  },
   "measured_verdict": {
-    "jvp": "fused is 1.5699 times faster than separate",
-    "vjp": "fused is 1.6779 times faster than separate",
+    "jvp": "fused is 1.5796 times faster than separate",
+    "vjp": "fused is 1.6214 times faster than separate",
+    "cache": "fused executes 22.4% fewer instructions for both products and has no cache penalty",
     "memory": "all variants use fixed scalar storage; process-RSS differences do not measure derivative workspace"
   }
 }
