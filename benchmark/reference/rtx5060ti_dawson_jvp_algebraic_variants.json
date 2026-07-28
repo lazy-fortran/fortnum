@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "source_revision": "d3ea7b0482f79846265fa56469073246ff1e60c3",
+  "fortsym_revision": "0e3deee5fa2ed3d30ebfce607cc96794f4b8fed3",
+  "kernel": "Dawson outer-identity JVP",
+  "classification": "analytical",
+  "selection_metric": "native wall clock after symbolic equivalence proof and post-CSE operation ranking; peak host RSS and native symbol size break practical ties",
+  "variants": {
+    "raw": "directional derivative emitted without algebraic simplification",
+    "simplified": "SymEngine simplification of the raw directional derivative",
+    "factored": "explicitly factored expression built from the same symbolic model"
+  },
+  "symbolic_validation": {
+    "reference": "fortsym directional derivative of exp(-d*d) + x*d",
+    "proof": "fortsym SymEngine zero-test proves simplified-raw=0 and factored-raw=0",
+    "post_cse_operations": {
+      "raw": 30,
+      "simplified": 10,
+      "factored": 10
+    }
+  },
+  "native_validation": {
+    "cases": 4096,
+    "oracle": "independently written factored analytical JVP",
+    "relative_tolerance": 2e-13,
+    "device_execution_proof": "OpenACC NVIDIA device check and mandatory non-host OpenMP target check"
+  },
+  "workload": {
+    "batch_sizes": [256, 65536, 1048576],
+    "samples": 31,
+    "warmup_samples": 3,
+    "pinned_cpu": 4,
+    "small_batch_repetitions": "ceil(65536/batch_size), reported per kernel call"
+  },
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "gpu": "NVIDIA GeForce RTX 5060 Ti",
+    "driver": "610.43.03"
+  },
+  "toolchain": {
+    "compiler": "NVHPC nvfortran 26.5",
+    "openacc_flags": "-fast -O3 -acc",
+    "openmp_flags": "-fast -O3 -mp=gpu -mp"
+  },
+  "median_ms": {
+    "batch_sizes": [256, 65536, 1048576],
+    "cpu": {
+      "raw": [0.001645, 0.382900, 6.622100],
+      "simplified": [0.001297, 0.319000, 5.200800],
+      "factored": [0.001363, 0.335000, 5.464100]
+    },
+    "openacc_resident": {
+      "raw": [0.008125, 0.016900, 0.150900],
+      "simplified": [0.008196, 0.016000, 0.138100],
+      "factored": [0.007961, 0.016000, 0.139000]
+    },
+    "openacc_transfer": {
+      "raw": [0.036332, 0.313000, 3.754900],
+      "simplified": [0.036239, 0.311200, 4.068800],
+      "factored": [0.037664, 0.302100, 3.621800]
+    },
+    "openmp_resident": {
+      "raw": [0.008016, 0.017000, 0.151000],
+      "simplified": [0.007546, 0.016000, 0.139000],
+      "factored": [0.007927, 0.016000, 0.139900]
+    },
+    "openmp_transfer": {
+      "raw": [0.035871, 0.314000, 4.164900],
+      "simplified": [0.036680, 0.312100, 4.070000],
+      "factored": [0.036957, 0.322100, 4.153000]
+    }
+  },
+  "mad_ms_at_batch1048576": {
+    "cpu": {"raw": 0.0169, "simplified": 0.0078, "factored": 0.0389},
+    "openacc_resident": {"raw": 0.0002, "simplified": 0.0003, "factored": 0.0},
+    "openacc_transfer": {"raw": 0.0491, "simplified": 0.1731, "factored": 0.1597},
+    "openmp_resident": {"raw": 0.0001, "simplified": 0.0003, "factored": 0.0009},
+    "openmp_transfer": {"raw": 0.2339, "simplified": 0.0731, "factored": 0.1209}
+  },
+  "native_cpu_symbol_bytes": {
+    "raw": 160,
+    "simplified": 96,
+    "factored": 104
+  },
+  "cpu_cache_counters_at_batch1048576": {
+    "raw": {"references": 47895050, "misses": 584786, "cycles": 1008358435, "instructions": 3673588984},
+    "simplified": {"references": 47837412, "misses": 540777, "cycles": 841882156, "instructions": 3123090916},
+    "factored": {"references": 47848941, "misses": 559414, "cycles": 879766869, "instructions": 3159788991}
+  },
+  "peak_host_rss_bytes_at_batch1048576": {
+    "cpu": {"raw": 47177728, "simplified": 47181824, "factored": 47185920},
+    "openacc_resident": {"raw": 146591744, "simplified": 149590016, "factored": 150302720},
+    "openacc_transfer": {"raw": 158760960, "simplified": 158171136, "factored": 157872128},
+    "openmp_resident": {"raw": 156143616, "simplified": 153010176, "factored": 153542656},
+    "openmp_transfer": {"raw": 165560320, "simplified": 162717696, "factored": 163512320}
+  },
+  "selection": {
+    "winner": "simplified",
+    "reason": "lowest CPU wall clock at every batch, practical GPU tie with factored, and the smallest native symbol; transfer-inclusive differences are dominated by data movement",
+    "largest_batch_speedup_over_raw": {
+      "cpu": 1.2733,
+      "openacc_resident": 1.0927,
+      "openmp_resident": 1.0863
+    }
+  }
+}
