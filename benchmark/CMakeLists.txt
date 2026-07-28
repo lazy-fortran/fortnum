@@ -102,8 +102,8 @@ target_link_libraries(bench_core PUBLIC fortnum_gpu_backend)
 if(FORTNUM_DAWSON_VARIANT_DIR)
     set(FORTNUM_DAWSON_VARIANT_SOURCES
         ${FORTNUM_DAWSON_VARIANT_DIR}/fortnum_dawson_jvp_raw.f90
-        ${FORTNUM_DAWSON_VARIANT_DIR}/fortnum_dawson_jvp_simplified.f90
-        ${FORTNUM_DAWSON_VARIANT_DIR}/fortnum_dawson_jvp_factored.f90)
+        ${FORTNUM_DAWSON_VARIANT_DIR}/fortnum_dawson_jvp_factored.f90
+        ${FORTNUM_CORE_DIR}/generated/fortnum_dawson_identity_jvp_kernel.f90)
     foreach(source IN LISTS FORTNUM_DAWSON_VARIANT_SOURCES)
         if(NOT EXISTS ${source})
             message(FATAL_ERROR "Missing generated Dawson variant: ${source}")

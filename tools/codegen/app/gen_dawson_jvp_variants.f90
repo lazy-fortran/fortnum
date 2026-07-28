@@ -9,7 +9,7 @@ program gen_dawson_jvp_variants
         operation_count_t, KERNEL_SUBROUTINE
     use fortsym_engine, only: engine_result_t, VERDICT_TRUE
     use fortsym_engine_symengine, only: symengine_engine_t, make_symengine_engine
-    use fortnum_codegen_provenance, only: fortsym_revision
+    use fortnum_codegen_provenance, only: fortsym_revision, generated_path
     implicit none
 
     type(arena_t), target :: arena
@@ -19,8 +19,9 @@ program gen_dawson_jvp_variants
     type(expr_t) :: raw, simplified, factored
     type(engine_result_t) :: result
     character(:), allocatable :: output_directory
+    logical :: emit_temporary_variants
 
-    call read_output_directory(output_directory)
+    call read_output_directory(output_directory, emit_temporary_variants)
     call arena%init()
     engine = make_symengine_engine(arena)
     x = sym(arena, "x")
@@ -40,24 +41,46 @@ program gen_dawson_jvp_variants
 
     call prove_equivalent(engine, raw, simplified, "simplified")
     call prove_equivalent(engine, raw, factored, "factored")
-    call write_variant(output_directory, "raw", raw)
-    call write_variant(output_directory, "simplified", simplified)
-    call write_variant(output_directory, "factored", factored)
+    call write_variant( &
+        generated_path("fortnum_dawson_identity_jvp_kernel.f90"), &
+        "selected simplified", "fortnum_generated_dawson_identity_jvp", &
+        "fortnum_dawson_identity_jvp_kernel", &
+        "cd tools/codegen && fo exec gen_dawson_jvp_variants", simplified)
+    if (emit_temporary_variants) then
+        call write_variant( &
+            output_directory//"/fortnum_dawson_jvp_raw.f90", "raw", &
+            "fortnum_dawson_variant_raw", "fortnum_dawson_jvp_raw", &
+            temporary_regenerate_command(), raw)
+        call write_variant( &
+            output_directory//"/fortnum_dawson_jvp_factored.f90", "factored", &
+            "fortnum_dawson_variant_factored", "fortnum_dawson_jvp_factored", &
+            temporary_regenerate_command(), factored)
+    end if
 
 contains
 
-    subroutine read_output_directory(directory)
+    subroutine read_output_directory(directory, present)
         character(:), allocatable, intent(out) :: directory
+        logical, intent(out) :: present
         character(1024) :: buffer
         integer :: length, status
 
         call get_environment_variable( &
             "FORTNUM_VARIANT_OUTPUT_DIR", buffer, length, status)
-        if (status /= 0 .or. length < 1) then
-            error stop "FORTNUM_VARIANT_OUTPUT_DIR is required"
+        present = status == 0 .and. length > 0
+        if (present) then
+            directory = buffer(:length)
+        else
+            directory = ""
         end if
-        directory = buffer(:length)
     end subroutine read_output_directory
+
+    function temporary_regenerate_command() result(command)
+        character(:), allocatable :: command
+
+        command = "cd tools/codegen && FORTNUM_VARIANT_OUTPUT_DIR=<dir> "// &
+            "fo exec gen_dawson_jvp_variants"
+    end function temporary_regenerate_command
 
     subroutine prove_equivalent(symbolic_engine, reference, candidate, label)
         type(symengine_engine_t), intent(inout) :: symbolic_engine
@@ -72,29 +95,29 @@ contains
         write (output_unit, "(a)") "proved equivalent: "//label
     end subroutine prove_equivalent
 
-    subroutine write_variant(directory, label, expression)
-        character(*), intent(in) :: directory, label
+    subroutine write_variant(path, label, module_name, procedure_name, &
+            regenerate_command, expression)
+        character(*), intent(in) :: path, label, module_name, procedure_name
+        character(*), intent(in) :: regenerate_command
         type(expr_t), intent(in) :: expression
         type(kernel_spec_t) :: spec
         type(operation_count_t) :: operations
-        character(:), allocatable :: path, code
+        character(:), allocatable :: code
         integer :: unit, ios
 
-        spec%name = str("fortnum_dawson_jvp_"//label)
-        spec%module_name = str("fortnum_dawson_variant_"//label)
+        spec%name = str(procedure_name)
+        spec%module_name = str(module_name)
         spec%mode = KERNEL_SUBROUTINE
         spec%temp_prefix = str("t")
         spec%generator = str("gen_dawson_jvp_variants")
         spec%generator_revision = str(fortsym_revision())
-        spec%regenerate_command = str( &
-            "FORTNUM_VARIANT_OUTPUT_DIR=<dir> fo exec gen_dawson_jvp_variants")
+        spec%regenerate_command = str(regenerate_command)
         spec%pure_procedure = .true.
         spec%openmp_declare_target = .true.
         spec%openacc_routine_seq = .true.
         spec%args = [str("x"), str("d"), str("tx"), str("td")]
         spec%outputs = [str("jvp")]
 
-        path = directory//"/fortnum_dawson_jvp_"//label//".f90"
         open (newunit=unit, file=path, status="replace", action="write", iostat=ios)
         if (ios /= 0) error stop "cannot write "//path
         code = chars(emit_kernel([expression], spec))

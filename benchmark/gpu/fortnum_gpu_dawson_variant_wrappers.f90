@@ -1,7 +1,8 @@
 module fortnum_gpu_dawson_variant_wrappers
     use fortnum_kinds, only: dp
     use fortnum_dawson_variant_raw, only: fortnum_dawson_jvp_raw
-    use fortnum_dawson_variant_simplified, only: fortnum_dawson_jvp_simplified
+    use fortnum_generated_dawson_identity_jvp, only: &
+        fortnum_dawson_identity_jvp_kernel
     use fortnum_dawson_variant_factored, only: fortnum_dawson_jvp_factored
     implicit none
     private
@@ -34,7 +35,7 @@ contains
         !$omp target teams distribute parallel do &
         !$omp& map(to: x, d, tx, td) map(from: products)
         do i = 1, n
-            call fortnum_dawson_jvp_simplified( &
+            call fortnum_dawson_identity_jvp_kernel( &
                 x(i), d(i), tx(i), td(i), products(i))
         end do
     end subroutine dawson_simplified_batch
