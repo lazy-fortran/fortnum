@@ -200,9 +200,10 @@ contains
 
     subroutine validate_candidates()
         real(dp) :: analytical(4), autodiff(4), hybrid(4), diagnostic(4)
-        real(dp) :: reference(4), errors(4)
+        real(dp) :: reference(4), errors(4), maximum_error
         integer :: cotangent
 
+        maximum_error = 0.0_dp
         do cotangent = 1, max_cotangents
             reference = exact_integral_vjp(parameters, cotangents(cotangent))
             analytical = analytical_integral_vjp(nodes, weights, parameters, &
@@ -216,20 +217,24 @@ contains
             errors(2) = maxval(abs(autodiff - reference))
             errors(3) = maxval(abs(hybrid - reference))
             errors(4) = maxval(abs(diagnostic - reference))
+            maximum_error = max(maximum_error, maxval(errors))
             if (maxval(errors(1:3)) > 2.0e-14_dp .or. &
                 errors(4) > 2.0e-10_dp) then
                 print *, "fixed-quadrature VJP mismatch", cotangent, errors
                 error stop 1
             end if
         end do
-        print *, "PASS fixed-quadrature hybrid VJP"
+        print *, "PASS fixed-quadrature hybrid VJP max_absolute_error", &
+            maximum_error
     end subroutine validate_candidates
 
     subroutine validate_batch_candidates()
         real(dp) :: analytical(4), autodiff(4), hybrid(4), diagnostic(4)
         real(dp) :: reference(4), batch_parameters(4), batch_errors(4)
+        real(dp) :: maximum_error
         integer :: batch
 
+        maximum_error = 0.0_dp
         do batch = 1, 16
             batch_parameters = parameters
             batch_parameters(1) = batch_parameters(1) + &
@@ -246,12 +251,14 @@ contains
             batch_errors(2) = maxval(abs(autodiff - reference))
             batch_errors(3) = maxval(abs(hybrid - reference))
             batch_errors(4) = maxval(abs(diagnostic - reference))
+            maximum_error = max(maximum_error, maxval(batch_errors))
             if (maxval(batch_errors(1:3)) > 2.0e-14_dp .or. &
                 batch_errors(4) > 2.0e-10_dp) then
                 print *, "batched quadrature VJP mismatch", batch, batch_errors
                 error stop 1
             end if
         end do
+        print *, "PASS batched quadrature VJP max_absolute_error", maximum_error
     end subroutine validate_batch_candidates
 
     subroutine run_benchmark()
