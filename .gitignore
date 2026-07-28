@@ -11,3 +11,6 @@ build/dependencies/
 # Python tooling
 __pycache__/
 *.pyc
+
+# Machine-local toolchain and accelerator settings
+.env.local

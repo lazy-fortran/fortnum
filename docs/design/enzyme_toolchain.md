@@ -34,11 +34,29 @@ Fortran build; each Enzyme test uses Flang at the derivative boundary.
 
 ```bash
 cmake -S . -B build-enzyme -G Ninja \
-  -DFORTNUM_ENABLE_ENZYME=ON \
-  -DFORTNUM_ENZYME_PLUGIN=/path/to/LLVMEnzyme-MAJOR.so
+  -DFORTNUM_ENABLE_ENZYME=ON
 cmake --build build-enzyme
 ctest --test-dir build-enzyme -R enzyme --output-on-failure
 ```
+
+Discovery uses `PATH` and standard library locations by default. A versioned
+or otherwise non-standard installation can be selected with either
+`-DFORTNUM_LLVM_ROOT=/path/to/llvm` or the `FORTNUM_LLVM_ROOT` environment
+variable. Individual compiler, utility, and plugin cache variables remain
+available for installations that do not share one prefix.
+
+Machine-local settings can live in an ignored `.env.local`:
+
+```bash
+FORTNUM_LLVM_ROOT=/path/to/llvm
+FC=/path/to/llvm/bin/flang
+CC=/path/to/llvm/bin/clang
+FORTNUM_OPENMP_TARGET_FLAGS=--offload-arch=native
+```
+
+Load it before configuring with `set -a; . ./.env.local; set +a`. Pass
+`FORTNUM_OPENMP_TARGET_FLAGS` to CMake when enabling the OpenMP benchmark
+backend.
 
 Discovery sets the Flang, LLVM utility, version, plugin, and availability cache
 variables. With `FORTNUM_ENZYME_REQUIRED=OFF`, an unavailable plugin skips the
