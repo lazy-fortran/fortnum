@@ -2091,6 +2091,53 @@ build-enzyme/test/ad/enzyme_adaptive_frozen_trace_jvp.enzyme/enzyme_adaptive_fro
     --singular-tournament
 ```
 
+### Generated-wrapper migration
+
+The adaptive fixture now generates four scalar Enzyme boundaries: smooth and
+singular two-input integrands, plus smooth and singular one-input complete
+frozen traces. This removes raw Enzyme interfaces and duplicated benchmark
+support while deliberately retaining the adaptive trace construction,
+accepted-panel identity checks, analytical trace products, and independent
+finite-difference oracles.
+
+Three pinned processes each use 31 interleaved, rotating-order samples of 2,000
+complete value-plus-JVP workloads. Median process medians are:
+
+| Smooth candidate | Mechanism | Median ns | MAD ns | Peak RSS |
+|---|---|---:|---:|---:|
+| generic explicit tangent | `analytical` | 1,612.2475 | 5.6860 | 2,940,928 B |
+| compact explicit tangent | `analytical` | 1,269.1610 | 6.9130 | 2,924,544 B |
+| generated complete trace | `autodiff` | 1,264.4020 | 5.9415 | 2,985,984 B |
+| generated integrand, generic trace | `hybrid` | 1,599.1175 | 7.8445 | 2,818,048 B |
+| generated integrand, compact trace | `hybrid` | 1,259.5680 | 5.4305 | 2,891,776 B |
+| frozen-trace central difference | diagnostic | 1,384.8490 | 6.8880 | 2,826,240 B |
+
+The Enzyme-enabled raw winner is compact `hybrid`, 1.0076 times faster than
+compact analytical and 1.0038 times faster than whole-trace autodiff.
+Analytical remains selected for normal builds where the Enzyme pipeline is not
+enabled. This is an availability-qualified selection, not a preference based
+on mechanism name.
+
+| Singular candidate | Mechanism | Median ns | MAD ns | Peak RSS |
+|---|---|---:|---:|---:|
+| generic explicit tangent | `analytical` | 6,553.5970 | 23.6395 | 2,936,832 B |
+| compact explicit tangent | `analytical` | 2,836.0585 | 9.2175 | 2,904,064 B |
+| generated complete trace | `autodiff` | 2,806.7680 | 7.6400 | 2,887,680 B |
+| generated integrand, generic trace | `hybrid` | 6,970.2120 | 40.1455 | 2,940,928 B |
+| generated integrand, compact trace | `hybrid` | 3,019.3785 | 7.3940 | 2,990,080 B |
+| frozen-trace central difference | diagnostic | 2,854.2425 | 9.9885 | 2,850,816 B |
+
+The singular workload continues to select whole-trace `autodiff`, 1.0104
+times faster than compact analytical. Across both workloads, absolute cache
+misses for the close compact candidates differ by less than 600 over the
+measured process. Cache-reference counts are noisy; cycles, instructions, and
+complete wall clock determine the verdict. The generated boundary adds 2,816
+bytes to the executable while its text segment decreases by 400 bytes.
+
+The current machine-readable record is
+`benchmark/reference/ryzen9_5950x_adaptive_fixture_migration.json`; earlier
+tournament records remain as pre-migration evidence.
+
 ## Batched fixed-integration full-Jacobian tournament
 
 This workload batches \(B\) independent 32-point Gauss-Legendre integrals.

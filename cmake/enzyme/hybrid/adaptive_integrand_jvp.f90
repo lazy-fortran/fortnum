@@ -1,19 +1,13 @@
 module adaptive_integrand_autodiff
-    use, intrinsic :: iso_c_binding, only: c_double, c_funloc, c_funptr
+    use, intrinsic :: iso_c_binding, only: c_double
+    use fortnum_generated_enzyme_adaptive_integrand, only: &
+        fortnum_enzyme_adaptive_integrand_jvp
+    use fortnum_generated_enzyme_singular_integrand, only: &
+        fortnum_enzyme_singular_integrand_jvp
     implicit none
     private
 
     public :: integrand_jvp, singular_integrand_jvp
-
-    interface
-        function enzyme_fwddiff(f, x, dx, p, dp_seed) result(derivative) &
-                bind(c, name="__enzyme_fwddiff")
-            import :: c_double, c_funptr
-            type(c_funptr), value :: f
-            real(c_double), value :: x, dx, p, dp_seed
-            real(c_double) :: derivative
-        end function enzyme_fwddiff
-    end interface
 
 contains
 
@@ -37,7 +31,8 @@ contains
         real(c_double), intent(in) :: x, p
         real(c_double) :: value
 
-        value = enzyme_fwddiff(c_funloc(integrand), x, 0.0_c_double, &
+        value = fortnum_enzyme_adaptive_integrand_jvp( &
+            x, 0.0_c_double, &
             p, 1.0_c_double)
     end function integrand_jvp
 
@@ -45,7 +40,8 @@ contains
         real(c_double), intent(in) :: x, p
         real(c_double) :: value
 
-        value = enzyme_fwddiff(c_funloc(singular_integrand), x, 0.0_c_double, &
+        value = fortnum_enzyme_singular_integrand_jvp( &
+            x, 0.0_c_double, &
             p, 1.0_c_double)
     end function singular_integrand_jvp
 

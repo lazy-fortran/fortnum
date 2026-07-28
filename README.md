@@ -230,6 +230,11 @@ has the lowest median wall clock, but is within measurement noise of compact
 `analytical`; both clearly beat the generic callback paths. Candidate selection
 prioritizes complete-workload wall clock and records peak memory, input/output
 scaling, and cache behavior where supported.
+After generated-wrapper migration, the smooth Enzyme-enabled run is a close
+three-way race: compact hybrid takes 1.260 µs, whole-trace autodiff 1.264 µs,
+and compact analytical 1.269 µs. Analytical remains the normal-build
+selection; the singular Enzyme-enabled workload selects autodiff at 2.807 µs
+versus 2.836 µs analytical. The adaptive trace and its guards are not generated.
 The fixed-quadrature Enzyme mechanics are generated from one five-input
 integrand profile and one four-input whole-operator profile; the old hand-written
 forward and reverse wrapper modules are gone. For a full four-input gradient,

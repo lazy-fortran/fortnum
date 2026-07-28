@@ -1,6 +1,10 @@
 module adaptive_frozen_trace_kernel
-    use, intrinsic :: iso_c_binding, only: c_double, c_funloc, c_funptr
+    use, intrinsic :: iso_c_binding, only: c_double
     use adaptive_integrand_autodiff, only: integrand_jvp, singular_integrand_jvp
+    use fortnum_generated_enzyme_adaptive_frozen_trace, only: &
+        fortnum_enzyme_adaptive_frozen_trace_jvp
+    use fortnum_generated_enzyme_singular_frozen_trace, only: &
+        fortnum_enzyme_singular_frozen_trace_jvp
     use fortnum_integrate, only: integrate_workspace_t, integrate_epstab_t, &
         integrate_result_t, integrate_qag, integrate_qag_jvp, integrate_qags, &
         integrate_qags_jvp
@@ -57,17 +61,6 @@ module adaptive_frozen_trace_kernel
     public :: singular_autodiff_value_jvp, singular_hybrid_value_jvp
     public :: singular_compact_hybrid_value_jvp, singular_diagnostic_value_jvp
     public :: singular_exact_jvp
-
-    interface
-        function enzyme_fwddiff(f, p, dp_seed) result(derivative) &
-                bind(c, name="__enzyme_fwddiff")
-            import :: c_double, c_funptr
-            type(c_funptr), value :: f
-            real(c_double), value :: p, dp_seed
-            real(c_double) :: derivative
-        end function enzyme_fwddiff
-
-    end interface
 
 contains
 
@@ -221,7 +214,7 @@ contains
         parameter%value = p
         call build_trace(parameter, workspace, result, status)
         call require_trace(result, status)
-        derivative = enzyme_fwddiff(c_funloc(frozen_trace_value), p, 1.0_dp)
+        derivative = fortnum_enzyme_adaptive_frozen_trace_jvp(p, 1.0_dp)
     end function autodiff_value_jvp
 
     function hybrid_value_jvp(p) result(derivative)
@@ -313,8 +306,7 @@ contains
         parameter%value = p
         call build_singular_trace(parameter, workspace, result, status)
         call configure_singular_trace(result, status)
-        derivative = enzyme_fwddiff(c_funloc(singular_frozen_trace_value), p, &
-            1.0_dp)
+        derivative = fortnum_enzyme_singular_frozen_trace_jvp(p, 1.0_dp)
     end function singular_autodiff_value_jvp
 
     function singular_hybrid_value_jvp(p) result(derivative)
@@ -518,8 +510,7 @@ contains
 end module adaptive_frozen_trace_kernel
 
 program enzyme_adaptive_frozen_trace_jvp
-    use, intrinsic :: iso_c_binding, only: c_int64_t
-    use, intrinsic :: iso_fortran_env, only: dp => real64, int64
+    use, intrinsic :: iso_fortran_env, only: dp => real64
     use adaptive_frozen_trace_kernel, only: analytical_value_jvp, &
         compact_analytical_value_jvp, autodiff_value_jvp, hybrid_value_jvp, &
         compact_hybrid_value_jvp, diagnostic_value_jvp, exact_jvp
@@ -527,18 +518,15 @@ program enzyme_adaptive_frozen_trace_jvp
         singular_compact_analytical_value_jvp, singular_autodiff_value_jvp, &
         singular_hybrid_value_jvp, singular_compact_hybrid_value_jvp, &
         singular_diagnostic_value_jvp, singular_exact_jvp
+    use fortnum_enzyme_fixture_support, only: collect_fixture_samples, &
+        fixture_peak_rss_bytes, fixture_sample_count, fixture_timer_t, &
+        median_mad, write_fixture_result
     implicit none
 
-    interface
-        function peak_rss_bytes() bind(c, name="fortnum_peak_rss_bytes") &
-                result(bytes)
-            import :: c_int64_t
-            integer(c_int64_t) :: bytes
-        end function peak_rss_bytes
-    end interface
-
     character(32) :: argument, candidate
-    real(dp) :: errors(6), reference
+    real(dp) :: errors(6), reference, samples(fixture_sample_count), sink
+    integer :: candidate_kind, repetitions
+    logical :: singular_mode
 
     call get_command_argument(1, argument)
     call get_command_argument(2, candidate)
@@ -574,83 +562,63 @@ program enzyme_adaptive_frozen_trace_jvp
 contains
 
     subroutine run_tournament()
-        integer, parameter :: candidate_count = 6, samples = 31
-        integer(int64), parameter :: reps = 2000_int64
-        character(20), parameter :: names(candidate_count) = [ &
-            character(20) :: "analytical", "analytical_compact", "autodiff", &
-            "hybrid", "hybrid_compact", "diagnostic"]
-        real(dp) :: elapsed(candidate_count, samples), sink
-        integer :: candidate_index, order_index, sample
-
-        do candidate_index = 1, candidate_count
-            call time_candidate(names(candidate_index), reps/10_int64, sink)
-        end do
-        do sample = 1, samples
-            do order_index = 1, candidate_count
-                candidate_index = 1 + mod(sample + order_index - 2, &
-                    candidate_count)
-                call time_candidate(names(candidate_index), reps, &
-                    elapsed(candidate_index, sample))
-            end do
-        end do
-        do candidate_index = 1, candidate_count
-            call report(names(candidate_index), elapsed(candidate_index, :), &
-                reps)
-        end do
+        singular_mode = .false.
+        call run_interleaved_tournament()
     end subroutine run_tournament
 
     subroutine run_singular_tournament()
-        integer, parameter :: candidate_count = 6, samples = 31
-        integer(int64), parameter :: reps = 2000_int64
+        call validate_singular_candidates()
+        singular_mode = .true.
+        call run_interleaved_tournament()
+    end subroutine run_singular_tournament
+
+    subroutine run_interleaved_tournament()
+        integer, parameter :: candidate_count = 6, tournament_samples = 31
         character(20), parameter :: names(candidate_count) = [ &
             character(20) :: "analytical", "analytical_compact", "autodiff", &
             "hybrid", "hybrid_compact", "diagnostic"]
-        real(dp) :: elapsed(candidate_count, samples), sink
+        real(dp) :: elapsed(candidate_count, tournament_samples), median, mad
         integer :: candidate_index, order_index, sample
 
-        call validate_singular_candidates()
+        repetitions = 200
         do candidate_index = 1, candidate_count
-            call time_singular_candidate(names(candidate_index), reps/10_int64, &
-                sink)
+            call select_candidate(names(candidate_index))
+            sink = measure_candidate()
         end do
-        do sample = 1, samples
+        repetitions = 2000
+        do sample = 1, tournament_samples
             do order_index = 1, candidate_count
                 candidate_index = 1 + mod(sample + order_index - 2, &
                     candidate_count)
-                call time_singular_candidate(names(candidate_index), reps, &
-                    elapsed(candidate_index, sample))
+                call select_candidate(names(candidate_index))
+                elapsed(candidate_index, sample) = measure_candidate()
             end do
         end do
         do candidate_index = 1, candidate_count
-            call report(names(candidate_index), elapsed(candidate_index, :), reps)
+            call median_mad(elapsed(candidate_index, :), median, mad)
+            call write_fixture_result( &
+                names(candidate_index), repetitions, median, mad)
         end do
-    end subroutine run_singular_tournament
+    end subroutine run_interleaved_tournament
 
     subroutine run_singular_benchmark(name)
         character(*), intent(in) :: name
-        integer, parameter :: samples = 15
-        integer(int64), parameter :: reps = 5000_int64
-        real(dp) :: elapsed(samples), sink
-        integer :: sample
 
         call validate_singular_name(name)
-        do sample = 1, 3
-            call time_singular_candidate(name, reps/10_int64, sink)
-        end do
-        do sample = 1, samples
-            call time_singular_candidate(name, reps, elapsed(sample))
-        end do
-        call report(name, elapsed, reps)
+        singular_mode = .true.
+        repetitions = 5000
+        call benchmark_one(name)
     end subroutine run_singular_benchmark
 
     subroutine run_singular_peak_rss(name)
         character(*), intent(in) :: name
-        integer(int64), parameter :: reps = 5000_int64
-        real(dp) :: elapsed
 
         call validate_singular_name(name)
-        call time_singular_candidate(name, reps, elapsed)
-        write (*, "(i0)") peak_rss_bytes()
+        singular_mode = .true.
+        repetitions = 5000
+        call select_candidate(name)
+        sink = measure_candidate()
+        write (*, "(i0)") fixture_peak_rss_bytes()
     end subroutine run_singular_peak_rss
 
     subroutine validate_singular_name(name)
@@ -680,63 +648,24 @@ contains
         end if
     end subroutine validate_singular_candidates
 
-    subroutine time_singular_candidate(name, reps, elapsed_ns)
-        character(*), intent(in) :: name
-        integer(int64), intent(in) :: reps
-        real(dp), intent(out) :: elapsed_ns
-        integer(int64) :: iteration, start, finish, rate
-        real(dp) :: p, sink
-
-        sink = 0.0_dp
-        call system_clock(start, rate)
-        do iteration = 1, reps
-            p = 0.7_dp
-            select case (name)
-            case ("analytical")
-                sink = sink + singular_analytical_value_jvp(p)
-            case ("analytical_compact")
-                sink = sink + singular_compact_analytical_value_jvp(p)
-            case ("autodiff")
-                sink = sink + singular_autodiff_value_jvp(p)
-            case ("hybrid")
-                sink = sink + singular_hybrid_value_jvp(p)
-            case ("hybrid_compact")
-                sink = sink + singular_compact_hybrid_value_jvp(p)
-            case ("diagnostic")
-                sink = sink + singular_diagnostic_value_jvp(p)
-            end select
-        end do
-        call system_clock(finish)
-        elapsed_ns = 1.0e9_dp*real(finish - start, dp)/ &
-            (real(rate, dp)*real(reps, dp))
-        if (sink == huge(sink)) print *, sink
-    end subroutine time_singular_candidate
-
     subroutine run_benchmark(name)
         character(*), intent(in) :: name
-        integer, parameter :: samples = 15
-        integer(int64), parameter :: reps = 10000_int64
-        real(dp) :: elapsed(samples), sink
-        integer :: sample
 
         call validate_candidate(name)
-        do sample = 1, 3
-            call time_candidate(name, reps/10_int64, sink)
-        end do
-        do sample = 1, samples
-            call time_candidate(name, reps, elapsed(sample))
-        end do
-        call report(name, elapsed, reps)
+        singular_mode = .false.
+        repetitions = 10000
+        call benchmark_one(name)
     end subroutine run_benchmark
 
     subroutine run_peak_rss(name)
         character(*), intent(in) :: name
-        integer(int64), parameter :: reps = 10000_int64
-        real(dp) :: elapsed
 
         call validate_candidate(name)
-        call time_candidate(name, reps, elapsed)
-        write (*, "(i0)") peak_rss_bytes()
+        singular_mode = .false.
+        repetitions = 10000
+        call select_candidate(name)
+        sink = measure_candidate()
+        write (*, "(i0)") fixture_peak_rss_bytes()
     end subroutine run_peak_rss
 
     subroutine validate_candidate(name)
@@ -749,69 +678,84 @@ contains
         end if
     end subroutine validate_candidate
 
-    subroutine time_candidate(name, reps, elapsed_ns)
+    subroutine benchmark_one(name)
         character(*), intent(in) :: name
-        integer(int64), intent(in) :: reps
-        real(dp), intent(out) :: elapsed_ns
-        integer(int64) :: iteration, start, finish, rate
-        real(dp) :: p, sink
-
-        sink = 0.0_dp
-        call system_clock(start, rate)
-        do iteration = 1, reps
-            p = 12.0_dp + 0.001_dp*real(mod(iteration, 101_int64), dp)
-            select case (name)
-            case ("analytical")
-                sink = sink + analytical_value_jvp(p)
-            case ("analytical_compact")
-                sink = sink + compact_analytical_value_jvp(p)
-            case ("autodiff")
-                sink = sink + autodiff_value_jvp(p)
-            case ("hybrid")
-                sink = sink + hybrid_value_jvp(p)
-            case ("hybrid_compact")
-                sink = sink + compact_hybrid_value_jvp(p)
-            case ("diagnostic")
-                sink = sink + diagnostic_value_jvp(p)
-            end select
-        end do
-        call system_clock(finish)
-        elapsed_ns = 1.0e9_dp*real(finish - start, dp)/ &
-            (real(rate, dp)*real(reps, dp))
-        if (sink == huge(sink)) print *, sink
-    end subroutine time_candidate
-
-    subroutine report(name, values, reps)
-        character(*), intent(in) :: name
-        real(dp), intent(in) :: values(:)
-        integer(int64), intent(in) :: reps
-        real(dp) :: ordered(size(values)), deviations(size(values))
         real(dp) :: median, mad
 
-        ordered = values
-        call sort_values(ordered)
-        median = ordered((size(ordered) + 1)/2)
-        deviations = abs(values - median)
-        call sort_values(deviations)
-        mad = deviations((size(deviations) + 1)/2)
-        write (*, "(a,',',i0,',',f12.4,',',f12.4)") &
-            name, reps, median, mad
-    end subroutine report
+        call select_candidate(name)
+        call collect_fixture_samples(measure_candidate, samples)
+        call median_mad(samples, median, mad)
+        call write_fixture_result(name, repetitions, median, mad)
+    end subroutine benchmark_one
 
-    subroutine sort_values(values)
-        real(dp), intent(inout) :: values(:)
-        real(dp) :: temporary
-        integer :: i, j
+    subroutine select_candidate(name)
+        character(*), intent(in) :: name
 
-        do i = 1, size(values) - 1
-            do j = i + 1, size(values)
-                if (values(j) < values(i)) then
-                    temporary = values(i)
-                    values(i) = values(j)
-                    values(j) = temporary
-                end if
-            end do
+        select case (name)
+        case ("analytical")
+            candidate_kind = 1
+        case ("analytical_compact")
+            candidate_kind = 2
+        case ("autodiff")
+            candidate_kind = 3
+        case ("hybrid")
+            candidate_kind = 4
+        case ("hybrid_compact")
+            candidate_kind = 5
+        case default
+            candidate_kind = 6
+        end select
+    end subroutine select_candidate
+
+    function measure_candidate() result(elapsed_ns)
+        type(fixture_timer_t) :: timer
+        real(dp) :: elapsed_ns
+        real(dp) :: p, local_sink
+        integer :: iteration
+
+        local_sink = 0.0_dp
+        call timer%start()
+        do iteration = 1, repetitions
+            if (singular_mode) then
+                p = 0.7_dp
+                select case (candidate_kind)
+                case (1)
+                    local_sink = local_sink + singular_analytical_value_jvp(p)
+                case (2)
+                    local_sink = local_sink + &
+                        singular_compact_analytical_value_jvp(p)
+                case (3)
+                    local_sink = local_sink + singular_autodiff_value_jvp(p)
+                case (4)
+                    local_sink = local_sink + singular_hybrid_value_jvp(p)
+                case (5)
+                    local_sink = local_sink + singular_compact_hybrid_value_jvp(p)
+                case default
+                    local_sink = local_sink + singular_diagnostic_value_jvp(p)
+                end select
+            else
+                p = 12.0_dp + 0.001_dp*real(mod(iteration, 101), dp)
+                select case (candidate_kind)
+                case (1)
+                    local_sink = local_sink + analytical_value_jvp(p)
+                case (2)
+                    local_sink = local_sink + compact_analytical_value_jvp(p)
+                case (3)
+                    local_sink = local_sink + autodiff_value_jvp(p)
+                case (4)
+                    local_sink = local_sink + hybrid_value_jvp(p)
+                case (5)
+                    local_sink = local_sink + compact_hybrid_value_jvp(p)
+                case default
+                    local_sink = local_sink + diagnostic_value_jvp(p)
+                end select
+            end if
         end do
-    end subroutine sort_values
+        elapsed_ns = timer%elapsed_ns()/real(repetitions, dp)
+        if (local_sink /= local_sink) then
+            error stop "adaptive frozen-trace benchmark failed"
+        end if
+        sink = local_sink
+    end function measure_candidate
 
 end program enzyme_adaptive_frozen_trace_jvp

@@ -88,6 +88,26 @@ program gen_enzyme_scalar_wrappers
         "fortnum_enzyme_fixed_quadrature_kernel", &
         "fortnum_fixed_quadrature_kernel", &
         "fortnum_enzyme_fixed_quadrature_kernel.f90", 4)
+    call write_named_wrapper(output_directory, &
+        "fortnum_generated_enzyme_adaptive_integrand", &
+        "fortnum_enzyme_adaptive_integrand", &
+        "fortnum_adaptive_trace_integrand", &
+        "fortnum_enzyme_adaptive_integrand.f90", 2)
+    call write_named_wrapper(output_directory, &
+        "fortnum_generated_enzyme_singular_integrand", &
+        "fortnum_enzyme_singular_integrand", &
+        "fortnum_singular_trace_integrand", &
+        "fortnum_enzyme_singular_integrand.f90", 2)
+    call write_named_wrapper(output_directory, &
+        "fortnum_generated_enzyme_adaptive_frozen_trace", &
+        "fortnum_enzyme_adaptive_frozen_trace", &
+        "fortnum_adaptive_frozen_trace_value", &
+        "fortnum_enzyme_adaptive_frozen_trace.f90")
+    call write_named_wrapper(output_directory, &
+        "fortnum_generated_enzyme_singular_frozen_trace", &
+        "fortnum_enzyme_singular_frozen_trace", &
+        "fortnum_singular_frozen_trace_value", &
+        "fortnum_enzyme_singular_frozen_trace.f90")
     call write_scalar_vector_wrapper(output_directory)
     call write_fixed_array_wrapper(output_directory, &
         "fortnum_generated_enzyme_direct_solver_component", &
