@@ -23,6 +23,8 @@ set(CMAKE_Fortran_STANDARD 2018)
 set(CMAKE_Fortran_STANDARD_REQUIRED ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 set(CMAKE_Fortran_MODULE_DIRECTORY ${PROJECT_BINARY_DIR}/include)
+set(FORTNUM_DAWSON_VARIANT_DIR "" CACHE PATH
+    "Directory containing temporary generated Dawson JVP variants")
 
 # Core fortnum sources the benchmark exercises.  Add more here only as the
 # seeded kernels grow to need them; the test/src builds are untouched.
@@ -96,6 +98,45 @@ add_library(bench_core STATIC
     peak_rss.c
 )
 target_link_libraries(bench_core PUBLIC fortnum_gpu_backend)
+
+if(FORTNUM_DAWSON_VARIANT_DIR)
+    set(FORTNUM_DAWSON_VARIANT_SOURCES
+        ${FORTNUM_DAWSON_VARIANT_DIR}/fortnum_dawson_jvp_raw.f90
+        ${FORTNUM_DAWSON_VARIANT_DIR}/fortnum_dawson_jvp_simplified.f90
+        ${FORTNUM_DAWSON_VARIANT_DIR}/fortnum_dawson_jvp_factored.f90)
+    foreach(source IN LISTS FORTNUM_DAWSON_VARIANT_SOURCES)
+        if(NOT EXISTS ${source})
+            message(FATAL_ERROR "Missing generated Dawson variant: ${source}")
+        endif()
+    endforeach()
+
+    add_library(bench_dawson_variants_core STATIC
+        ${FORTNUM_CORE_DIR}/fortnum_kinds.f90
+        ${FORTNUM_DAWSON_VARIANT_SOURCES}
+        gpu/fortnum_gpu_dawson_variant_wrappers.f90
+        gpu/test_gpu_dawson_variants_support.f90
+        fortnum_benchmark_memory.f90
+        peak_rss.c)
+    set_target_properties(bench_dawson_variants_core PROPERTIES
+        Fortran_MODULE_DIRECTORY
+            ${PROJECT_BINARY_DIR}/include-dawson-variants)
+    target_include_directories(bench_dawson_variants_core PUBLIC
+        ${PROJECT_BINARY_DIR}/include-dawson-variants)
+    target_link_libraries(bench_dawson_variants_core PUBLIC
+        fortnum_gpu_backend)
+
+    add_library(bench_dawson_variants_cpu_core STATIC
+        ${FORTNUM_CORE_DIR}/fortnum_kinds.f90
+        ${FORTNUM_DAWSON_VARIANT_SOURCES}
+        gpu/fortnum_gpu_dawson_variant_wrappers.f90
+        fortnum_benchmark_memory.f90
+        peak_rss.c)
+    set_target_properties(bench_dawson_variants_cpu_core PROPERTIES
+        Fortran_MODULE_DIRECTORY
+            ${PROJECT_BINARY_DIR}/include-dawson-variants-cpu)
+    target_include_directories(bench_dawson_variants_cpu_core PUBLIC
+        ${PROJECT_BINARY_DIR}/include-dawson-variants-cpu)
+endif()
 
 add_library(bench_multi_input_cpu_core STATIC
     ${FORTNUM_CORE_DIR}/fortnum_kinds.f90
@@ -276,6 +317,15 @@ if(FORTNUM_GPU_BACKEND STREQUAL "OPENACC")
     add_test(NAME openacc_ode_objective_offload
         COMMAND test_openacc_ode_objective_offload)
 
+    if(FORTNUM_DAWSON_VARIANT_DIR)
+        add_executable(test_openacc_dawson_variants_offload
+            gpu/test_openacc_dawson_variants_offload.f90)
+        target_link_libraries(test_openacc_dawson_variants_offload PRIVATE
+            bench_dawson_variants_core)
+        add_test(NAME openacc_dawson_variants_offload
+            COMMAND test_openacc_dawson_variants_offload)
+    endif()
+
     add_executable(bench_openacc_dawson_offload
         gpu/bench_openacc_dawson_offload.f90)
     target_link_libraries(bench_openacc_dawson_offload PRIVATE bench_core)
@@ -334,6 +384,15 @@ elseif(FORTNUM_GPU_BACKEND STREQUAL "OPENMP")
     add_test(NAME openmp_ode_objective_offload
         COMMAND test_openmp_ode_objective_offload)
 
+    if(FORTNUM_DAWSON_VARIANT_DIR)
+        add_executable(test_openmp_dawson_variants_offload
+            gpu/test_openmp_dawson_variants_offload.f90)
+        target_link_libraries(test_openmp_dawson_variants_offload PRIVATE
+            bench_dawson_variants_core)
+        add_test(NAME openmp_dawson_variants_offload
+            COMMAND test_openmp_dawson_variants_offload)
+    endif()
+
     add_executable(bench_openmp_dawson_offload
         gpu/bench_openmp_dawson_offload.f90)
     target_link_libraries(bench_openmp_dawson_offload PRIVATE bench_core)
@@ -376,6 +435,13 @@ if(NOT FORTNUM_GPU_BACKEND STREQUAL "NONE")
 
     add_executable(bench_ode_objective_gpu gpu/bench_ode_objective_gpu.f90)
     target_link_libraries(bench_ode_objective_gpu PRIVATE bench_core)
+
+    if(FORTNUM_DAWSON_VARIANT_DIR)
+        add_executable(bench_dawson_variants_gpu
+            gpu/bench_dawson_variants_gpu.f90)
+        target_link_libraries(bench_dawson_variants_gpu PRIVATE
+            bench_dawson_variants_core)
+    endif()
 endif()
 
 add_executable(bench_multi_input_cpu
@@ -416,6 +482,13 @@ target_link_libraries(bench_ode_trace2_cpu PRIVATE bench_ode_trace2_cpu_core)
 add_executable(bench_ode_objective_cpu gpu/bench_ode_objective_gpu.f90)
 target_link_libraries(bench_ode_objective_cpu PRIVATE
     bench_ode_objective_cpu_core)
+
+if(FORTNUM_DAWSON_VARIANT_DIR)
+    add_executable(bench_dawson_variants_cpu
+        gpu/bench_dawson_variants_gpu.f90)
+    target_link_libraries(bench_dawson_variants_cpu PRIVATE
+        bench_dawson_variants_cpu_core)
+endif()
 
 add_executable(bench_linear_solve_jvp bench_linear_solve_jvp.f90)
 target_link_libraries(bench_linear_solve_jvp PRIVATE bench_core)
