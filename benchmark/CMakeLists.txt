@@ -509,6 +509,11 @@ target_link_libraries(bench_linear_solve_jvp PRIVATE bench_core)
 add_executable(bench_linear_solve_vjp bench_linear_solve_vjp.f90)
 target_link_libraries(bench_linear_solve_vjp PRIVATE bench_core)
 
+add_test(NAME linear_solve_jvp_validation
+    COMMAND bench_linear_solve_jvp reuse --validation-error)
+add_test(NAME linear_solve_vjp_validation
+    COMMAND bench_linear_solve_vjp reuse --validation-error)
+
 add_executable(bench_lagrange_nodes bench_lagrange_nodes.f90)
 target_link_libraries(bench_lagrange_nodes PRIVATE bench_core)
 

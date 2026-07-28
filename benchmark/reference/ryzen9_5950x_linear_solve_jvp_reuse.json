@@ -3,6 +3,8 @@
   "date": "2026-07-27",
   "operator": "linear_solve",
   "product": "jvp",
+  "source_revision": "12a97cc103cd0f3a3e3e072fb54b0772f115597b",
+  "evidence_refresh_source_revision": "d6d265a696d27a6e09786dea4656d3ae455259b4",
   "workload": "16x16 dense system, 200000 directions per sample, primal LU reusable",
   "hardware": {
     "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
@@ -22,7 +24,14 @@
   },
   "validation": {
     "oracle": "central finite difference of the complete solve in two directions",
-    "absolute_tolerance": 2e-9
+    "absolute_tolerance": 2e-9,
+    "maximum_absolute_error": 3.7204956129799349e-11
+  },
+  "native_code": {
+    "executable_bytes": 45040,
+    "refactor_jvp_symbol_bytes": 454,
+    "factored_jvp_symbol_bytes": 597,
+    "factored_many_jvp_symbol_bytes": 752
   },
   "memory_method": "getrusage(RUSAGE_SELF) inside each separately launched candidate",
   "candidates": [

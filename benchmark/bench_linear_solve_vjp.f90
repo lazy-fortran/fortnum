@@ -1,7 +1,7 @@
 program bench_linear_solve_vjp
     use, intrinsic :: iso_fortran_env, only: dp => real64, int64
     use fortnum_linalg, only: LINALG_MAX_N, LINALG_OK, linear_solve_vjp, &
-        linear_solve_vjp_factored, lu_factor
+        linear_solve_vjp_factored, lu_factor, lu_solve
     use fortnum_benchmark_memory, only: peak_rss_bytes
     implicit none
 
@@ -11,7 +11,7 @@ program bench_linear_solve_vjp
     real(dp) :: a(n, n), transpose_factors(n, n), x(n), u(n)
     real(dp) :: abar(n, n), bbar(n), warmup
     integer :: ipiv(n), info, sample
-    character(16) :: candidate, mode
+    character(32) :: candidate, mode
     logical :: memory_only
 
     call get_command_argument(1, candidate)
@@ -25,6 +25,10 @@ program bench_linear_solve_vjp
     transpose_factors = transpose(a)
     call lu_factor(n, transpose_factors, ipiv, info)
     if (info /= LINALG_OK) error stop "benchmark factorization failed"
+    if (trim(mode) == "--validation-error") then
+        call report_validation_error()
+        stop
+    end if
 
     if (memory_only) then
         warmup = run_sample(candidate, reps)
@@ -40,6 +44,50 @@ program bench_linear_solve_vjp
     end do
 
 contains
+
+    subroutine report_validation_error()
+        real(dp), parameter :: h = 1.0e-5_dp
+        real(dp) :: reference_a(n, n), reference_b(n), b(n)
+        real(dp) :: ap(n, n), am(n, n), bp(n), bm(n), xp(n), xm(n), error
+        integer :: i, j
+
+        call linear_solve_vjp_factored(n, transpose_factors, ipiv, x, u, &
+            abar, bbar, info)
+        if (info /= LINALG_OK) error stop "analytical VJP failed"
+        b = matmul(a, x)
+        do j = 1, n
+            do i = 1, n
+                ap = a
+                am = a
+                ap(i, j) = ap(i, j) + h
+                am(i, j) = am(i, j) - h
+                xp = b
+                xm = b
+                call lu_solve(n, ap, xp, info)
+                if (info /= LINALG_OK) error stop "positive matrix solve failed"
+                call lu_solve(n, am, xm, info)
+                if (info /= LINALG_OK) error stop "negative matrix solve failed"
+                reference_a(i, j) = dot_product(u, xp - xm)/(2.0_dp*h)
+            end do
+        end do
+        do i = 1, n
+            bp = b
+            bm = b
+            bp(i) = bp(i) + h
+            bm(i) = bm(i) - h
+            ap = a
+            am = a
+            call lu_solve(n, ap, bp, info)
+            if (info /= LINALG_OK) error stop "positive right-hand-side solve failed"
+            call lu_solve(n, am, bm, info)
+            if (info /= LINALG_OK) error stop "negative right-hand-side solve failed"
+            reference_b(i) = dot_product(u, bp - bm)/(2.0_dp*h)
+        end do
+        error = max(maxval(abs(abar - reference_a)), &
+            maxval(abs(bbar - reference_b)))
+        write (*, "(es24.16)") error
+        if (error > 2.0e-9_dp) error stop "linear-solve VJP validation failed"
+    end subroutine report_validation_error
 
     subroutine initialize_inputs()
         integer :: i, j

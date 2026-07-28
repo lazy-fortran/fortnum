@@ -393,7 +393,7 @@ support.
 - [x] Complete the FFT tournament and commit its evidence.
 - [x] Complete the quadrature tournament and commit its evidence.
 - [x] Complete the roots tournament and commit its evidence.
-- [ ] Complete the linear-algebra tournament and commit its evidence.
+- [x] Complete the linear-algebra tournament and commit its evidence.
 - [ ] Complete the ODE tournament and commit its evidence.
 
 Every tournament record must include:

@@ -2,8 +2,16 @@
   "schema_version": 1,
   "date": "2026-07-27",
   "module": "linear_algebra",
+  "source_revision": "d6d265a696d27a6e09786dea4656d3ae455259b4",
   "selection_criterion": "complete workload wall clock",
   "hardware": "AMD Ryzen 9 5950X, CPU 4 pinned",
+  "evidence_contract": {
+    "runtime": "median complete-workload wall clock with MAD in each referenced record",
+    "memory": "candidate-specific peak RSS in separate processes",
+    "validation": "independent finite differences, residuals, matrix identities, and adjoint identities in referenced records",
+    "native_code": "generated determinant and inverse operation counts and symbol sizes, plus current linear-solve product symbol sizes",
+    "products": "JVP and VJP are selected independently; direction and cotangent scaling are separate workloads"
+  },
   "workloads": [
     {
       "name": "determinant_jvp",

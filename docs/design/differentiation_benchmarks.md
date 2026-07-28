@@ -64,6 +64,18 @@ tournaments compare analytical, hybrid, fixed-iteration autodiff, and
 diagnostic implementations separately for JVP and VJP; no mechanism is assumed
 to win both products.
 
+The linear-algebra tournament covers 12 complete workloads. Analytical
+candidates win all 12 on this CPU, but for different reasons. Generated
+contracted determinant and inverse products are 1.28× to 8.19× faster than
+complete finite-difference diagnostics. Reusing a 16-by-16 LU factorization is
+2.82× faster for a JVP and reusing its transpose factorization is 2.93× faster
+for a VJP; current complete-solve finite-difference errors are
+\(3.72\times10^{-11}\) and \(4.45\times10^{-12}\). Repeated scalar products
+beat the available batched interfaces by 1.76× for 16 JVP directions and 1.08×
+for 16 VJP cotangents. Direct-solver analytical products beat Enzyme by 3.81×
+for 16 JVP directions and 1.53× for 16 VJP cotangents. These are local
+wall-clock results, not a mechanism-wide rule.
+
 ## GPU record families
 
 | Family | Record pattern | Selection question |
