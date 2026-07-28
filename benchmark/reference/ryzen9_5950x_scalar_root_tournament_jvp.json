@@ -21,6 +21,13 @@
     "reusable_primal_state": "the converged root is reused by implicit analytical and hybrid candidates; fixed-iteration autodiff and diagnostic candidates execute their stated Newton trace",
     "returned_product": "one direction in two active parameters returns one root tangent"
   },
+  "forward_reverse_crossover": {
+    "companion_record": "ryzen9_5950x_scalar_root_tournament_vjp.json",
+    "autodiff_jvp_median_ns": 115.820600,
+    "autodiff_vjp_median_ns": 158.803910,
+    "selected_for_fixed_iteration_autodiff": "forward",
+    "forward_speedup": 1.3711
+  },
   "sampling": {
     "warmup_rounds": 3,
     "samples": 31,

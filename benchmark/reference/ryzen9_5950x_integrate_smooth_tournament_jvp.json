@@ -3,6 +3,8 @@
   "date": "2026-07-27",
   "operator": "smooth_adaptive_qag_frozen_trace",
   "product": "value_plus_jvp",
+  "source_revision": "a1fbaea337835d2d39626407ac4b4d1c61283804",
+  "evidence_refresh_source_revision": "46e269ea929bd709a7c6e9b013d10d25f64347b1",
   "active_inputs": 1,
   "outputs": 1,
   "direction_counts": [1],
@@ -14,6 +16,7 @@
   "toolchain": {
     "compiler": "Flang/LLVM 22.1.8",
     "enzyme_commit": "c96508349d9f",
+    "fortsym_revision": "724baf5b22894bc3e018b0653fac81bbf2f815eb",
     "build": "Release -O2"
   },
   "workload_contract": {
@@ -42,7 +45,35 @@
     "executable_bytes": 2277712,
     "compact_analytical_jvp_symbol_bytes": 2371,
     "autodiff_jvp_symbol_bytes": 444,
-    "compact_hybrid_jvp_symbol_bytes": 2387
+    "compact_hybrid_jvp_symbol_bytes": 2387,
+    "autodiff_forward_outer_symbol_bytes": 444,
+    "autodiff_reverse_outer_symbol_bytes": 436
+  },
+  "forward_reverse_crossover": {
+    "shape": "one active input, one scalar output, one direction or cotangent",
+    "forward_median_ns": 1257.7226,
+    "forward_mad_ns": 3.5708,
+    "reverse_median_ns": 1301.8326,
+    "reverse_mad_ns": 3.4194,
+    "forward_peak_rss_bytes": 3084288,
+    "reverse_peak_rss_bytes": 2711552,
+    "forward_speedup": 1.0351,
+    "selected": "forward",
+    "reason": "both generated Enzyme products have identical independent-oracle error; forward has the lower complete frozen-trace wall clock"
+  },
+  "forward_reverse_perf_per_call": {
+    "forward": {
+      "cycles": 5744.623772,
+      "instructions": 18187.212994,
+      "cache_references": 13.370667,
+      "cache_misses": 0.162944
+    },
+    "reverse": {
+      "cycles": 5763.719700,
+      "instructions": 18414.212039,
+      "cache_references": 10.575356,
+      "cache_misses": 0.167239
+    }
   },
   "candidates": [
     {"id": "generic_explicit_tangent", "mechanism": "analytical", "median_ns": 1668.4775, "mad_ns": 21.3305, "peak_rss_bytes": 2613248},

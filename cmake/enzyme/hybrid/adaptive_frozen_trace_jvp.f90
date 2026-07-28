@@ -2,9 +2,11 @@ module adaptive_frozen_trace_kernel
     use, intrinsic :: iso_c_binding, only: c_double
     use adaptive_integrand_autodiff, only: integrand_jvp, singular_integrand_jvp
     use fortnum_generated_enzyme_adaptive_frozen_trace, only: &
-        fortnum_enzyme_adaptive_frozen_trace_jvp
+        fortnum_enzyme_adaptive_frozen_trace_jvp, &
+        fortnum_enzyme_adaptive_frozen_trace_vjp_scalar
     use fortnum_generated_enzyme_singular_frozen_trace, only: &
-        fortnum_enzyme_singular_frozen_trace_jvp
+        fortnum_enzyme_singular_frozen_trace_jvp, &
+        fortnum_enzyme_singular_frozen_trace_vjp_scalar
     use fortnum_integrate, only: integrate_workspace_t, integrate_epstab_t, &
         integrate_result_t, integrate_qag, integrate_qag_jvp, integrate_qags, &
         integrate_qags_jvp
@@ -56,9 +58,11 @@ module adaptive_frozen_trace_kernel
 
     public :: analytical_value_jvp, compact_analytical_value_jvp
     public :: autodiff_value_jvp, hybrid_value_jvp, compact_hybrid_value_jvp
+    public :: autodiff_value_vjp
     public :: diagnostic_value_jvp, exact_jvp
     public :: singular_analytical_value_jvp, singular_compact_analytical_value_jvp
     public :: singular_autodiff_value_jvp, singular_hybrid_value_jvp
+    public :: singular_autodiff_value_vjp
     public :: singular_compact_hybrid_value_jvp, singular_diagnostic_value_jvp
     public :: singular_exact_jvp
 
@@ -217,6 +221,20 @@ contains
         derivative = fortnum_enzyme_adaptive_frozen_trace_jvp(p, 1.0_dp)
     end function autodiff_value_jvp
 
+    function autodiff_value_vjp(p) result(derivative)
+        real(dp), intent(in) :: p
+        real(dp) :: derivative
+        type(parameter_t) :: parameter
+        type(integrate_workspace_t) :: workspace
+        type(integrate_result_t) :: result
+        type(fortnum_status_t) :: status
+
+        parameter%value = p
+        call build_trace(parameter, workspace, result, status)
+        call require_trace(result, status)
+        derivative = fortnum_enzyme_adaptive_frozen_trace_vjp_scalar(p, 1.0_dp)
+    end function autodiff_value_vjp
+
     function hybrid_value_jvp(p) result(derivative)
         real(dp), intent(in) :: p
         real(dp) :: derivative
@@ -308,6 +326,20 @@ contains
         call configure_singular_trace(result, status)
         derivative = fortnum_enzyme_singular_frozen_trace_jvp(p, 1.0_dp)
     end function singular_autodiff_value_jvp
+
+    function singular_autodiff_value_vjp(p) result(derivative)
+        real(dp), intent(in) :: p
+        real(dp) :: derivative
+        type(parameter_t) :: parameter
+        type(integrate_workspace_t) :: workspace
+        type(integrate_result_t) :: result
+        type(fortnum_status_t) :: status
+
+        parameter%value = p
+        call build_singular_trace(parameter, workspace, result, status)
+        call configure_singular_trace(result, status)
+        derivative = fortnum_enzyme_singular_frozen_trace_vjp_scalar(p, 1.0_dp)
+    end function singular_autodiff_value_vjp
 
     function singular_hybrid_value_jvp(p) result(derivative)
         real(dp), intent(in) :: p
@@ -513,11 +545,13 @@ program enzyme_adaptive_frozen_trace_jvp
     use, intrinsic :: iso_fortran_env, only: dp => real64
     use adaptive_frozen_trace_kernel, only: analytical_value_jvp, &
         compact_analytical_value_jvp, autodiff_value_jvp, hybrid_value_jvp, &
-        compact_hybrid_value_jvp, diagnostic_value_jvp, exact_jvp
+        compact_hybrid_value_jvp, diagnostic_value_jvp, exact_jvp, &
+        autodiff_value_vjp
     use adaptive_frozen_trace_kernel, only: singular_analytical_value_jvp, &
         singular_compact_analytical_value_jvp, singular_autodiff_value_jvp, &
         singular_hybrid_value_jvp, singular_compact_hybrid_value_jvp, &
-        singular_diagnostic_value_jvp, singular_exact_jvp
+        singular_diagnostic_value_jvp, singular_exact_jvp, &
+        singular_autodiff_value_vjp
     use fortnum_enzyme_fixture_support, only: collect_fixture_samples, &
         fixture_peak_rss_bytes, fixture_sample_count, fixture_timer_t, &
         median_mad, write_fixture_result
@@ -538,6 +572,14 @@ program enzyme_adaptive_frozen_trace_jvp
         call run_singular_benchmark(trim(candidate))
     else if (trim(argument) == "--singular-peak-rss") then
         call run_singular_peak_rss(trim(candidate))
+    else if (trim(argument) == "--mode-benchmark") then
+        call run_mode_benchmark(trim(candidate), .false.)
+    else if (trim(argument) == "--singular-mode-benchmark") then
+        call run_mode_benchmark(trim(candidate), .true.)
+    else if (trim(argument) == "--mode-peak-rss") then
+        call run_mode_peak_rss(trim(candidate), .false.)
+    else if (trim(argument) == "--singular-mode-peak-rss") then
+        call run_mode_peak_rss(trim(candidate), .true.)
     else if (trim(argument) == "--benchmark") then
         call run_benchmark(trim(candidate))
     else if (trim(argument) == "--peak-rss") then
@@ -556,10 +598,63 @@ program enzyme_adaptive_frozen_trace_jvp
             error stop 1
         end if
         call validate_singular_candidates()
+        call validate_mode_candidates()
         print *, "PASS adaptive frozen-trace autodiff JVP", errors
     end if
 
 contains
+
+    subroutine validate_mode_candidates()
+        real(dp) :: smooth_reference, singular_reference
+        real(dp) :: smooth_error(2), singular_error(2)
+
+        smooth_reference = exact_jvp(12.0_dp)
+        smooth_error = [abs(autodiff_value_jvp(12.0_dp) - smooth_reference), &
+            abs(autodiff_value_vjp(12.0_dp) - smooth_reference)]
+        singular_reference = singular_diagnostic_value_jvp(0.7_dp)
+        singular_error = [ &
+            abs(singular_autodiff_value_jvp(0.7_dp) - singular_reference), &
+            abs(singular_autodiff_value_vjp(0.7_dp) - singular_reference)]
+        if (maxval(smooth_error) > 1.0e-7_dp .or. &
+            maxval(singular_error) > 2.0e-8_dp) then
+            error stop "adaptive forward/reverse validation failed"
+        end if
+        print *, "PASS adaptive mode errors", smooth_error, singular_error
+    end subroutine validate_mode_candidates
+
+    subroutine run_mode_benchmark(name, use_singular)
+        character(*), intent(in) :: name
+        logical, intent(in) :: use_singular
+
+        call select_mode_candidate(name)
+        singular_mode = use_singular
+        repetitions = 10000
+        call benchmark_one(name)
+    end subroutine run_mode_benchmark
+
+    subroutine run_mode_peak_rss(name, use_singular)
+        character(*), intent(in) :: name
+        logical, intent(in) :: use_singular
+
+        call select_mode_candidate(name)
+        singular_mode = use_singular
+        repetitions = 10000
+        sink = measure_candidate()
+        write (*, "(i0)") fixture_peak_rss_bytes()
+    end subroutine run_mode_peak_rss
+
+    subroutine select_mode_candidate(name)
+        character(*), intent(in) :: name
+
+        select case (name)
+        case ("forward")
+            candidate_kind = 3
+        case ("reverse")
+            candidate_kind = 7
+        case default
+            error stop "mode candidate must be forward or reverse"
+        end select
+    end subroutine select_mode_candidate
 
     subroutine run_tournament()
         singular_mode = .false.
@@ -701,6 +796,10 @@ contains
             candidate_kind = 2
         case ("autodiff")
             candidate_kind = 3
+        case ("forward")
+            candidate_kind = 3
+        case ("reverse")
+            candidate_kind = 7
         case ("hybrid")
             candidate_kind = 4
         case ("hybrid_compact")
@@ -733,6 +832,8 @@ contains
                     local_sink = local_sink + singular_hybrid_value_jvp(p)
                 case (5)
                     local_sink = local_sink + singular_compact_hybrid_value_jvp(p)
+                case (7)
+                    local_sink = local_sink + singular_autodiff_value_vjp(p)
                 case default
                     local_sink = local_sink + singular_diagnostic_value_jvp(p)
                 end select
@@ -749,6 +850,8 @@ contains
                     local_sink = local_sink + hybrid_value_jvp(p)
                 case (5)
                     local_sink = local_sink + compact_hybrid_value_jvp(p)
+                case (7)
+                    local_sink = local_sink + autodiff_value_vjp(p)
                 case default
                     local_sink = local_sink + diagnostic_value_jvp(p)
                 end select
