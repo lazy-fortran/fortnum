@@ -273,7 +273,7 @@ derivatives. CPU Enzyme remains the `autodiff` backend and supplies CPU
   forward-tangent and reverse-adjoint transition-map recurrences, closed-form
   and adjoint oracles, trace-length scaling, cache counters, and resident and
   transfer-inclusive wall-clock and peak-memory evidence.
-- [ ] Run an application-level GPU benchmark with persistent data and select
+- [x] Run an application-level GPU benchmark with persistent data and select
   candidates from end-to-end wall clock and peak memory rather than isolated
   kernel latency.
 

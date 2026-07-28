@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "source_revision": "1b205891747342b6de29895b0d85841aa10afdd5",
+  "application": "fixed-trace two-state terminal least-squares value and gradient",
+  "classification": "analytical",
+  "complete_workload": [
+    "forward propagation over 64 recorded transition maps",
+    "terminal least-squares value and cotangent",
+    "reverse adjoint propagation",
+    "gradient output"
+  ],
+  "selection_metric": "complete value-plus-gradient wall clock, with resident and transfer-inclusive paths measured separately; peak host RSS breaks relevant ties",
+  "device_execution_proof": "OpenACC NVIDIA device check and mandatory non-host OpenMP target check",
+  "workload": {
+    "state_size": 2,
+    "steps": 64,
+    "batch_sizes": [256, 65536, 1048576],
+    "samples": 31,
+    "warmup_samples": 3,
+    "pinned_cpu": 4,
+    "small_batch_repetitions": "ceil(65536/batch_size), reported per application evaluation"
+  },
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "gpu": "NVIDIA GeForce RTX 5060 Ti",
+    "driver": "610.43.03"
+  },
+  "toolchain": {
+    "compiler": "NVHPC nvfortran 26.5",
+    "openacc_flags": "-fast -O3 -acc",
+    "openmp_flags": "-fast -O3 -mp=gpu -mp"
+  },
+  "validation": {
+    "trajectories": 4096,
+    "oracle": "closed-form scaled-rotation terminal state, least-squares value, and transposed-map gradient",
+    "relative_tolerance": 4e-13
+  },
+  "median_ms": {
+    "batch_sizes": [256, 65536, 1048576],
+    "cpu": [0.039320, 10.053900, 163.321900],
+    "openacc_resident": [0.037191, 0.232200, 3.293000],
+    "openacc_transfer": [0.079145, 0.830000, 9.859100],
+    "openmp_resident": [0.038918, 0.227900, 3.230800],
+    "openmp_transfer": [0.083222, 0.836800, 9.702900]
+  },
+  "mad_ms": {
+    "batch_sizes": [256, 65536, 1048576],
+    "cpu": [0.000097, 0.026900, 0.909000],
+    "openacc_resident": [0.000086, 0.000800, 0.003100],
+    "openacc_transfer": [0.000728, 0.003900, 0.068000],
+    "openmp_resident": [0.000820, 0.000700, 0.000900],
+    "openmp_transfer": [0.002293, 0.010700, 0.067000]
+  },
+  "peak_host_rss_bytes_at_batch1048576": {
+    "live_numerical_arrays": 92276736,
+    "cpu": 97525760,
+    "openacc_resident": 159535104,
+    "openacc_transfer": 199254016,
+    "openmp_resident": 164696064,
+    "openmp_transfer": 205561856
+  },
+  "selection": {
+    "batch256_resident": "openacc, with only a 1.06x advantage over CPU",
+    "batch256_transfer": "cpu",
+    "batch65536_resident": "openmp",
+    "batch65536_transfer": "openacc",
+    "batch1048576_resident": "openmp",
+    "batch1048576_transfer": "openmp",
+    "reason": "minimum complete-workload wall clock; backend differences below three percent are practical ties"
+  },
+  "verdict": "at 1048576 trajectories the persistent GPU workload is 50.6 times faster than CPU and remains 16.8 times faster with all transfers included"
+}
