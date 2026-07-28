@@ -48,3 +48,9 @@ Update the relevant user guide and design contract with every behavior change.
 Update benchmark documents only when validation or selection evidence changes.
 Do not hard-code dependency revisions in prose. Link the lock file or benchmark
 record that owns the revision.
+
+CTest runs `scripts/check_documentation.py`. The check is quiet on success and
+rejects broken local links, missing document-map entries, undocumented
+production modules, absent API symbols, legacy terminology, stale issue-era
+claims, hard-coded revisions, generator-lock drift, stale aggregate benchmark
+statistics, unindexed derivative ownership, and committed report PNGs.

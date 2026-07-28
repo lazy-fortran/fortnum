@@ -337,7 +337,7 @@ support.
 - [x] Rewrite the differentiation, GPU, migration, and evidence documents;
   remove append-only implementation history while preserving authoritative
   benchmark data and decisions.
-- [ ] Add documentation drift checks for internal links, source ownership,
+- [x] Add documentation drift checks for internal links, source ownership,
   terminology, generated revisions, and stale future-tense claims.
 
 - [x] Inventory every derivative kernel as `fortsym`-generated, hand-written
