@@ -1,5 +1,5 @@
 workload,selected_mechanism,fastest_mechanism,fastest_ns,runner_up_ns,source_record
-dawson_outer,analytical,hybrid,20.7559,21.1663,ryzen9_5950x_dawson_outer.json
+dawson_outer,analytical,hybrid,20.059540,20.895565,ryzen9_5950x_dawson_square_fixture_migration.json
 fixed_quadrature_jvp,analytical,analytical,1247.7167,1263.4433,ryzen9_5950x_fixed_quadrature_hybrid_jvp.json
 fixed_quadrature_vjp,analytical,analytical,1213.0276,1275.7279,ryzen9_5950x_fixed_quadrature_hybrid_vjp.json
 adaptive_frozen_jvp,autodiff,autodiff,1306.9523,1423.0742,ryzen9_5950x_integrate_frozen_autodiff_jvp.json

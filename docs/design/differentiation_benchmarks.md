@@ -329,6 +329,42 @@ the deterministic stable-ID tie break selects `analytical` for this workload.
 The machine-readable record is
 `benchmark/reference/ryzen9_5950x_dawson_outer.json`.
 
+### Shared-fixture and generated-wrapper migration
+
+The controlled migration generates the temporary `hybrid` Dawson JVP and
+square VJP wrappers with `fortsym`. Dawson now uses the common warmup,
+15-sample median/MAD, timing, peak-RSS, and custom-rule-counter support.
+Validation covers Dawson at `x=0.2`, `0.7`, and `6.0` against a central
+difference of the complete objective and proves one analytical custom-rule
+call. The square smoke fixture checks 257 primal/cotangent pairs against
+`2*x*cotangent`.
+
+| Dawson candidate | Before ns (MAD) | After ns (MAD) | Change |
+|---|---:|---:|---:|
+| `analytical` | 20.6833 (0.0713) | 20.8956 (0.1291) | +1.03% |
+| `autodiff` | 22.9012 (0.1888) | 23.8228 (0.1415) | +4.02% |
+| `hybrid` | 20.2776 (0.0822) | 20.0595 (0.0902) | -1.08% |
+
+The selected normal-build analytical candidate remains inside the 3%
+migration gate. `hybrid` is the fastest optional-Enzyme candidate, but is not
+admissible in a normal fortnum build that does not run Enzyme. Its peak RSS is
+2,551,808 bytes; the analytical and raw-autodiff processes use 2,564,096 and
+2,793,472 bytes. Aggregate cache measurements improve from 103.73 to 98.94
+cycles and from 0.00312 to 0.00125 cache misses per derivative call.
+
+The generated square wrapper takes 1.5931 (MAD 0.0080) ns/VJP versus 1.7040
+(MAD 0.0054) ns for the equivalent raw wrapper, a 6.5% improvement. Linking
+the complete benchmark-support module into this tiny smoke test was measured
+and rejected: it added approximately 0.54 MB. The final smoke executable adds
+only 344 bytes, from 1,619,296 to 1,619,640 bytes. Thus shared support is used
+where measurements are required without imposing test-only bloat on a
+validation-only smoke binary.
+
+Incremental staged build time changes from 0.53 to 0.85 s for Dawson and from
+0.16 to 0.21 s for square. After-build peak RSS is 122,172 KiB and 114,360
+KiB, respectively. The machine-readable controlled comparison is
+`benchmark/reference/ryzen9_5950x_dawson_square_fixture_migration.json`.
+
 Run the validation and tournament with:
 
 ```bash

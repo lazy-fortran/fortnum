@@ -16,8 +16,10 @@ reliability-only experiments. Finite differences remain a validation
 `benchmark/report/data/mechanism_tournaments.csv` is the normalized plotting
 input. Every row names its source JSON record. `selected_mechanism` records the
 evidence-based production decision; `fastest_mechanism` records the lowest raw
-median. They differ for Dawson, where the 2% raw `hybrid` advantage is within
-measurement noise and the smaller analytical implementation remains selected.
+median. They differ for Dawson, where the 4.0% raw `hybrid` advantage is
+available only through the optional Enzyme pipeline while the selected
+analytical implementation is the fastest candidate admissible in a normal
+fortnum build.
 
 ## Overall result
 
@@ -30,7 +32,7 @@ measurement noise and the smaller analytical implementation remains selected.
 
 Across the 32 workloads, the second-fastest candidate ranges from 1.004x to
 1,224.355x the fastest wall clock. The median ratio is 1.215x and the
-geometric mean is 2.025x. Nineteen workloads are tightly grouped near the
+geometric mean is 2.026x. Nineteen workloads are tightly grouped near the
 fastest candidate; full finite-difference VJPs of fitted coefficients provide
 the largest separation.
 Consequently, mechanism counts describe only the current measured workload

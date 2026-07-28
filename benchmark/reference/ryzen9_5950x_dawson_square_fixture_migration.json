@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "purpose": "Dawson and one-active-scalar Enzyme fixture migration acceptance",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "autodiff": "Enzyme 22",
+    "optimization": "O2",
+    "fortsym_revision": "dd974c099c890d486f6109a1e360d9407367f80b"
+  },
+  "source": {
+    "before_revision": "08e9ac3",
+    "after_revision": "7c20232"
+  },
+  "validation": {
+    "dawson_oracle": "central difference of the complete outer objective",
+    "dawson_points": [0.2, 0.7, 6.0],
+    "dawson_relative_tolerance": 2e-9,
+    "hybrid_provenance": "exactly one shared analytical-rule-counter call",
+    "square_oracle": "2*x*cotangent",
+    "square_samples": 257,
+    "square_relative_tolerance": 1e-12
+  },
+  "sampling": {
+    "warmups": 3,
+    "samples": 15,
+    "calls_per_sample": 200000,
+    "aggregation": "median",
+    "dispersion": "median absolute deviation"
+  },
+  "dawson_ns_per_jvp": [
+    {
+      "mechanism": "analytical",
+      "before": 20.6833,
+      "before_mad": 0.0713,
+      "after": 20.895565,
+      "after_mad": 0.129090,
+      "change_percent": 1.03
+    },
+    {
+      "mechanism": "autodiff",
+      "before": 22.9012,
+      "before_mad": 0.1888,
+      "after": 23.822775,
+      "after_mad": 0.141515,
+      "change_percent": 4.02
+    },
+    {
+      "mechanism": "hybrid",
+      "before": 20.2776,
+      "before_mad": 0.0822,
+      "after": 20.059540,
+      "after_mad": 0.090215,
+      "change_percent": -1.08
+    }
+  ],
+  "dawson_selection": {
+    "fastest": "hybrid",
+    "normal_build_selected": "analytical",
+    "reason": "hybrid requires the optional Enzyme pipeline; analytical is the fastest candidate admissible in a normal fortnum build",
+    "selected_complete_workload_change_percent": 1.03,
+    "acceptance_limit_percent": 3.0,
+    "passed": true
+  },
+  "square_autodiff_vjp": {
+    "before_ns": 1.703960,
+    "before_mad_ns": 0.005360,
+    "after_ns": 1.593100,
+    "after_mad_ns": 0.007965,
+    "change_percent": -6.51,
+    "benchmark_note": "identical temporary raw and generated-wrapper harnesses; benchmark machinery is not linked into the smoke executable"
+  },
+  "peak_rss_bytes": {
+    "dawson_analytical": 2564096,
+    "dawson_autodiff": 2793472,
+    "dawson_hybrid": 2551808,
+    "square_smoke_process": 2281472
+  },
+  "native_code": {
+    "dawson_before_file_bytes": 2169056,
+    "dawson_after_file_bytes": 2180240,
+    "dawson_change_percent": 0.52,
+    "square_before_file_bytes": 1619296,
+    "square_after_file_bytes": 1619640,
+    "square_change_percent": 0.02
+  },
+  "incremental_build": {
+    "dawson_before_wall_seconds": 0.53,
+    "dawson_after_wall_seconds": 0.85,
+    "dawson_after_peak_rss_kib": 122172,
+    "square_before_wall_seconds": 0.16,
+    "square_after_wall_seconds": 0.21,
+    "square_after_peak_rss_kib": 114360
+  },
+  "dawson_cache_aggregate_per_call": {
+    "before_cycles": 103.727610,
+    "after_cycles": 98.939439,
+    "before_instructions": 183.364770,
+    "after_instructions": 185.026789,
+    "before_cache_misses": 0.003116,
+    "after_cache_misses": 0.001253
+  }
+}
