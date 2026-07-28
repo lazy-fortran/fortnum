@@ -343,7 +343,7 @@ support.
 - [x] Inventory every derivative kernel as `fortsym`-generated, hand-written
   algorithmic, hand-written stable recurrence, implicit solve, frozen trace,
   or generated hybrid boundary.
-- [ ] Replace manually transcribed explicit chain-rule expressions with
+- [x] Replace manually transcribed explicit chain-rule expressions with
   `fortsym` value/JVP/VJP generation where the generated candidate is admissible.
 - [ ] Generate contracted JVP expressions directly without materializing a
   Jacobian.
