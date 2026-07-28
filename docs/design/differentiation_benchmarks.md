@@ -43,6 +43,13 @@ CPU records use separate processes when peak RSS must be attributed to one
 candidate. Low-latency reference runs record CPU affinity. Cache and work
 counters appear when they explain a wall-clock difference.
 
+For the generated Dawson outer objective, one fused value/JVP call takes
+9.67 ns versus 15.28 ns for separate value and JVP calls. The fused value/VJP
+takes 9.75 ns versus 15.81 ns. Fusion is therefore 1.58× and 1.62× faster,
+respectively, and executes 22.4% fewer instructions without a cache penalty.
+All four scalar candidates use fixed storage; their roughly 2.8–2.9 MB process
+RSS does not resolve derivative workspace differences.
+
 ## GPU record families
 
 | Family | Record pattern | Selection question |
