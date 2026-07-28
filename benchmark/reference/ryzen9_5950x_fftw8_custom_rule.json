@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "source_revision": "b2a1705b69f4ebe4489a45a381a57fdfde712f66",
+  "operator": "nonlinear scalar objective around an FFTW length-8 complex transform",
+  "product": "jvp",
+  "active_inputs": 16,
+  "outputs": 1,
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor"
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "autodiff": "Enzyme 22",
+    "external_fft": "FFTW 3.3.11",
+    "optimization": "O2",
+    "fortsym_revision": "724baf5b22894bc3e018b0653fac81bbf2f815eb"
+  },
+  "candidates": {
+    "analytical": "explicit outer chain rule around the FFTW objective and its analytical JVP",
+    "hybrid": "Enzyme differentiates the outer Fortran expression and calls an analytical custom forward rule at the FFTW boundary"
+  },
+  "reusable_primal_state": "one FFTW_ESTIMATE plan created before the measured loop",
+  "sampling": {
+    "samples": 15,
+    "warmup_samples": 3,
+    "calls_per_sample": 20000,
+    "direction_counts": [1, 4, 16]
+  },
+  "validation": {
+    "primal_oracle": "independent O(n^2) direct DFT objective",
+    "derivative_oracle": "central finite difference of the complete outer objective",
+    "relative_tolerance": 4e-9,
+    "custom_rule_proof": "runtime counter requires exactly one custom-rule call"
+  },
+  "median_ns": {
+    "analytical": [306.68480, 1199.41325, 4744.71035],
+    "hybrid": [316.87305, 1196.04395, 4896.92055]
+  },
+  "mad_ns": {
+    "analytical": [10.50530, 8.79555, 106.29825],
+    "hybrid": [14.16265, 17.33820, 93.74910]
+  },
+  "peak_rss_bytes_at_16_directions": {
+    "analytical": 4939776,
+    "hybrid": 4988928
+  },
+  "native_symbol_bytes": {
+    "fftw_objective_array": 675,
+    "fftw_objective_jvp": 790,
+    "outer_primal": 121,
+    "custom_forward_rule": 1634,
+    "generated_enzyme_jvp": 698
+  },
+  "perf_stat_single_run_50000_workloads": {
+    "counter_order": ["cycles", "instructions", "cache_references", "cache_misses"],
+    "d1": {
+      "analytical": [1238599457, 3837680947, 1201836, 195054],
+      "hybrid": [1265174295, 3820580517, 1195648, 206162]
+    },
+    "d16": {
+      "analytical": [19635908796, 61431572792, 3482431, 357877],
+      "hybrid": [20073718559, 61157968023, 4188484, 445941]
+    }
+  },
+  "selection": {
+    "mechanism": "analytical",
+    "reason": "the candidates are within 3.3 percent, but analytical wins at 1 and 16 directions, uses less peak RSS, and does not require Enzyme at runtime",
+    "hybrid_over_analytical_time_ratio": [1.0332, 0.9972, 1.0321]
+  }
+}

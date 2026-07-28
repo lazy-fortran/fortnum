@@ -30,7 +30,7 @@ primal evaluations required by the stated oracle.
 | Family | Record pattern | Products and comparisons | Independent validation |
 | --- | --- | --- | --- |
 | generated algebra | `ryzen9_5950x_dawson_generated_family.json`, determinant and inverse records | fused/separate, generated/diagnostic, JVP/VJP | formulas, finite differences, matrix identities, adjoint identities |
-| FFT | `ryzen9_5950x_fft8_{jvp,vjp}_tournament.json` | analytical transform products versus Enzyme, product scaling | direct DFT, direct adjoint DFT, dot identity, and NumPy transform oracle |
+| FFT | `ryzen9_5950x_fft8_{jvp,vjp}_tournament.json`, `ryzen9_5950x_fftw8_custom_rule.json` | analytical transform products versus Enzyme, external-library custom rule, product scaling | direct DFT, direct adjoint DFT, dot identity, finite difference, and NumPy transform oracle |
 | special functions | `ryzen9_5950x_bessel_*.json`, gamma, erf, and hypergeometric tournament records | analytical, autodiff, hybrid across numerical regions | complete-objective finite differences and custom-rule provenance |
 | Enzyme infrastructure | `ryzen9_5950x_enzyme_*.json`, `*_fixture_migration.json` | wrapper ABI, shared support, code size, migration regression | real Enzyme formulas, adjoint identities, negative repository guards |
 | interpolation | `ryzen9_5950x_lagrange_*.json`, `ryzen9_5950x_bspline_*.json` | active points, values, nodes, knots, coefficients, fused products | independent cubic formulas, finite differences, adjoint identities, crossing status |
@@ -133,6 +133,14 @@ and 2,420 ns for 1, 4, and 16 cotangents. A valid autodiff construction uses
 peak RSS versus 2.90 MB. Direct reverse Enzyme through the in-place complex
 radix kernel produced NaNs and failed the direct-adjoint oracle, so it is a
 rejected candidate rather than a timing result.
+
+The external-library pilot wraps an FFTW 3.3.11 plan in a scalar objective.
+Enzyme differentiates the surrounding Fortran expression and invokes an
+analytical forward rule at the FFTW boundary. A generated forward-only
+fixed-array wrapper prevents an unsupported reverse request from entering the
+Enzyme module. Analytical and hybrid JVPs differ by at most 3.3% over 1, 4,
+and 16 directions. At 16 directions they take 4,745 and 4,897 ns, with peak
+RSS of 4.94 and 4.99 MB. The explicit analytical composition remains selected.
 
 The hypergeometric tournament activates real `z` at fixed real parameters.
 Because Enzyme 22 cannot differentiate Flang's complex `cexp`, its candidate

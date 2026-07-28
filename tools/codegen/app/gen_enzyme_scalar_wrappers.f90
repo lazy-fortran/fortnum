@@ -167,6 +167,11 @@ program gen_enzyme_scalar_wrappers
         "fortnum_enzyme_iterative_solver_component", &
         "fortnum_iterative_solve_component", [16, 4], 2, &
         "fortnum_enzyme_iterative_solver_component.f90")
+    call write_fixed_array_wrapper(output_directory, &
+        "fortnum_generated_enzyme_fftw8_outer", &
+        "fortnum_enzyme_fftw8_outer", &
+        "fortnum_fftw8_outer", [16], 0, &
+        "fortnum_enzyme_fftw8_outer.f90", .false.)
     call write_fixed_array_map_wrapper(output_directory)
 
 contains
@@ -279,11 +284,12 @@ contains
     end subroutine write_scalar_vector_wrapper
 
     subroutine write_fixed_array_wrapper(directory, module_name, wrapper_prefix, &
-            primal_symbol, array_sizes, inactive_integer_count, filename)
+            primal_symbol, array_sizes, inactive_integer_count, filename, emit_vjp)
         character(*), intent(in) :: directory, module_name, wrapper_prefix
         character(*), intent(in) :: primal_symbol, filename
         integer, intent(in) :: array_sizes(:)
         integer, intent(in) :: inactive_integer_count
+        logical, intent(in), optional :: emit_vjp
         type(enzyme_fixed_array_wrapper_spec_t) :: spec
         character(:), allocatable :: code, path
         integer :: unit, ios
@@ -293,6 +299,7 @@ contains
         spec%primal_symbol = str(primal_symbol)
         spec%array_sizes = array_sizes
         spec%inactive_integer_count = inactive_integer_count
+        if (present(emit_vjp)) spec%emit_vjp = emit_vjp
         spec%generator = str("gen_enzyme_scalar_wrappers")
         spec%generator_revision = str(fortsym_revision())
         spec%regenerate_command = str( &
