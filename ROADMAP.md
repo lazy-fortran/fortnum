@@ -305,7 +305,7 @@ justifies the complexity.
 This section removes CPU fixture duplication. It does not imply GPU Enzyme
 support.
 
-- [ ] Record a machine-readable baseline for Enzyme fixture duplication,
+- [x] Record a machine-readable baseline for Enzyme fixture duplication,
   build time, runtime, peak RSS, and native code size.
 - [ ] Add one internal support module for environment parsing, timing, warmups,
   median/MAD, standardized output, and peak-RSS access.
