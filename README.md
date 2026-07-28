@@ -196,9 +196,10 @@ For B-splines, the fused combined-active implementation shares one basis pass
 and is selected: at 16 coefficients it is 1.54 times faster for JVP and 1.45
 times faster for VJP.
 Inside a fixed cubic B-spline span, analytical and Enzyme products are both
-competitive. At 16 products, forward Enzyme is 2.8% faster for JVP while the
-analytical VJP is 6.6% faster than reverse Enzyme, so selection remains
-product- and workload-specific.
+validated. After generated-wrapper and shared-fixture migration, analytical is
+20.1% faster for 16 JVPs and 10.2% faster for 16 VJPs. Removing string dispatch
+from the measured inner loop reduces selected complete wall clock by 66.4% and
+60.4%, respectively.
 
 The modified-Bessel tournament likewise selects by region and product. For 16
 products, analytical wins series JVP/VJP and asymptotic VJP; raw Enzyme wins

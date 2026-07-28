@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "operator": "uniform_cubic_bspline_fixed_span",
+  "purpose": "generated scalar-vector Enzyme wrapper and shared-fixture migration",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "autodiff": "Enzyme 22",
+    "optimization": "O2",
+    "fortsym_revision": "85477a6818737e599079e6b42f95e620135c90e5"
+  },
+  "source": {
+    "before_revision": "66f130d",
+    "after_revision": "18b92c8"
+  },
+  "validation": {
+    "jvp_oracle": "central difference of the complete fixed-span primal",
+    "vjp_oracle": "analytical formula and adjoint dot-product identity",
+    "directions_checked": 16,
+    "jvp_absolute_tolerance": 2e-10,
+    "vjp_absolute_tolerance": 2e-12
+  },
+  "sampling": {
+    "warmups": 3,
+    "samples": 15,
+    "workloads_per_sample": 1000000,
+    "aggregation": "median",
+    "dispersion": "median absolute deviation"
+  },
+  "after_ns_per_workload": {
+    "jvp": [
+      {"products": 1, "analytical": 10.526851, "analytical_mad": 0.026800, "autodiff": 11.879239, "autodiff_mad": 0.067497},
+      {"products": 4, "analytical": 18.140033, "analytical_mad": 0.152187, "autodiff": 23.466467, "autodiff_mad": 0.114997},
+      {"products": 16, "analytical": 47.464897, "analytical_mad": 0.056065, "autodiff": 59.397135, "autodiff_mad": 0.104457}
+    ],
+    "vjp": [
+      {"products": 1, "analytical": 10.104365, "analytical_mad": 0.030748, "autodiff": 11.273858, "autodiff_mad": 0.063490},
+      {"products": 4, "analytical": 16.212672, "analytical_mad": 0.029536, "autodiff": 19.471211, "autodiff_mad": 0.233790},
+      {"products": 16, "analytical": 52.357353, "analytical_mad": 0.086493, "autodiff": 58.309106, "autodiff_mad": 0.112803}
+    ]
+  },
+  "selection": {
+    "jvp_16_products_before": "autodiff",
+    "jvp_16_products_after": "analytical",
+    "jvp_selected_before_ns": 141.266038,
+    "jvp_selected_after_ns": 47.464897,
+    "jvp_change_percent": -66.40,
+    "vjp_16_products_before": "analytical",
+    "vjp_16_products_after": "analytical",
+    "vjp_selected_before_ns": 132.050065,
+    "vjp_selected_after_ns": 52.357353,
+    "vjp_change_percent": -60.35,
+    "reason": "pre-loop integer dispatch removes fixture string comparisons from every product call",
+    "passed": true
+  },
+  "peak_rss_bytes": {
+    "analytical_jvp": 2457600,
+    "autodiff_jvp": 2539520,
+    "analytical_vjp": 2498560,
+    "autodiff_vjp": 2510848
+  },
+  "cache_at_16_products": {
+    "analytical_jvp_cycles_per_workload": 231.994397,
+    "analytical_jvp_instructions_per_workload": 664.145791,
+    "analytical_jvp_cache_misses_per_workload": 0.050359,
+    "analytical_vjp_cycles_per_workload": 255.819399,
+    "analytical_vjp_instructions_per_workload": 568.145902,
+    "analytical_vjp_cache_misses_per_workload": 0.012939
+  },
+  "build_and_size": {
+    "before_incremental_build_wall_seconds": 0.40,
+    "after_incremental_build_wall_seconds": 0.57,
+    "after_incremental_build_peak_rss_kib": 125404,
+    "before_executable_bytes": 2168968,
+    "after_executable_bytes": 2174720,
+    "executable_change_percent": 0.27
+  }
+}
