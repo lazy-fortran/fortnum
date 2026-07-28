@@ -89,6 +89,11 @@ times faster at 1,048,576 transforms, while transfer-inclusive execution stays
 on CPU. Fixed-trace two-state ODE tangent/adjoint recurrences are also covered:
 at 1,048,576 trajectories and 64 recorded maps, resident GPU is 50.7 to 52.1
 times faster and transfer-inclusive GPU is 17.7 to 17.9 times faster.
+The corresponding terminal least-squares application composes forward state,
+loss/cotangent, and reverse gradient inside one persistent data region. Its
+complete value-plus-gradient workload is 50.6 times faster resident and 16.8
+times faster with transfers at 1,048,576 trajectories; CPU remains selected
+for the 256-trajectory transfer-inclusive workload.
 `fortnum` uses `fortsym` at build time for symbolic algebra and code
 generation. The first pinned generator is under `tools/codegen/`; generated
 production sources are committed under `src/generated/`. The

@@ -702,6 +702,35 @@ host RSS is about 38.8 MB; GPU-process host peak RSS ranges from 142,426,112 to
 memory, and provenance are in
 `benchmark/reference/rtx5060ti_ode_trace2_products.json`.
 
+### Persistent terminal-objective application
+
+The first application-level GPU workload composes the full derivative path:
+forward propagation through 64 recorded maps, terminal least-squares value and
+cotangent construction, reverse adjoint propagation, and the initial-state
+gradient. All intermediate state remains in one device data region. The
+transfer-inclusive variant includes initial states, targets, trace, terminal
+states, losses, and gradients.
+
+An independent closed form validates the complete terminal state, value, and
+gradient for 4,096 trajectories. Complete value-plus-gradient medians are:
+
+| Trajectories | CPU ms | OpenACC resident/transfer ms | OpenMP resident/transfer ms |
+| ---: | ---: | ---: | ---: |
+| 256 | 0.039320 | 0.037191 / 0.079145 | 0.038918 / 0.083222 |
+| 65,536 | 10.0539 | 0.2322 / 0.8300 | 0.2279 / 0.8368 |
+| 1,048,576 | 163.3219 | 3.2930 / 9.8591 | 3.2308 / 9.7029 |
+
+At 256 trajectories, persistent GPU has only a 1.06-times advantage and CPU
+wins once transfers are included. At 65,536 trajectories, GPU is 44.1 times
+faster resident and 12.1 times faster with transfers. At 1,048,576 those
+end-to-end speedups are 50.6 and 16.8 times. These application results, rather
+than the isolated forward or reverse latency, select the production candidate.
+
+The largest live numerical state occupies 92,276,736 B. CPU peak host RSS is
+97,525,760 B; GPU-process host peak RSS ranges from 159,535,104 to 205,561,856
+B. Exact dispersion, backend selection, memory, and provenance are in
+`benchmark/reference/rtx5060ti_ode_terminal_objective.json`.
+
 ## Immediate implementation order
 
 The first pilot is the generated Dawson fused value/JVP leaf:
