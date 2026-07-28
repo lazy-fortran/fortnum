@@ -12,6 +12,11 @@ add_test(
         "-DTEST_BINARY_ROOT=${PROJECT_BINARY_DIR}/gpu-backend-configure"
         -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/test_gpu_backend_configure.cmake")
 
+add_test(
+    NAME derivative_kernel_inventory
+    COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/ad/check_derivative_kernel_inventory.sh"
+        "${PROJECT_SOURCE_DIR}")
+
 add_executable(
     test_gpu_batch_wrappers
     "${PROJECT_SOURCE_DIR}/benchmark/gpu/fortnum_gpu_batch_wrappers.f90"

@@ -172,6 +172,9 @@ selected numerical kernels, provenance, and benchmark evidence are committed.
 Temporary algebraic candidates and routine Enzyme wrappers are generated in
 the build tree. Stable recurrences, solver orchestration, traces, and
 independent validation oracles remain hand-written.
+`docs/design/derivative_kernel_inventory.csv` records that ownership for every
+production derivative kernel and generated Enzyme-wrapper artifact. CTest
+rejects missing, stale, or invalid classifications.
 
 Lagrange interpolation exposes analytical JVP and VJP products for active
 support-node locations as well as active evaluation points and sampled values.

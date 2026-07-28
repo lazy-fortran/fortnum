@@ -330,7 +330,7 @@ support.
 
 ## Analytical and hybrid generation migration
 
-- [ ] Inventory every derivative kernel as `fortsym`-generated, hand-written
+- [x] Inventory every derivative kernel as `fortsym`-generated, hand-written
   algorithmic, hand-written stable recurrence, implicit solve, frozen trace,
   or generated hybrid boundary.
 - [ ] Replace manually transcribed explicit chain-rule expressions with
