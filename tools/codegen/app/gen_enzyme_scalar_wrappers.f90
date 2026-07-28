@@ -16,11 +16,6 @@ program gen_enzyme_scalar_wrappers
         "fortnum_generated_enzyme_bessel_outer", &
         "fortnum_enzyme_bessel_outer", "fortnum_bessel_outer", &
         "fortnum_enzyme_bessel_outer.f90")
-    call write_named_wrapper(output_directory, &
-        "fortnum_generated_enzyme_bessel_outer_autodiff", &
-        "fortnum_enzyme_bessel_outer_autodiff", &
-        "fortnum_bessel_outer_autodiff", &
-        "fortnum_enzyme_bessel_outer_autodiff.f90")
 
 contains
 

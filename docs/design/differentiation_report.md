@@ -23,14 +23,14 @@ measurement noise and the smaller analytical implementation remains selected.
 
 | Mechanism | Selected workloads | Share | Raw fastest workloads |
 |---|---:|---:|---:|
-| `analytical` | 22 | 68.8% | 21 |
-| `autodiff` | 6 | 18.8% | 6 |
+| `analytical` | 23 | 71.9% | 22 |
+| `autodiff` | 5 | 15.6% | 5 |
 | `hybrid` | 4 | 12.5% | 5 |
 | finite-difference diagnostic | 0 | 0.0% | 0 |
 
 Across the 32 workloads, the second-fastest candidate ranges from 1.004x to
 1,224.355x the fastest wall clock. The median ratio is 1.215x and the
-geometric mean is 2.021x. Nineteen workloads are tightly grouped near the
+geometric mean is 2.025x. Nineteen workloads are tightly grouped near the
 fastest candidate; full finite-difference VJPs of fitted coefficients provide
 the largest separation.
 Consequently, mechanism counts describe only the current measured workload
@@ -63,10 +63,12 @@ reverse Enzyme. The selected mechanism therefore changes with both derivative
 product and workload shape.
 
 The modified-Bessel outer objective strengthens that conclusion across primal
-regions. At 16 products, analytical wins series JVP/VJP and asymptotic VJP;
-raw Enzyme wins recurrence JVP/VJP and asymptotic JVP. The forward hybrid
-custom rule is validated but does not win because its `I0` and `I1`
-evaluations duplicate work that raw forward Enzyme reuses.
+regions. At 16 products, analytical wins series JVP/VJP, recurrence VJP, and
+asymptotic VJP; raw Enzyme wins recurrence and asymptotic JVP. The forward
+hybrid custom rule is validated but does not win because its `I0` and `I1`
+evaluations duplicate work that raw forward Enzyme reuses. The recurrence VJP
+selection changed from autodiff to analytical after the shared-fixture
+migration; the controlled winner is 0.7% faster than the pre-migration winner.
 
 ## Figures
 

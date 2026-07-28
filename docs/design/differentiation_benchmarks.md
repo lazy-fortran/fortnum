@@ -388,6 +388,41 @@ through the primal is correctly reported as `autodiff`, not `hybrid`.
 The machine-readable record is
 `benchmark/reference/ryzen9_5950x_bessel_tournament.json`.
 
+### Shared-fixture migration acceptance
+
+The Bessel pilot now uses the common environment, warmup, 15-sample,
+median/MAD, timing, peak-RSS, and custom-rule-counter support. `fortsym`
+generates the temporary wrapper for the `hybrid` outer call; the mathematical
+Bessel rule remains hand-written because it is a stable recurrence boundary.
+The raw forward and reverse calls remain local because adding a generated raw
+autodiff wrapper changed Enzyme's reverse lowering and lost complete-workload
+wall clock. This is an evidence-based exception, not a second mathematical
+implementation.
+
+The controlled before build is commit `f31943a`; the after build is commit
+`f2a6838`. Both were compiled with the same Flang/LLVM 22.1.8 and Enzyme 22
+toolchain and pinned to CPU 4. The table reports the selected complete
+width-16 derivative workload. Negative change is faster.
+
+| Region | Product | Before winner | Before ns (MAD) | After winner | After ns (MAD) | Change |
+|---|---|---|---:|---|---:|---:|
+| series | JVP | `analytical` | 914.403 (4.595) | `analytical` | 830.514 (1.225) | -9.17% |
+| series | VJP | `analytical` | 903.553 (3.323) | `analytical` | 830.712 (2.203) | -8.06% |
+| recurrence | JVP | `autodiff` | 3,741.391 (14.794) | `autodiff` | 3,506.807 (11.615) | -6.27% |
+| recurrence | VJP | `autodiff` | 5,560.597 (28.213) | `analytical` | 5,521.551 (13.579) | -0.70% |
+| asymptotic | JVP | `autodiff` | 2,345.613 (9.104) | `autodiff` | 2,163.317 (9.191) | -7.77% |
+| asymptotic | VJP | `analytical` | 2,765.263 (16.983) | `analytical` | 2,644.357 (13.239) | -4.37% |
+
+Peak RSS for these after workloads is 2.53--2.81 MB. The executable is
+2,194,520 bytes, a 0.27% increase. A representative recurrence-autodiff JVP
+uses 16,073 cycles, 34,105 instructions, and 0.038 cache misses per complete
+width-16 workload; the corresponding pre-migration record has 17,283 cycles,
+36,629 instructions, and 0.397 cache misses. Incremental fixture compilation
+takes 1.04 s wall clock with 123,032 KiB peak RSS.
+
+The machine-readable controlled comparison is
+`benchmark/reference/ryzen9_5950x_bessel_fixture_migration.json`.
+
 ```bash
 ctest --test-dir build-enzyme -R '^enzyme_bessel_tournament$' \
     --output-on-failure

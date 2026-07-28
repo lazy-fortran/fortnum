@@ -194,7 +194,9 @@ product- and workload-specific.
 
 The modified-Bessel tournament likewise selects by region and product. For 16
 products, analytical wins series JVP/VJP and asymptotic VJP; raw Enzyme wins
-recurrence JVP/VJP and asymptotic JVP. The measured hybrid JVP proves the
+recurrence JVP and asymptotic JVP. After migration to shared generated
+scaffolding, complete wall clock selects analytical for recurrence VJP by
+8.0% over reverse autodiff. The measured hybrid JVP proves the
 analytical custom-rule boundary but does not win because it evaluates both
 `I0` and `I1` separately.
 
