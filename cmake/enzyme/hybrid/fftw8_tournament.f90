@@ -44,7 +44,7 @@ program enzyme_fftw8_custom_rule
     implicit none
 
     real(c_double), parameter :: h = 1.0e-6_c_double
-    real(c_double) :: samples(fixture_sample_count), sink
+    real(c_double) :: samples(fixture_sample_count), sink, validation_error
     character(32) :: action, candidate
     integer :: directions, iterations
     logical :: valid
@@ -88,9 +88,9 @@ program enzyme_fftw8_custom_rule
     call fftw8_init()
     call read_fixture_environment("FORTNUM_FFTW_ACTION", "validate", action)
     if (trim(action) == "validate") then
-        call validate_candidates()
+        call validate_candidates(validation_error)
         call fftw8_finalize()
-        write (*, "(a)") "PASS"
+        write (*, "('PASS max_relative_error=',es12.5)") validation_error
         stop
     end if
 
@@ -132,16 +132,20 @@ contains
         product = (cos(transformed) + 2.0_c_double*transformed)*tangent
     end function analytical_jvp
 
-    subroutine validate_candidates()
+    subroutine validate_candidates(max_relative_error)
+        real(c_double), intent(out) :: max_relative_error
         real(c_double), parameter :: tolerance = 4.0e-9_c_double
         real(c_double) :: x(real_size), direction(real_size)
-        real(c_double) :: expected, got, objective, reference, scale
+        real(c_double) :: expected, got, objective, reference, scale, error
         integer :: i
 
+        max_relative_error = 0.0_c_double
         call fill_inputs(3, 2, x, direction)
         objective = fftw8_objective(x)
         reference = direct_objective(x)
         scale = max(1.0_c_double, abs(reference))
+        error = abs(objective - reference)/scale
+        max_relative_error = max(max_relative_error, error)
         if (abs(objective - reference) > 5.0e-13_c_double*scale) &
             error stop "FFTW primitive disagrees with direct DFT"
 
@@ -149,11 +153,15 @@ contains
             fftw8_outer(x - h*direction))/(2.0_c_double*h)
         got = analytical_jvp(x, direction)
         scale = max(1.0_c_double, abs(expected))
+        error = abs(got - expected)/scale
+        max_relative_error = max(max_relative_error, error)
         if (abs(got - expected) > tolerance*scale) &
             error stop "analytical external FFT JVP mismatch"
 
         call rule_counter_reset()
         got = fortnum_enzyme_fftw8_outer_jvp(x, direction)
+        error = abs(got - expected)/scale
+        max_relative_error = max(max_relative_error, error)
         if (abs(got - expected) > tolerance*scale) &
             error stop "hybrid external FFT JVP mismatch"
         if (rule_counter_calls() /= 1_c_int64_t) &
