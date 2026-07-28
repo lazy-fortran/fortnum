@@ -11,7 +11,8 @@ trap 'rm -rf -- "$temporary_dir"' EXIT
     fo build
     for generator in gen_dawson_outer gen_determinant_products \
         gen_inverse_products gen_multi_input_scalar gen_implicit_root_residual \
-        gen_lagrange4_interpolation gen_dawson_jvp_variants; do
+        gen_lagrange4_interpolation gen_dawson_jvp_variants \
+        gen_erf_products; do
         FORTNUM_CODEGEN_OUTPUT_DIR="$temporary_dir" fo exec --no-build "$generator"
     done
 )

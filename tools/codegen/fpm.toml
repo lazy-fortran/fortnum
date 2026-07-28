@@ -48,6 +48,11 @@ source-dir = "app"
 main = "gen_dawson_jvp_variants.f90"
 
 [[executable]]
+name = "gen_erf_products"
+source-dir = "app"
+main = "gen_erf_products.f90"
+
+[[executable]]
 name = "gen_enzyme_scalar_wrappers"
 source-dir = "app"
 main = "gen_enzyme_scalar_wrappers.f90"

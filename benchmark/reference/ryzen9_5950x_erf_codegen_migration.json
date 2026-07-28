@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "operator": "real erf first derivative",
+  "purpose": "replace the remaining hand-transcribed explicit derivative products",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 0
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1",
+    "build": "Release",
+    "fortsym_revision": "e855b5116c51f4d1bb9aabd3ee83560a66e40920"
+  },
+  "candidates": {
+    "generated": "fortsym-derived assumed-shape product with an indexed output assignment",
+    "diagnostic": "the former hand-transcribed expression behind the same procedure-pointer call boundary"
+  },
+  "validation": {
+    "oracle": "SciPy derivative columns committed in test/oracle/data/erf.csv and erfc.csv",
+    "rows_per_function": 130,
+    "jvp_seed": 0.375,
+    "vjp_cotangent": -1.25,
+    "jvp_max_absolute_error": 9.992007221626409e-16,
+    "vjp_max_absolute_error": 3.3306690738754696e-15,
+    "adjoint_identity_tolerance": 1e-13
+  },
+  "sampling": {
+    "independent_processes": 11,
+    "products_per_process": 50000000,
+    "ordering": "interleaved generated and diagnostic candidates",
+    "runtime_aggregation": "median",
+    "dispersion": "median absolute deviation"
+  },
+  "runtime_ns_per_product": {
+    "jvp": {
+      "generated_median": 13.52566,
+      "generated_mad": 0.34561,
+      "diagnostic_median": 13.94578,
+      "diagnostic_mad": 0.54885,
+      "generated_change_percent": -3.01
+    },
+    "vjp": {
+      "generated_median": 13.58756,
+      "generated_mad": 0.47264,
+      "diagnostic_median": 13.83181,
+      "diagnostic_mad": 0.72639,
+      "generated_change_percent": -1.77
+    }
+  },
+  "peak_rss_kib": {
+    "generated_jvp": 3680,
+    "diagnostic_jvp": 3656,
+    "generated_vjp": 3660,
+    "diagnostic_vjp": 3728
+  },
+  "representative_jvp_counters_per_product": {
+    "generated": {
+      "cycles": 68.6542,
+      "instructions": 193.0798,
+      "cache_references": 0.006457,
+      "cache_misses": 0.001463
+    },
+    "diagnostic": {
+      "cycles": 66.8698,
+      "instructions": 196.0798,
+      "cache_references": 0.005462,
+      "cache_misses": 0.001299
+    }
+  },
+  "native_symbol_bytes": {
+    "generated_jvp": 341,
+    "diagnostic_product": 358
+  },
+  "selection": {
+    "selected": "generated analytical",
+    "criterion": "complete product wall clock with no material peak-memory regression",
+    "reason": "the generated JVP and VJP are slightly faster within dispersion, remove production transcription, and preserve the array interface",
+    "passed": true
+  }
+}

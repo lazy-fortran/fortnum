@@ -53,6 +53,7 @@ Use one mathematical source for a local explicit operator. `fortsym` may emit:
 - value-only kernels
 - contracted JVP and VJP kernels
 - fused value/JVP and value/VJP kernels
+- scalar, shaped-array, and pure-elemental procedure interfaces
 - raw, simplified, and factored variants
 - CPU and annotation-only device leaves
 - temporary Enzyme wrappers
