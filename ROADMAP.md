@@ -353,8 +353,10 @@ support.
   definition.
 - [x] Generate special-function outer kernels while retaining stable primal
   algorithms and recurrences at operator boundaries.
-- [ ] Generate explicit local residual products while retaining hand-written
-  implicit tangent and adjoint solves.
+- [x] Generate explicit scalar local residual products while retaining
+  hand-written implicit tangent and adjoint solves.
+- [ ] Generate explicit vector local residual products while retaining
+  hand-written implicit tangent and adjoint solves.
 - [ ] Add stability-preserving symbolic transformations with equivalence and
   numerical boundary tests.
 - [ ] Add target-aware factoring only when native complete-workload benchmarks
