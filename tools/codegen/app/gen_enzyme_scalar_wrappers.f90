@@ -52,6 +52,8 @@ contains
                 "fortnum_scalar_analytical_p1_jvp")
             spec%custom_forward_symbol = str( &
                 "fortnum_scalar_custom_p1_forward")
+            spec%custom_forward_counter_symbol = str( &
+                "fortnum_enzyme_rule_counter_record")
         end if
 
         path = directory//"/fortnum_enzyme_scalar_"//suffix//".f90"

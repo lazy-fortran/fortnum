@@ -53,7 +53,7 @@ contains
 end module scalar_wrapper_primals
 
 program test_scalar_wrappers
-    use, intrinsic :: iso_c_binding, only: c_double
+    use, intrinsic :: iso_c_binding, only: c_double, c_int64_t
     use, intrinsic :: iso_fortran_env, only: dp => real64
     use fortnum_enzyme_fixture_support, only: collect_fixture_samples, &
         fixture_peak_rss_bytes, fixture_sample_count, fixture_timer_t, &
@@ -73,15 +73,41 @@ program test_scalar_wrappers
     real(dp), parameter :: tolerance = 3.0e-13_dp
     real(dp) :: samples(fixture_sample_count)
     real(dp) :: sink
-    character(16) :: action, product
+    character(16) :: action, counting, product
     integer :: active_inputs
     logical :: valid
+
+    interface
+        subroutine rule_counter_reset() &
+                bind(c, name="fortnum_enzyme_rule_counter_reset")
+        end subroutine rule_counter_reset
+
+        function rule_counter_calls() result(count) &
+                bind(c, name="fortnum_enzyme_rule_counter_calls")
+            import c_int64_t
+            integer(c_int64_t) :: count
+        end function rule_counter_calls
+
+        subroutine rule_counter_disable() &
+                bind(c, name="fortnum_enzyme_rule_counter_disable")
+        end subroutine rule_counter_disable
+    end interface
 
     call read_fixture_environment("FORTNUM_SCALAR_WRAPPER_ACTION", &
         "validate", action)
     if (trim(action) == "validate") then
+        call prove_custom_rule_selection()
         call validate_wrappers()
         stop
+    end if
+    call read_fixture_environment("FORTNUM_SCALAR_WRAPPER_COUNTING", &
+        "disabled", counting)
+    if (trim(counting) == "enabled") then
+        call rule_counter_reset()
+    else if (trim(counting) == "disabled") then
+        call rule_counter_disable()
+    else
+        error stop "counting must be enabled or disabled"
     end if
 
     call read_fixture_environment("FORTNUM_SCALAR_WRAPPER_PRODUCT", &
@@ -108,6 +134,18 @@ program test_scalar_wrappers
     if (sink /= sink) error stop "scalar-wrapper benchmark produced NaN"
 
 contains
+
+    subroutine prove_custom_rule_selection()
+        real(dp) :: derivative
+
+        call rule_counter_reset()
+        derivative = fortnum_enzyme_scalar_p1_jvp(0.3_dp, -0.7_dp)
+        if (derivative /= derivative) error stop "custom rule produced NaN"
+        if (rule_counter_calls() /= 1_c_int64_t) then
+            error stop "Enzyme did not select the analytical forward rule"
+        end if
+        call rule_counter_disable()
+    end subroutine prove_custom_rule_selection
 
     subroutine validate_wrappers()
         real(dp) :: x(4), tangent(4), gradient(4), cotangents(4)
