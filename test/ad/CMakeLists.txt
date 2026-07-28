@@ -213,10 +213,23 @@ if(FORTNUM_ENABLE_ENZYME)
                 message(FATAL_ERROR "Missing generated Enzyme wrapper: ${_wrapper}")
             endif()
         endforeach()
+        set(_fortnum_dawson_wrapper_source
+            "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_dawson_outer.f90")
+        set(_fortnum_square_wrapper_source
+            "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_square.f90")
+        foreach(_wrapper
+                "${_fortnum_dawson_wrapper_source}"
+                "${_fortnum_square_wrapper_source}")
+            if(NOT EXISTS "${_wrapper}")
+                message(FATAL_ERROR "Missing generated Enzyme wrapper: ${_wrapper}")
+            endif()
+        endforeach()
     endif()
     fortnum_add_enzyme_test(
         NAME enzyme_square
-        SOURCES ${CMAKE_SOURCE_DIR}/cmake/enzyme/smoke/square.f90
+        SOURCES
+            ${_fortnum_square_wrapper_source}
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/smoke/square.f90
         MODE reverse
         OPT_LEVEL O2)
     fortnum_add_enzyme_test(
@@ -256,7 +269,11 @@ if(FORTNUM_ENABLE_ENZYME)
             ${CMAKE_SOURCE_DIR}/src/generated/fortnum_dawson_outer_kernel.f90
             ${FORTNUM_BUILD_SELECTION_SOURCE}
             ${CMAKE_SOURCE_DIR}/src/special/fortnum_special_dawson.f90
+            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_rule_counter.c
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/dawson_rule.c
+            ${_fortnum_dawson_wrapper_source}
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/dawson_outer.f90
         FORWARD_RULES
             fortnum_dawson_kernel=fortnum_dawson_kernel_derivative

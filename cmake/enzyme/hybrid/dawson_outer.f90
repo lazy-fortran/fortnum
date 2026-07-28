@@ -25,13 +25,16 @@ contains
     function outer(x) result(y) bind(c, name="fortnum_dawson_outer")
         real(c_double), value :: x
         real(c_double) :: y, f
+
         f = fortnum_dawson_kernel(x)
         y = sin(f) + f*f
     end function outer
 
-    function outer_autodiff(x) result(y) bind(c, name="fortnum_dawson_outer_autodiff")
+    function outer_autodiff(x) result(y) &
+            bind(c, name="fortnum_dawson_outer_autodiff")
         real(c_double), value :: x
         real(c_double) :: y, f
+
         f = fortnum_dawson_kernel_autodiff(x)
         y = sin(f) + f*f
     end function outer_autodiff
@@ -39,11 +42,24 @@ contains
 end module dawson_outer_kernel
 
 program enzyme_dawson_hybrid
-    use, intrinsic :: iso_c_binding, only: c_double, c_funloc, c_funptr, c_int
-    use, intrinsic :: iso_fortran_env, only: int64
+    use, intrinsic :: iso_c_binding, only: c_double, c_funloc, c_funptr, &
+        c_int64_t
     use dawson_outer_kernel, only: outer, outer_autodiff
+    use fortnum_enzyme_fixture_support, only: collect_fixture_samples, &
+        fixture_peak_rss_bytes, fixture_sample_count, fixture_timer_t, &
+        median_mad, read_fixture_environment, read_fixture_integer, &
+        write_fixture_result
     use fortnum_generated_dawson_outer, only: fortnum_dawson_outer_kernel
+    use fortnum_generated_enzyme_dawson_outer, only: &
+        fortnum_enzyme_dawson_outer_jvp
     implicit none
+
+    real(c_double), parameter :: direction = -0.4_c_double
+    real(c_double), parameter :: h = 1.0e-6_c_double
+    real(c_double) :: samples(fixture_sample_count), sink
+    character(32) :: action, candidate, argument
+    integer :: candidate_kind, repetitions
+    logical :: valid
 
     interface
         function enzyme_fwddiff(f, x, dx) result(dy) &
@@ -54,17 +70,19 @@ program enzyme_dawson_hybrid
             real(c_double) :: dy
         end function enzyme_fwddiff
 
-        subroutine rule_reset() bind(c, name="fortnum_dawson_rule_reset")
-        end subroutine rule_reset
+        subroutine rule_counter_reset() &
+                bind(c, name="fortnum_enzyme_rule_counter_reset")
+        end subroutine rule_counter_reset
 
-        function rule_calls() result(n) bind(c, name="fortnum_dawson_rule_calls")
-            import :: c_int
-            integer(c_int) :: n
-        end function rule_calls
+        function rule_counter_calls() result(count) &
+                bind(c, name="fortnum_enzyme_rule_counter_calls")
+            import c_int64_t
+            integer(c_int64_t) :: count
+        end function rule_counter_calls
 
-        subroutine rule_disable_count() &
-                bind(c, name="fortnum_dawson_rule_disable_count")
-        end subroutine rule_disable_count
+        subroutine rule_counter_disable() &
+                bind(c, name="fortnum_enzyme_rule_counter_disable")
+        end subroutine rule_counter_disable
 
         function fortnum_dawson_kernel(x) result(f) &
                 bind(c, name="fortnum_dawson_kernel")
@@ -74,118 +92,147 @@ program enzyme_dawson_hybrid
         end function fortnum_dawson_kernel
     end interface
 
-    real(c_double), parameter :: x = 0.7_c_double
-    real(c_double), parameter :: dx = -0.4_c_double
-    real(c_double), parameter :: h = 1.0e-6_c_double
-    real(c_double) :: got, reference, scale
-    character(32) :: argument
-
     call get_command_argument(1, argument)
     if (trim(argument) == "--benchmark") then
-        call run_benchmark()
+        action = "benchmark"
+    else
+        call read_fixture_environment("FORTNUM_DAWSON_ACTION", &
+            "validate", action)
+    end if
+    if (trim(action) == "validate") then
+        call validate_candidates()
+        write (*, "(a)") "PASS"
         stop
     end if
-    call rule_reset()
-    got = enzyme_fwddiff(c_funloc(outer), x, dx)
-    reference = (outer(x + h*dx) - outer(x - h*dx))/(2.0_c_double*h)
-    scale = max(1.0_c_double, abs(reference))
 
-    if (abs(got - reference)/scale > 2.0e-9_c_double) then
-        print *, "hybrid Dawson JVP mismatch", got, reference
-        error stop 1
+    call read_fixture_environment("FORTNUM_DAWSON_CANDIDATE", "all", candidate)
+    call read_fixture_integer("FORTNUM_DAWSON_ITERATIONS", 200000, &
+        repetitions, valid)
+    if (.not. valid .or. repetitions < 1) then
+        error stop "invalid Dawson iteration count"
     end if
-    if (rule_calls() /= 1_c_int) then
-        print *, "analytical Dawson rule was not selected", rule_calls()
-        error stop 1
+    call rule_counter_disable()
+
+    if (trim(action) == "benchmark" .or. trim(action) == "--benchmark") then
+        if (trim(candidate) == "all") then
+            do candidate_kind = 1, 3
+                call benchmark_candidate()
+            end do
+        else
+            candidate_kind = parse_candidate(trim(candidate))
+            call benchmark_candidate()
+        end if
+    else if (trim(action) == "peak-rss" .or. trim(action) == "--peak-rss") then
+        candidate_kind = parse_candidate(trim(candidate))
+        sink = measure_candidate()
+        write (*, "(i0)") fixture_peak_rss_bytes()
+    else
+        error stop "action must be validate, benchmark, or peak-rss"
     end if
-    print *, "PASS hybrid Dawson JVP", got
+    if (sink /= sink) error stop "Dawson benchmark produced NaN"
 
 contains
 
     function analytical_jvp(x, dx) result(dy)
         real(c_double), intent(in) :: x, dx
         real(c_double) :: dy, f, value
+
         f = fortnum_dawson_kernel(x)
         call fortnum_dawson_outer_kernel(x, f, dx, value, dy)
     end function analytical_jvp
 
-    subroutine run_benchmark()
-        integer, parameter :: samples = 15
-        integer, parameter :: reps = 200000
-        real(c_double) :: analytical(samples), autodiff(samples), hybrid(samples)
-        real(c_double) :: sink
+    subroutine validate_candidates()
+        real(c_double), parameter :: points(3) = [ &
+            0.2_c_double, 0.7_c_double, 6.0_c_double]
+        real(c_double) :: got, reference, scale, x
         integer :: i
 
-        call rule_disable_count()
-        do i = 1, 3
-            call time_candidate(i, 2000, sink)
+        do i = 1, size(points)
+            x = points(i)
+            reference = (outer(x + h*direction) - outer(x - h*direction)) &
+                /(2.0_c_double*h)
+            scale = max(1.0_c_double, abs(reference))
+            got = analytical_jvp(x, direction)
+            if (abs(got - reference)/scale > 2.0e-9_c_double) then
+                error stop "analytical Dawson JVP mismatch"
+            end if
+            got = enzyme_fwddiff(c_funloc(outer_autodiff), x, direction)
+            if (abs(got - reference)/scale > 2.0e-9_c_double) then
+                error stop "autodiff Dawson JVP mismatch"
+            end if
+            call rule_counter_reset()
+            got = fortnum_enzyme_dawson_outer_jvp(x, direction)
+            if (abs(got - reference)/scale > 2.0e-9_c_double) then
+                error stop "hybrid Dawson JVP mismatch"
+            end if
+            if (rule_counter_calls() /= 1_c_int64_t) then
+                error stop "analytical Dawson rule was not selected"
+            end if
         end do
-        do i = 1, samples
-            call time_candidate(1, reps, analytical(i))
-            call time_candidate(2, reps, autodiff(i))
-            call time_candidate(3, reps, hybrid(i))
-        end do
-        call report("analytical", analytical, reps)
-        call report("autodiff", autodiff, reps)
-        call report("hybrid", hybrid, reps)
-        if (sink == huge(sink)) error stop 1
-    end subroutine run_benchmark
+        call rule_counter_disable()
+    end subroutine validate_candidates
 
-    subroutine time_candidate(which, reps, elapsed_ns)
-        integer, intent(in) :: which, reps
-        real(c_double), intent(out) :: elapsed_ns
-        integer(int64) :: start, finish, rate
-        integer :: i
-        real(c_double) :: xi, sink
-
-        sink = 0.0_c_double
-        call system_clock(start, rate)
-        do i = 1, reps
-            xi = 0.65_c_double + 0.001_c_double*real(mod(i, 101), c_double)
-            select case (which)
-            case (1)
-                sink = sink + analytical_jvp(xi, dx)
-            case (2)
-                sink = sink + enzyme_fwddiff(c_funloc(outer_autodiff), xi, dx)
-            case (3)
-                sink = sink + enzyme_fwddiff(c_funloc(outer), xi, dx)
-            end select
-        end do
-        call system_clock(finish)
-        elapsed_ns = 1.0e9_c_double*real(finish - start, c_double)/ &
-            (real(rate, c_double)*real(reps, c_double))
-        if (sink == huge(sink)) print *, sink
-    end subroutine time_candidate
-
-    subroutine report(name, values, reps)
-        character(*), intent(in) :: name
-        real(c_double), intent(in) :: values(:)
-        integer, intent(in) :: reps
-        real(c_double) :: ordered(size(values)), deviations(size(values))
+    subroutine benchmark_candidate()
         real(c_double) :: median, mad
 
-        ordered = values
-        call sort_values(ordered)
-        median = ordered((size(ordered) + 1)/2)
-        deviations = abs(values - median)
-        call sort_values(deviations)
-        mad = deviations((size(deviations) + 1)/2)
-        write (*, "(a,',',i0,',',f12.4,',',f12.4)") name, reps, median, mad
-    end subroutine report
+        call collect_fixture_samples(measure_candidate, samples)
+        call median_mad(samples, median, mad)
+        call write_fixture_result(candidate_name(candidate_kind), &
+            repetitions, median, mad)
+    end subroutine benchmark_candidate
 
-    subroutine sort_values(values)
-        real(c_double), intent(inout) :: values(:)
-        real(c_double) :: tmp
-        integer :: i, j
-        do i = 1, size(values) - 1
-            do j = i + 1, size(values)
-                if (values(j) < values(i)) then
-                    tmp = values(i)
-                    values(i) = values(j)
-                    values(j) = tmp
-                end if
-            end do
+    function measure_candidate() result(elapsed_ns)
+        type(fixture_timer_t) :: timer
+        real(c_double) :: elapsed_ns, local_sink, xi
+        integer :: i
+
+        local_sink = 0.0_c_double
+        call timer%start()
+        do i = 1, repetitions
+            xi = 0.65_c_double + 0.001_c_double*real(mod(i, 101), c_double)
+            select case (candidate_kind)
+            case (1)
+                local_sink = local_sink + analytical_jvp(xi, direction)
+            case (2)
+                local_sink = local_sink + enzyme_fwddiff( &
+                    c_funloc(outer_autodiff), xi, direction)
+            case default
+                local_sink = local_sink + &
+                    fortnum_enzyme_dawson_outer_jvp(xi, direction)
+            end select
         end do
-    end subroutine sort_values
+        elapsed_ns = timer%elapsed_ns()/real(repetitions, c_double)
+        sink = local_sink
+    end function measure_candidate
+
+    function parse_candidate(name) result(kind)
+        character(*), intent(in) :: name
+        integer :: kind
+
+        select case (name)
+        case ("analytical")
+            kind = 1
+        case ("autodiff")
+            kind = 2
+        case ("hybrid")
+            kind = 3
+        case default
+            error stop "candidate must be analytical, autodiff, or hybrid"
+        end select
+    end function parse_candidate
+
+    function candidate_name(kind) result(name)
+        integer, intent(in) :: kind
+        character(16) :: name
+
+        select case (kind)
+        case (1)
+            name = "analytical"
+        case (2)
+            name = "autodiff"
+        case default
+            name = "hybrid"
+        end select
+    end function candidate_name
 
 end program enzyme_dawson_hybrid
