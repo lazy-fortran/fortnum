@@ -9,6 +9,10 @@
     "GNU Fortran 16.1.1 Release -O3",
     "Flang/LLVM 22.1.8 -O2 with Enzyme 22"
   ],
+  "workload_contract": {
+    "reusable_primal_state": "each child record states whether the primal value, LU factors, or transposed LU factors are reused; reuse and refactorization are separate named candidates",
+    "complete_products": "all reported timings return the full value-plus-JVP or scalar-objective-plus-VJP required by the named workload"
+  },
   "evidence_contract": {
     "runtime": "median complete-workload wall clock with MAD in each referenced record",
     "memory": "candidate-specific peak RSS in separate processes",

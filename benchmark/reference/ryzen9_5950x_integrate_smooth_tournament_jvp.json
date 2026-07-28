@@ -13,6 +13,10 @@
     "enzyme_commit": "c96508349d9f",
     "build": "Release -O2"
   },
+  "workload_contract": {
+    "reusable_primal_state": "the verified three-panel schedule is identical for every candidate; each timed call evaluates value plus JVP on that frozen schedule",
+    "adaptive_schedule_discovery": "outside this frozen-trace derivative boundary"
+  },
   "sampling": {
     "tournament_processes": 3,
     "samples_per_process": 31,

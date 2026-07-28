@@ -14,6 +14,10 @@
     "fortsym_revision": "1e2b66151160010009116597777f58f596c53d4c",
     "build": "Release -O2"
   },
+  "workload_contract": {
+    "reusable_primal_state": "the converged root and transposed Jacobian are reused by implicit analytical and hybrid candidates; fixed-iteration autodiff and diagnostic candidates execute their stated coupled-Newton trace",
+    "returned_product": "one two-component root cotangent returns two parameter cotangents"
+  },
   "sampling": {
     "warmup_rounds": 3,
     "samples": 31,
