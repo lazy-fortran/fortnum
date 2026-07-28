@@ -334,7 +334,7 @@ support.
   guide, benchmark guide, and repository templates around current behavior.
 - [x] Rewrite the API guide and module design documents as concise contracts
   checked against the production source.
-- [ ] Rewrite the differentiation, GPU, migration, and evidence documents;
+- [x] Rewrite the differentiation, GPU, migration, and evidence documents;
   remove append-only implementation history while preserving authoritative
   benchmark data and decisions.
 - [ ] Add documentation drift checks for internal links, source ownership,
