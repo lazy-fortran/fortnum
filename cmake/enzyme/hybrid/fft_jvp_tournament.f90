@@ -95,8 +95,9 @@ program enzyme_fft_jvp_tournament
     if (.not. valid) error stop "invalid iteration count"
     if (trim(candidate) /= "analytical" .and. trim(candidate) /= "autodiff") &
         error stop "candidate must be analytical or autodiff"
-    if (trim(product_kind) /= "jvp" .and. trim(product_kind) /= "vjp") &
-        error stop "product must be jvp or vjp"
+    if (trim(product_kind) /= "jvp" .and. trim(product_kind) /= "vjp" .and. &
+        trim(product_kind) /= "gradient") &
+        error stop "product must be jvp, vjp, or gradient"
     if (directions < 1 .or. directions > 16) &
         error stop "directions must be 1..16"
     if (iterations < 1) error stop "iterations must be positive"
@@ -121,6 +122,8 @@ contains
         real(c_double) :: primal(real_size), enzyme_primal(real_size)
         real(c_double) :: expected(real_size), analytical(real_size)
         real(c_double) :: autodiff(real_size), scale, lhs, rhs
+        real(c_double) :: objective, direct_objective
+        real(c_double) :: objective_plus, objective_minus
         integer :: i
 
         do i = 1, real_size
@@ -158,12 +161,35 @@ contains
         call autodiff_vjp(x, direction, autodiff)
         if (maxval(abs(autodiff - expected)) > tolerance*scale) &
             error stop "autodiff FFT VJP disagrees with direct adjoint DFT"
+
+        call spectral_objective_gradient(x, .true., objective, analytical)
+        call spectral_objective_gradient(x, .false., objective, autodiff)
+        call direct_spectral_objective(x, direct_objective, expected)
+        if (abs(objective - direct_objective) > tolerance* &
+            max(1.0_c_double, abs(direct_objective))) &
+            error stop "spectral objective disagrees with direct DFT"
+        scale = max(1.0_c_double, maxval(abs(expected)))
+        if (maxval(abs(analytical - expected)) > tolerance*scale) &
+            error stop "analytical spectral gradient disagrees with direct DFT"
+        if (maxval(abs(autodiff - expected)) > tolerance*scale) &
+            error stop "autodiff spectral gradient disagrees with direct DFT"
+
+        call spectral_objective_value(x + 1.0e-6_c_double*direction, &
+            objective_plus)
+        call spectral_objective_value(x - 1.0e-6_c_double*direction, &
+            objective_minus)
+        lhs = (objective_plus - objective_minus)/(2.0e-6_c_double)
+        rhs = dot_product(expected, direction)
+        if (abs(lhs - rhs) > 2.0e-8_c_double* &
+            max(1.0_c_double, abs(lhs), abs(rhs))) &
+            error stop "spectral gradient fails objective finite difference"
     end subroutine validate_candidates
 
     function measure_candidate() result(elapsed_ns)
         type(fixture_timer_t) :: timer
         real(c_double) :: x(real_size), direction(real_size)
         real(c_double) :: primal(real_size), product(real_size)
+        real(c_double) :: objective
         real(c_double) :: elapsed_ns, local_sink
         integer :: direction_index, i, iteration
 
@@ -173,6 +199,12 @@ contains
             do i = 1, real_size
                 x(i) = sin(0.013_c_double*real(i + iteration, c_double))
             end do
+            if (trim(product_kind) == "gradient") then
+                call spectral_objective_gradient( &
+                    x, trim(candidate) == "analytical", objective, product)
+                local_sink = local_sink + objective + product(1)
+                cycle
+            end if
             do direction_index = 1, directions
                 do i = 1, real_size
                     direction(i) = cos(0.017_c_double* &
@@ -204,8 +236,12 @@ contains
         character(96) :: name
 
         call median_mad(samples, median, mad)
-        write (name, "('fft8_',a,'_',a,'_d',i0)") &
-            trim(candidate), trim(product_kind), directions
+        if (trim(product_kind) == "gradient") then
+            write (name, "('fft8_spectral_',a,'_gradient')") trim(candidate)
+        else
+            write (name, "('fft8_',a,'_',a,'_d',i0)") &
+                trim(candidate), trim(product_kind), directions
+        end if
         call write_fixture_result(trim(name), iterations, median, mad)
     end subroutine report_samples
 
@@ -248,6 +284,57 @@ contains
             product(input_index) = dot_product(cotangent, column)
         end do
     end subroutine autodiff_vjp
+
+    subroutine spectral_objective_gradient(x, use_analytical, value, gradient)
+        real(c_double), intent(in) :: x(real_size)
+        logical, intent(in) :: use_analytical
+        real(c_double), intent(out) :: value, gradient(real_size)
+        real(c_double) :: transformed(real_size), cotangent(real_size)
+
+        call fft8_primal(x, transformed)
+        call spectral_cotangent(transformed, cotangent)
+        value = 0.5_c_double*dot_product(transformed, cotangent)
+        if (use_analytical) then
+            call analytical_vjp(cotangent, gradient)
+        else
+            call autodiff_vjp(x, cotangent, gradient)
+        end if
+    end subroutine spectral_objective_gradient
+
+    subroutine spectral_objective_value(x, value)
+        real(c_double), intent(in) :: x(real_size)
+        real(c_double), intent(out) :: value
+        real(c_double) :: transformed(real_size), cotangent(real_size)
+
+        call fft8_primal(x, transformed)
+        call spectral_cotangent(transformed, cotangent)
+        value = 0.5_c_double*dot_product(transformed, cotangent)
+    end subroutine spectral_objective_value
+
+    pure subroutine spectral_cotangent(transformed, cotangent)
+        real(c_double), intent(in) :: transformed(real_size)
+        real(c_double), intent(out) :: cotangent(real_size)
+        real(c_double) :: weight
+        integer :: frequency
+
+        do frequency = 0, fft_size - 1
+            weight = 1.0_c_double + real(frequency*frequency, c_double)
+            cotangent(2*frequency + 1) = weight*transformed(2*frequency + 1)
+            cotangent(2*frequency + 2) = weight*transformed(2*frequency + 2)
+        end do
+    end subroutine spectral_cotangent
+
+    pure subroutine direct_spectral_objective(x, value, gradient)
+        real(c_double), intent(in) :: x(real_size)
+        real(c_double), intent(out) :: value
+        real(c_double), intent(out) :: gradient(real_size)
+        real(c_double) :: transformed(real_size), cotangent(real_size)
+
+        call direct_dft(x, transformed)
+        call spectral_cotangent(transformed, cotangent)
+        value = 0.5_c_double*dot_product(transformed, cotangent)
+        call direct_dft_adjoint(cotangent, gradient)
+    end subroutine direct_spectral_objective
 
     pure subroutine direct_dft_adjoint(input, output)
         real(c_double), intent(in) :: input(real_size)

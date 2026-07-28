@@ -52,3 +52,4 @@ hyperg_asymptotic_vjp,analytical,analytical,58.7647,431.1664,ryzen9_5950x_hyperg
 fft8_jvp,analytical,autodiff,2360.4381,2463.8690,ryzen9_5950x_fft8_jvp_tournament.json
 fft8_vjp,analytical,analytical,2420.35625,11864.52850,ryzen9_5950x_fft8_vjp_tournament.json
 fftw8_external_jvp,analytical,analytical,4744.71035,4896.92055,ryzen9_5950x_fftw8_custom_rule.json
+fft8_spectral_gradient,analytical,analytical,195.97775,776.31560,ryzen9_5950x_fft_spectral_objective.json

@@ -384,7 +384,7 @@ support.
 - [x] Add a hybrid custom rule for an external FFT library.
 - [x] Benchmark scalar FFT workloads.
 - [x] Benchmark batched FFT workloads.
-- [ ] Benchmark an FFT-based spectral objective.
+- [x] Benchmark an FFT-based spectral objective.
 
 ## Module tournaments
 
