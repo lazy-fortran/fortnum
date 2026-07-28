@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "operation": "replace the hand-written Bessel outer chain rule with a fortsym-generated contracted analytical JVP",
+  "operator": "sin(I0(x)) + I0(x)^2",
+  "boundary": "fortnum retains its stable region selection and I0/I1 algorithms; fortsym generates only the explicit outer product",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "optimization": "O2",
+    "fortsym_revision": "e855b5116c51f4d1bb9aabd3ee83560a66e40920"
+  },
+  "validation": {
+    "oracle": "central difference of the complete outer objective",
+    "regions": ["series", "recurrence", "asymptotic"],
+    "relative_tolerance": 2e-8,
+    "result": "pass"
+  },
+  "sampling": {
+    "generated_processes": 1,
+    "samples_per_process": 31,
+    "baseline_processes": 15,
+    "aggregation": "median",
+    "dispersion": "median absolute deviation",
+    "note": "The baseline is the committed pre-migration tournament record. Peak RSS is whole-process high-water memory and does not isolate scalar derivative workspace."
+  },
+  "wall_clock_ns_per_16_products": [
+    {
+      "region": "series",
+      "product": "jvp",
+      "manual_baseline": 917.275660,
+      "generated": 845.909280,
+      "generated_mad": 5.075765,
+      "speedup": 1.0844
+    },
+    {
+      "region": "recurrence",
+      "product": "jvp",
+      "manual_baseline": 5763.282255,
+      "generated": 5557.018150,
+      "generated_mad": 24.540345,
+      "speedup": 1.0371
+    },
+    {
+      "region": "asymptotic",
+      "product": "jvp",
+      "manual_baseline": 2784.492675,
+      "generated": 2672.148915,
+      "generated_mad": 23.640440,
+      "speedup": 1.0420
+    },
+    {
+      "region": "series",
+      "product": "vjp",
+      "manual_baseline": 929.241600,
+      "generated": 841.037900,
+      "generated_mad": 1.192940,
+      "speedup": 1.1049
+    },
+    {
+      "region": "recurrence",
+      "product": "vjp",
+      "manual_baseline": 5697.044880,
+      "generated": 5533.712050,
+      "generated_mad": 13.077840,
+      "speedup": 1.0295
+    },
+    {
+      "region": "asymptotic",
+      "product": "vjp",
+      "manual_baseline": 2774.859240,
+      "generated": 2644.164880,
+      "generated_mad": 6.243860,
+      "speedup": 1.0494
+    }
+  ],
+  "peak_rss_bytes_at_16_products": [
+    {"region": "series", "product": "jvp", "manual_baseline": 2965504, "generated": 2715648},
+    {"region": "recurrence", "product": "jvp", "manual_baseline": 3039232, "generated": 3084288},
+    {"region": "asymptotic", "product": "jvp", "manual_baseline": 3018752, "generated": 2772992},
+    {"region": "series", "product": "vjp", "manual_baseline": 2949120, "generated": 2727936},
+    {"region": "recurrence", "product": "vjp", "manual_baseline": 3031040, "generated": 3100672},
+    {"region": "asymptotic", "product": "vjp", "manual_baseline": 3129344, "generated": 2990080}
+  ],
+  "native_text_bytes": {
+    "generated_outer_jvp_kernel": 65
+  },
+  "verdict": "Use the generated analytical outer product. It preserves the stable Bessel boundary and wins all six measured complete workloads."
+}

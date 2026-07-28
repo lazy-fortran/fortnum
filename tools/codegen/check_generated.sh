@@ -11,7 +11,7 @@ python3 "$repository_dir/scripts/check_contracted_codegen.py" "$repository_dir"
 (
     cd "$codegen_dir"
     fo build
-    for generator in gen_dawson_outer gen_determinant_products \
+    for generator in gen_special_outer gen_determinant_products \
         gen_inverse_products gen_multi_input_scalar gen_implicit_root_residual \
         gen_lagrange4_interpolation gen_dawson_jvp_variants \
         gen_erf_products; do

@@ -474,6 +474,7 @@ if(FORTNUM_ENABLE_ENZYME)
         NAME enzyme_bessel_tournament
         SOURCES
             ${CMAKE_SOURCE_DIR}/src/fortnum_kinds.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_bessel_outer_jvp_kernel.f90
             ${CMAKE_SOURCE_DIR}/src/special/fortnum_special_bessel.f90
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/bessel_kernel.f90
             ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c

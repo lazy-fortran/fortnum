@@ -1,6 +1,7 @@
 path,symbols,classification,mechanisms,reason
 src/ad/fortnum_build_selection.f90,fortnum_selected_dawson_outer_jvp,fortsym-generated,analytical,build-selected adapter around a generated fused product
 src/fft/fortnum_fft.f90,fft_c2c_jvp;fft_c2c_vjp;fft_r2c_jvp;fft_r2c_vjp,hand-written algorithmic,analytical,FFT and its adjoint are applied as linear operators
+src/generated/fortnum_bessel_outer_jvp_kernel.f90,fortnum_bessel_outer_jvp_kernel,fortsym-generated,analytical,generated contracted outer JVP around stable Bessel values and recurrences
 src/generated/fortnum_dawson_identity_jvp_kernel.f90,fortnum_dawson_identity_jvp_kernel,fortsym-generated,analytical,generated contracted identity product
 src/generated/fortnum_dawson_outer_jvp_kernel.f90,fortnum_dawson_outer_jvp_kernel,fortsym-generated,analytical,generated contracted outer JVP
 src/generated/fortnum_dawson_outer_kernel.f90,fortnum_dawson_outer_kernel,fortsym-generated,analytical,generated fused value and JVP

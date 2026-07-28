@@ -3,22 +3,22 @@
 ! Generator revision: fortsym@e855b5116c51f4d1bb9aabd3ee83560a66e40920
 ! Regenerate with: cd tools/codegen && fo exec gen_special_outer
 
-module fortnum_generated_dawson_outer_jvp
+module fortnum_generated_bessel_outer_jvp
     implicit none
     private
-    public :: fortnum_dawson_outer_jvp_kernel
+    public :: fortnum_bessel_outer_jvp_kernel
 contains
 
-    pure subroutine fortnum_dawson_outer_jvp_kernel(x, f, v, jvp)
+    pure subroutine fortnum_bessel_outer_jvp_kernel(f, df, v, jvp)
         !$omp declare target
         !$acc routine seq
         use, intrinsic :: iso_fortran_env, only: dp => real64
         implicit none
-        real(dp), intent(in) :: x, f, v
+        real(dp), intent(in) :: f, df, v
         real(dp), intent(out) :: jvp
 
-        jvp = v*(1 - x*f*2)*(cos(f) + f*2)
+        jvp = df*v*(cos(f) + f*2)
 
-    end subroutine fortnum_dawson_outer_jvp_kernel
+    end subroutine fortnum_bessel_outer_jvp_kernel
 
-end module fortnum_generated_dawson_outer_jvp
+end module fortnum_generated_bessel_outer_jvp

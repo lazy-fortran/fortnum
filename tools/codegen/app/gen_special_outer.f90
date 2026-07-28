@@ -1,4 +1,4 @@
-program gen_dawson_outer
+program gen_special_outer
     use fortsym_string, only: str, chars
     use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, sym, operator(+), operator(-), &
@@ -15,12 +15,14 @@ program gen_dawson_outer
 
     type(arena_t), target :: arena
     type(symengine_engine_t) :: engine
-    type(expr_t) :: x, f, v, u, value
+    type(expr_t) :: x, f, df, v, u, value
     type(expr_t) :: values(1), variables(1), tangents(1), cotangents(1)
     type(expr_t) :: jvp_products(1), vjp_products(1)
     type(expr_t) :: jvp_partial(1), vjp_partial(1)
+    type(expr_t) :: bessel_tangent(1), bessel_jvp(1), bessel_partial(1)
     type(expr_t) :: value_root(1), fused_jvp(2), fused_vjp(2)
     character(len=1), parameter :: value_args(1) = ["f"]
+    character(len=2), parameter :: bessel_jvp_args(3) = ["f ", "df", "v "]
     character(len=1), parameter :: jvp_args(3) = ["x", "f", "v"]
     character(len=1), parameter :: vjp_args(3) = ["x", "f", "u"]
     character(len=5), parameter :: value_output(1) = ["value"]
@@ -33,6 +35,7 @@ program gen_dawson_outer
     engine = make_symengine_engine(arena)
     x = sym(arena, "x")
     f = sym(arena, "f")
+    df = sym(arena, "df")
     v = sym(arena, "v")
     u = sym(arena, "u")
 
@@ -47,6 +50,11 @@ program gen_dawson_outer
     jvp_products = jvp(values, variables, tangents)
     vjp_products = vjp(values, variables, cotangents)
     vjp_products(1) = vjp_products(1)*(1 - 2*x*f)
+    bessel_tangent(1) = df*v
+    bessel_jvp = jvp(values, variables, bessel_tangent)
+    bessel_partial(1) = diff(value, f)*df*v
+    bessel_jvp(1) = lower_operation_variant( &
+        bessel_jvp(1), bessel_partial(1), engine)
     jvp_partial(1) = diff(value, f)*tangents(1)
     vjp_partial(1) = u*diff(value, f)*(1 - 2*x*f)
     jvp_products(1) = lower_operation_variant( &
@@ -59,6 +67,11 @@ program gen_dawson_outer
     fused_jvp(2) = jvp_products(1)
     fused_vjp(1) = value
     fused_vjp(2) = vjp_products(1)
+    call write_variant( &
+        "fortnum_bessel_outer_jvp_kernel.f90", &
+        "fortnum_bessel_outer_jvp_kernel", &
+        "fortnum_generated_bessel_outer_jvp", &
+        bessel_jvp_args, jvp_output, bessel_jvp)
     call write_variant( &
         "fortnum_dawson_outer_value_kernel.f90", &
         "fortnum_dawson_outer_value_kernel", &
@@ -96,7 +109,8 @@ contains
         type(engine_result_t) :: simplified
 
         best = first
-        best_operations = count_operations([best])
+        candidate(1) = best
+        best_operations = count_operations(candidate)
         candidate(1) = second
         simplified = engine%simplify(candidate(1))
         if (simplified%ok) candidate(1) = simplified%value
@@ -136,10 +150,10 @@ contains
         spec%module_name = str(module_name)
         spec%mode = KERNEL_SUBROUTINE
         spec%temp_prefix = str("t")
-        spec%generator = str("gen_dawson_outer")
+        spec%generator = str("gen_special_outer")
         spec%generator_revision = str(fortsym_revision())
         spec%regenerate_command = str( &
-            "cd tools/codegen && fo exec gen_dawson_outer")
+            "cd tools/codegen && fo exec gen_special_outer")
         spec%pure_procedure = .true.
         spec%openmp_declare_target = .true.
         spec%openacc_routine_seq = .true.
@@ -163,4 +177,4 @@ contains
             operations%total)
     end subroutine write_variant
 
-end program gen_dawson_outer
+end program gen_special_outer
