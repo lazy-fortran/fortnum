@@ -411,7 +411,7 @@ Every tournament record must include:
 
 ## Application-level benchmarks
 
-- [ ] Benchmark a root-constrained scalar objective.
+- [x] Benchmark a root-constrained scalar objective.
 - [ ] Benchmark a parameterized integral.
 - [ ] Benchmark spline fitting followed by a downstream gradient.
 - [ ] Benchmark an FFT-based spectral objective.

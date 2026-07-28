@@ -613,6 +613,11 @@ add_test(NAME fixed_point_jvp_validation
 add_test(NAME fixed_point_vjp_validation
     COMMAND bench_fixed_point_adjoint analytical --validation-error)
 
+add_executable(bench_root_objective bench_root_objective.f90)
+target_link_libraries(bench_root_objective PRIVATE bench_core)
+add_test(NAME root_objective_validation
+    COMMAND bench_root_objective analytical --validation-error)
+
 add_executable(bench_static_registry bench_static_registry.f90)
 target_link_libraries(bench_static_registry PRIVATE bench_core)
 

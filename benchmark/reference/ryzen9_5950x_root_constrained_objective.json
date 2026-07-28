@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "operator": "root_constrained_objective",
+  "product": "value_and_gradient",
+  "workload": "solve x^3+p1*x-p2=0, then evaluate L=0.5*x^2+0.1*p1^2 and its two-component gradient",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1 20260625",
+    "fortnum_commit": "134db717971f7ef8991854d1c7d150eef2a15b86",
+    "fortsym_commit": "724baf5b22894bc3e018b0653fac81bbf2f815eb"
+  },
+  "sampling": {
+    "warmup_rounds": 3,
+    "samples": 15,
+    "calls_per_sample": {
+      "analytical_implicit": 1000000,
+      "finite_difference_diagnostic": 200000
+    },
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum"
+  },
+  "validation": {
+    "oracle": "componentwise central difference with every perturbed root obtained by an independent 100-step bisection solve",
+    "maximum_absolute_error": 3.6977504391799698e-12,
+    "absolute_tolerance": 2e-10
+  },
+  "memory_method": "getrusage(RUSAGE_SELF) inside each separately launched candidate",
+  "counters": {
+    "method": "perf stat on the complete benchmark process, normalized by 15.3 timed-sample equivalents",
+    "analytical_implicit": {
+      "cycles_per_call": 368.837,
+      "instructions_per_call": 789.069,
+      "cache_references_per_call": 2.05762,
+      "cache_misses_per_call": 0.00504078
+    },
+    "finite_difference_diagnostic": {
+      "cycles_per_call": 1395.72,
+      "instructions_per_call": 2910.35,
+      "cache_references_per_call": 0.0909748,
+      "cache_misses_per_call": 0.0159611
+    }
+  },
+  "candidates": [
+    {
+      "id": "analytical_implicit",
+      "mechanism": "analytical",
+      "complete_root_solves_per_call": 1,
+      "median_ns_per_call": 81.59,
+      "mad_ns_per_call": 0.1759,
+      "peak_rss_bytes": 2686976
+    },
+    {
+      "id": "finite_difference_diagnostic",
+      "mechanism": "diagnostic",
+      "complete_root_solves_per_call": 5,
+      "median_ns_per_call": 439.7863,
+      "mad_ns_per_call": 0.9043,
+      "peak_rss_bytes": 2637824
+    }
+  ],
+  "selection": {
+    "selected": "analytical_implicit",
+    "runtime_speedup": 5.3902,
+    "reason": "both satisfy the independent complete-application oracle; the analytical implicit candidate is 5.3902x faster, executes 3.69x fewer instructions, and incurs 3.17x fewer cache misses per value-and-gradient call; the 49152-byte RSS difference is process noise and does not alter selection"
+  }
+}
