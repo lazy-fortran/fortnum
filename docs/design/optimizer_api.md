@@ -41,6 +41,21 @@ Gradient and HVP callbacks specialize scalar objectives.
 `context` carries immutable configuration and caller-owned workspace. It
 replaces global callback state and permits concurrent objective evaluations.
 
+## HVP consumer
+
+The first second-order consumer is a Hessian-free Newton-CG step for the
+nonlinear least-squares application in
+`benchmark/bench_nonlinear_least_squares.f90`. Its inner conjugate-gradient
+solve requires repeated \(H(x)v\) products to approximate the step
+\(Hs=-g\). It does not require a materialized Hessian.
+
+Candidate HVPs must return the objective and \(H(x)v\) through `hvp_fn`.
+Forward-over-reverse autodiff, reverse-over-forward autodiff, and an
+analytical least-squares HVP are admissible. Selection uses the complete
+Newton-CG workload: validation, achieved residual reduction, wall clock, and
+peak memory. A faster isolated HVP does not win if it increases outer or inner
+iterations.
+
 ## Candidate opacity
 
 The callback shape does not expose `autodiff`, `analytical`, or `hybrid`
