@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "module": "ode",
+  "source_revision": "bd199749305d5e8f85e06c8892f2e3032b544f20",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchains": [
+    "GNU Fortran 16.1.1 Release",
+    "Flang/LLVM 22.1.8 -O2 with Enzyme 22"
+  ],
+  "evidence_contract": {
+    "runtime": "median complete primal-plus-product wall clock with MAD in each referenced record",
+    "memory": "candidate-specific peak RSS in separate processes and retained trace bytes where applicable",
+    "validation": "closed forms, complete-solve finite differences, frozen-map finite differences, matrix exponentials, residual equations, and adjoint identities",
+    "scaling": "separate state, parameter, direction, cotangent, step-count, and trace-storage workloads",
+    "cache": "released perf counters are recorded for mechanism, trace-storage, long, and stiff comparisons",
+    "selection": "JVP and VJP products are selected independently for each workload"
+  },
+  "native_code": {
+    "library": "build/gfortran_DD609D2CDA6636FC/fortnum/libfortnum.a",
+    "cash_karp_step_symbol_bytes": 5068,
+    "adaptive_primal_symbol_bytes": 3703,
+    "adaptive_jvp_symbol_bytes": 3945,
+    "adaptive_vjp_symbol_bytes": 3913
+  },
+  "verdicts": [
+    {
+      "workload": "short frozen-trace parameter JVP",
+      "selected": "hybrid with generated Enzyme RHS JVP in the Enzyme build; analytical in the normal build",
+      "raw_hybrid_speedup_over_analytical": 1.0108,
+      "record": "ryzen9_5950x_ode_fixture_migration.json"
+    },
+    {
+      "workload": "16-by-16 initial-state Jacobian",
+      "selected": "analytical forward",
+      "speedup_over_analytical_reverse": 1.2271,
+      "record": "ryzen9_5950x_ode_discrete_sensitivity.json"
+    },
+    {
+      "workload": "short scalar-objective initial-state VJP",
+      "selected": "analytical reverse",
+      "speedup_over_forward_reconstruction": 1.7375,
+      "record": "ryzen9_5950x_ode_discrete_adjoint.json"
+    },
+    {
+      "workload": "long scalar-objective initial-state VJP",
+      "selected": "analytical full-trace reverse",
+      "speedup_over_forward": 1.7083,
+      "speedup_over_checkpoint": 1.2411,
+      "speedup_over_recompute": 42.2272,
+      "record": "ryzen9_5950x_ode_long_nonstiff.json"
+    },
+    {
+      "workload": "scalar-objective parameter VJP",
+      "selected": "analytical forward at one parameter; analytical reverse at four and sixteen",
+      "forward_speedup_at_one_parameter": 1.1608,
+      "reverse_speedup_at_four_parameters": 2.5434,
+      "reverse_speedup_at_sixteen_parameters": 8.5060,
+      "record": "ryzen9_5950x_ode_parameter_adjoint_scaling.json"
+    },
+    {
+      "workload": "implicit-stage products",
+      "selected": "analytical tangent and adjoint solves",
+      "maximum_jvp_speedup": 4.8776,
+      "maximum_vjp_speedup": 20.2052,
+      "record": "ryzen9_5950x_ode_implicit_stage_tangent.json; ryzen9_5950x_ode_implicit_stage_adjoint.json"
+    },
+    {
+      "workload": "event time and event state, four parameters and sixteen directions",
+      "selected": "analytical implicit event derivative and chain rule",
+      "event_time_speedup": 31.3732,
+      "event_state_speedup": 31.0566,
+      "record": "ryzen9_5950x_ode_event_time_tangent.json; ryzen9_5950x_ode_event_driven.json"
+    }
+  ],
+  "scope_limit": {
+    "stiff_trajectory": "the committed stiff record compares differentiation candidates around the explicit Cash-Karp primal",
+    "production_stiff_solver": "not selected because fortnum has no differentiable stiff primal candidate",
+    "record": "ryzen9_5950x_ode_stiff.json"
+  }
+}
