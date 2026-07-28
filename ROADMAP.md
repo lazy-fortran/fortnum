@@ -355,7 +355,7 @@ support.
   algorithms and recurrences at operator boundaries.
 - [x] Generate explicit scalar local residual products while retaining
   hand-written implicit tangent and adjoint solves.
-- [ ] Generate explicit vector local residual products while retaining
+- [x] Generate explicit vector local residual products while retaining
   hand-written implicit tangent and adjoint solves.
 - [ ] Add stability-preserving symbolic transformations with equivalence and
   numerical boundary tests.

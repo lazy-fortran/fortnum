@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "date": "2026-07-27",
+  "date": "2026-07-28",
   "operator": "vector_root",
   "product": "jvp",
   "workload": "coupled 2-state residual, 2 parameters, fixed 12-step Newton trace, 100000 varying directions per sample",
@@ -11,11 +11,12 @@
   "toolchain": {
     "flang_llvm": "22.1.8",
     "enzyme_commit": "c96508349d9f",
+    "fortsym_revision": "1e2b66151160010009116597777f58f596c53d4c",
     "build": "Release -O2"
   },
   "sampling": {
     "warmup_rounds": 3,
-    "samples": 15,
+    "samples": 31,
     "calls_per_sample": 100000,
     "memory_processes_per_candidate": 5,
     "memory_aggregation": "maximum"
@@ -35,34 +36,34 @@
     {
       "id": "analytical_implicit",
       "mechanism": "analytical",
-      "median_ns_per_call": 80.7424,
-      "mad_ns_per_call": 0.4353,
-      "peak_rss_bytes": 2424832
+      "median_ns_per_call": 85.77714,
+      "mad_ns_per_call": 1.23062,
+      "peak_rss_bytes": 2961408
     },
     {
       "id": "enzyme_residual_implicit",
       "mechanism": "hybrid",
-      "median_ns_per_call": 80.4377,
-      "mad_ns_per_call": 0.3774,
-      "peak_rss_bytes": 2224128
+      "median_ns_per_call": 79.72755,
+      "mad_ns_per_call": 0.81302,
+      "peak_rss_bytes": 2990080
     },
     {
       "id": "enzyme_through_newton_iterations",
       "mechanism": "autodiff",
-      "median_ns_per_call": 230.2933,
-      "mad_ns_per_call": 1.7658,
-      "peak_rss_bytes": 2465792
+      "median_ns_per_call": 222.10601,
+      "mad_ns_per_call": 1.12922,
+      "peak_rss_bytes": 2973696
     },
     {
       "id": "complete_solve_central_difference",
       "mechanism": "diagnostic",
-      "median_ns_per_call": 386.5402,
-      "mad_ns_per_call": 1.9719,
-      "peak_rss_bytes": 2273280
+      "median_ns_per_call": 348.80693,
+      "mad_ns_per_call": 1.03926,
+      "peak_rss_bytes": 2985984
     }
   ],
   "selection": {
     "selected": "enzyme_residual_implicit",
-    "reason": "hybrid has the lowest runtime and uses 200704 fewer peak-RSS bytes than analytical while passing the complete-solve oracle"
+    "reason": "hybrid has the lowest measured complete-workload wall clock and passes the complete-solve oracle; the 28672-byte RSS difference from analytical is process-level noise"
   }
 }
