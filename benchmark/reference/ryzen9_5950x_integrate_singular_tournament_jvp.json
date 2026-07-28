@@ -33,6 +33,12 @@
     "candidate_absolute_tolerance": 2e-8,
     "trace_identity_checked": true
   },
+  "native_code": {
+    "executable_bytes": 2277712,
+    "compact_analytical_jvp_symbol_bytes": 698,
+    "autodiff_jvp_symbol_bytes": 1580,
+    "compact_hybrid_jvp_symbol_bytes": 1272
+  },
   "candidates": [
     {"id": "generic_explicit_tangent", "mechanism": "analytical", "median_ns": 6753.1975, "mad_ns": 297.9260, "peak_rss_bytes": 2605056},
     {"id": "compact_explicit_tangent", "mechanism": "analytical", "median_ns": 2862.8335, "mad_ns": 81.6190, "peak_rss_bytes": 2592768, "cycles": 980341483, "instructions": 2865255545, "cache_references": 1291893, "cache_misses": 45041},

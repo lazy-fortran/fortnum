@@ -31,6 +31,13 @@
       0.0
     ]
   },
+  "native_code": {
+    "generated_residual_jvp_symbol_bytes": 43,
+    "analytical_root_jvp_symbol_bytes": 101,
+    "hybrid_root_jvp_symbol_bytes": 101,
+    "autodiff_iteration_jvp_symbol_bytes": 26,
+    "generated_newton_jvp_symbol_bytes": 2329
+  },
   "memory_method": "getrusage(RUSAGE_SELF) inside each separately launched candidate",
   "candidates": [
     {

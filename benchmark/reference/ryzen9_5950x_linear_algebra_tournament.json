@@ -41,6 +41,16 @@
       "diagnostic": 2707456
     }
   },
+  "native_code": {
+    "generated_det3_jvp_symbol_bytes": 366,
+    "generated_det3_vjp_symbol_bytes": 356,
+    "generated_inv3_jvp_symbol_bytes": 1890,
+    "generated_inv3_vjp_symbol_bytes": 2075,
+    "linear_solve_jvp_symbol_bytes": 454,
+    "linear_solve_factored_jvp_symbol_bytes": 597,
+    "linear_solve_vjp_symbol_bytes": 536,
+    "linear_solve_factored_vjp_symbol_bytes": 502
+  },
   "workloads": [
     {
       "name": "determinant_jvp",
