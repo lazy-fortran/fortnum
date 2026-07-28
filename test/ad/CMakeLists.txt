@@ -608,6 +608,12 @@ if(FORTNUM_ENABLE_ENZYME)
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hvp/forward_over_reverse.f90
         MODE forward
         OPT_LEVEL O2)
+    fortnum_add_enzyme_test(
+        NAME enzyme_hvp_reverse_over_forward
+        SOURCES
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hvp/reverse_over_forward.f90
+        MODE reverse
+        OPT_LEVEL O2)
     find_library(FORTNUM_FFTW3_LIBRARY NAMES fftw3)
     if(FORTNUM_FFTW3_LIBRARY)
         fortnum_add_enzyme_test(

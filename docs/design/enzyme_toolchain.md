@@ -88,3 +88,8 @@ the released pipeline. Its inner reverse call generates a nonlinear
 least-squares gradient; an outer forward call differentiates that gradient
 along one direction. The transformed HVP is checked against a closed-form
 Hessian contraction.
+
+`cmake/enzyme/hvp/reverse_over_forward.f90` applies the complementary order:
+an inner forward call forms a scalar directional derivative and an outer
+reverse call differentiates it with respect to the primal inputs. It is
+checked against the same contraction.
