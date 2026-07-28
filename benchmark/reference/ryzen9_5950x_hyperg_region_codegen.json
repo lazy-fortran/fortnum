@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "source_revision": "a5958232b551147bbe8329afb73013ab74fb6699",
+  "operator": "log(1 + M(1,2.5,x)^2), asymptotic region x > 60",
+  "products": ["jvp", "vjp"],
+  "active_inputs": 1,
+  "outputs": 1,
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor"
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "autodiff": "Enzyme 22",
+    "optimization": "O2",
+    "symbolic_generator": "fortsym@0fb62d205c6bd41dc8f99e5b259d33bfa49afe8c"
+  },
+  "candidates": {
+    "analytical_region": "fortsym-generated pure elemental contracted product of the asymptotic formula",
+    "autodiff": "Enzyme through the equivalent fixed-real-parameter specialization",
+    "analytical": "production complex primal plus parameter-shift product and outer chain rule"
+  },
+  "sampling": {
+    "samples": 15,
+    "warmup_samples": 3,
+    "derivative_calls_per_sample": 10000,
+    "direction_counts": [1, 4, 16],
+    "x": 80.0
+  },
+  "validation": {
+    "complete_objective_oracle": "central difference",
+    "relative_tolerance": 2e-7,
+    "array_oracle": "independently factored derivative evaluated at x=[64,80,120,160]",
+    "array_tolerance_ulps": 64,
+    "scalar_and_conformable_array_calls": true
+  },
+  "jvp_median_ns": {
+    "analytical_region": [35.5049, 44.8775, 62.2413],
+    "autodiff": [43.0522, 86.3307, 232.1273],
+    "analytical": [436.9782, 1689.0763, 6487.1579]
+  },
+  "vjp_median_ns": {
+    "analytical_region": [36.6811, 38.9955, 58.7647],
+    "autodiff": [53.6881, 129.8056, 431.1664],
+    "analytical": [390.0839, 1511.4576, 6170.6006]
+  },
+  "peak_rss_bytes_at_16_products": {
+    "analytical_region": 2826240,
+    "autodiff": 2699264,
+    "analytical": 2772992
+  },
+  "perf_stat_five_run_aggregate_at_16_jvps": {
+    "iterations": 100000,
+    "analytical_region": {
+      "cycles": 476161827,
+      "instructions": 1571673045,
+      "cache_references": 38423,
+      "cache_misses": 12038
+    },
+    "autodiff": {
+      "cycles": 1902366581,
+      "instructions": 5373274061,
+      "cache_references": 99919,
+      "cache_misses": 18787
+    }
+  },
+  "selection": {
+    "jvp": "analytical_region",
+    "vjp": "analytical_region",
+    "reason": "lowest validated complete-workload wall clock at every measured direction count; 3.73x faster JVP and 7.34x faster VJP at 16 products, with 4.7% higher peak RSS than autodiff"
+  }
+}

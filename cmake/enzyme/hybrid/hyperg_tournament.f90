@@ -10,6 +10,10 @@ program enzyme_hyperg_tournament
     use fortnum_generated_enzyme_hyperg_outer_autodiff, only: &
         fortnum_enzyme_hyperg_outer_autodiff_jvp, &
         fortnum_enzyme_hyperg_outer_autodiff_vjp_scalar
+    use fortnum_generated_hyperg_asymptotic_outer_jvp, only: &
+        fortnum_hyperg_asymptotic_outer_jvp
+    use fortnum_generated_hyperg_asymptotic_outer_vjp, only: &
+        fortnum_hyperg_asymptotic_outer_vjp
     use fortnum_status, only: fortnum_status_t, status_ok
     use fortnum_special_hypergeometric_1f1, only: hyperg_1f1_a1, &
         hyperg_1f1_a1_jvp, hyperg_1f1_a1_vjp
@@ -75,6 +79,8 @@ program enzyme_hyperg_tournament
         candidate_kind = 1
     case ("autodiff")
         candidate_kind = 2
+    case ("analytical_region")
+        candidate_kind = 4
     case default
         candidate_kind = 3
     end select
@@ -158,13 +164,21 @@ contains
             actual = analytical_vjp(x, direction)
             if (abs(actual - reference)/scale > 2.0e-7_c_double) &
                 error stop "analytical hyperg VJP mismatch"
+            if (i == region_count) then
+                call fortnum_hyperg_asymptotic_outer_jvp(x, direction, actual)
+                if (abs(actual - reference)/scale > 2.0e-7_c_double) &
+                    error stop "region analytical hyperg JVP mismatch"
+                call fortnum_hyperg_asymptotic_outer_vjp(x, direction, actual)
+                if (abs(actual - reference)/scale > 2.0e-7_c_double) &
+                    error stop "region analytical hyperg VJP mismatch"
+            end if
         end do
         call rule_counter_disable()
     end subroutine validate_candidates
 
     function measure_candidate() result(elapsed_ns)
         type(fixture_timer_t) :: timer
-        real(c_double) :: x, direction, elapsed_ns, local_sink
+        real(c_double) :: x, direction, derivative, elapsed_ns, local_sink
         integer :: direction_index, iteration
 
         local_sink = 0.0_c_double
@@ -181,15 +195,26 @@ contains
                     case (2)
                         local_sink = local_sink + &
                             fortnum_enzyme_hyperg_outer_autodiff_jvp(x, direction)
+                    case (4)
+                        call fortnum_hyperg_asymptotic_outer_jvp( &
+                            x, direction, derivative)
+                        local_sink = local_sink + derivative
                     case default
                         local_sink = local_sink + &
                             fortnum_enzyme_hyperg_outer_jvp(x, direction)
                     end select
-                else if (candidate_kind == 1) then
-                    local_sink = local_sink + analytical_vjp(x, direction)
                 else
-                    local_sink = local_sink + &
-                        fortnum_enzyme_hyperg_outer_autodiff_vjp_scalar(x, direction)
+                    select case (candidate_kind)
+                    case (1)
+                        local_sink = local_sink + analytical_vjp(x, direction)
+                    case (4)
+                        call fortnum_hyperg_asymptotic_outer_vjp( &
+                            x, direction, derivative)
+                        local_sink = local_sink + derivative
+                    case default
+                        local_sink = local_sink + &
+                            fortnum_enzyme_hyperg_outer_autodiff_vjp_scalar(x, direction)
+                    end select
                 end if
             end do
         end do
@@ -209,12 +234,15 @@ contains
 
     subroutine validate_benchmark_configuration()
         if (trim(candidate) /= "analytical" .and. &
-            trim(candidate) /= "autodiff" .and. trim(candidate) /= "hybrid") &
-            error stop "candidate must be analytical, autodiff, or hybrid"
+            trim(candidate) /= "autodiff" .and. trim(candidate) /= "hybrid" .and. &
+            trim(candidate) /= "analytical_region") &
+            error stop "invalid candidate"
         if (trim(product) /= "jvp" .and. trim(product) /= "vjp") &
             error stop "product must be jvp or vjp"
         if (trim(product) == "vjp" .and. trim(candidate) == "hybrid") &
             error stop "hybrid reverse custom rule is not implemented"
+        if (trim(candidate) == "analytical_region" .and. region /= region_count) &
+            error stop "region analytical candidate requires asymptotic region"
         if (directions < 1 .or. directions > 16) &
             error stop "directions must be 1..16"
         if (iterations < 1) error stop "iterations must be positive"

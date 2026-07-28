@@ -88,7 +88,11 @@ The hypergeometric tournament activates real `z` at fixed real parameters.
 Because Enzyme 22 cannot differentiate Flang's complex `cexp`, its candidate
 uses a real specialization of the same Kummer, Taylor, and asymptotic
 algorithms. Primal equivalence to the production complex path is a mandatory
-validation gate.
+validation gate. In the `x > 60` region, fortsym also emits pure-elemental
+analytical JVP and VJP kernels from the asymptotic definition. At 16 products
+they take 62.24 and 58.76 ns, versus Enzyme's 232.13 and 431.17 ns. Their
+2.83 MB peak RSS is 4.7% above Enzyme's 2.70 MB, so wall clock selects the
+generated region kernels.
 
 ## Current normalized set
 

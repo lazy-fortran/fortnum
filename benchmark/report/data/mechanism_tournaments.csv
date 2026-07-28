@@ -47,5 +47,5 @@ hyperg_kummer_jvp,autodiff,autodiff,3186.9808,10476.3632,ryzen9_5950x_hyperg_tou
 hyperg_kummer_vjp,autodiff,autodiff,9695.4992,14527.7216,ryzen9_5950x_hyperg_tournament.json
 hyperg_series_jvp,autodiff,autodiff,3761.0704,9227.5936,ryzen9_5950x_hyperg_tournament.json
 hyperg_series_vjp,autodiff,autodiff,6652.7408,14508.0048,ryzen9_5950x_hyperg_tournament.json
-hyperg_asymptotic_jvp,autodiff,autodiff,188.3056,3362.1440,ryzen9_5950x_hyperg_tournament.json
-hyperg_asymptotic_vjp,autodiff,autodiff,396.9552,6115.7776,ryzen9_5950x_hyperg_tournament.json
+hyperg_asymptotic_jvp,analytical,analytical,62.2413,232.1273,ryzen9_5950x_hyperg_region_codegen.json
+hyperg_asymptotic_vjp,analytical,analytical,58.7647,431.1664,ryzen9_5950x_hyperg_region_codegen.json
