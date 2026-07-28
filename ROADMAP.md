@@ -416,7 +416,7 @@ Every tournament record must include:
 - [x] Benchmark spline fitting followed by a downstream gradient.
 - [x] Benchmark an FFT-based spectral objective.
 - [x] Benchmark nonlinear least squares.
-- [ ] Benchmark stiff ODE sensitivity.
+- [x] Benchmark stiff ODE sensitivity.
 - [ ] Benchmark nonstiff ODE sensitivity.
 - [ ] Benchmark an event-driven trajectory.
 - [ ] Benchmark a small PDE or residual application.
