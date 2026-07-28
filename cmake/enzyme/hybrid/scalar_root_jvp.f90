@@ -1,5 +1,9 @@
 module scalar_root_hybrid_kernel
-    use, intrinsic :: iso_c_binding, only: c_double, c_funloc, c_funptr
+    use, intrinsic :: iso_c_binding, only: c_double
+    use fortnum_generated_enzyme_scalar_root_newton, only: &
+        fortnum_enzyme_scalar_root_newton_jvp
+    use fortnum_generated_enzyme_scalar_root_residual, only: &
+        fortnum_enzyme_scalar_root_residual_jvp
     use fortnum_kinds, only: dp
     use fortnum_roots, only: root_implicit_jvp
     use fortnum_status, only: fortnum_status_t, status_ok
@@ -8,17 +12,6 @@ module scalar_root_hybrid_kernel
 
     public :: analytical_root_jvp, hybrid_root_jvp, &
         autodiff_iterations_root_jvp, finite_difference_root_jvp, residual
-
-    interface
-        function enzyme_fwddiff(f, x, dx, p1, dp1, p2, dp2) result(df) &
-                bind(c, name="__enzyme_fwddiff")
-            import :: c_double, c_funptr
-            type(c_funptr), value :: f
-            real(c_double), value :: x, dx, p1, dp1, p2, dp2
-            real(c_double) :: df
-        end function enzyme_fwddiff
-
-    end interface
 
 contains
 
@@ -64,7 +57,7 @@ contains
         real(dp), intent(in) :: p(2), tp(2)
         real(dp) :: dx
 
-        dx = enzyme_fwddiff(c_funloc(newton_solve), 0.0_dp, 0.0_dp, &
+        dx = fortnum_enzyme_scalar_root_newton_jvp(0.0_dp, 0.0_dp, &
             p(1), tp(1), p(2), tp(2))
     end function autodiff_iterations_root_jvp
 
@@ -92,35 +85,32 @@ contains
         real(dp), intent(out) :: f_x, f_p_tp
         class(*), intent(inout), optional :: context
 
-        f_x = enzyme_fwddiff(c_funloc(residual), x, 1.0_dp, &
+        f_x = fortnum_enzyme_scalar_root_residual_jvp(x, 1.0_dp, &
             p(1), 0.0_dp, p(2), 0.0_dp)
-        f_p_tp = enzyme_fwddiff(c_funloc(residual), x, 0.0_dp, &
+        f_p_tp = fortnum_enzyme_scalar_root_residual_jvp(x, 0.0_dp, &
             p(1), tp(1), p(2), tp(2))
     end subroutine autodiff_residual_jvp
 
 end module scalar_root_hybrid_kernel
 
 program enzyme_scalar_root_hybrid
-    use, intrinsic :: iso_c_binding, only: c_double, c_int64_t
-    use, intrinsic :: iso_fortran_env, only: dp => real64, int64
+    use, intrinsic :: iso_fortran_env, only: dp => real64
+    use fortnum_enzyme_fixture_support, only: collect_fixture_samples, &
+        fixture_peak_rss_bytes, fixture_sample_count, fixture_timer_t, &
+        median_mad, write_fixture_result
     use scalar_root_hybrid_kernel, only: analytical_root_jvp, &
         hybrid_root_jvp, autodiff_iterations_root_jvp, &
         finite_difference_root_jvp, residual
     implicit none
 
-    interface
-        function peak_rss_bytes() bind(c, name="fortnum_peak_rss_bytes") &
-                result(bytes)
-            import :: c_int64_t
-            integer(c_int64_t) :: bytes
-        end function peak_rss_bytes
-    end interface
-
+    integer, parameter :: repetitions = 100000
     real(dp), parameter :: h = 1.0e-5_dp
     real(dp) :: p(2), pp(2), pm(2), tp(2), xstar, got, reference
     real(dp) :: analytical, autodiff_iterations, diagnostic
     real(dp) :: errors(4)
+    real(dp) :: samples(fixture_sample_count), sink
     character(32) :: argument, candidate
+    integer :: candidate_kind
 
     call get_command_argument(1, argument)
     call get_command_argument(2, candidate)
@@ -174,105 +164,79 @@ contains
     end function solve_root
 
     subroutine run_benchmark()
-        integer, parameter :: samples = 15
-        integer(int64), parameter :: reps = 100000_int64
-        real(dp) :: analytical(samples), hybrid(samples)
-        real(dp) :: autodiff_iterations(samples), diagnostic(samples), sink
-        integer :: sample
-
-        do sample = 1, 3
-            call time_candidate("analytical", reps/100_int64, sink)
-            call time_candidate("hybrid", reps/100_int64, sink)
-            call time_candidate("autodiff", reps/100_int64, sink)
-            call time_candidate("diagnostic", reps/100_int64, sink)
-        end do
-        do sample = 1, samples
-            call time_candidate("analytical", reps, analytical(sample))
-            call time_candidate("hybrid", reps, hybrid(sample))
-            call time_candidate("autodiff", reps, autodiff_iterations(sample))
-            call time_candidate("diagnostic", reps, diagnostic(sample))
-        end do
-        call report("analytical", analytical, reps)
-        call report("hybrid", hybrid, reps)
-        call report("autodiff", autodiff_iterations, reps)
-        call report("diagnostic", diagnostic, reps)
+        call benchmark_one("analytical", 1)
+        call benchmark_one("hybrid", 2)
+        call benchmark_one("autodiff", 3)
+        call benchmark_one("diagnostic", 4)
     end subroutine run_benchmark
 
     subroutine run_peak_rss(name)
         character(*), intent(in) :: name
-        integer(int64), parameter :: reps = 100000_int64
-        real(dp) :: elapsed
 
-        if ((name /= "analytical") .and. (name /= "hybrid") .and. &
-                (name /= "autodiff") .and. (name /= "diagnostic")) then
-            error stop "usage: --peak-rss analytical|hybrid|autodiff|diagnostic"
-        end if
-        call time_candidate(name, reps, elapsed)
-        write (*, "(i0)") peak_rss_bytes()
+        call parse_candidate(name)
+        sink = measure_candidate()
+        write (*, "(i0)") fixture_peak_rss_bytes()
     end subroutine run_peak_rss
 
-    subroutine time_candidate(name, reps, elapsed_ns)
+    subroutine benchmark_one(name, kind)
         character(*), intent(in) :: name
-        integer(int64), intent(in) :: reps
-        real(dp), intent(out) :: elapsed_ns
-        integer(int64) :: i, start, finish, rate
-        real(dp) :: parameters(2), direction(2), x, sink
+        integer, intent(in) :: kind
+        real(dp) :: median, mad
+
+        candidate_kind = kind
+        call collect_fixture_samples(measure_candidate, samples)
+        call median_mad(samples, median, mad)
+        call write_fixture_result(name, repetitions, median, mad)
+    end subroutine benchmark_one
+
+    subroutine parse_candidate(name)
+        character(*), intent(in) :: name
+
+        select case (name)
+        case ("analytical")
+            candidate_kind = 1
+        case ("hybrid")
+            candidate_kind = 2
+        case ("autodiff")
+            candidate_kind = 3
+        case ("diagnostic")
+            candidate_kind = 4
+        case default
+            error stop "usage: --peak-rss analytical|hybrid|autodiff|diagnostic"
+        end select
+    end subroutine parse_candidate
+
+    function measure_candidate() result(elapsed_ns)
+        type(fixture_timer_t) :: timer
+        real(dp) :: elapsed_ns
+        integer :: i
+        real(dp) :: parameters(2), direction(2), x, local_sink
 
         parameters(1) = 0.7_dp
         direction = [0.4_dp, -0.6_dp]
-        sink = 0.0_dp
-        call system_clock(start, rate)
-        do i = 1_int64, reps
-            x = 1.15_dp + 0.001_dp*real(mod(i, 101_int64), dp)
+        local_sink = 0.0_dp
+        call timer%start()
+        do i = 1, repetitions
+            x = 1.15_dp + 0.001_dp*real(mod(i, 101), dp)
             parameters(2) = x*x*x + parameters(1)*x
-            select case (name)
-            case ("analytical")
-                sink = sink + analytical_root_jvp(x, parameters, direction)
-            case ("hybrid")
-                sink = sink + hybrid_root_jvp(x, parameters, direction)
-            case ("autodiff")
-                sink = sink + autodiff_iterations_root_jvp(parameters, direction)
-            case ("diagnostic")
-                sink = sink + finite_difference_root_jvp(parameters, direction)
+            select case (candidate_kind)
+            case (1)
+                local_sink = local_sink + analytical_root_jvp( &
+                    x, parameters, direction)
+            case (2)
+                local_sink = local_sink + hybrid_root_jvp( &
+                    x, parameters, direction)
+            case (3)
+                local_sink = local_sink + autodiff_iterations_root_jvp( &
+                    parameters, direction)
+            case default
+                local_sink = local_sink + finite_difference_root_jvp( &
+                    parameters, direction)
             end select
         end do
-        call system_clock(finish)
-        elapsed_ns = 1.0e9_dp*real(finish - start, dp) &
-            / (real(rate, dp)*real(reps, dp))
-        if (sink /= sink) error stop "benchmark failed"
-    end subroutine time_candidate
-
-    subroutine report(name, values, reps)
-        character(*), intent(in) :: name
-        real(dp), intent(in) :: values(:)
-        integer(int64), intent(in) :: reps
-        real(dp) :: ordered(size(values)), deviations(size(values))
-        real(dp) :: median, mad
-
-        ordered = values
-        call sort_values(ordered)
-        median = ordered((size(ordered) + 1)/2)
-        deviations = abs(values - median)
-        call sort_values(deviations)
-        mad = deviations((size(deviations) + 1)/2)
-        write (*, "(a,',',i0,',',f12.4,',',f12.4)") &
-            name, reps, median, mad
-    end subroutine report
-
-    subroutine sort_values(values)
-        real(dp), intent(inout) :: values(:)
-        real(dp) :: temporary
-        integer :: i, j
-
-        do i = 1, size(values) - 1
-            do j = i + 1, size(values)
-                if (values(j) < values(i)) then
-                    temporary = values(i)
-                    values(i) = values(j)
-                    values(j) = temporary
-                end if
-            end do
-        end do
-    end subroutine sort_values
+        elapsed_ns = timer%elapsed_ns()/real(repetitions, dp)
+        if (local_sink /= local_sink) error stop "scalar-root JVP benchmark failed"
+        sink = local_sink
+    end function measure_candidate
 
 end program enzyme_scalar_root_hybrid

@@ -1127,6 +1127,46 @@ taskset -c 4 \
     --benchmark
 ```
 
+### Generated-wrapper migration
+
+`fortsym` now generates the three-active-scalar wrappers for residual and
+fixed-Newton JVP/VJP candidates. This removes both raw Enzyme interfaces and
+the handwritten reverse-gradient result struct. Shared fixture support
+provides three warmups, 15-sample median/MAD, timing, and peak RSS; candidate
+names are resolved before the timed loops. The analytical implicit formulas,
+fixed Newton trace, and complete 100-step bisection oracles remain explicit.
+
+The workload has two active parameters and one root output, so it has no
+input/output-count scaling axis. Forward and reverse modes are nevertheless
+measured separately:
+
+| Product | Candidate | Mechanism | Median ns (MAD) | Peak RSS |
+|---|---|---|---:|---:|
+| JVP | implicit, explicit residual products | `analytical` | 2.2973 (0.0006) | 2,785,280 B |
+| JVP | implicit, generated Enzyme residual products | `hybrid` | 1.8914 (0.0032) | 2,793,472 B |
+| JVP | Enzyme through 12 Newton steps | `autodiff` | 115.8206 (0.1567) | 2,936,832 B |
+| JVP | complete-solve central difference | diagnostic | 73.6477 (0.1272) | 2,945,024 B |
+| VJP | implicit, explicit residual products | `analytical` | 14.1170 (0.0453) | 2,502,656 B |
+| VJP | implicit, generated Enzyme residual products | `hybrid` | 19.4899 (0.0249) | 2,727,936 B |
+| VJP | Enzyme through 12 Newton steps | `autodiff` | 158.8039 (0.9627) | 2,486,272 B |
+| VJP | componentwise complete-solve differences | diagnostic | 143.2323 (0.8986) | 2,527,232 B |
+
+Hybrid remains selected for JVP and is 1.2146 times faster than analytical.
+The VJP selection changes to analytical, which is 1.3806 times faster than
+hybrid. Relative to the prior selected fixtures, complete JVP and VJP wall
+clock improve by 76.50% and 15.60%.
+
+Hardware counters explain the small-kernel choices. JVP analytical/hybrid
+costs are 15.31/11.38 cycles and 47.32/40.32 instructions per call. VJP
+analytical/hybrid costs are 67.28/91.41 cycles and 218.32/295.32
+instructions. Cache misses are 0.071--0.078 per call across all candidates
+and do not change the wall-clock selection.
+
+The two-fixture incremental build takes 1.02 s with 123,056 KiB peak RSS.
+Generated-wrapper support adds 1,752 bytes to the JVP executable and 1,784
+bytes to the VJP executable. The controlled record is
+`benchmark/reference/ryzen9_5950x_scalar_root_fixture_migration.json`.
+
 ## CPU Enzyme fixture baseline
 
 Before consolidating fixture scaffolding, a clean released Flang/Enzyme build

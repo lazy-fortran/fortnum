@@ -89,9 +89,13 @@ The first implementation slice now also contains:
 - the same fixed-array profile extended to two inactive integer controls for
   the fixed-trace iterative-solver fixture, while preserving its explicit
   analytical tangent recurrence and finite-difference trace oracle
+- generated three-active-scalar wrappers for scalar-root residual and
+  fixed-Newton JVP/VJP candidates; implicit differentiation, analytical
+  residual products, and complete-root finite-difference oracles remain
+  hand-written
 
 Remaining work is tracked item by item in `ROADMAP.md`; the next CPU Enzyme
-step migrates scalar-root JVP and VJP fixtures.
+step migrates vector-root JVP and VJP fixtures.
 
 ## 3. Terminology
 

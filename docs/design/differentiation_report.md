@@ -25,14 +25,14 @@ fortnum build.
 
 | Mechanism | Selected workloads | Share | Raw fastest workloads |
 |---|---:|---:|---:|
-| `analytical` | 24 | 75.0% | 23 |
+| `analytical` | 25 | 78.1% | 24 |
 | `autodiff` | 4 | 12.5% | 4 |
-| `hybrid` | 4 | 12.5% | 5 |
+| `hybrid` | 3 | 9.4% | 4 |
 | finite-difference diagnostic | 0 | 0.0% | 0 |
 
 Across the 32 workloads, the second-fastest candidate ranges from 1.004x to
-1,224.355x the fastest wall clock. The median ratio is 1.261x and the
-geometric mean is 2.053x. Fifteen workloads have a runner-up within 20% of the
+1,224.355x the fastest wall clock. The median ratio is 1.275x and the
+geometric mean is 2.080x. Thirteen workloads have a runner-up within 20% of the
 fastest candidate; full finite-difference VJPs of fitted coefficients provide
 the largest separation.
 Consequently, mechanism counts describe only the current measured workload
@@ -63,6 +63,12 @@ kernel. After migration to generated wrappers and pre-loop candidate dispatch,
 analytical is 20.1% faster than forward Enzyme for 16 JVPs and 10.2% faster
 than reverse Enzyme for 16 VJPs. The selected complete-workload wall clocks
 also improve by 66.4% and 60.4%, respectively, relative to the old fixture.
+
+The two-parameter scalar root shows that forward and reverse decisions can
+still differ at the same interface. Generated Enzyme residual products make
+the hybrid implicit JVP 1.215x faster than analytical, while the analytical
+implicit VJP is 1.381x faster than the reverse hybrid. Autodiff through the
+fixed Newton iterations loses both tournaments.
 
 The modified-Bessel outer objective strengthens that conclusion across primal
 regions. At 16 products, analytical wins series JVP/VJP, recurrence VJP, and

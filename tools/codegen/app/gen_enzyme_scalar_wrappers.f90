@@ -25,6 +25,24 @@ program gen_enzyme_scalar_wrappers
     call write_named_wrapper(output_directory, &
         "fortnum_generated_enzyme_square", "fortnum_enzyme_square", &
         "fortnum_smoke_square", "fortnum_enzyme_square.f90")
+    call write_named_wrapper(output_directory, &
+        "fortnum_generated_enzyme_scalar_root_residual", &
+        "fortnum_enzyme_scalar_root_residual", "fortnum_scalar_root_residual", &
+        "fortnum_enzyme_scalar_root_residual.f90", 3)
+    call write_named_wrapper(output_directory, &
+        "fortnum_generated_enzyme_scalar_root_newton", &
+        "fortnum_enzyme_scalar_root_newton", "fortnum_scalar_root_newton_solve", &
+        "fortnum_enzyme_scalar_root_newton.f90", 3)
+    call write_named_wrapper(output_directory, &
+        "fortnum_generated_enzyme_scalar_root_vjp_residual", &
+        "fortnum_enzyme_scalar_root_vjp_residual", &
+        "fortnum_scalar_root_vjp_residual", &
+        "fortnum_enzyme_scalar_root_vjp_residual.f90", 3)
+    call write_named_wrapper(output_directory, &
+        "fortnum_generated_enzyme_scalar_root_vjp_newton", &
+        "fortnum_enzyme_scalar_root_vjp_newton", &
+        "fortnum_scalar_root_vjp_newton_solve", &
+        "fortnum_enzyme_scalar_root_vjp_newton.f90", 3)
     call write_scalar_vector_wrapper(output_directory)
     call write_fixed_array_wrapper(output_directory, &
         "fortnum_generated_enzyme_direct_solver_component", &
@@ -96,9 +114,10 @@ contains
     end subroutine write_wrapper
 
     subroutine write_named_wrapper(directory, module_name, wrapper_prefix, &
-            primal_symbol, filename)
+            primal_symbol, filename, active_inputs)
         character(*), intent(in) :: directory, module_name, wrapper_prefix
         character(*), intent(in) :: primal_symbol, filename
+        integer, intent(in), optional :: active_inputs
         type(enzyme_scalar_wrapper_spec_t) :: spec
         character(:), allocatable :: code, path
         integer :: unit, ios
@@ -107,6 +126,7 @@ contains
         spec%wrapper_prefix = str(wrapper_prefix)
         spec%primal_symbol = str(primal_symbol)
         spec%active_inputs = 1
+        if (present(active_inputs)) spec%active_inputs = active_inputs
         spec%generator = str("gen_enzyme_scalar_wrappers")
         spec%generator_revision = str(fortsym_revision())
         spec%regenerate_command = str( &
