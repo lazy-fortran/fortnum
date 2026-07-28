@@ -23,7 +23,31 @@ if(NOT FORTNUM_ENABLE_ENZYME)
     return()
 endif()
 
-# --- Flang driver. Default flang-new; allow override via cache var. ---
+# Optional toolchain prefix. With no prefix, discovery uses PATH and the
+# platform's standard library locations.
+set(FORTNUM_LLVM_ROOT "$ENV{FORTNUM_LLVM_ROOT}" CACHE PATH
+    "Optional LLVM toolchain prefix used by the Enzyme pipeline")
+
+if(FORTNUM_LLVM_ROOT
+        AND NOT DEFINED FORTNUM_FLANG_EXECUTABLE
+        AND EXISTS "${FORTNUM_LLVM_ROOT}/bin/flang")
+    set(FORTNUM_FLANG_EXECUTABLE "${FORTNUM_LLVM_ROOT}/bin/flang"
+        CACHE FILEPATH "Flang driver used for LLVM IR emission and final link")
+endif()
+if(FORTNUM_LLVM_ROOT
+        AND NOT DEFINED FORTNUM_CLANG_EXECUTABLE
+        AND EXISTS "${FORTNUM_LLVM_ROOT}/bin/clang")
+    set(FORTNUM_CLANG_EXECUTABLE "${FORTNUM_LLVM_ROOT}/bin/clang"
+        CACHE FILEPATH "Clang driver used for Enzyme custom-rule helper IR")
+endif()
+if(FORTNUM_LLVM_ROOT
+        AND NOT DEFINED FORTNUM_LLVM_OPT_EXECUTABLE
+        AND EXISTS "${FORTNUM_LLVM_ROOT}/bin/opt")
+    set(FORTNUM_LLVM_OPT_EXECUTABLE "${FORTNUM_LLVM_ROOT}/bin/opt"
+        CACHE FILEPATH "LLVM opt driver used to run the Enzyme pass")
+endif()
+
+# --- Flang driver. Allow override via cache var. ---
 find_program(FORTNUM_FLANG_EXECUTABLE
     NAMES flang-new flang
     DOC "Flang driver used for LLVM IR emission and final link")
@@ -64,19 +88,34 @@ set(_fortnum_enzyme_plugin_names
     LLVMEnzyme-${_fortnum_llvm_major}.dylib
     LLVMEnzyme.dylib)
 
+set(_fortnum_enzyme_search_paths
+    /usr/lib
+    /usr/lib64
+    /usr/local/lib
+    /usr/local/lib64
+    /opt/enzyme/lib)
+if(FORTNUM_LLVM_ROOT)
+    list(PREPEND _fortnum_enzyme_search_paths "${FORTNUM_LLVM_ROOT}/lib")
+endif()
+
+if(FORTNUM_LLVM_ROOT
+        AND NOT DEFINED FORTNUM_ENZYME_PLUGIN
+        AND EXISTS
+            "${FORTNUM_LLVM_ROOT}/lib/LLVMEnzyme-${_fortnum_llvm_major}.so")
+    set(FORTNUM_ENZYME_PLUGIN
+        "${FORTNUM_LLVM_ROOT}/lib/LLVMEnzyme-${_fortnum_llvm_major}.so"
+        CACHE FILEPATH
+        "Enzyme LLVM pass plugin shared object (set manually to activate)")
+endif()
+
 find_library(FORTNUM_ENZYME_PLUGIN
     NAMES ${_fortnum_enzyme_plugin_names}
           LLVMEnzyme-${_fortnum_llvm_major}
           LLVMEnzyme
-    PATHS
-        /usr/lib
-        /usr/lib64
-        /usr/local/lib
-        /usr/local/lib64
-        /opt/enzyme/lib
+    PATHS ${_fortnum_enzyme_search_paths}
         ENV ENZYME_PLUGIN_DIR
-        ENV LD_LIBRARY_PATH
     PATH_SUFFIXES enzyme Enzyme llvm/lib llvm-${_fortnum_llvm_major}/lib
+    NO_DEFAULT_PATH
     DOC "Enzyme LLVM pass plugin shared object (set manually to activate)")
 
 # --- Decide availability. ---
