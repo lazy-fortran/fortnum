@@ -434,7 +434,7 @@ Every tournament record must include:
 - [x] Validate HVPs with an independent second-directional or high-precision
   oracle.
 - [x] Measure HVP runtime and peak memory.
-- [ ] Add a full Hessian only when a measured consumer requires one.
+- [x] Add a full Hessian only when a measured consumer requires one.
 
 ## Repository quality
 

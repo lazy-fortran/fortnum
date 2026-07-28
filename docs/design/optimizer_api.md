@@ -72,6 +72,11 @@ their oracle. The analytical application candidate is independently checked
 by complex-step differentiation of the gradient; its current maximum absolute
 error is \(6.94\times10^{-18}\).
 
+No measured consumer requires a materialized Hessian. Newton-CG consumes HVPs
+directly, so `fortnum` does not add an \(O(n^2)\)-storage Hessian callback or
+matrix API. Revisit that decision only when a concrete downstream algorithm
+demonstrates a complete-workload benefit from the matrix.
+
 ## Candidate opacity
 
 The callback shape does not expose `autodiff`, `analytical`, or `hybrid`
