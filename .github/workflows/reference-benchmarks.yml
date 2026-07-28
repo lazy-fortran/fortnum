@@ -1,0 +1,70 @@
+name: reference benchmarks
+
+on:
+  schedule:
+    - cron: "17 2 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reference-benchmarks-ryzen9-5950x
+  cancel-in-progress: false
+
+jobs:
+  cpu:
+    name: Ryzen 9 5950X CPU evidence
+    runs-on: [self-hosted, linux, x64, ryzen9-5950x]
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify reference host
+        run: |
+          set -euo pipefail
+          lscpu | tee reference-host.txt
+          grep -F "AMD Ryzen 9 5950X 16-Core Processor" reference-host.txt
+          {
+            echo "source_revision=$(git rev-parse HEAD)"
+            gfortran --version | head -1
+            cmake --version | head -1
+            ninja --version
+          } | tee reference-toolchain.txt
+
+      - name: Configure and build
+        run: |
+          set -euo pipefail
+          cmake -S benchmark -B build-reference -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-reference -j 2
+
+      - name: Validate and measure
+        run: |
+          set -euo pipefail
+          taskset -c 4 ./build-reference/bin/bench_main --json \
+            | tee reference-run.json
+          python3 benchmark/gate.py \
+            --baseline benchmark/baseline.json \
+            --run reference-run.json \
+            --factor 1.5
+          /usr/bin/time -v -o reference-memory.txt \
+            perf stat -o reference-cache.txt \
+              -e cycles,instructions,cache-references,cache-misses \
+              taskset -c 4 ./build-reference/bin/bench_main --json \
+              > reference-measured-run.json
+
+      - name: Upload raw evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ryzen9-5950x-${{ github.sha }}
+          path: |
+            reference-cache.txt
+            reference-host.txt
+            reference-measured-run.json
+            reference-memory.txt
+            reference-run.json
+            reference-toolchain.txt
+          retention-days: 30
+
