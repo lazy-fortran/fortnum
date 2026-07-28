@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "source_revision": "4678cc19c41b43c3626775df485986cbe8625ba2",
+  "fortsym_revision": "0fb62d205c6bd41dc8f99e5b259d33bfa49afe8c",
+  "operator": "Dawson identity",
+  "product": "JVP",
+  "classification": "analytical",
+  "purpose": "target-aware algebraic factoring and pure-elemental array execution",
+  "candidates": {
+    "raw": "unsimplified directional derivative",
+    "simplified": "SymEngine-simplified directional derivative",
+    "factored": "explicit factored expression from the same symbolic model"
+  },
+  "validation": {
+    "symbolic_oracle": "SymEngine zero-test proves simplified-raw=0 and factored-raw=0",
+    "numerical_oracle": "independently written analytical JVP evaluated through scalar and conformable-array calls"
+  },
+  "workload": {
+    "elements": 1048576,
+    "array_passes_per_sample": 1,
+    "samples_per_process": 31,
+    "processes": 5,
+    "total_samples": 155,
+    "warmup_samples_per_process": 3,
+    "affinity": "taskset -c 4",
+    "residency": "host arrays remain allocated across samples"
+  },
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor"
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1 20260625",
+    "flags": "-O3"
+  },
+  "wall_clock": {
+    "raw": {
+      "median_ms": 5.710998,
+      "mad_ms": 0.026008,
+      "ns_per_element": 5.446432
+    },
+    "simplified": {
+      "median_ms": 4.583484,
+      "mad_ms": 0.020949,
+      "ns_per_element": 4.371151
+    },
+    "factored": {
+      "median_ms": 4.749688,
+      "mad_ms": 0.023314,
+      "ns_per_element": 4.529656
+    }
+  },
+  "peak_host_rss_bytes": {
+    "raw": 44670976,
+    "simplified": 44670976,
+    "factored": 44675072
+  },
+  "perf_stat_five_run_aggregate": {
+    "raw": {
+      "cycles": 927775515,
+      "instructions": 3856526440,
+      "cache_references": 54525591,
+      "cache_misses": 590624
+    },
+    "simplified": {
+      "cycles": 767334724,
+      "instructions": 3122526047,
+      "cache_references": 56983652,
+      "cache_misses": 609601
+    },
+    "factored": {
+      "cycles": 764935497,
+      "instructions": 3085823742,
+      "cache_references": 52068630,
+      "cache_misses": 607034
+    }
+  },
+  "native_symbol_bytes": {
+    "raw": 197,
+    "simplified": 115,
+    "factored": 111
+  },
+  "selection": {
+    "winner": "simplified",
+    "reason": "lowest complete-array wall clock; factored is 3.63% slower despite fewer instructions and a 4-byte smaller symbol",
+    "speedup_over_raw": 1.2460,
+    "policy": "retain the simplified production leaf; keep losing variants temporary"
+  }
+}

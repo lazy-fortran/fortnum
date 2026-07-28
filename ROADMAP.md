@@ -359,7 +359,7 @@ support.
   hand-written implicit tangent and adjoint solves.
 - [x] Add stability-preserving symbolic transformations with equivalence and
   numerical boundary tests.
-- [ ] Add target-aware factoring only when native complete-workload benchmarks
+- [x] Add target-aware factoring only when native complete-workload benchmarks
   justify it.
 - [ ] Re-run candidate selection and cumulative reports after the generation
   migration.
