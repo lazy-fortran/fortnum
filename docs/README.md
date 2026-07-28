@@ -54,3 +54,6 @@ rejects broken local links, missing document-map entries, undocumented
 production modules, absent API symbols, legacy terminology, stale issue-era
 claims, hard-coded revisions, generator-lock drift, stale aggregate benchmark
 statistics, unindexed derivative ownership, and committed report PNGs.
+
+CTest also rejects generated JVP paths that call a Jacobian constructor or
+lose their generator ownership.

@@ -345,7 +345,7 @@ support.
   or generated hybrid boundary.
 - [x] Replace manually transcribed explicit chain-rule expressions with
   `fortsym` value/JVP/VJP generation where the generated candidate is admissible.
-- [ ] Generate contracted JVP expressions directly without materializing a
+- [x] Generate contracted JVP expressions directly without materializing a
   Jacobian.
 - [ ] Generate contracted VJP expressions directly without materializing a
   Jacobian.
