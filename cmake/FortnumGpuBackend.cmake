@@ -35,23 +35,32 @@ elseif(FORTNUM_GPU_BACKEND STREQUAL "OPENMP")
             "FORTNUM_OPENMP_TARGET_FLAGS for a real offload target; "
             "host-only OpenMP is not accepted")
     endif()
-    if(NOT CMAKE_Fortran_COMPILER_ID STREQUAL "NVHPC")
+    if(NOT CMAKE_Fortran_COMPILER_ID STREQUAL "NVHPC"
+            AND NOT (CMAKE_Fortran_COMPILER_ID STREQUAL "LLVMFlang"
+                AND CMAKE_Fortran_COMPILER_VERSION VERSION_GREATER_EQUAL 23))
         message(FATAL_ERROR
-            "FORTNUM_GPU_BACKEND=OPENMP currently supports only the "
-            "validated NVHPC nvfortran compiler")
-    endif()
-    find_package(OpenMP QUIET COMPONENTS Fortran)
-    if(NOT TARGET OpenMP::OpenMP_Fortran)
-        message(FATAL_ERROR
-            "FORTNUM_GPU_BACKEND=OPENMP requested, but this released "
-            "Fortran compiler has no CMake-detectable OpenMP support")
+            "FORTNUM_GPU_BACKEND=OPENMP requires NVHPC or LLVM Flang 23+")
     endif()
     separate_arguments(_fortnum_openmp_target_flags NATIVE_COMMAND
         "${FORTNUM_OPENMP_TARGET_FLAGS}")
-    target_compile_options(fortnum_gpu_backend INTERFACE
-        $<$<COMPILE_LANGUAGE:Fortran>:${_fortnum_openmp_target_flags}>)
-    target_link_options(fortnum_gpu_backend INTERFACE
-        ${_fortnum_openmp_target_flags})
-    target_link_libraries(fortnum_gpu_backend INTERFACE
-        OpenMP::OpenMP_Fortran)
+    if(CMAKE_Fortran_COMPILER_ID STREQUAL "LLVMFlang")
+        target_compile_options(fortnum_gpu_backend INTERFACE
+            $<$<COMPILE_LANGUAGE:Fortran>:-fopenmp>
+            $<$<COMPILE_LANGUAGE:Fortran>:${_fortnum_openmp_target_flags}>)
+        target_link_options(fortnum_gpu_backend INTERFACE
+            -fopenmp ${_fortnum_openmp_target_flags})
+    else()
+        find_package(OpenMP QUIET COMPONENTS Fortran)
+        if(NOT TARGET OpenMP::OpenMP_Fortran)
+            message(FATAL_ERROR
+                "FORTNUM_GPU_BACKEND=OPENMP requested, but this released "
+                "Fortran compiler has no CMake-detectable OpenMP support")
+        endif()
+        target_compile_options(fortnum_gpu_backend INTERFACE
+            $<$<COMPILE_LANGUAGE:Fortran>:${_fortnum_openmp_target_flags}>)
+        target_link_options(fortnum_gpu_backend INTERFACE
+            ${_fortnum_openmp_target_flags})
+        target_link_libraries(fortnum_gpu_backend INTERFACE
+            OpenMP::OpenMP_Fortran)
+    endif()
 endif()

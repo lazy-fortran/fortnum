@@ -335,6 +335,35 @@ if(FORTNUM_GPU_BACKEND STREQUAL "OPENACC")
         gpu/bench_openacc_dawson_offload.f90)
     target_link_libraries(bench_openacc_dawson_offload PRIVATE bench_core)
 elseif(FORTNUM_GPU_BACKEND STREQUAL "OPENMP")
+    if(CMAKE_Fortran_COMPILER_ID STREQUAL "LLVMFlang")
+        get_filename_component(_fortnum_flang_bin
+            "${CMAKE_Fortran_COMPILER}" DIRECTORY)
+        get_filename_component(_fortnum_llvm_root
+            "${_fortnum_flang_bin}" DIRECTORY)
+        set(_fortnum_flang_enzyme_plugin
+            "${_fortnum_llvm_root}/lib/FlangEnzymeMLIR-23.so")
+        set(_fortnum_enzyme_module_dir
+            "${_fortnum_llvm_root}/include/EnzymeFortran")
+        if(EXISTS "${_fortnum_flang_enzyme_plugin}"
+                AND EXISTS "${_fortnum_enzyme_module_dir}/enzyme.mod"
+                AND EXISTS
+                    "${_fortnum_enzyme_module_dir}/enzyme_function_hooks.mod")
+            add_executable(test_openmp_enzyme_fir_offload
+                gpu/test_openmp_enzyme_fir_offload.f90)
+            target_compile_options(test_openmp_enzyme_fir_offload PRIVATE
+                "SHELL:-Xflang -load -Xflang ${_fortnum_flang_enzyme_plugin}")
+            target_include_directories(test_openmp_enzyme_fir_offload PRIVATE
+                "${_fortnum_enzyme_module_dir}")
+            target_link_libraries(test_openmp_enzyme_fir_offload PRIVATE
+                fortnum_gpu_backend)
+            add_test(NAME openmp_enzyme_fir_offload
+                COMMAND test_openmp_enzyme_fir_offload)
+            set_tests_properties(openmp_enzyme_fir_offload PROPERTIES
+                ENVIRONMENT
+                    "LD_LIBRARY_PATH=${_fortnum_llvm_root}/lib;OMP_TARGET_OFFLOAD=MANDATORY")
+        endif()
+    endif()
+
     add_executable(test_openmp_dawson_offload
         gpu/test_openmp_dawson_offload.f90)
     target_link_libraries(test_openmp_dawson_offload PRIVATE bench_core)
