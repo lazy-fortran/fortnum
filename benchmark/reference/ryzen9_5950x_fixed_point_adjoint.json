@@ -3,6 +3,8 @@
   "date": "2026-07-27",
   "operator": "fixed_point",
   "product": "vjp",
+  "source_revision": "5d6d34884038f6ed76c3630ab11873e602b1b247",
+  "evidence_refresh_source_revision": "055bb2d391f03fe369522bc3da7a6b2b68329a16",
   "workload": "2-state nonlinear map, 2 active parameters, reusable converged state and map derivatives",
   "hardware": {
     "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
@@ -25,7 +27,12 @@
   },
   "validation": {
     "oracle": "componentwise central difference of u^T*x*(p) with complete converged fixed-point solves",
-    "absolute_tolerance": 1e-9
+    "absolute_tolerance": 1e-9,
+    "maximum_absolute_error": 1.0121792293205090e-10
+  },
+  "native_code": {
+    "executable_bytes": 89008,
+    "analytical_vjp_symbol_bytes": 2749
   },
   "memory_method": "getrusage(RUSAGE_SELF) inside each separately launched candidate",
   "candidates": [
@@ -35,6 +42,10 @@
       "median_ns_per_call": 132.3983,
       "mad_ns_per_call": 0.9601,
       "peak_rss_bytes": 12550144,
+      "cycles_per_call": 611.163,
+      "instructions_per_call": 2279.038,
+      "cache_references_per_call": 0.082443,
+      "cache_misses_per_call": 0.004631,
       "reusable_primal_state": "converged fixed point, G_x, and G_p"
     },
     {
@@ -43,6 +54,10 @@
       "median_ns_per_call": 2495.1440,
       "mad_ns_per_call": 8.1037,
       "peak_rss_bytes": 12529664,
+      "cycles_per_call": 11282.793,
+      "instructions_per_call": 12700.980,
+      "cache_references_per_call": 8.484361,
+      "cache_misses_per_call": 0.126776,
       "reusable_primal_state": "none; four complete solves per VJP"
     }
   ],

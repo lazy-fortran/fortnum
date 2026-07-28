@@ -3,6 +3,8 @@
   "date": "2026-07-28",
   "operator": "scalar_root",
   "purpose": "generated-wrapper and shared-fixture migration",
+  "source_revision": "5321f66302e026c1ae5301c8c37c6a7e837f8710",
+  "evidence_refresh_source_revision": "055bb2d391f03fe369522bc3da7a6b2b68329a16",
   "hardware": {
     "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
     "pinned_cpu": 4
@@ -19,6 +21,12 @@
     "outputs": 1,
     "newton_steps_for_autodiff_and_diagnostic": 12,
     "calls_per_sample": 100000
+  },
+  "workload_contract": {
+    "reusable_primal_state": "the converged scalar root is reused by implicit analytical and hybrid candidates",
+    "jvp": "one direction in two active parameters returns one root tangent",
+    "vjp": "one root cotangent returns two parameter cotangents",
+    "autodiff_scope": "autodiff and diagnostic candidates differentiate twelve fixed Newton steps"
   },
   "migration": {
     "temporary_generated_wrappers": [
@@ -166,6 +174,18 @@
     "jvp_executable_bytes": 2183480,
     "jvp_executable_change_bytes": 1752,
     "vjp_executable_bytes": 2191800,
-    "vjp_executable_change_bytes": 1784
+    "vjp_executable_change_bytes": 1784,
+    "native_symbol_bytes": {
+      "generated_residual_jvp": 43,
+      "analytical_root_jvp": 101,
+      "hybrid_root_jvp": 101,
+      "autodiff_iteration_jvp": 26,
+      "generated_newton_jvp": 2329,
+      "generated_residual_vjp": 55,
+      "analytical_root_vjp": 182,
+      "hybrid_root_vjp": 182,
+      "autodiff_iteration_vjp": 40,
+      "generated_newton_vjp": 3301
+    }
   }
 }
