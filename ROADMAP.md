@@ -297,7 +297,7 @@ justifies the complexity.
 - [x] Generate several algebraic variants, prove them equivalent, and rank
   them by post-CSE operation count before native CPU, OpenACC, and OpenMP-target
   benchmarking.
-- [ ] Commit only the measured production kernel and the generator inputs
+- [x] Commit only the measured production kernel and the generator inputs
   needed to reproduce temporary losing variants.
 
 ## Shared CPU Enzyme infrastructure

@@ -42,7 +42,9 @@ candidate reduces the post-CSE count from 30 to 10 operations and is 1.27
 times faster than raw on the largest CPU workload and about 1.09 times faster
 resident on either GPU. The simplified and factored GPU results are practical
 ties, so CPU wall clock and the smaller 96-byte native symbol select the
-simplified form. Temporary losing kernels are not committed.
+simplified form. Only that generated production leaf and its symbolic
+generator are committed; raw and factored losers are reproduced only in a
+requested temporary tournament directory.
 The generated multi-input scalar-output pilot covers 2, 4, 8, and 16 active
 inputs and 1, 4, and 16 JVP directions or VJP cotangents. At 65,536 points,
 resident GPU execution is 20.6 to 38.7 times faster than the pinned CPU,

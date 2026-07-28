@@ -103,5 +103,35 @@
       "openacc_resident": 1.0927,
       "openmp_resident": 1.0863
     }
+  },
+  "production_artifact": {
+    "source_revision": "5574021b919b4ac4893af762e5d1c4f6a4737955",
+    "committed_kernel": "src/generated/fortnum_dawson_identity_jvp_kernel.f90",
+    "committed_generator": "tools/codegen/app/gen_dawson_jvp_variants.f90",
+    "temporary_only_variants": ["raw", "factored"],
+    "regeneration_gate": "tools/codegen/check_generated.sh",
+    "largest_batch_recheck": {
+      "median_ms": {
+        "cpu": 5.5130,
+        "openacc_resident": 0.1381,
+        "openacc_transfer": 4.0531,
+        "openmp_resident": 0.1390,
+        "openmp_transfer": 4.0021
+      },
+      "mad_ms": {
+        "cpu": 0.0649,
+        "openacc_resident": 0.0001,
+        "openacc_transfer": 0.2572,
+        "openmp_resident": 0.0,
+        "openmp_transfer": 0.1433
+      },
+      "peak_host_rss_bytes": {
+        "cpu": 47181824,
+        "openacc_resident": 150016000,
+        "openacc_transfer": 156094464,
+        "openmp_resident": 157188096,
+        "openmp_transfer": 244252672
+      }
+    }
   }
 }
