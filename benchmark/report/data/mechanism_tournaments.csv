@@ -31,3 +31,9 @@ bessel_recurrence_jvp,autodiff,autodiff,3788.274910,5763.282255,ryzen9_5950x_bes
 bessel_recurrence_vjp,analytical,analytical,5521.551100,6002.695910,ryzen9_5950x_bessel_fixture_migration.json
 bessel_asymptotic_jvp,autodiff,autodiff,2400.249025,2784.492675,ryzen9_5950x_bessel_tournament.json
 bessel_asymptotic_vjp,analytical,analytical,2774.859240,6063.291490,ryzen9_5950x_bessel_tournament.json
+gamma_series_jvp,autodiff,autodiff,1564.7728,2758.9424,ryzen9_5950x_gamma_tournament.json
+gamma_series_vjp,analytical,analytical,2708.8320,3896.3024,ryzen9_5950x_gamma_tournament.json
+gamma_transition_jvp,autodiff,autodiff,2737.8304,4234.8752,ryzen9_5950x_gamma_tournament.json
+gamma_transition_vjp,analytical,analytical,4273.9088,6375.5008,ryzen9_5950x_gamma_tournament.json
+gamma_tail_jvp,autodiff,autodiff,2738.8736,5748.0464,ryzen9_5950x_gamma_tournament.json
+gamma_tail_vjp,analytical,analytical,6007.8960,10552.5536,ryzen9_5950x_gamma_tournament.json

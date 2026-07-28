@@ -1,0 +1,150 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "source_revision": "51e495ed7d190cb1e324f132d50383f4a55708f8",
+  "operator": "sin(P(2.5,x)) + P(2.5,x)^2",
+  "products": ["jvp", "vjp"],
+  "active_inputs": 1,
+  "outputs": 1,
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "autodiff": "Enzyme 22",
+    "optimization": "O2"
+  },
+  "candidates": {
+    "analytical": "explicit regularized-gamma partial and outer chain rule",
+    "autodiff": "Enzyme through the complete fixed-shape gamma primal and outer expression",
+    "hybrid": "Enzyme outer derivative with one analytical gamma custom JVP rule"
+  },
+  "sampling": {
+    "samples": 15,
+    "warmup_samples": 3,
+    "derivative_calls_per_sample": 10000,
+    "runtime_aggregation": "median",
+    "dispersion": "median absolute deviation"
+  },
+  "validation": {
+    "oracle": "central difference of the complete outer objective",
+    "relative_tolerance": 2e-8,
+    "regions_checked": ["series", "transition", "continued-fraction tail"],
+    "hybrid_provenance": "one analytical gamma custom-rule call asserted per JVP"
+  },
+  "scope": {
+    "shape_a": 2.5,
+    "active_argument": "x",
+    "limitation": "Enzyme 22 crashes in type analysis when shape a is active through Flang log_gamma lowering; that unreliable candidate is excluded. Full active-a analytical JVP/VJP remain independently tested."
+  },
+  "direction_counts": [1, 4, 16],
+  "regions": [
+    {
+      "name": "series",
+      "x": 0.5,
+      "jvp_median_ns": {
+        "analytical": [182.9056, 697.5304, 2772.5200],
+        "autodiff": [99.2991, 391.5660, 1564.7728],
+        "hybrid": [179.3429, 701.0568, 2758.9424]
+      },
+      "jvp_mad_ns": {
+        "analytical": [0.7454, 1.8516, 3.2704],
+        "autodiff": [0.2254, 1.0344, 5.5152],
+        "hybrid": [0.7144, 1.9116, 6.4592]
+      },
+      "vjp_median_ns": {
+        "analytical": [173.2475, 681.5244, 2708.8320],
+        "autodiff": [244.3874, 973.1576, 3896.3024]
+      },
+      "vjp_mad_ns": {
+        "analytical": [0.6713, 2.6372, 4.3776],
+        "autodiff": [1.0631, 2.3608, 8.3184]
+      }
+    },
+    {
+      "name": "transition",
+      "x": 3.25,
+      "jvp_median_ns": {
+        "analytical": [267.5781, 1062.9104, 4234.8752],
+        "autodiff": [173.8535, 685.4236, 2737.8304],
+        "hybrid": [271.4735, 1077.4984, 4238.8512]
+      },
+      "jvp_mad_ns": {
+        "analytical": [0.6423, 2.0272, 7.1824],
+        "autodiff": [0.3947, 2.3444, 12.8080],
+        "hybrid": [0.2935, 2.4084, 15.6288]
+      },
+      "vjp_median_ns": {
+        "analytical": [263.5957, 1045.3776, 4273.9088],
+        "autodiff": [399.0018, 1584.3652, 6375.5008]
+      },
+      "vjp_mad_ns": {
+        "analytical": [0.9608, 3.6548, 30.2816],
+        "autodiff": [1.1762, 4.2560, 29.5440]
+      }
+    },
+    {
+      "name": "tail",
+      "x": 8.0,
+      "jvp_median_ns": {
+        "analytical": [373.9637, 1451.0824, 5748.0464],
+        "autodiff": [181.7745, 694.6768, 2738.8736],
+        "hybrid": [372.1442, 1491.2740, 6771.5600]
+      },
+      "jvp_mad_ns": {
+        "analytical": [1.4508, 4.2044, 10.9328],
+        "autodiff": [2.2944, 3.6948, 8.5936],
+        "hybrid": [1.3165, 31.0508, 101.9840]
+      },
+      "vjp_median_ns": {
+        "analytical": [370.9169, 1442.3856, 6007.8960],
+        "autodiff": [599.7590, 2358.9448, 10552.5536]
+      },
+      "vjp_mad_ns": {
+        "analytical": [1.4908, 4.3840, 137.0096],
+        "autodiff": [1.5649, 5.5424, 153.2144]
+      }
+    }
+  ],
+  "peak_rss_bytes_at_16_products": {
+    "all_regions_and_candidates": 13463552
+  },
+  "tail_perf_stat_five_run_aggregate": {
+    "analytical_jvp": {
+      "cycles": 300141739,
+      "instructions": 468463664,
+      "cache_references": 69718,
+      "cache_misses": 18209
+    },
+    "autodiff_jvp": {
+      "cycles": 143198184,
+      "instructions": 242465877,
+      "cache_references": 57752,
+      "cache_misses": 17027
+    },
+    "hybrid_jvp": {
+      "cycles": 299928793,
+      "instructions": 471523886,
+      "cache_references": 68141,
+      "cache_misses": 17547
+    },
+    "analytical_vjp": {
+      "cycles": 295965402,
+      "instructions": 466843970,
+      "cache_references": 141114,
+      "cache_misses": 17896
+    },
+    "autodiff_vjp": {
+      "cycles": 474321328,
+      "instructions": 1537165596,
+      "cache_references": 98523,
+      "cache_misses": 18205
+    }
+  },
+  "selection": {
+    "jvp": "autodiff in all measured regions and direction counts",
+    "vjp": "analytical in all measured regions and cotangent counts",
+    "reason": "complete-workload wall clock; peak memory and cache misses do not distinguish candidates"
+  }
+}
