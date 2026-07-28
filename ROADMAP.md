@@ -440,7 +440,7 @@ Every tournament record must include:
 
 - [x] Resolve or explicitly baseline the `fo lint` array-temporary warnings.
 - [x] Repair the fpm and `fo test` oracle-argument mismatch.
-- [ ] Add CI coverage for the real Flang and Enzyme hybrid pipeline.
+- [x] Add CI coverage for the real Flang and Enzyme hybrid pipeline.
 - [ ] Add scheduled benchmark runs on the reference Ryzen 9 5950X.
 - [ ] Re-run candidate selection after material compiler changes.
 - [ ] Re-run candidate selection after material Enzyme changes.
