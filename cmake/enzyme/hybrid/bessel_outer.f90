@@ -64,7 +64,7 @@ program enzyme_bessel_tournament
         1.0_c_double, 4.0_c_double, 24.0_c_double]
     character(16), parameter :: region_names(region_count) = [ &
         character(16) :: "series", "recurrence", "asymptotic"]
-    real(c_double) :: samples(fixture_sample_count), sink
+    real(c_double) :: samples(fixture_sample_count), sink, validation_error
     character(32) :: action, candidate, product, region_text
     integer :: region, directions, iterations, candidate_kind, product_kind
     logical :: valid
@@ -87,8 +87,8 @@ program enzyme_bessel_tournament
 
     call read_fixture_environment("FORTNUM_BESSEL_ACTION", "validate", action)
     if (trim(action) == "validate") then
-        call validate_candidates()
-        write (*, "(a)") "PASS"
+        call validate_candidates(validation_error)
+        write (*, "('PASS max_relative_error=',es12.5)") validation_error
         stop
     end if
 
@@ -165,35 +165,45 @@ contains
             x, cotangent)
     end function autodiff_vjp
 
-    subroutine validate_candidates()
+    subroutine validate_candidates(max_relative_error)
+        real(c_double), intent(out) :: max_relative_error
         real(c_double), parameter :: h = 1.0e-5_c_double
         real(c_double), parameter :: direction = -0.4_c_double
-        real(c_double) :: x, reference, scale
+        real(c_double) :: x, reference, scale, actual, relative_error
         integer :: i
 
+        max_relative_error = 0.0_c_double
         do i = 1, region_count
             x = region_centers(i)
             reference = (outer(x + h*direction) - outer(x - h*direction)) &
                 /(2.0_c_double*h)
             scale = max(1.0_c_double, abs(reference))
-            if (abs(analytical_jvp(x, direction) - reference)/scale &
-                > 2.0e-8_c_double) then
+            actual = analytical_jvp(x, direction)
+            relative_error = abs(actual - reference)/scale
+            max_relative_error = max(max_relative_error, relative_error)
+            if (relative_error > 2.0e-8_c_double) then
                 error stop "analytical Bessel JVP mismatch"
             end if
-            if (abs(autodiff_jvp(x, direction) - reference)/scale &
-                > 2.0e-8_c_double) then
+            actual = autodiff_jvp(x, direction)
+            relative_error = abs(actual - reference)/scale
+            max_relative_error = max(max_relative_error, relative_error)
+            if (relative_error > 2.0e-8_c_double) then
                 error stop "autodiff Bessel JVP mismatch"
             end if
             call rule_counter_reset()
-            if (abs(hybrid_jvp(x, direction) - reference)/scale &
-                > 2.0e-8_c_double) then
+            actual = hybrid_jvp(x, direction)
+            relative_error = abs(actual - reference)/scale
+            max_relative_error = max(max_relative_error, relative_error)
+            if (relative_error > 2.0e-8_c_double) then
                 error stop "hybrid Bessel JVP mismatch"
             end if
             if (rule_counter_calls() /= 1_c_int64_t) then
                 error stop "analytical Bessel rule was not selected"
             end if
-            if (abs(autodiff_vjp(x, direction) - reference)/scale &
-                > 2.0e-8_c_double) then
+            actual = autodiff_vjp(x, direction)
+            relative_error = abs(actual - reference)/scale
+            max_relative_error = max(max_relative_error, relative_error)
+            if (relative_error > 2.0e-8_c_double) then
                 error stop "autodiff Bessel VJP mismatch"
             end if
         end do

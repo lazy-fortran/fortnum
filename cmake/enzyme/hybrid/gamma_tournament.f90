@@ -20,7 +20,7 @@ program enzyme_gamma_tournament
     real(c_double), parameter :: fixed_a = 2.5_c_double
     character(16), parameter :: region_names(region_count) = [ &
         character(16) :: "series", "transition", "tail"]
-    real(c_double) :: samples(fixture_sample_count), sink
+    real(c_double) :: samples(fixture_sample_count), sink, validation_error
     character(32) :: action, candidate, product, region_text
     integer :: region, directions, iterations, candidate_kind, product_kind
     logical :: valid
@@ -41,8 +41,8 @@ program enzyme_gamma_tournament
 
     call read_fixture_environment("FORTNUM_GAMMA_ACTION", "validate", action)
     if (trim(action) == "validate") then
-        call validate_candidates()
-        write (*, "(a)") "PASS"
+        call validate_candidates(validation_error)
+        write (*, "('PASS max_relative_error=',es12.5)") validation_error
         stop
     end if
 
@@ -104,34 +104,46 @@ contains
         dx = gradient(1)
     end function analytical_vjp
 
-    subroutine validate_candidates()
+    subroutine validate_candidates(max_relative_error)
+        real(c_double), intent(out) :: max_relative_error
         real(c_double), parameter :: h = 2.0e-5_c_double
         real(c_double), parameter :: dx = -0.4_c_double
-        real(c_double) :: x, reference, scale, actual
+        real(c_double) :: x, reference, scale, actual, relative_error
         integer :: i
 
+        max_relative_error = 0.0_c_double
         do i = 1, region_count
             x = region_x(i)
             reference = (outer(x + h*dx) - outer(x - h*dx))/(2.0_c_double*h)
             scale = max(1.0_c_double, abs(reference))
             actual = analytical_jvp(x, dx)
-            if (abs(actual - reference)/scale > 2.0e-8_c_double) &
+            relative_error = abs(actual - reference)/scale
+            max_relative_error = max(max_relative_error, relative_error)
+            if (relative_error > 2.0e-8_c_double) &
                 error stop "analytical gamma JVP mismatch"
             actual = fortnum_enzyme_gamma_outer_autodiff_jvp(x, dx)
-            if (abs(actual - reference)/scale > 2.0e-8_c_double) &
+            relative_error = abs(actual - reference)/scale
+            max_relative_error = max(max_relative_error, relative_error)
+            if (relative_error > 2.0e-8_c_double) &
                 error stop "autodiff gamma JVP mismatch"
             call rule_counter_reset()
             actual = fortnum_enzyme_gamma_outer_jvp(x, dx)
-            if (abs(actual - reference)/scale > 2.0e-8_c_double) &
+            relative_error = abs(actual - reference)/scale
+            max_relative_error = max(max_relative_error, relative_error)
+            if (relative_error > 2.0e-8_c_double) &
                 error stop "hybrid gamma JVP mismatch"
             if (rule_counter_calls() /= 1_c_int64_t) &
                 error stop "analytical gamma rule was not selected"
             actual = fortnum_enzyme_gamma_outer_autodiff_vjp_scalar( &
                 x, 1.0_c_double)*dx
-            if (abs(actual - reference)/scale > 2.0e-8_c_double) &
+            relative_error = abs(actual - reference)/scale
+            max_relative_error = max(max_relative_error, relative_error)
+            if (relative_error > 2.0e-8_c_double) &
                 error stop "autodiff gamma VJP mismatch"
             actual = analytical_vjp(x, 1.0_c_double)*dx
-            if (abs(actual - reference)/scale > 2.0e-8_c_double) &
+            relative_error = abs(actual - reference)/scale
+            max_relative_error = max(max_relative_error, relative_error)
+            if (relative_error > 2.0e-8_c_double) &
                 error stop "analytical gamma VJP mismatch"
         end do
         call rule_counter_disable()

@@ -2,6 +2,7 @@
   "schema_version": 1,
   "date": "2026-07-28",
   "source_revision": "90bc17ac68ab7ff315fdbecbc03c17883ca8f1bd",
+  "evidence_refresh_source_revision": "ee7b0f019061f59a240bef08b59d8ad20b71de42",
   "operator": "log(1 + M(1,2.5,x)^2)",
   "products": ["jvp", "vjp"],
   "active_inputs": 1,
@@ -34,6 +35,7 @@
   "validation": {
     "derivative_oracle": "central difference of the complete bounded objective",
     "relative_tolerance": 2e-7,
+    "observed_max_relative_error": 4.18741e-10,
     "hybrid_provenance": "one analytical hypergeometric custom-rule call asserted per JVP"
   },
   "regions": [
@@ -41,44 +43,80 @@
       "name": "kummer",
       "x": -4.0,
       "jvp_median_ns": {
-        "analytical": [903.2637, 3646.8508, 14474.5344],
-        "autodiff": [198.4309, 790.6940, 3186.9808],
-        "hybrid": [598.5888, 2396.1544, 10476.3632]
+        "analytical": [937.0705, 3645.4995, 14538.2785],
+        "autodiff": [239.0444, 832.7069, 3171.4743],
+        "hybrid": [632.5789, 2458.9650, 9612.4237]
+      },
+      "jvp_mad_ns": {
+        "analytical": [2.8023, 3.8523, 29.2021],
+        "autodiff": [1.1311, 4.1839, 6.9872],
+        "hybrid": [1.4388, 9.5821, 11.5497]
       },
       "vjp_median_ns": {
-        "analytical": [905.6964, 3635.9544, 14527.7216],
-        "autodiff": [462.3882, 1838.1152, 9695.4992]
+        "analytical": [939.3539, 3655.4753, 14861.1919],
+        "autodiff": [497.0164, 1884.9435, 7596.7951]
+      },
+      "vjp_mad_ns": {
+        "analytical": [3.2382, 5.2238, 166.9366],
+        "autodiff": [1.3405, 3.6340, 43.0401]
       }
     },
     {
       "name": "series",
       "x": 4.0,
       "jvp_median_ns": {
-        "analytical": [912.7827, 3636.3028, 14542.0064],
-        "autodiff": [239.8478, 935.1380, 3761.0704],
-        "hybrid": [579.5028, 2315.6188, 9227.5936]
+        "analytical": [936.2350, 3728.1131, 14713.4957],
+        "autodiff": [275.3397, 980.8280, 3772.8494],
+        "hybrid": [609.1416, 2342.9423, 9264.5412]
+      },
+      "jvp_mad_ns": {
+        "analytical": [1.9798, 12.9083, 42.6064],
+        "autodiff": [1.7382, 6.4381, 12.4024],
+        "hybrid": [4.5445, 7.4691, 12.5756]
       },
       "vjp_median_ns": {
-        "analytical": [906.5300, 3622.6332, 14508.0048],
-        "autodiff": [418.6789, 1665.3376, 6652.7408]
+        "analytical": [944.5987, 3697.1097, 14854.4673],
+        "autodiff": [451.3594, 1725.4639, 6733.3794]
+      },
+      "vjp_mad_ns": {
+        "analytical": [2.8814, 5.8710, 55.9243],
+        "autodiff": [1.0209, 27.6982, 14.6657]
       }
     },
     {
       "name": "asymptotic",
       "x": 80.0,
       "jvp_median_ns": {
-        "analytical": [397.0811, 1533.1724, 6477.2112],
-        "autodiff": [14.7268, 49.7456, 188.3056],
-        "hybrid": [210.9405, 854.1692, 3362.1440]
+        "analytical": [403.7537, 1597.2223, 6286.2298],
+        "autodiff": [40.5304, 79.3095, 229.7148],
+        "hybrid": [235.7822, 890.6811, 3432.7937]
+      },
+      "jvp_mad_ns": {
+        "analytical": [3.6048, 28.9665, 58.0745],
+        "autodiff": [0.2025, 0.3295, 0.6773],
+        "hybrid": [0.8056, 2.8184, 10.8013]
       },
       "vjp_median_ns": {
-        "analytical": [382.4335, 1521.6828, 6115.7776],
-        "autodiff": [28.6510, 102.1124, 396.9552]
+        "analytical": [403.5733, 1539.4455, 6293.1550],
+        "autodiff": [54.4757, 127.4381, 433.7122]
+      },
+      "vjp_mad_ns": {
+        "analytical": [2.3435, 4.6157, 32.9893],
+        "autodiff": [0.4898, 0.5060, 9.8556]
       }
     }
   ],
   "peak_rss_bytes_at_16_products": {
-    "all_regions_and_candidates": 14082048
+    "measurement": "median of five separate pinned processes",
+    "kummer": {"analytical_jvp": 2953216, "autodiff_jvp": 2752512, "hybrid_jvp": 2789376, "analytical_vjp": 2777088, "autodiff_vjp": 2764800},
+    "series": {"analytical_jvp": 2801664, "autodiff_jvp": 2793472, "hybrid_jvp": 2797568, "analytical_vjp": 2781184, "autodiff_vjp": 2912256},
+    "asymptotic": {"analytical_jvp": 2813952, "autodiff_jvp": 2805760, "hybrid_jvp": 2768896, "analytical_vjp": 2912256, "autodiff_vjp": 2797568}
+  },
+  "native_code": {
+    "executable_bytes": 2199664,
+    "hybrid_jvp_symbol_bytes": 36,
+    "autodiff_jvp_symbol_bytes": 803,
+    "autodiff_vjp_scalar_symbol_bytes": 134
   },
   "asymptotic_perf_stat_five_run_aggregate": {
     "analytical_jvp": {
@@ -116,5 +154,10 @@
     "jvp": "autodiff in all measured regions and direction counts",
     "vjp": "autodiff in all measured regions and cotangent counts",
     "reason": "lowest complete-workload wall clock with equal peak memory and validated primal equivalence"
+  },
+  "workload_contract": {
+    "reusable_primal_state": "none; each product call evaluates the selected hypergeometric algorithm",
+    "active_input_output_scaling": "the fixed-real-parameter specialization has one active input and one output; direction and cotangent counts 1, 4, and 16 measure product scaling",
+    "forward_reverse_crossover": "JVP and VJP timings are recorded separately in Kummer, series, and asymptotic regions"
   }
 }

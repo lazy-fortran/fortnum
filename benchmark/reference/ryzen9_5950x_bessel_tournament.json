@@ -1,6 +1,8 @@
 {
   "schema_version": 1,
   "date": "2026-07-27",
+  "source_revision": "3b94eed236e916831dc8c9914d9e44903738753a",
+  "evidence_refresh_source_revision": "ee7b0f019061f59a240bef08b59d8ad20b71de42",
   "operator": "sin(I0(x)) + I0(x)^2",
   "products": ["jvp", "vjp"],
   "active_inputs": 1,
@@ -30,6 +32,7 @@
     "oracle": "central difference of the complete outer objective",
     "regions_checked": ["series", "recurrence", "asymptotic"],
     "relative_tolerance": 2e-8,
+    "observed_max_relative_error": 2.89930e-10,
     "hybrid_provenance": "one analytical I0 custom-rule call asserted per JVP"
   },
   "regions": [
@@ -77,9 +80,10 @@
     }
   ],
   "memory_at_16_products_bytes": {
-    "series": {"analytical_jvp": 2965504, "autodiff_jvp": 3022848, "hybrid_jvp": 2904064, "analytical_vjp": 2949120, "autodiff_vjp": 2711552},
-    "recurrence": {"analytical_jvp": 3039232, "autodiff_jvp": 2768896, "hybrid_jvp": 3072000, "analytical_vjp": 3031040, "autodiff_vjp": 2789376},
-    "asymptotic": {"analytical_jvp": 3018752, "autodiff_jvp": 2920448, "hybrid_jvp": 3133440, "analytical_vjp": 3129344, "autodiff_vjp": 2760704}
+    "measurement": "median of five separate pinned processes",
+    "series": {"analytical_jvp": 2756608, "autodiff_jvp": 2768896, "hybrid_jvp": 2727936, "analytical_vjp": 2883584, "autodiff_vjp": 2715648},
+    "recurrence": {"analytical_jvp": 2813952, "autodiff_jvp": 3084288, "hybrid_jvp": 2785280, "analytical_vjp": 3158016, "autodiff_vjp": 3084288},
+    "asymptotic": {"analytical_jvp": 3035136, "autodiff_jvp": 3063808, "hybrid_jvp": 2977792, "analytical_vjp": 3014656, "autodiff_vjp": 2998272}
   },
   "native_code": {
     "executable_bytes": 2188592,
@@ -119,5 +123,10 @@
     "asymptotic_vjp": "analytical",
     "criterion": "complete derivative-product wall clock",
     "reason": "raw autodiff reuses one primal trace in recurrence/asymptotic JVPs, while reverse-mode overhead loses outside the recurrence VJP"
+  },
+  "workload_contract": {
+    "reusable_primal_state": "none; each product call includes the required primal recurrence",
+    "active_input_output_scaling": "the scalar operator fixes one active input and one output; direction and cotangent counts 1, 4, and 16 measure product scaling",
+    "forward_reverse_crossover": "JVP and VJP timings are recorded separately for every region and product count"
   }
 }

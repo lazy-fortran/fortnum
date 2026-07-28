@@ -119,9 +119,17 @@ Tail and asymptotic measurements reach the same conclusion. Bessel selects a
 2,212 ns autodiff JVP and a 2,798 ns analytical VJP; gamma selects a 2,820 ns
 autodiff JVP and a 5,710 ns analytical VJP. Erf remains a practical tie.
 Hypergeometric is the important exception enabled by code generation: its
-fortsym-generated asymptotic products take 59 ns for JVP and 67 ns for VJP,
-3.94× and 6.42× faster than Enzyme. The selected generated kernels also use
+fortsym-generated asymptotic products take 59 ns for JVP and 57 ns for VJP,
+3.89× and 7.67× faster than Enzyme. The selected generated kernels also use
 slightly less process RSS and fewer measured instructions.
+
+The completed special-function records report the observed finite-difference
+error, timing MAD, candidate-attributed peak RSS, native code size, reusable
+state, product-count scaling, and separate JVP/VJP results. Maximum observed
+relative errors are \(2.90\times10^{-10}\) for Bessel,
+\(4.03\times10^{-12}\) for gamma, \(2.38\times10^{-11}\) for erf, and
+\(4.19\times10^{-10}\) for hypergeometric. Median candidate RSS at 16 products
+ranges from 2.72 to 3.37 MB across these fixtures.
 
 For the length-eight complex FFT JVP, analytical and Enzyme candidates share
 the same production radix execution leaf. Analytical takes 251, 655, and
@@ -172,9 +180,8 @@ uses a real specialization of the same Kummer, Taylor, and asymptotic
 algorithms. Primal equivalence to the production complex path is a mandatory
 validation gate. In the `x > 60` region, fortsym also emits pure-elemental
 analytical JVP and VJP kernels from the asymptotic definition. At 16 products
-they take 62.24 and 58.76 ns, versus Enzyme's 232.13 and 431.17 ns. Their
-2.83 MB peak RSS is 4.7% above Enzyme's 2.70 MB, so wall clock selects the
-generated region kernels.
+they take 59.10 and 56.55 ns, versus Enzyme's 229.71 and 433.71 ns. Peak RSS
+differs by less than 2%, so wall clock selects the generated region kernels.
 
 ## Current normalized set
 
