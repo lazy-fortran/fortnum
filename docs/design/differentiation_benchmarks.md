@@ -29,7 +29,7 @@ primal evaluations required by the stated oracle.
 
 | Family | Record pattern | Products and comparisons | Independent validation |
 | --- | --- | --- | --- |
-| generated algebra | `ryzen9_5950x_dawson_generated_family.json`, determinant and inverse records | fused/separate, generated/diagnostic, JVP/VJP | formulas, finite differences, matrix identities, adjoint identities |
+| generated algebra | Ryzen 9 and EPYC Dawson-family records, determinant and inverse records | fused/separate, generated/diagnostic, JVP/VJP | formulas, finite differences, matrix identities, adjoint identities |
 | FFT | `ryzen9_5950x_fft8_{jvp,vjp}_tournament.json`, `ryzen9_5950x_fftw8_custom_rule.json`, `ryzen9_5950x_fft_scalar_products.json` | analytical transform products versus Enzyme, external-library custom rule, scalar scaling | direct DFT, direct adjoint DFT, dot identity, finite difference, and NumPy transform oracle |
 | special functions | `ryzen9_5950x_bessel_*.json`, gamma, erf, and hypergeometric tournament records | analytical, autodiff, hybrid across numerical regions | complete-objective finite differences and custom-rule provenance |
 | Enzyme infrastructure | `ryzen9_5950x_enzyme_*.json`, `*_fixture_migration.json` | wrapper ABI, shared support, code size, migration regression | real Enzyme formulas, adjoint identities, negative repository guards |
@@ -51,6 +51,12 @@ takes 9.75 ns versus 15.81 ns. Fusion is therefore 1.58× and 1.62× faster,
 respectively, and executes 22.4% fewer instructions without a cache penalty.
 All four scalar candidates use fixed storage; their roughly 2.8 to 2.9 MB process
 RSS does not resolve derivative workspace differences.
+
+The independent AMD EPYC 9V74 hosted run preserves that selection. Fused JVP
+and VJP workloads take 14.79 ns each, versus 23.86 and 23.83 ns separately:
+1.612× and 1.611× speedups. All four processes report the same 17,100,800-byte
+peak RSS. The hosted kernel denies performance-counter access, so this record
+uses validated wall clock and memory rather than inventing cache evidence.
 
 Root and fixed-point records support the same operator-level conclusion.
 For the two-state fixed-point fixture, the analytical implicit JVP takes
