@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "operator": "bspline_fit_downstream_objective",
+  "product": "value_and_gradient",
+  "workload": "factor and solve a 16 by 16 cubic B-spline collocation fit, evaluate dot(cbar,coef), and differentiate with respect to 16 data values",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1 20260625",
+    "fortnum_commit": "ffdd32b",
+    "fortsym_commit": "724baf5b22894bc3e018b0653fac81bbf2f815eb"
+  },
+  "sampling": {
+    "warmup_rounds": 3,
+    "samples": 15,
+    "calls_per_sample": {
+      "analytical_implicit_vjp": 20000,
+      "finite_difference_diagnostic": 100
+    },
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum"
+  },
+  "validation": {
+    "oracle": "componentwise central difference of complete refactor-and-fit objective evaluations",
+    "maximum_relative_error": 1.7155496530880947e-11,
+    "relative_tolerance": 3e-9
+  },
+  "memory_method": "getrusage(RUSAGE_SELF) inside each separately launched candidate",
+  "counters": {
+    "method": "perf stat on the complete benchmark process, normalized by 15.3 timed-sample equivalents",
+    "analytical_implicit_vjp": {
+      "cycles_per_call": 9923.34,
+      "instructions_per_call": 43328.6,
+      "cache_misses_per_call": 0.185856
+    },
+    "finite_difference_diagnostic": {
+      "cycles_per_call": 144497,
+      "instructions_per_call": 643853,
+      "cache_misses_per_call": 16.8843
+    }
+  },
+  "candidates": [
+    {
+      "id": "analytical_implicit_vjp",
+      "mechanism": "analytical",
+      "median_ns_per_call": 2183.3307,
+      "mad_ns_per_call": 8.6633,
+      "peak_rss_bytes": 2887680
+    },
+    {
+      "id": "finite_difference_diagnostic",
+      "mechanism": "diagnostic",
+      "median_ns_per_call": 31434.65,
+      "mad_ns_per_call": 44.19,
+      "peak_rss_bytes": 2867200
+    }
+  ],
+  "selection": {
+    "selected": "analytical_implicit_vjp",
+    "runtime_speedup": 14.3976,
+    "reason": "both pass the complete refactor-and-fit oracle; the analytical implicit VJP is 14.3976x faster, executes 14.86x fewer instructions, and incurs 90.85x fewer cache misses; the 20480-byte RSS difference is process noise"
+  }
+}
