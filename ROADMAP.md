@@ -347,7 +347,7 @@ support.
   `fortsym` value/JVP/VJP generation where the generated candidate is admissible.
 - [x] Generate contracted JVP expressions directly without materializing a
   Jacobian.
-- [ ] Generate contracted VJP expressions directly without materializing a
+- [x] Generate contracted VJP expressions directly without materializing a
   Jacobian.
 - [ ] Generate fused and separate value/product variants from one symbolic
   definition.

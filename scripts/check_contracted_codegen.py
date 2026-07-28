@@ -8,7 +8,10 @@ import sys
 from pathlib import Path
 
 
-CONTRACTED_APIS = re.compile(r"\b(?:jvp|directional_derivative)\s*\(", re.I)
+CONTRACTED_APIS = {
+    "jvp": re.compile(r"\b(?:jvp|directional_derivative)\s*\(", re.I),
+    "vjp": re.compile(r"\bvjp\s*\(", re.I),
+}
 JACOBIAN_CALL = re.compile(r"\bjacobian\s*\(", re.I)
 GENERATOR_BANNER = re.compile(r"^!\s*Generator:\s*(\S+)\s*$", re.M)
 
@@ -28,7 +31,10 @@ def check(root: Path) -> list[str]:
         if JACOBIAN_CALL.search(code_without_comments(path)):
             errors.append(f"{path.relative_to(root)} materializes a Jacobian")
 
-    for kernel in sorted((root / "src/generated").glob("*_jvp_kernel.f90")):
+    kernels = list((root / "src/generated").glob("*_jvp_kernel.f90"))
+    kernels.extend((root / "src/generated").glob("*_vjp_kernel.f90"))
+    for kernel in sorted(kernels):
+        product = "jvp" if kernel.name.endswith("_jvp_kernel.f90") else "vjp"
         text = kernel.read_text(encoding="utf-8")
         match = GENERATOR_BANNER.search(text)
         if match is None:
@@ -42,10 +48,11 @@ def check(root: Path) -> list[str]:
             continue
         source = generator.read_text(encoding="utf-8")
         generator_code = code_without_comments(generator)
-        if not CONTRACTED_APIS.search(generator_code):
-            if "contracted-jvp-direct" not in source.lower():
+        if not CONTRACTED_APIS[product].search(generator_code):
+            if f"contracted-{product}-direct" not in source.lower():
                 errors.append(
-                    f"{generator.relative_to(root)} lacks a contracted JVP "
+                    f"{generator.relative_to(root)} lacks a contracted "
+                    f"{product.upper()} "
                     f"construction for {kernel.name}"
                 )
     return errors

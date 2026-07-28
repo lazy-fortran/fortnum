@@ -1,5 +1,6 @@
 program gen_inverse_products
     ! contracted-jvp-direct: -A^{-1} (dA) A^{-1}, never a full Jacobian.
+    ! contracted-vjp-direct: -A^{-T} U A^{-T}, never a full Jacobian.
     use fortsym_string, only: str, chars
     use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, sym, operator(-), operator(*)
