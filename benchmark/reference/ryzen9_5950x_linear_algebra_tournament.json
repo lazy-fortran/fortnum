@@ -5,6 +5,10 @@
   "source_revision": "d6d265a696d27a6e09786dea4656d3ae455259b4",
   "selection_criterion": "complete workload wall clock",
   "hardware": "AMD Ryzen 9 5950X, CPU 4 pinned",
+  "toolchains": [
+    "GNU Fortran 16.1.1 Release -O3",
+    "Flang/LLVM 22.1.8 -O2 with Enzyme 22"
+  ],
   "evidence_contract": {
     "runtime": "median complete-workload wall clock with MAD in each referenced record",
     "memory": "candidate-specific peak RSS in separate processes",

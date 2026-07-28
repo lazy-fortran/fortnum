@@ -402,7 +402,7 @@ Every tournament record must include:
 - [x] Median runtime and dispersion.
 - [x] Candidate-specific peak memory.
 - [x] Generated or native code size where relevant.
-- [ ] Hardware and compiler identity.
+- [x] Hardware and compiler identity.
 - [ ] Reusable primal state.
 - [ ] The selected candidate and deterministic selection rationale.
 - [ ] Scaling over representative active-input and output counts.
