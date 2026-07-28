@@ -36,6 +36,12 @@ measured on a quiet reference host:
 
 Commit the new baseline with the implementation that changed it.
 
+The weekly `reference benchmarks` workflow runs on the self-hosted runner
+labeled `ryzen9-5950x`. It verifies the CPU model, pins execution to CPU 4,
+checks the committed baseline, and retains raw JSON, peak-RSS, cache-counter,
+host, compiler, and source-revision evidence as a workflow artifact. It never
+rewrites or commits the baseline automatically.
+
 ## Derivative tournaments
 
 Derivative benchmarks compare implementations of the same mathematical
