@@ -1,5 +1,4 @@
 program gen_implicit_root_residual
-    use, intrinsic :: iso_fortran_env, only: output_unit
     use fortsym_string, only: str, chars
     use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, sym, num, operator(-), operator(*)
@@ -9,7 +8,8 @@ program gen_implicit_root_residual
     use fortsym_engine, only: engine_result_t
     use fortsym_engine_symengine, only: symengine_engine_t, &
         make_symengine_engine
-    use fortnum_codegen_provenance, only: fortsym_revision, generated_path
+    use fortnum_codegen_provenance, only: codegen_log, codegen_log_count, &
+        fortsym_revision, generated_path
     implicit none
 
     type(arena_t), target :: arena
@@ -66,8 +66,7 @@ program gen_implicit_root_residual
     close (unit)
 
     operations = count_operations(roots)
-    write (output_unit, "(a)") "wrote "//output
-    write (output_unit, "(a,i0)") "post-CSE structural operations: ", &
-        operations%total
+    call codegen_log("wrote "//output)
+    call codegen_log_count("post-CSE structural operations: ", operations%total)
 
 end program gen_implicit_root_residual

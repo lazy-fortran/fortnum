@@ -2,9 +2,38 @@ module fortnum_codegen_provenance
     implicit none
     private
 
+    public :: codegen_log, codegen_log_count
     public :: fortsym_revision, generated_path
 
 contains
+
+    subroutine codegen_log(message)
+        character(*), intent(in) :: message
+
+        if (codegen_verbose()) print "(a)", message
+    end subroutine codegen_log
+
+    subroutine codegen_log_count(label, count)
+        character(*), intent(in) :: label
+        integer, intent(in) :: count
+
+        if (codegen_verbose()) print "(a,i0)", label, count
+    end subroutine codegen_log_count
+
+    function codegen_verbose() result(verbose)
+        logical :: verbose
+        character(16) :: value
+        integer :: status
+
+        verbose = .false.
+        call get_environment_variable("FORTNUM_CODEGEN_VERBOSE", value, &
+            status=status)
+        if (status /= 0) return
+        select case (trim(value))
+        case ("1", "true", "TRUE", "on", "ON", "yes", "YES")
+            verbose = .true.
+        end select
+    end function codegen_verbose
 
     function fortsym_revision() result(revision)
         character(:), allocatable :: revision

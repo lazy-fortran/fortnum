@@ -2,7 +2,7 @@ program gen_enzyme_scalar_wrappers
     use fortsym_string, only: str, chars
     use fortsym_enzyme, only: enzyme_scalar_wrapper_spec_t, &
         emit_enzyme_scalar_wrapper
-    use fortnum_codegen_provenance, only: fortsym_revision
+    use fortnum_codegen_provenance, only: codegen_log, fortsym_revision
     implicit none
 
     character(:), allocatable :: output_directory
@@ -74,7 +74,7 @@ contains
         code = chars(emit_enzyme_scalar_wrapper(spec))
         write (unit, "(a)") code(:len(code) - 1)
         close (unit)
-        print "(a)", "wrote "//path
+        call codegen_log("wrote "//path)
     end subroutine write_wrapper
 
     subroutine write_named_wrapper(directory, module_name, wrapper_prefix, &
@@ -102,7 +102,7 @@ contains
         code = chars(emit_enzyme_scalar_wrapper(spec))
         write (unit, "(a)") code(:len(code) - 1)
         close (unit)
-        print "(a)", "wrote "//path
+        call codegen_log("wrote "//path)
     end subroutine write_named_wrapper
 
 end program gen_enzyme_scalar_wrappers
