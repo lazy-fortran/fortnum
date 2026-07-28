@@ -480,6 +480,11 @@ target_link_libraries(bench_linalg3_cpu PRIVATE bench_linalg3_cpu_core)
 add_executable(bench_fft8_cpu gpu/bench_fft8_gpu.f90)
 target_link_libraries(bench_fft8_cpu PRIVATE bench_fft8_cpu_core)
 
+add_executable(test_fft8_cpu_batch
+    gpu/test_cpu_fft8_batch.f90)
+target_link_libraries(test_fft8_cpu_batch PRIVATE bench_core)
+add_test(NAME fft8_cpu_batch COMMAND test_fft8_cpu_batch)
+
 add_executable(bench_fft_scalar bench_fft_scalar.f90)
 target_link_libraries(bench_fft_scalar PRIVATE bench_core)
 add_test(NAME fft_scalar_validation COMMAND bench_fft_scalar)

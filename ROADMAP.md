@@ -383,7 +383,7 @@ support.
 - [x] Verify complex-adjoint and normalization conventions independently.
 - [x] Add a hybrid custom rule for an external FFT library.
 - [x] Benchmark scalar FFT workloads.
-- [ ] Benchmark batched FFT workloads.
+- [x] Benchmark batched FFT workloads.
 - [ ] Benchmark an FFT-based spectral objective.
 
 ## Module tournaments

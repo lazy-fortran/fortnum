@@ -69,6 +69,12 @@ GPU records separate resident from transfer-inclusive time and prove
 non-host execution. They include peak device allocation and released profiler
 counters where available.
 
+The fixed length-eight batch record covers 256, 65,536, and 1,048,576
+transforms. At the largest batch, resident GPU execution is 26.8 times faster
+than CPU for JVP and 29.6 times faster for VJP. Transfer-inclusive GPU
+execution remains slower than CPU for both products. The shared CPU/GPU batch
+leaf has a current CPU CTest gate against direct DFT and adjoint oracles.
+
 ## Scaling evidence
 
 The committed records cover:
