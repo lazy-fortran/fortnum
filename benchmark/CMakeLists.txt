@@ -340,8 +340,11 @@ elseif(FORTNUM_GPU_BACKEND STREQUAL "OPENMP")
             "${CMAKE_Fortran_COMPILER}" DIRECTORY)
         get_filename_component(_fortnum_llvm_root
             "${_fortnum_flang_bin}" DIRECTORY)
+        string(REGEX MATCH "^([0-9]+)"
+            _fortnum_flang_major_match "${CMAKE_Fortran_COMPILER_VERSION}")
+        set(_fortnum_flang_major "${CMAKE_MATCH_1}")
         set(_fortnum_flang_enzyme_plugin
-            "${_fortnum_llvm_root}/lib/FlangEnzymeMLIR-23.so")
+            "${_fortnum_llvm_root}/lib/FlangEnzymeMLIR-${_fortnum_flang_major}.so")
         set(_fortnum_enzyme_module_dir
             "${_fortnum_llvm_root}/include/EnzymeFortran")
         if(EXISTS "${_fortnum_flang_enzyme_plugin}"
