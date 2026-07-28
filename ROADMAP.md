@@ -398,7 +398,7 @@ support.
 
 Every tournament record must include:
 
-- [ ] Independent validation error.
+- [x] Independent validation error.
 - [ ] Median runtime and dispersion.
 - [ ] Candidate-specific peak memory.
 - [ ] Generated or native code size where relevant.

@@ -19,6 +19,15 @@
     "cache": "released perf counters are recorded for mechanism, trace-storage, long, and stiff comparisons",
     "selection": "JVP and VJP products are selected independently for each workload"
   },
+  "observed_independent_validation_errors": {
+    "frozen_trace_jvp_absolute_error": 2.9509839016839123e-11,
+    "discrete_jvp_maximum_absolute_error": 7.613354391367011e-12,
+    "discrete_vjp_maximum_absolute_error": 1.2542633598400243e-11,
+    "implicit_stage_jvp_maximum_absolute_error": 7.105427357601002e-15,
+    "implicit_stage_vjp_maximum_absolute_error": 1.4210854715202004e-14,
+    "long_trajectory_vjp_maximum_absolute_error": 1.4130441261528404e-10,
+    "stiff_explicit_trajectory_vjp_maximum_absolute_error": 2.4421725752787893e-10
+  },
   "native_code": {
     "library": "build/gfortran_DD609D2CDA6636FC/fortnum/libfortnum.a",
     "cash_karp_step_symbol_bytes": 5068,
