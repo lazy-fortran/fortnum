@@ -198,39 +198,96 @@ jobs:
             --run bench-run.json \
             --factor 4.0
 
-  # Optional Flang + Enzyme derivative (reverse-mode autodiff) build. Disabled.
-  # Issue #38 fills this in. It is gated on FORTNUM_ENABLE_ENZYME and currently
-  # never runs (the `if` is always false), so the stub can be completed without
-  # restructuring the workflow.
-  #
-  # enzyme:
-  #   name: flang + enzyme (derivative)
-  #   runs-on: ubuntu-latest
-  #   # Flip the gate in #38: e.g. drive it from a repository variable
-  #   #   if: ${{ vars.FORTNUM_ENABLE_ENZYME == 'ON' }}
-  #   if: ${{ false }}
-  #   continue-on-error: true
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
-  #
-  #     - name: Install LLVM/Flang and Enzyme
-  #       run: |
-  #         # #38: install a flang-new that matches the Enzyme plugin ABI,
-  #         # plus the Enzyme shared library / pass plugin.
-  #         echo "TODO(#38): provision flang + enzyme toolchain"
-  #
-  #     - name: Configure (Enzyme enabled)
-  #       run: |
-  #         cmake -S . -B build -G Ninja \
-  #           -DCMAKE_BUILD_TYPE=Debug \
-  #           -DCMAKE_Fortran_COMPILER=flang-new \
-  #           -DFORTNUM_BUILD_TESTING=ON \
-  #           -DFORTNUM_ENABLE_ENZYME=ON \
-  #           -DFORTNUM_ENZYME_REQUIRED=ON
-  #
-  #     - name: Build
-  #       run: cmake --build build -j
-  #
-  #     - name: Test
-  #       run: ctest --test-dir build --output-on-failure
+  enzyme:
+    name: released Flang 22 + pinned Enzyme
+    runs-on: ubuntu-24.04
+    env:
+      LLVM_MAJOR: "22"
+      ENZYME_REVISION: c96508349d9f121957292308c646b4a1fd53c507
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ca-certificates cmake curl g++ gfortran git gnupg \
+            libblas-dev libfftw3-dev liblapack-dev lsb-release ninja-build \
+            software-properties-common
+
+      - name: Install fpm and fo
+        run: |
+          set -euo pipefail
+          sudo curl -L -o /usr/local/bin/fpm \
+            https://github.com/fortran-lang/fpm/releases/download/v0.13.0/fpm-0.13.0-linux-x86_64-gcc-12
+          sudo chmod +x /usr/local/bin/fpm
+          git clone --depth 1 https://github.com/lazy-fortran/fo.git /tmp/fo
+          (
+            cd /tmp/fo
+            fpm install --profile release --prefix "$HOME/.local"
+          )
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install released LLVM and Flang
+        run: |
+          set -euo pipefail
+          curl -fsSL https://apt.llvm.org/llvm.sh -o /tmp/llvm.sh
+          chmod +x /tmp/llvm.sh
+          sudo /tmp/llvm.sh "$LLVM_MAJOR"
+          sudo apt-get install -y --no-install-recommends \
+            "flang-$LLVM_MAJOR" \
+            "libclang-$LLVM_MAJOR-dev" \
+            "llvm-$LLVM_MAJOR-dev"
+          mkdir -p "$RUNNER_TEMP/llvm-bin"
+          for tool in clang flang-new llvm-link opt; do
+            ln -s "/usr/bin/$tool-$LLVM_MAJOR" "$RUNNER_TEMP/llvm-bin/$tool"
+          done
+          echo "$RUNNER_TEMP/llvm-bin" >> "$GITHUB_PATH"
+
+      - name: Build pinned Enzyme plugin
+        run: |
+          set -euo pipefail
+          git clone https://github.com/EnzymeAD/Enzyme.git "$RUNNER_TEMP/enzyme"
+          git -C "$RUNNER_TEMP/enzyme" checkout "$ENZYME_REVISION"
+          cmake -S "$RUNNER_TEMP/enzyme/enzyme" \
+            -B "$RUNNER_TEMP/enzyme-build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLLVM_DIR="/usr/lib/llvm-$LLVM_MAJOR/lib/cmake/llvm"
+          cmake --build "$RUNNER_TEMP/enzyme-build" \
+            --target "LLVMEnzyme-$LLVM_MAJOR" -j 2
+          echo "FORTNUM_CI_ENZYME_PLUGIN=$RUNNER_TEMP/enzyme-build/Enzyme/LLVMEnzyme-$LLVM_MAJOR.so" \
+            >> "$GITHUB_ENV"
+
+      - name: Generate Enzyme wrappers with locked fortsym
+        run: |
+          set -euo pipefail
+          mkdir -p ../lazy-fortran "$RUNNER_TEMP/enzyme-wrappers"
+          git clone https://github.com/lazy-fortran/fortsym.git \
+            ../lazy-fortran/fortsym
+          git -C ../lazy-fortran/fortsym checkout \
+            "$(cat tools/codegen/fortsym.lock)"
+          (
+            cd tools/codegen
+            FORTNUM_ENZYME_WRAPPER_OUTPUT_DIR="$RUNNER_TEMP/enzyme-wrappers" \
+              fo exec gen_enzyme_scalar_wrappers
+          )
+
+      - name: Configure required hybrid pipeline
+        run: |
+          set -euo pipefail
+          cmake -S . -B build-enzyme -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DFORTNUM_BUILD_TESTING=ON \
+            -DFORTNUM_BUILD_EXAMPLES=OFF \
+            -DFORTNUM_ENABLE_ENZYME=ON \
+            -DFORTNUM_ENZYME_REQUIRED=ON \
+            -DFORTNUM_ENZYME_PLUGIN="$FORTNUM_CI_ENZYME_PLUGIN" \
+            -DFORTNUM_ENZYME_WRAPPER_DIR="$RUNNER_TEMP/enzyme-wrappers"
+
+      - name: Build
+        run: cmake --build build-enzyme -j 2
+
+      - name: Test real Enzyme pipelines
+        run: ctest --test-dir build-enzyme --output-on-failure -R enzyme
