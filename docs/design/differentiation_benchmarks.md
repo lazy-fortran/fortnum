@@ -1040,6 +1040,18 @@ ranges from 2,506,752 to 2,805,760 B. The generated-family clean build takes
 sizes, and provenance are in
 `benchmark/reference/ryzen9_5950x_generated_enzyme_scalar_wrappers.json`.
 
+Generated analytical forward rules can now call one shared counter rather than
+define kernel-specific state. The real Enzyme test resets the counter, invokes
+the generated one-input JVP exactly once, and observes exactly one rule call;
+the closed-form JVP still supplies the numerical oracle.
+
+Counting-enabled and disabled medians are 7.3105 and 7.3269 ns respectively,
+with MADs of 0.0231 and 0.0194 ns. The apparent -0.22% difference is below
+combined dispersion, so no counter overhead is measurable here. Production
+benchmarks disable counting. The four generic counter entry points occupy 52
+native bytes in total. Exact memory, build cost, toolchain, and provenance are
+in `benchmark/reference/ryzen9_5950x_enzyme_rule_counter.json`.
+
 ## Active Lagrange support-node products
 
 For

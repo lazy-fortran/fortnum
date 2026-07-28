@@ -146,6 +146,10 @@ fixtures are intentionally unchanged until their dedicated migration items.
 active scalar inputs and a scalar result, with an optional analytical forward
 rule. All eight generated products pass real-Enzyme formula and adjoint tests;
 the wrapper-plus-polynomial-kernel medians range from 7.21 to 8.30 ns.
+A shared 52-byte rule counter now proves that Enzyme selected a generated
+analytical forward rule without per-kernel counter state. Enabled and disabled
+timings are indistinguishable within combined dispersion, and production
+benchmarks disable the counter.
 The cumulative report in `docs/design/differentiation_report.md` summarizes 32
 mechanism tournaments and provides reproducible `fortplot` figure generation
 without committing generated PNGs.

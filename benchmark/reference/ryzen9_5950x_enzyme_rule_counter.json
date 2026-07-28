@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "source_revision": "8454496b403eb0180a121ff5711cd6b75face721",
+  "fortsym_revision": "b23c7b4e1b0f525ce404d0680b5d2f57ca3b468a",
+  "component": "shared Enzyme analytical custom-rule counter",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_core": 4
+  },
+  "toolchain": {
+    "flang": "22.1.8",
+    "llvm_opt": "22.1.8",
+    "enzyme_commit": "c96508349d9f121957292308c646b4a1fd53c507",
+    "optimization": "O2"
+  },
+  "validation": {
+    "generated_rule": "one-input scalar analytical forward custom rule",
+    "expected_calls": 1,
+    "observed_calls": 1,
+    "proof": "reset the shared counter, invoke the generated Enzyme JVP once, and require exactly one generated custom-rule record call",
+    "independent_value_oracle": "closed-form polynomial JVP",
+    "real_enzyme_pipeline": "passed"
+  },
+  "benchmark": {
+    "repetitions_per_sample": 200000,
+    "samples": 15,
+    "warmup_samples": 3,
+    "counting_disabled": {
+      "median_ns": 7.326905,
+      "mad_ns": 0.019435,
+      "peak_rss_bytes": 2531328
+    },
+    "counting_enabled": {
+      "median_ns": 7.310470,
+      "mad_ns": 0.023090,
+      "peak_rss_bytes": 2514944
+    },
+    "difference_percent": -0.2243,
+    "interpretation": "no measurable overhead: the difference is smaller than combined dispersion; production benchmarks disable counting"
+  },
+  "native_code": {
+    "record_bytes": 17,
+    "reset_bytes": 19,
+    "calls_bytes": 8,
+    "disable_bytes": 8,
+    "total_counter_symbol_bytes": 52
+  },
+  "clean_generated_fixture_build": {
+    "wall_s": 0.71,
+    "peak_rss_bytes": 128892928,
+    "user_s": 1.37,
+    "system_s": 0.79
+  },
+  "verdict": "one generic counter proves generated analytical forward-rule selection and replaces future kernel-specific counter state; counting is disabled for production timing"
+}
