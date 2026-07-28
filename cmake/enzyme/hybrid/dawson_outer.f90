@@ -42,9 +42,8 @@ contains
 end module dawson_outer_kernel
 
 program enzyme_dawson_hybrid
-    use, intrinsic :: iso_c_binding, only: c_double, c_funloc, c_funptr, &
-        c_int64_t
-    use dawson_outer_kernel, only: outer, outer_autodiff
+    use, intrinsic :: iso_c_binding, only: c_double, c_int64_t
+    use dawson_outer_kernel, only: outer
     use fortnum_enzyme_fixture_support, only: collect_fixture_samples, &
         fixture_peak_rss_bytes, fixture_sample_count, fixture_timer_t, &
         median_mad, read_fixture_environment, read_fixture_integer, &
@@ -52,6 +51,8 @@ program enzyme_dawson_hybrid
     use fortnum_generated_dawson_outer, only: fortnum_dawson_outer_kernel
     use fortnum_generated_enzyme_dawson_outer, only: &
         fortnum_enzyme_dawson_outer_jvp
+    use fortnum_generated_enzyme_dawson_outer_autodiff, only: &
+        fortnum_enzyme_dawson_outer_autodiff_jvp
     implicit none
 
     real(c_double), parameter :: direction = -0.4_c_double
@@ -62,14 +63,6 @@ program enzyme_dawson_hybrid
     logical :: valid
 
     interface
-        function enzyme_fwddiff(f, x, dx) result(dy) &
-                bind(c, name="__enzyme_fwddiff")
-            import :: c_double, c_funptr
-            type(c_funptr), value :: f
-            real(c_double), value :: x, dx
-            real(c_double) :: dy
-        end function enzyme_fwddiff
-
         subroutine rule_counter_reset() &
                 bind(c, name="fortnum_enzyme_rule_counter_reset")
         end subroutine rule_counter_reset
@@ -156,7 +149,7 @@ contains
             if (abs(got - reference)/scale > 2.0e-9_c_double) then
                 error stop "analytical Dawson JVP mismatch"
             end if
-            got = enzyme_fwddiff(c_funloc(outer_autodiff), x, direction)
+            got = fortnum_enzyme_dawson_outer_autodiff_jvp(x, direction)
             if (abs(got - reference)/scale > 2.0e-9_c_double) then
                 error stop "autodiff Dawson JVP mismatch"
             end if
@@ -194,8 +187,8 @@ contains
             case (1)
                 local_sink = local_sink + analytical_jvp(xi, direction)
             case (2)
-                local_sink = local_sink + enzyme_fwddiff( &
-                    c_funloc(outer_autodiff), xi, direction)
+                local_sink = local_sink + &
+                    fortnum_enzyme_dawson_outer_autodiff_jvp(xi, direction)
             case default
                 local_sink = local_sink + &
                     fortnum_enzyme_dawson_outer_jvp(xi, direction)

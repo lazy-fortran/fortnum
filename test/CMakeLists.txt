@@ -337,6 +337,10 @@ add_test(NAME module_visibility_audit
         --src ${CMAKE_SOURCE_DIR}/src
         --api ${CMAKE_SOURCE_DIR}/docs/api.md)
 
+add_test(NAME enzyme_fixture_duplication_guard
+    COMMAND ${CMAKE_SOURCE_DIR}/test/ad/check_enzyme_fixture_guard.sh
+        ${CMAKE_SOURCE_DIR})
+
 # --- C ABI smoke test ---
 add_executable(test_capi_smoke capi/smoke.c)
 target_include_directories(test_capi_smoke PRIVATE ${CMAKE_SOURCE_DIR}/include)

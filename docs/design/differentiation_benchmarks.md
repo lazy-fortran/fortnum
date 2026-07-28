@@ -2257,6 +2257,31 @@ The current machine-readable record is
 `benchmark/reference/ryzen9_5950x_ode_fixture_migration.json`; the earlier
 record remains as pre-migration evidence.
 
+## Hybrid-fixture duplication guard
+
+The shared CPU Enzyme migration ends with zero raw Enzyme intrinsic interfaces,
+local timers, local sorting helpers, or local peak-RSS bindings under
+`cmake/enzyme/hybrid/`. Dawson and Bessel raw-autodiff comparators now use the
+same generated scalar wrappers as the other fixtures. The two explicit-shape
+array smoke probes remain intentionally raw because they test Enzyme's array
+ABI rather than production fixture infrastructure.
+
+`check_no_duplicate_fixture_helpers.sh` enforces the boundary. Its independent
+test accepts the current repository and a clean temporary fixture, then proves
+rejection of four separate forbidden cases. One hundred checks take 0.51
+seconds, or 5.1 ms per check, with 3,836 KiB peak RSS.
+
+The affected comparators remain healthy:
+
+| Comparator | Analytical | Autodiff | Hybrid |
+|---|---:|---:|---:|
+| Dawson JVP | 20.5289 ns | 23.6181 ns | 19.8473 ns |
+| Bessel recurrence, 16 JVPs | 5,503.8288 ns | 3,553.6608 ns | 5,490.2527 ns |
+| Bessel recurrence, 16 VJPs | 5,472.1295 ns | 6,011.4107 ns | unsupported |
+
+No production selection changes. The machine-readable record is
+`benchmark/reference/ryzen9_5950x_enzyme_fixture_guard.json`.
+
 ## Continuous ODE sensitivity contract
 
 For

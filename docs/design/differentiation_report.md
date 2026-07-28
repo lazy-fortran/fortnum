@@ -99,6 +99,11 @@ trajectory plus sensitivity, versus 9.169 µs analytical and 14.846 µs for
 complete-solve finite differences. Analytical remains selected for normal
 builds; cache events are too dispersed to override wall clock.
 
+The CPU hybrid-fixture migration is now complete: all scalar Enzyme boundaries
+are generated, benchmark support is shared, and a 5.1 ms repository check
+rejects new raw intrinsics or duplicate helper implementations. Intentional
+array ABI smoke probes remain isolated outside the hybrid-fixture directory.
+
 The modified-Bessel outer objective strengthens that conclusion across primal
 regions. At 16 products, analytical wins series JVP/VJP, recurrence VJP, and
 asymptotic VJP; raw Enzyme wins recurrence and asymptotic JVP. The forward

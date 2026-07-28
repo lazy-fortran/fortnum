@@ -240,6 +240,11 @@ wrapper. The complete trajectory-plus-JVP workload takes 9.071 µs hybrid,
 9.169 µs analytical, and 14.846 µs by complete-solve finite differences.
 Analytical remains the normal-build selection; the solver and variational
 equation stay explicit.
+All hybrid CPU fixtures now use generated Enzyme boundaries and one shared
+benchmark-support module. A repository guard rejects new raw Enzyme
+intrinsics, local timers, local sorting helpers, or local peak-memory bindings
+under `cmake/enzyme/hybrid/`; intentional array ABI smoke probes remain
+separate.
 The fixed-quadrature Enzyme mechanics are generated from one five-input
 integrand profile and one four-input whole-operator profile; the old hand-written
 forward and reverse wrapper modules are gone. For a full four-input gradient,

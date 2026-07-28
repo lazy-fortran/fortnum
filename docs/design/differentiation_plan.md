@@ -106,9 +106,13 @@ The first implementation slice now also contains:
 - a generated three-input RHS JVP wrapper for ODE forward sensitivity; the
   adaptive primal trajectory, frozen accepted-step sensitivity solve,
   analytical variational equation, and complete-solve oracle remain hand-written
+- generated raw-autodiff scalar comparators for Dawson and Bessel, plus a
+  repository guard that rejects raw Enzyme interfaces and duplicated
+  timer/statistics/peak-memory helpers in hybrid fixtures
 
 Remaining work is tracked item by item in `ROADMAP.md`; the next CPU Enzyme
-step removes superseded duplicate helpers and rejects new copies.
+infrastructure section is complete. The next section inventories every
+analytical and hybrid derivative kernel by implementation class.
 
 ## 3. Terminology
 
