@@ -79,6 +79,7 @@ The `fortplot` generator creates:
 - direct-solver JVP and VJP scaling
 - fixed-span B-spline JVP and VJP scaling
 - Bessel-region JVP and VJP comparisons
+- ODE forward/reverse wall-clock, peak-RSS, and cache-miss crossovers
 
 Generate them:
 
@@ -86,7 +87,9 @@ Generate them:
 output_dir=$(mktemp -d)
 cd benchmark/report
 fo exec plot_differentiation_report \
-  data/mechanism_tournaments.csv "${output_dir}"
+  data/mechanism_tournaments.csv \
+  data/ode_parameter_crossover.csv \
+  "${output_dir}"
 ```
 
 The repository commits the generator and normalized CSV. PNG outputs remain

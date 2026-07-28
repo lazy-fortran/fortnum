@@ -1,0 +1,4 @@
+active_inputs,forward_runtime_ns,reverse_runtime_ns,forward_peak_rss_bytes,reverse_peak_rss_bytes,forward_cache_misses_per_workload,reverse_cache_misses_per_workload
+1,18128.4000,21043.5950,5427200,5410816,12.0642,11.0212
+4,53328.5150,20967.5000,5316608,5496832,11.9762,10.8170
+16,193192.9500,22712.5350,5390336,5451776,22.5477,11.7331
