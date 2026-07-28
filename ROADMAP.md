@@ -403,7 +403,7 @@ Every tournament record must include:
 - [x] Candidate-specific peak memory.
 - [x] Generated or native code size where relevant.
 - [x] Hardware and compiler identity.
-- [ ] Reusable primal state.
+- [x] Reusable primal state.
 - [ ] The selected candidate and deterministic selection rationale.
 - [ ] Scaling over representative active-input and output counts.
 - [ ] Forward-mode versus reverse-mode crossover evidence.

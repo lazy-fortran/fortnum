@@ -14,6 +14,10 @@
     "fortsym_revision": "e855b5116c51f4d1bb9aabd3ee83560a66e40920",
     "build": "Release -O2"
   },
+  "workload_contract": {
+    "reusable_primal_state": "the converged root is reused by implicit analytical and hybrid candidates; fixed-iteration autodiff and diagnostic candidates execute their stated Newton trace",
+    "returned_product": "one direction in two active parameters returns one root tangent"
+  },
   "sampling": {
     "warmup_rounds": 3,
     "samples": 31,
