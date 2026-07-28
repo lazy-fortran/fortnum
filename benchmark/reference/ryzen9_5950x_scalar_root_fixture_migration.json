@@ -1,0 +1,171 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "operator": "scalar_root",
+  "purpose": "generated-wrapper and shared-fixture migration",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "autodiff": "Enzyme 22",
+    "optimization": "O2",
+    "fortsym_revision": "0f59624c49326ca73169c7828e4adc3c0d26f907"
+  },
+  "workload": {
+    "residual": "x^3 + p1*x - p2",
+    "active_inputs": 2,
+    "outputs": 1,
+    "newton_steps_for_autodiff_and_diagnostic": 12,
+    "calls_per_sample": 100000
+  },
+  "migration": {
+    "temporary_generated_wrappers": [
+      "forward residual JVP",
+      "forward fixed-Newton JVP",
+      "reverse residual VJP",
+      "reverse fixed-Newton VJP"
+    ],
+    "removed_handwritten_mechanics": [
+      "raw Enzyme intrinsic interfaces",
+      "reverse gradient result struct",
+      "peak-RSS interfaces",
+      "timers",
+      "median/MAD sorting"
+    ],
+    "hot_loop_dispatch": "candidate name resolved before measurement"
+  },
+  "validation": {
+    "oracle": "complete 100-step bisection solves with central differences",
+    "absolute_tolerance": 1e-9,
+    "jvp_absolute_errors": {
+      "analytical": 2.207151128530427e-12,
+      "hybrid": 2.207151128530427e-12,
+      "autodiff": 2.2071233729548112e-12,
+      "diagnostic": 0.0
+    },
+    "vjp_maximum_absolute_errors": {
+      "analytical": 1.1890960438520892e-11,
+      "hybrid": 1.1890960438520892e-11,
+      "autodiff": 1.1890932682945276e-11,
+      "diagnostic": 1.443292707570265e-11
+    }
+  },
+  "sampling": {
+    "warmups": 3,
+    "samples": 15,
+    "runtime_aggregation": "median",
+    "dispersion": "median absolute deviation",
+    "memory_processes_per_candidate": 5,
+    "perf_repetitions": 3
+  },
+  "jvp": {
+    "candidates": [
+      {
+        "mechanism": "analytical",
+        "median_ns": 2.297330,
+        "mad_ns": 0.000600,
+        "peak_rss_bytes": 2785280,
+        "cycles_per_call": 15.3107,
+        "instructions_per_call": 47.3234,
+        "cache_references_per_call": 0.2044,
+        "cache_misses_per_call": 0.0713
+      },
+      {
+        "mechanism": "hybrid",
+        "median_ns": 1.891360,
+        "mad_ns": 0.003200,
+        "peak_rss_bytes": 2793472,
+        "cycles_per_call": 11.3807,
+        "instructions_per_call": 40.3231,
+        "cache_references_per_call": 0.2037,
+        "cache_misses_per_call": 0.0706
+      },
+      {
+        "mechanism": "autodiff",
+        "median_ns": 115.820600,
+        "mad_ns": 0.156700,
+        "peak_rss_bytes": 2936832,
+        "cycles_per_call": 546.8580,
+        "instructions_per_call": 522.3238,
+        "cache_references_per_call": 0.2131,
+        "cache_misses_per_call": 0.0744
+      },
+      {
+        "mechanism": "diagnostic",
+        "median_ns": 73.647710,
+        "mad_ns": 0.127240,
+        "peak_rss_bytes": 2945024,
+        "cycles_per_call": 348.9255,
+        "instructions_per_call": 325.3253,
+        "cache_references_per_call": 0.2103,
+        "cache_misses_per_call": 0.0741
+      }
+    ],
+    "selection": {
+      "selected": "hybrid",
+      "criterion": "complete implicit JVP wall clock",
+      "speedup_over_analytical": 1.2146,
+      "selected_wall_clock_improvement_percent": 76.4999
+    }
+  },
+  "vjp": {
+    "candidates": [
+      {
+        "mechanism": "analytical",
+        "median_ns": 14.117010,
+        "mad_ns": 0.045290,
+        "peak_rss_bytes": 2502656,
+        "cycles_per_call": 67.2849,
+        "instructions_per_call": 218.3234,
+        "cache_references_per_call": 0.2147,
+        "cache_misses_per_call": 0.0735
+      },
+      {
+        "mechanism": "hybrid",
+        "median_ns": 19.489940,
+        "mad_ns": 0.024850,
+        "peak_rss_bytes": 2727936,
+        "cycles_per_call": 91.4068,
+        "instructions_per_call": 295.3243,
+        "cache_references_per_call": 0.2143,
+        "cache_misses_per_call": 0.0739
+      },
+      {
+        "mechanism": "autodiff",
+        "median_ns": 158.803910,
+        "mad_ns": 0.962710,
+        "peak_rss_bytes": 2486272,
+        "cycles_per_call": 747.2396,
+        "instructions_per_call": 669.3244,
+        "cache_references_per_call": 0.2245,
+        "cache_misses_per_call": 0.0769
+      },
+      {
+        "mechanism": "diagnostic",
+        "median_ns": 143.232270,
+        "mad_ns": 0.898600,
+        "peak_rss_bytes": 2527232,
+        "cycles_per_call": 674.5268,
+        "instructions_per_call": 669.3254,
+        "cache_references_per_call": 0.2212,
+        "cache_misses_per_call": 0.0780
+      }
+    ],
+    "selection": {
+      "selected": "analytical",
+      "criterion": "complete implicit VJP wall clock",
+      "speedup_over_hybrid": 1.3806,
+      "selected_wall_clock_improvement_percent": 15.6009
+    }
+  },
+  "build_and_size": {
+    "incremental_two_fixture_build_wall_s": 1.02,
+    "incremental_two_fixture_build_peak_rss_kib": 123056,
+    "jvp_executable_bytes": 2183480,
+    "jvp_executable_change_bytes": 1752,
+    "vjp_executable_bytes": 2191800,
+    "vjp_executable_change_bytes": 1784
+  }
+}

@@ -320,7 +320,7 @@ support.
 - [x] Migrate fixed-span B-spline Enzyme fixtures.
 - [x] Migrate direct-solver JVP and VJP Enzyme fixtures.
 - [x] Migrate the iterative-solver Enzyme fixture.
-- [ ] Migrate scalar-root JVP and VJP Enzyme fixtures.
+- [x] Migrate scalar-root JVP and VJP Enzyme fixtures.
 - [ ] Migrate vector-root JVP and VJP Enzyme fixtures.
 - [ ] Migrate fixed-quadrature JVP and VJP Enzyme fixtures.
 - [ ] Migrate adaptive-integration Enzyme fixtures.

@@ -146,6 +146,10 @@ with `fortsym`. Dawson uses the shared timing and custom-rule counter; its
 normal-build analytical JVP changes by 1.0%, inside the 3% gate. The generated
 square VJP wrapper is 6.5% faster than the equivalent raw wrapper and adds only
 344 bytes to the smoke executable.
+Scalar-root residual and fixed-Newton wrappers are now generated as well.
+For the two-input scalar root, hybrid implicit JVP is selected at 1.891 ns
+versus 2.297 ns analytically, while analytical implicit VJP is selected at
+14.117 ns versus 19.490 ns for the reverse hybrid.
 One internal support module now centralizes environment parsing, warmup/sample
 collection, timing, median/MAD, standard output, and peak-RSS access. Its
 independent plain-compiler and Flang/Enzyme tests pass; existing numerical
