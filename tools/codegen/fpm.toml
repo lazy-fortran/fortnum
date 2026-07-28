@@ -46,3 +46,8 @@ main = "gen_lagrange4_interpolation.f90"
 name = "gen_dawson_jvp_variants"
 source-dir = "app"
 main = "gen_dawson_jvp_variants.f90"
+
+[[executable]]
+name = "gen_enzyme_scalar_wrappers"
+source-dir = "app"
+main = "gen_enzyme_scalar_wrappers.f90"

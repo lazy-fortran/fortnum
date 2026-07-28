@@ -171,6 +171,8 @@ set_tests_properties(ad_enzyme_fixture_support PROPERTIES
 # --- #38 Enzyme smoke tests (compiler-AD path; skipped when unavailable) ---
 if(FORTNUM_ENABLE_ENZYME)
     include(FortnumAddEnzymeTest)
+    set(FORTNUM_ENZYME_WRAPPER_DIR "" CACHE PATH
+        "Directory containing temporary generated scalar Enzyme wrappers")
     fortnum_add_enzyme_test(
         NAME enzyme_fixture_support
         SOURCES
@@ -182,6 +184,28 @@ if(FORTNUM_ENABLE_ENZYME)
     set_tests_properties(enzyme_fixture_support PROPERTIES
         ENVIRONMENT
             "FORTNUM_FIXTURE_TEST_TEXT=configured;FORTNUM_FIXTURE_TEST_INTEGER=42;FORTNUM_FIXTURE_TEST_INVALID=not-an-integer")
+    if(FORTNUM_ENZYME_WRAPPER_DIR)
+        set(_fortnum_scalar_wrapper_sources "")
+        foreach(_count RANGE 1 4)
+            set(_wrapper
+                "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_scalar_p${_count}.f90")
+            if(NOT EXISTS "${_wrapper}")
+                message(FATAL_ERROR "Missing generated Enzyme wrapper: ${_wrapper}")
+            endif()
+            list(APPEND _fortnum_scalar_wrapper_sources "${_wrapper}")
+        endforeach()
+        fortnum_add_enzyme_test(
+            NAME enzyme_generated_scalar_wrappers
+            SOURCES
+                ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
+                ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+                ${_fortnum_scalar_wrapper_sources}
+                ${CMAKE_SOURCE_DIR}/cmake/enzyme/generated/test_scalar_wrappers.f90
+            FORWARD_RULES
+                fortnum_scalar_primal_p1=fortnum_scalar_custom_p1_forward
+            MODE forward
+            OPT_LEVEL O2)
+    endif()
     fortnum_add_enzyme_test(
         NAME enzyme_square
         SOURCES ${CMAKE_SOURCE_DIR}/cmake/enzyme/smoke/square.f90
