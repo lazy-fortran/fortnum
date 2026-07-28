@@ -369,7 +369,7 @@ support.
 - [x] Run an analytical, autodiff, and hybrid Bessel tournament.
 - [x] Run an analytical, autodiff, and hybrid gamma-function tournament.
 - [x] Run an analytical, autodiff, and hybrid error-function tournament.
-- [ ] Run an analytical, autodiff, and hybrid hypergeometric tournament.
+- [x] Run an analytical, autodiff, and hybrid hypergeometric tournament.
 - [ ] Generate region-specific analytical candidates with `fortsym`.
 - [ ] Benchmark fused and separate value/JVP special-function candidates.
 - [ ] Benchmark representative small-argument regions.

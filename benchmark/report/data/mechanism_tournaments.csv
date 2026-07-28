@@ -43,3 +43,9 @@ erf_transition_jvp,analytical,autodiff,299.40576,302.39040,ryzen9_5950x_erf_tour
 erf_transition_vjp,analytical,analytical,304.29184,305.08352,ryzen9_5950x_erf_tournament.json
 erf_tail_jvp,analytical,autodiff,327.00672,330.28640,ryzen9_5950x_erf_tournament.json
 erf_tail_vjp,analytical,analytical,330.41440,330.87968,ryzen9_5950x_erf_tournament.json
+hyperg_kummer_jvp,autodiff,autodiff,3186.9808,10476.3632,ryzen9_5950x_hyperg_tournament.json
+hyperg_kummer_vjp,autodiff,autodiff,9695.4992,14527.7216,ryzen9_5950x_hyperg_tournament.json
+hyperg_series_jvp,autodiff,autodiff,3761.0704,9227.5936,ryzen9_5950x_hyperg_tournament.json
+hyperg_series_vjp,autodiff,autodiff,6652.7408,14508.0048,ryzen9_5950x_hyperg_tournament.json
+hyperg_asymptotic_jvp,autodiff,autodiff,188.3056,3362.1440,ryzen9_5950x_hyperg_tournament.json
+hyperg_asymptotic_vjp,autodiff,autodiff,396.9552,6115.7776,ryzen9_5950x_hyperg_tournament.json
