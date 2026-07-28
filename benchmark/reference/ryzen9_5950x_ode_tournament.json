@@ -35,6 +35,38 @@
     "adaptive_jvp_symbol_bytes": 3945,
     "adaptive_vjp_symbol_bytes": 3913
   },
+  "representative_runtime_and_dispersion": [
+    {
+      "workload": "short frozen-trace parameter JVP",
+      "selected": "hybrid",
+      "median_ns": 9071.2215,
+      "mad_ns": 17.0920
+    },
+    {
+      "workload": "16-by-16 initial-state Jacobian",
+      "selected": "analytical forward",
+      "median_ns": 187990.6180,
+      "mad_ns": 1514.2520
+    },
+    {
+      "workload": "short scalar-objective VJP",
+      "selected": "analytical reverse",
+      "median_ns": 20668.4510,
+      "mad_ns": 487.7800
+    },
+    {
+      "workload": "long scalar-objective VJP",
+      "selected": "analytical full-trace reverse",
+      "median_ns": 207652.1000,
+      "mad_ns": 1122.8150
+    },
+    {
+      "workload": "event time, four parameters and sixteen directions",
+      "selected": "analytical implicit event derivative",
+      "median_ns": 2479.6210,
+      "mad_ns": 61.1360
+    }
+  ],
   "verdicts": [
     {
       "workload": "short frozen-trace parameter JVP",

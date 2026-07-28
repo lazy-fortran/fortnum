@@ -399,7 +399,7 @@ support.
 Every tournament record must include:
 
 - [x] Independent validation error.
-- [ ] Median runtime and dispersion.
+- [x] Median runtime and dispersion.
 - [ ] Candidate-specific peak memory.
 - [ ] Generated or native code size where relevant.
 - [ ] Hardware and compiler identity.
