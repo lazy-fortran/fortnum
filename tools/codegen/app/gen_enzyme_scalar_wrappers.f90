@@ -43,6 +43,41 @@ program gen_enzyme_scalar_wrappers
         "fortnum_enzyme_scalar_root_vjp_newton", &
         "fortnum_scalar_root_vjp_newton_solve", &
         "fortnum_enzyme_scalar_root_vjp_newton.f90", 3)
+    call write_named_wrapper(output_directory, &
+        "fortnum_generated_enzyme_vector_root_residual_one", &
+        "fortnum_enzyme_vector_root_residual_one", &
+        "fortnum_vector_root_residual_one", &
+        "fortnum_enzyme_vector_root_residual_one.f90", 4)
+    call write_named_wrapper(output_directory, &
+        "fortnum_generated_enzyme_vector_root_residual_two", &
+        "fortnum_enzyme_vector_root_residual_two", &
+        "fortnum_vector_root_residual_two", &
+        "fortnum_enzyme_vector_root_residual_two.f90", 4)
+    call write_named_wrapper(output_directory, &
+        "fortnum_generated_enzyme_vector_root_newton_one", &
+        "fortnum_enzyme_vector_root_newton_one", &
+        "fortnum_vector_newton_root_one", &
+        "fortnum_enzyme_vector_root_newton_one.f90", 4)
+    call write_named_wrapper(output_directory, &
+        "fortnum_generated_enzyme_vector_root_newton_two", &
+        "fortnum_enzyme_vector_root_newton_two", &
+        "fortnum_vector_newton_root_two", &
+        "fortnum_enzyme_vector_root_newton_two.f90", 4)
+    call write_named_wrapper(output_directory, &
+        "fortnum_generated_enzyme_vector_root_vjp_residual_one", &
+        "fortnum_enzyme_vector_root_vjp_residual_one", &
+        "fortnum_vector_root_vjp_residual_one", &
+        "fortnum_enzyme_vector_root_vjp_residual_one.f90", 4)
+    call write_named_wrapper(output_directory, &
+        "fortnum_generated_enzyme_vector_root_vjp_residual_two", &
+        "fortnum_enzyme_vector_root_vjp_residual_two", &
+        "fortnum_vector_root_vjp_residual_two", &
+        "fortnum_enzyme_vector_root_vjp_residual_two.f90", 4)
+    call write_named_wrapper(output_directory, &
+        "fortnum_generated_enzyme_vector_root_objective", &
+        "fortnum_enzyme_vector_root_objective", &
+        "fortnum_vector_newton_objective", &
+        "fortnum_enzyme_vector_root_objective.f90", 4)
     call write_scalar_vector_wrapper(output_directory)
     call write_fixed_array_wrapper(output_directory, &
         "fortnum_generated_enzyme_direct_solver_component", &

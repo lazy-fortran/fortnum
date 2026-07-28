@@ -316,6 +316,12 @@ A fixed-trace iterative-solver comparator distinguishes the executed iteration
 map from the converged solve. At 32 iterations and 16 directions, the analytical
 tangent recurrence takes 4.846 µs, finite differences 7.628 µs, and forward
 `autodiff` 18.092 µs after generated-wrapper migration.
+The coupled two-state vector root uses seven generated Enzyme wrappers and the
+shared fixture support. Complete wall clock selects the hybrid implicit JVP at
+78.27 ns, effectively tied with analytical at 78.31 ns, and the analytical
+implicit VJP at 78.80 ns over hybrid at 79.82 ns. Autodiff through 12 Newton
+iterations takes 218.70 ns for JVP and 206.30 ns for VJP; complete-solve
+finite-difference diagnostics take 341.65 ns and 343.62 ns.
 No hybrid BLAS/LAPACK custom rule is selected yet: the measured analytical
 direct-solver JVP and VJP already beat Enzyme by 3.81× and 1.53× respectively,
 so an extra external-rule boundary is not currently justified.

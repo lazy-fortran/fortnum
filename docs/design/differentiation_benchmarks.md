@@ -2911,31 +2911,42 @@ Reference: AMD Ryzen 9 5950X, CPU 4 pinned, Flang/LLVM 22.1.8, Enzyme
 
 | JVP candidate | Mechanism | Median ns/JVP | MAD ns/JVP | Peak RSS |
 |---|---|---:|---:|---:|
-| implicit with explicit residual products | `analytical` | 80.7424 | 0.4353 | 2,424,832 B |
-| implicit with Enzyme residual products | `hybrid` | 80.4377 | 0.3774 | 2,224,128 B |
-| Enzyme through 12 Newton steps | `autodiff` | 230.2933 | 1.7658 | 2,465,792 B |
-| complete-solve central difference | diagnostic | 386.5402 | 1.9719 | 2,273,280 B |
+| implicit with explicit residual products | `analytical` | 78.3133 | 0.3144 | 2,977,792 B |
+| implicit with Enzyme residual products | `hybrid` | 78.2652 | 0.1215 | 2,990,080 B |
+| Enzyme through 12 Newton steps | `autodiff` | 218.6976 | 0.4624 | 2,854,912 B |
+| complete-solve central difference | diagnostic | 341.6510 | 2.3153 | 2,953,216 B |
 
-The `hybrid` JVP has the lowest median runtime and uses 200,704 fewer bytes of
-maximum observed RSS than `analytical`. It is 1.0038 times faster than
-`analytical`, 2.8630 times faster than `autodiff` through the iterations, and
-4.8055 times faster than the finite-difference diagnostic.
+The `hybrid` JVP has the lowest median runtime, effectively tied with
+`analytical` at a 0.06% difference. It is 2.7943 times faster than `autodiff`
+through the iterations and 4.3653 times faster than the finite-difference
+diagnostic. The 12,288-byte RSS difference between the implicit candidates is
+not material at process scale.
 
 | VJP candidate | Mechanism | Median ns/VJP | MAD ns/VJP | Peak RSS |
 |---|---|---:|---:|---:|
-| implicit with explicit residual products | `analytical` | 83.3377 | 0.8708 | 2,535,424 B |
-| implicit with Enzyme residual products | `hybrid` | 82.5682 | 0.5024 | 2,510,848 B |
-| Enzyme through 12 Newton steps | `autodiff` | 228.8764 | 1.0845 | 2,457,600 B |
-| componentwise complete-solve differences | diagnostic | 392.2317 | 3.4115 | 2,437,120 B |
+| implicit with explicit residual products | `analytical` | 78.7979 | 0.1249 | 2,502,656 B |
+| implicit with Enzyme residual products | `hybrid` | 79.8198 | 0.1563 | 2,514,944 B |
+| Enzyme through 12 Newton steps | `autodiff` | 206.3010 | 0.9341 | 2,445,312 B |
+| componentwise complete-solve differences | diagnostic | 343.6210 | 0.9903 | 2,482,176 B |
 
-The reverse-mode `hybrid` VJP has the lowest median runtime and uses 24,576
-fewer bytes of maximum observed RSS than `analytical`. It is 1.0093 times
-faster than `analytical`, 2.7720 times faster than reverse `autodiff` through
-the iterations, and 4.7504 times faster than the diagnostic.
+The `analytical` VJP now has the lowest median runtime. It is 1.0130 times
+faster than reverse `hybrid`, 2.6181 times faster than reverse `autodiff`
+through the iterations, and 4.3608 times faster than the diagnostic. The
+12,288-byte RSS difference between the implicit candidates is again immaterial.
 
-The machine-readable records are
-`benchmark/reference/ryzen9_5950x_vector_root_tournament_jvp.json` and
-`benchmark/reference/ryzen9_5950x_vector_root_tournament_vjp.json`.
+This migration generates seven scalar Enzyme wrappers from named component
+maps and reuses the shared timing, statistics, and peak-RSS support. It removes
+the raw Enzyme interfaces, reverse gradient struct, and duplicate benchmark
+helpers without generating or duplicating the coupled implicit mathematics.
+The generators are silent on success by default; set
+`FORTNUM_CODEGEN_VERBOSE=1` for per-file output. Linux `perf stat -r 3` reports
+0.1419--0.1473 cache misses per call across all candidates. Because cache
+traffic is effectively flat while cycles track wall clock, the selection is
+driven by executed derivative work rather than cache behavior.
+
+The current machine-readable record is
+`benchmark/reference/ryzen9_5950x_vector_root_fixture_migration.json`; the
+earlier JVP and VJP tournament records remain as pre-migration evidence.
 
 Run validation and timing with:
 
