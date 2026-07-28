@@ -6,6 +6,8 @@ repository_dir=$(cd "$codegen_dir/../.." && pwd)
 temporary_dir=$(mktemp -d)
 trap 'rm -rf -- "$temporary_dir"' EXIT
 
+python3 "$repository_dir/scripts/check_contracted_codegen.py" "$repository_dir"
+
 (
     cd "$codegen_dir"
     fo build
