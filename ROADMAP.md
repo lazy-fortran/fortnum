@@ -443,7 +443,7 @@ Every tournament record must include:
 - [x] Add CI coverage for the real Flang and Enzyme hybrid pipeline.
 - [x] Add scheduled benchmark runs on the reference Ryzen 9 5950X.
 - [x] Re-run candidate selection after material compiler changes.
-- [ ] Re-run candidate selection after material Enzyme changes.
+- [x] Re-run candidate selection after material Enzyme changes.
 - [ ] Re-run candidate selection after material `fortsym` changes.
 - [ ] Re-run candidate selection after material primal-code changes.
 - [ ] Re-run candidate selection on new target hardware.
