@@ -76,6 +76,21 @@ for 16 VJP cotangents. Direct-solver analytical products beat Enzyme by 3.81×
 for 16 JVP directions and 1.53× for 16 VJP cotangents. These are local
 wall-clock results, not a mechanism-wide rule.
 
+ODE choices change with the requested product and scale. On the short
+frozen-trace fixture, a hybrid generated Enzyme RHS JVP is 1.01× faster than
+the analytical RHS JVP in the Enzyme build; the normal build selects the
+analytical implementation. For a full 16-by-16 initial-state Jacobian,
+analytical forward sweeps are 1.23× faster than analytical reverse sweeps.
+For a scalar objective, analytical reverse is 1.74× faster on the short
+trajectory and 1.71× faster on the 400-step trajectory. Parameter scaling
+crosses over between one and four parameters: forward wins at one, while
+reverse wins by 2.54× at four and 8.51× at sixteen. Implicit event products
+reach 31.37× over repeated event relocation. Checkpointing reduces retained
+trace bytes but does not reduce complete-workload peak RSS in the measured
+implementation, so full-trace reverse remains faster. The stiff record covers
+differentiation around an explicit primal; it does not claim a production
+stiff-solver selection.
+
 ## GPU record families
 
 | Family | Record pattern | Selection question |
