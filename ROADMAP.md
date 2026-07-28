@@ -380,7 +380,7 @@ support.
 
 - [x] Benchmark the analytical FFT JVP against autodiff of the implementation.
 - [x] Benchmark the analytical FFT VJP against autodiff of the implementation.
-- [ ] Verify complex-adjoint and normalization conventions independently.
+- [x] Verify complex-adjoint and normalization conventions independently.
 - [ ] Add a hybrid custom rule for an external FFT library.
 - [ ] Benchmark scalar FFT workloads.
 - [ ] Benchmark batched FFT workloads.

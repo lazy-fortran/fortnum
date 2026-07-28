@@ -17,6 +17,7 @@ program test_fft_ad
     nfail = 0
 
     call test_c2c_jvp_fd(nfail)
+    call test_c2c_conventions(nfail)
     call test_c2c_adjoint(nfail, -1)
     call test_c2c_adjoint(nfail, +1)
     call test_c2c_adjoint_n(nfail, 7) ! Bluestein length
@@ -33,6 +34,82 @@ program test_fft_ad
     stop 0
 
 contains
+
+    subroutine test_c2c_conventions(nfail)
+        integer, intent(inout) :: nfail
+        integer, parameter :: n = 8
+        real(dp), parameter :: tolerance = 2.0e-12_dp
+        complex(dp) :: actual(n), expected(n), original(n), cotangent(n)
+        integer :: i
+
+        do i = 1, n
+            original(i) = cmplx(sin(0.31_dp*i), cos(0.47_dp*i), dp)
+            cotangent(i) = cmplx(cos(0.23_dp*i), sin(0.59_dp*i), dp)
+        end do
+
+        actual = original
+        call fft_c2c(actual, -1)
+        call direct_dft(original, -1, expected)
+        call check_complex("forward sign", actual, expected, tolerance, nfail)
+
+        actual = cotangent
+        call fft_c2c_vjp(actual, -1)
+        call direct_dft(cotangent, +1, expected)
+        call check_complex("forward adjoint sign", actual, expected, &
+            tolerance, nfail)
+
+        actual = original
+        call fft_c2c(actual, +1)
+        call direct_dft(original, +1, expected)
+        call check_complex("inverse sign", actual, expected, tolerance, nfail)
+
+        call fft_c2c(actual, -1)
+        actual = actual/real(n, dp)
+        call check_complex("forward-inverse normalization", actual, original, &
+            tolerance, nfail)
+
+        actual = cotangent
+        call fft_c2c_vjp(actual, +1)
+        call direct_dft(cotangent, -1, expected)
+        call check_complex("inverse adjoint sign", actual, expected, &
+            tolerance, nfail)
+    end subroutine test_c2c_conventions
+
+    pure subroutine direct_dft(input, sign, output)
+        complex(dp), intent(in) :: input(:)
+        integer, intent(in) :: sign
+        complex(dp), intent(out) :: output(size(input))
+        real(dp), parameter :: pi = acos(-1.0_dp)
+        complex(dp) :: phase
+        real(dp) :: angle
+        integer :: frequency, sample, n
+
+        n = size(input)
+        do frequency = 0, n - 1
+            output(frequency + 1) = cmplx(0.0_dp, 0.0_dp, dp)
+            do sample = 0, n - 1
+                angle = real(sign, dp)*2.0_dp*pi* &
+                    real(frequency*sample, dp)/real(n, dp)
+                phase = cmplx(cos(angle), sin(angle), dp)
+                output(frequency + 1) = output(frequency + 1) + &
+                    input(sample + 1)*phase
+            end do
+        end do
+    end subroutine direct_dft
+
+    subroutine check_complex(label, actual, expected, tolerance, nfail)
+        character(*), intent(in) :: label
+        complex(dp), intent(in) :: actual(:), expected(:)
+        real(dp), intent(in) :: tolerance
+        integer, intent(inout) :: nfail
+        real(dp) :: scale
+
+        scale = max(1.0_dp, maxval(abs(expected)))
+        if (maxval(abs(actual - expected)) > tolerance*scale) then
+            write (error_unit, "(a,a)") "FAIL [fft conventions] ", label
+            nfail = nfail + 1
+        end if
+    end subroutine check_complex
 
     ! ---- c2c forward (sign=-1) as a real map R^{2n} -> R^{2n} ----------------
 
