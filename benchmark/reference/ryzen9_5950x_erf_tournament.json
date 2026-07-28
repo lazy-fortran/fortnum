@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "source_revision": "0f104aae8073a159deaea2389612a557e0bc3124",
+  "operator": "sin(erf(x)) + erf(x)^2",
+  "products": ["jvp", "vjp"],
+  "active_inputs": 1,
+  "outputs": 1,
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "autodiff": "Enzyme 22",
+    "optimization": "O2"
+  },
+  "candidates": {
+    "analytical": "fortsym-generated erf product plus explicit outer chain rule",
+    "autodiff": "Enzyme through intrinsic erf and the complete outer expression",
+    "hybrid": "Enzyme outer derivative with one fortsym-generated erf custom JVP"
+  },
+  "sampling": {
+    "samples": 15,
+    "warmup_samples": 3,
+    "derivative_calls_per_sample": 50000,
+    "direction_counts": [1, 4, 16]
+  },
+  "validation": {
+    "oracle": "central difference of the complete outer objective",
+    "relative_tolerance": 2e-8,
+    "regions_checked": ["small", "transition", "saturated tail"],
+    "hybrid_provenance": "one analytical erf custom-rule call asserted per JVP"
+  },
+  "regions": [
+    {
+      "name": "small",
+      "x": 0.1,
+      "jvp_median_ns": {
+        "analytical": [22.86128, 78.78600, 301.84864],
+        "autodiff": [22.93200, 77.55648, 299.67200],
+        "hybrid": [22.95806, 80.41312, 303.25920]
+      },
+      "vjp_median_ns": {
+        "analytical": [23.53334, 78.81568, 304.04480],
+        "autodiff": [23.63454, 79.36152, 304.95840]
+      }
+    },
+    {
+      "name": "transition",
+      "x": 1.0,
+      "jvp_median_ns": {
+        "analytical": [23.31632, 78.86784, 302.39040],
+        "autodiff": [23.03118, 77.96048, 299.40576],
+        "hybrid": [23.10252, 78.88304, 303.37792]
+      },
+      "vjp_median_ns": {
+        "analytical": [23.42172, 78.64416, 304.29184],
+        "autodiff": [23.64774, 79.04496, 305.08352]
+      }
+    },
+    {
+      "name": "tail",
+      "x": 4.0,
+      "jvp_median_ns": {
+        "analytical": [25.03578, 87.94576, 330.28640],
+        "autodiff": [24.76526, 85.98040, 327.00672],
+        "hybrid": [25.15138, 86.16632, 331.35712]
+      },
+      "vjp_median_ns": {
+        "analytical": [25.19868, 86.98144, 330.41440],
+        "autodiff": [26.11880, 87.21792, 330.87968]
+      }
+    }
+  ],
+  "peak_rss_bytes_at_16_products": {
+    "all_regions_and_candidates": 13643776
+  },
+  "tail_perf_stat_five_run_aggregate": {
+    "analytical_jvp": {
+      "cycles": 85154790,
+      "instructions": 228241562,
+      "cache_references": 54000,
+      "cache_misses": 16538
+    },
+    "autodiff_jvp": {
+      "cycles": 86096501,
+      "instructions": 222841719,
+      "cache_references": 53525,
+      "cache_misses": 16263
+    },
+    "hybrid_jvp": {
+      "cycles": 86080678,
+      "instructions": 225541537,
+      "cache_references": 53924,
+      "cache_misses": 16557
+    },
+    "analytical_vjp": {
+      "cycles": 85960522,
+      "instructions": 222841268,
+      "cache_references": 53988,
+      "cache_misses": 16303
+    },
+    "autodiff_vjp": {
+      "cycles": 86138782,
+      "instructions": 223741335,
+      "cache_references": 53920,
+      "cache_misses": 16378
+    }
+  },
+  "selection": {
+    "jvp": "analytical under the practical-tie rule; autodiff is 0.7-1.0% raw-faster at 16 directions",
+    "vjp": "analytical",
+    "reason": "wall-clock tie, identical peak memory and cache behavior; generated analytical is always available and device-portable"
+  }
+}

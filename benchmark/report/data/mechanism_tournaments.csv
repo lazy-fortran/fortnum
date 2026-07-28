@@ -37,3 +37,9 @@ gamma_transition_jvp,autodiff,autodiff,2737.8304,4234.8752,ryzen9_5950x_gamma_to
 gamma_transition_vjp,analytical,analytical,4273.9088,6375.5008,ryzen9_5950x_gamma_tournament.json
 gamma_tail_jvp,autodiff,autodiff,2738.8736,5748.0464,ryzen9_5950x_gamma_tournament.json
 gamma_tail_vjp,analytical,analytical,6007.8960,10552.5536,ryzen9_5950x_gamma_tournament.json
+erf_small_jvp,analytical,autodiff,299.67200,301.84864,ryzen9_5950x_erf_tournament.json
+erf_small_vjp,analytical,analytical,304.04480,304.95840,ryzen9_5950x_erf_tournament.json
+erf_transition_jvp,analytical,autodiff,299.40576,302.39040,ryzen9_5950x_erf_tournament.json
+erf_transition_vjp,analytical,analytical,304.29184,305.08352,ryzen9_5950x_erf_tournament.json
+erf_tail_jvp,analytical,autodiff,327.00672,330.28640,ryzen9_5950x_erf_tournament.json
+erf_tail_vjp,analytical,analytical,330.41440,330.87968,ryzen9_5950x_erf_tournament.json
