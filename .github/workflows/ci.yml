@@ -34,8 +34,10 @@ jobs:
             libgmp-dev \
             liblapack-dev \
             libmpfr-dev \
-            libsymengine-dev \
             ninja-build
+
+      - name: Install pinned SymEngine
+        run: scripts/ci/install_symengine.sh
 
       - name: Install fpm and fo
         run: |
@@ -231,8 +233,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             ca-certificates cmake curl g++ gfortran git gnupg \
-            libblas-dev libfftw3-dev liblapack-dev lsb-release ninja-build \
+            libblas-dev libfftw3-dev liblapack-dev libflint-dev libgmp-dev \
+            libmpfr-dev lsb-release ninja-build \
             software-properties-common
+
+      - name: Install pinned SymEngine
+        run: scripts/ci/install_symengine.sh
 
       - name: Install fpm and fo
         run: |
