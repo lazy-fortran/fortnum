@@ -296,6 +296,8 @@ if(FORTNUM_ENABLE_ENZYME)
             "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_ode_scalar_rhs.f90")
         set(_fortnum_fft_jvp_wrapper_source
             "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_fft8.f90")
+        set(_fortnum_fftw8_wrapper_source
+            "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_fftw8_outer.f90")
         foreach(_wrapper
                 ${_fortnum_dawson_wrapper_sources}
                 "${_fortnum_square_wrapper_source}"
@@ -312,7 +314,8 @@ if(FORTNUM_ENABLE_ENZYME)
                 ${_fortnum_fixed_quadrature_wrapper_sources}
                 ${_fortnum_adaptive_wrapper_sources}
                 "${_fortnum_ode_forward_wrapper_source}"
-                "${_fortnum_fft_jvp_wrapper_source}")
+                "${_fortnum_fft_jvp_wrapper_source}"
+                "${_fortnum_fftw8_wrapper_source}")
             if(NOT EXISTS "${_wrapper}")
                 message(FATAL_ERROR "Missing generated Enzyme wrapper: ${_wrapper}")
             endif()
@@ -599,4 +602,22 @@ if(FORTNUM_ENABLE_ENZYME)
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/fft_jvp_tournament.f90
         MODE forward
         OPT_LEVEL O2)
+    find_library(FORTNUM_FFTW3_LIBRARY NAMES fftw3)
+    if(FORTNUM_FFTW3_LIBRARY)
+        fortnum_add_enzyme_test(
+            NAME enzyme_fftw8_custom_rule
+            SOURCES
+                ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
+                ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_rule_counter.c
+                ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+                ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/fftw8_kernel.c
+                ${_fortnum_fftw8_wrapper_source}
+                ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/fftw8_tournament.f90
+            FORWARD_RULES
+                fortnum_fftw8_objective_scalar=fortnum_fftw8_objective_scalar_derivative
+            LINK_LIBRARIES
+                ${FORTNUM_FFTW3_LIBRARY}
+            MODE forward
+            OPT_LEVEL O2)
+    endif()
 endif()
