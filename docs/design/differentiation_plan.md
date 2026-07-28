@@ -109,10 +109,13 @@ The first implementation slice now also contains:
 - generated raw-autodiff scalar comparators for Dawson and Bessel, plus a
   repository guard that rejects raw Enzyme interfaces and duplicated
   timer/statistics/peak-memory helpers in hybrid fixtures
+- a machine-checked inventory of every production derivative kernel and every
+  generated Enzyme-wrapper artifact, classified by mathematical source
+  ownership in `docs/design/derivative_kernel_inventory.csv`
 
-Remaining work is tracked item by item in `ROADMAP.md`; the next CPU Enzyme
-infrastructure section is complete. The next section inventories every
-analytical and hybrid derivative kernel by implementation class.
+Remaining work is tracked item by item in `ROADMAP.md`. The CPU Enzyme
+infrastructure and derivative-kernel inventory sections are complete. The next
+section migrates admissible explicit chain rules to generated products.
 
 ## 3. Terminology
 
