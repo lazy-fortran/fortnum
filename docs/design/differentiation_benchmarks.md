@@ -307,6 +307,15 @@ is therefore 34.27 times faster than forward reconstruction and 64.45 times
 faster than finite differences. All candidates have the same 2.82 MB peak RSS,
 and the independent complex-step error is \(3.15\times10^{-12}\).
 
+The first HVP tournament separates an isolated mixed-mode proof from the
+Newton-CG consumer kernel. On four separable residuals, Enzyme
+forward-over-reverse takes 29.83 ns, reverse-over-forward 30.73 ns,
+analytical 33.94 ns, and the diagnostic 39.88 ns. On the actual
+eight-input, 24-residual consumer kernel, the contracted analytical HVP takes
+226.87 ns versus 381.00 ns for a central difference of gradients. Peak-RSS
+spreads are at most 0.29 MB and are treated as process noise. The isolated
+mixed-mode result does not select the complete Newton-CG workload.
+
 ## Current normalized set
 
 `benchmark/report/data/mechanism_tournaments.csv` includes only tournaments

@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "operator": "nonlinear_least_squares_hvp",
+  "product": "hvp",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1 20260625",
+    "flang_llvm": "22.1.8",
+    "autodiff": "Enzyme 22",
+    "fortnum_commit": "6db4101"
+  },
+  "mixed_mode_fixture": {
+    "workload": "four independent residuals r_i=x_i^2-target_i and one HVP",
+    "sampling": {
+      "processes": 3,
+      "samples_per_process": 15,
+      "calls_per_sample": 200000,
+      "memory_processes_per_candidate": 5
+    },
+    "validation": "closed-form diagonal Hessian contraction",
+    "candidates": [
+      {
+        "id": "forward_over_reverse",
+        "mechanism": "autodiff",
+        "median_ns": 29.833165,
+        "mad_ns": 0.538215,
+        "peak_rss_bytes": 2854912
+      },
+      {
+        "id": "reverse_over_forward",
+        "mechanism": "autodiff",
+        "median_ns": 30.72665,
+        "mad_ns": 0.35908,
+        "peak_rss_bytes": 2867200
+      },
+      {
+        "id": "analytical",
+        "mechanism": "analytical",
+        "median_ns": 33.9391,
+        "mad_ns": 0.377915,
+        "peak_rss_bytes": 2928640
+      },
+      {
+        "id": "central_gradient_difference",
+        "mechanism": "diagnostic",
+        "median_ns": 39.884255,
+        "mad_ns": 0.50019,
+        "peak_rss_bytes": 2875392
+      }
+    ],
+    "raw_selection": {
+      "selected": "forward_over_reverse",
+      "speedup_over_reverse_over_forward": 1.0299,
+      "speedup_over_analytical": 1.1376,
+      "scope": "isolated mixed-mode fixture; not the Newton-CG production selection"
+    }
+  },
+  "newton_cg_consumer_kernel": {
+    "workload": "eight inputs, 24 sinusoidal residuals, one contracted HVP",
+    "validation": {
+      "oracle": "complex-step derivative of the analytical gradient",
+      "maximum_absolute_error": 6.9388939039072284e-18
+    },
+    "candidates": [
+      {
+        "id": "analytical_contracted",
+        "mechanism": "analytical",
+        "median_ns": 226.865,
+        "mad_ns": 1.3182,
+        "peak_rss_bytes": 3125248
+      },
+      {
+        "id": "central_gradient_difference",
+        "mechanism": "diagnostic",
+        "median_ns": 381.0011,
+        "mad_ns": 9.0881,
+        "peak_rss_bytes": 2834432
+      }
+    ],
+    "selection": {
+      "selected_among_measured": "analytical_contracted",
+      "runtime_speedup": 1.6794,
+      "reason": "analytical has the lowest validated consumer-kernel wall clock; the 0.29 MB RSS spread is process-level noise"
+    }
+  }
+}
