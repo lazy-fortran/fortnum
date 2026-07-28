@@ -136,10 +136,14 @@ replay the accepted subdivision stored in `integrate_result_t`.
 - `fft_c2c_jvp`, `fft_c2c_vjp`
 - `fft_r2c_jvp`, `fft_r2c_vjp`
 
-FFT products apply the linear transform or its adjoint. Check the `sign` and
-normalization contract when composing complex VJPs. Length-eight complex
-transforms dispatch to a fixed production execution leaf shared by the
-analytical product and its autodiff benchmark candidate.
+`sign=-1` applies the unnormalized forward transform and `sign=+1` applies the
+unnormalized inverse transform. The JVP uses the same sign. The VJP uses the
+opposite sign with no extra `1/n` factor. Applying forward then inverse and
+dividing by `n` recovers the input. Independent direct-DFT tests enforce these
+sign and normalization conventions for the primal, JVP, and VJP.
+
+Length-eight complex transforms dispatch to a fixed production execution leaf
+shared by the analytical product and its autodiff benchmark candidate.
 That internal leaf lives in `fortnum_fft8_kernel`; callers should continue
 through `fortnum_fft`.
 
