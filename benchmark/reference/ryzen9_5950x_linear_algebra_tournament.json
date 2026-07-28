@@ -17,6 +17,30 @@
     "factor_reuse_vjp_maximum_absolute_error": 4.4504432081325478e-12,
     "oracles": "complete perturbed linear solves; other workload-specific errors remain in the referenced records"
   },
+  "representative_candidate_peak_rss_bytes": {
+    "determinant_jvp_64_directions": {
+      "analytical": 4288512,
+      "diagnostic": 4272128
+    },
+    "factor_reuse_jvp": {
+      "refactor": 12451840,
+      "reuse": 12378112
+    },
+    "factor_reuse_vjp": {
+      "refactor": 12513280,
+      "reuse": 12578816
+    },
+    "direct_solve_jvp_16_directions": {
+      "analytical": 2473984,
+      "autodiff": 2514944,
+      "diagnostic": 2519040
+    },
+    "direct_solve_vjp_16_cotangents": {
+      "analytical": 2703360,
+      "autodiff": 2674688,
+      "diagnostic": 2707456
+    }
+  },
   "workloads": [
     {
       "name": "determinant_jvp",

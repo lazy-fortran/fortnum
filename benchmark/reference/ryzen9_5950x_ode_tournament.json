@@ -67,6 +67,29 @@
       "mad_ns": 61.1360
     }
   ],
+  "representative_candidate_peak_rss_bytes": {
+    "short_frozen_trace_jvp": {
+      "analytical": 3092480,
+      "hybrid": 2990080,
+      "diagnostic": 3043328
+    },
+    "initial_state_jacobian_16_products": {
+      "analytical_forward": 3862528,
+      "analytical_reverse": 3928064,
+      "diagnostic": 3883008
+    },
+    "long_trajectory_vjp": {
+      "full_trace_reverse": 3825664,
+      "forward_reconstruction": 3821568,
+      "checkpoint_stride_16": 3829760,
+      "recompute_every_prefix": 3825664,
+      "diagnostic": 3829760
+    },
+    "event_state_16_directions": {
+      "analytical": 3833856,
+      "diagnostic": 3833856
+    }
+  },
   "verdicts": [
     {
       "workload": "short frozen-trace parameter JVP",
