@@ -30,7 +30,7 @@ primal evaluations required by the stated oracle.
 | Family | Record pattern | Products and comparisons | Independent validation |
 | --- | --- | --- | --- |
 | generated algebra | `ryzen9_5950x_dawson_generated_family.json`, determinant and inverse records | fused/separate, generated/diagnostic, JVP/VJP | formulas, finite differences, matrix identities, adjoint identities |
-| special functions | `ryzen9_5950x_bessel_*.json` | analytical, autodiff, hybrid across series, recurrence, asymptotic regions | complete-objective finite differences and custom-rule provenance |
+| special functions | `ryzen9_5950x_bessel_*.json`, `ryzen9_5950x_gamma_tournament.json` | analytical, autodiff, hybrid across numerical regions | complete-objective finite differences and custom-rule provenance |
 | Enzyme infrastructure | `ryzen9_5950x_enzyme_*.json`, `*_fixture_migration.json` | wrapper ABI, shared support, code size, migration regression | real Enzyme formulas, adjoint identities, negative repository guards |
 | interpolation | `ryzen9_5950x_lagrange_*.json`, `ryzen9_5950x_bspline_*.json` | active points, values, nodes, knots, coefficients, fused products | independent cubic formulas, finite differences, adjoint identities, crossing status |
 | quadrature and integration | `ryzen9_5950x_integrate_*.json`, fixed-quadrature records | fixed, moving-bound, frozen-trace, autodiff, hybrid, batched | exact integrals, Leibniz terms, trace replay, finite differences |
@@ -77,6 +77,12 @@ The committed records cover:
 
 These samples establish local crossover evidence. They do not define a
 universal forward/reverse threshold.
+
+The gamma tournament keeps the shape fixed and activates the integration
+limit. Enzyme 22 crashes in type analysis for active shape differentiation
+through Flang's `log_gamma` lowering, so that unreliable candidate is neither
+selected nor normalized. Full shape derivatives remain available through the
+independently tested analytical products.
 
 ## Current normalized set
 

@@ -2,14 +2,15 @@
 
 Status: normalized report for the committed tournament CSV.
 
-Post-generation-migration refresh: 2026-07-28. Revalidation retained all 32
-product-specific selections. The eight temporary figures generated in 0.67 s
-wall clock with 27.4 MB peak RSS; generated PNGs were inspected but are not
-repository artifacts.
+Post-generation-migration refresh: 2026-07-28. Revalidation retained the
+existing selections and the gamma tournament added six product-specific
+results. The eight temporary figures generated in 0.72 s wall clock with
+29.4 MB peak RSS; generated PNGs were inspected but are not repository
+artifacts.
 
 ## Scope
 
-`benchmark/report/data/mechanism_tournaments.csv` contains 32 derivative
+`benchmark/report/data/mechanism_tournaments.csv` contains 38 derivative
 workloads with competing mechanism timings. Every row names its source JSON
 record.
 
@@ -23,13 +24,13 @@ Finite differences are diagnostics and win no current production selection.
 
 | Mechanism | Selected workloads | Share | Raw fastest workloads |
 | --- | ---: | ---: | ---: |
-| `analytical` | 26 | 81.2% | 23 |
-| `autodiff` | 4 | 12.5% | 4 |
-| `hybrid` | 2 | 6.2% | 5 |
+| `analytical` | 29 | 76.3% | 26 |
+| `autodiff` | 7 | 18.4% | 7 |
+| `hybrid` | 2 | 5.3% | 5 |
 | diagnostic | 0 | 0.0% | 0 |
 
 The second-fastest/fastest wall-clock ratio ranges from 1.001 to 1,224.355.
-Its median is 1.275 and geometric mean is 2.076. 13 workloads have a
+Its median is 1.465 and geometric mean is 2.005. 13 workloads have a
 runner-up within 20%.
 
 These counts describe the measured workload set. They do not select new
@@ -47,6 +48,7 @@ refresh.
 | --- | --- | --- |
 | compact generated algebra | `analytical` | direct contracted and fused products avoid repeated primals |
 | Bessel | mixed | raw forward autodiff reuses recurrence work in two JVP regions; analytical wins the measured VJPs and series JVP |
+| regularized gamma, fixed shape | product-specific | forward autodiff reuses the primal iteration and wins JVPs; the analytical scalar adjoint wins VJPs |
 | fixed quadrature | `analytical` | fixed linear contractions beat Enzyme and complete finite differences |
 | adaptive integration | mixed | whole-trace autodiff narrowly wins two measured JVP workloads; normal-build analytical remains for an optional hybrid raw win |
 | scalar/vector roots | product-specific | hybrid residual JVP can win; analytical implicit VJP and factor reuse remain strongest |

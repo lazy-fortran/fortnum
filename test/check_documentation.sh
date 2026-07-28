@@ -60,7 +60,7 @@ expect_failure "an undocumented production module" "${case_root}"
 
 case_root="${temp_dir}/report-count"
 cp -a "${base}" "${case_root}"
-sed -i 's/contains 32 derivative/contains 31 derivative/' \
+sed -i 's/contains [0-9][0-9]* derivative/contains 0 derivative/' \
     "${case_root}/docs/design/differentiation_report.md"
 expect_failure "stale aggregate benchmark statistics" "${case_root}"
 

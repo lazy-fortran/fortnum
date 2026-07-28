@@ -367,7 +367,7 @@ support.
 ## Special functions
 
 - [x] Run an analytical, autodiff, and hybrid Bessel tournament.
-- [ ] Run an analytical, autodiff, and hybrid gamma-function tournament.
+- [x] Run an analytical, autodiff, and hybrid gamma-function tournament.
 - [ ] Run an analytical, autodiff, and hybrid error-function tournament.
 - [ ] Run an analytical, autodiff, and hybrid hypergeometric tournament.
 - [ ] Generate region-specific analytical candidates with `fortsym`.
