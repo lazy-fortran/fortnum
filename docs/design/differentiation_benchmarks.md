@@ -978,6 +978,34 @@ taskset -c 4 \
     --benchmark
 ```
 
+## CPU Enzyme fixture baseline
+
+Before consolidating fixture scaffolding, a clean released Flang/Enzyme build
+records the current cost and duplication. The scope is all 17 registered CPU
+Enzyme executables: 23 fixture source files containing 5,370 lines.
+
+| Metric | Baseline |
+|---|---:|
+| Clean Enzyme-only build, 8 jobs | 3.11 s |
+| Build peak RSS | 139,653,120 B |
+| Sequential 17-fixture suite median, 31 samples | 27.5859 ms |
+| Runtime-suite peak RSS | 3,563,520 B |
+| Executable bytes, summed | 35,695,384 B |
+| ELF text bytes, summed | 32,502,856 B |
+
+All 17 fixtures pass their independent analytical, finite-difference,
+residual, adjoint, or closed-form oracle. The runtime number is complete
+process wall clock, including 17 launches; it is not a kernel-only latency.
+
+The repeated scaffold inventory finds 31 environment lookups across eight
+files, 34 `system_clock` calls across 14 files, 13 copies of the peak-RSS
+interface, nine median/MAD implementations, and 22 raw Enzyme intrinsic
+interfaces across 20 files. These exact counts define what the following
+shared-support and wrapper-generation roadmap items must reduce. The full
+per-fixture memory and native-size table, toolchain provenance, build timing,
+and runtime dispersion are in
+`benchmark/reference/ryzen9_5950x_enzyme_fixture_baseline.json`.
+
 ## Active Lagrange support-node products
 
 For

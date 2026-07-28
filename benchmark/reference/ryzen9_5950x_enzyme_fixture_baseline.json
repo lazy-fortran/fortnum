@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "source_revision": "03ad54451b8b7a45b4ed2bc8fdd41b4933f018cd",
+  "purpose": "pre-refactor baseline for shared CPU Enzyme fixture infrastructure",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor"
+  },
+  "toolchain": {
+    "flang": "22.1.8",
+    "llvm_opt": "22.1.8",
+    "enzyme_commit": "c96508349d9f121957292308c646b4a1fd53c507",
+    "plugin_sha256": "bd82cd7d03c7d339a736777609d99c2d2cd47519fa9da1827b193028ef274854",
+    "optimization": "O2",
+    "build_parallelism": 8
+  },
+  "scope": {
+    "registered_executables": 17,
+    "fixture_source_files": 23,
+    "fixture_source_lines": 5370,
+    "modes": ["forward", "reverse"],
+    "classification": ["autodiff", "hybrid"]
+  },
+  "duplication": {
+    "environment_lookup_calls": 31,
+    "files_with_environment_lookup": 8,
+    "system_clock_calls": 34,
+    "files_with_system_clock": 14,
+    "duplicated_peak_rss_interfaces": 13,
+    "duplicated_median_mad_implementations": 9,
+    "raw_enzyme_intrinsic_interfaces": 22,
+    "files_with_raw_enzyme_intrinsic_interfaces": 20,
+    "count_method": "exact repository searches over cmake/enzyme Fortran and C sources"
+  },
+  "clean_build": {
+    "configure_wall_s": 0.89,
+    "enzyme_targets_wall_s": 3.11,
+    "enzyme_targets_peak_rss_bytes": 139653120,
+    "enzyme_targets_user_s": 17.19,
+    "enzyme_targets_system_s": 4.63,
+    "complete_repository_wall_s": 7.48,
+    "complete_repository_peak_rss_bytes": 140279808,
+    "complete_repository_user_s": 47.36,
+    "complete_repository_system_s": 9.11
+  },
+  "runtime_suite": {
+    "command": "sequential execution of all 17 Enzyme fixtures",
+    "samples": 31,
+    "warmups": 3,
+    "median_ms": 27.58585278,
+    "mean_ms": 27.88260717,
+    "stddev_ms": 1.67489211,
+    "min_ms": 24.70320178,
+    "max_ms": 32.95796378,
+    "peak_rss_bytes": 3563520
+  },
+  "native_code": {
+    "metric": "ELF executable file bytes and size(1) text bytes, summed over all fixtures",
+    "executable_file_bytes": 35695384,
+    "text_bytes": 32502856,
+    "largest_executable_file_bytes": 2287496,
+    "largest_text_bytes": 2068961
+  },
+  "per_fixture": [
+    {"id": "enzyme_adaptive_frozen_trace_jvp", "file_bytes": 2274896, "text_bytes": 2067209, "peak_rss_bytes": 2813952},
+    {"id": "enzyme_array_sum", "file_bytes": 1619288, "text_bytes": 1446054, "peak_rss_bytes": 2256896},
+    {"id": "enzyme_bessel_tournament", "file_bytes": 2188592, "text_bytes": 2000640, "peak_rss_bytes": 2527232},
+    {"id": "enzyme_bspline_fixed_span_products", "file_bytes": 2168968, "text_bytes": 1983593, "peak_rss_bytes": 2248704},
+    {"id": "enzyme_dawson_hybrid", "file_bytes": 2169056, "text_bytes": 1982612, "peak_rss_bytes": 2527232},
+    {"id": "enzyme_direct_solver_jvp", "file_bytes": 2172528, "text_bytes": 1987377, "peak_rss_bytes": 2248704},
+    {"id": "enzyme_direct_solver_vjp", "file_bytes": 2176656, "text_bytes": 1989217, "peak_rss_bytes": 2297856},
+    {"id": "enzyme_dot", "file_bytes": 1619288, "text_bytes": 1446054, "peak_rss_bytes": 1949696},
+    {"id": "enzyme_fixed_quadrature_jvp_hybrid", "file_bytes": 2194568, "text_bytes": 2006531, "peak_rss_bytes": 2547712},
+    {"id": "enzyme_fixed_quadrature_vjp_hybrid", "file_bytes": 2194464, "text_bytes": 2007907, "peak_rss_bytes": 2183168},
+    {"id": "enzyme_iterative_solver_jvp", "file_bytes": 2185040, "text_bytes": 1998505, "peak_rss_bytes": 2207744},
+    {"id": "enzyme_ode_forward_sensitivity_jvp", "file_bytes": 2287496, "text_bytes": 2068961, "peak_rss_bytes": 2543616},
+    {"id": "enzyme_scalar_root_hybrid", "file_bytes": 2181728, "text_bytes": 1994325, "peak_rss_bytes": 2707456},
+    {"id": "enzyme_scalar_root_vjp_hybrid", "file_bytes": 2190016, "text_bytes": 2002981, "peak_rss_bytes": 2256896},
+    {"id": "enzyme_square", "file_bytes": 1619296, "text_bytes": 1445862, "peak_rss_bytes": 1966080},
+    {"id": "enzyme_vector_root_hybrid", "file_bytes": 2226648, "text_bytes": 2037722, "peak_rss_bytes": 2510848},
+    {"id": "enzyme_vector_root_vjp_hybrid", "file_bytes": 2226856, "text_bytes": 2037306, "peak_rss_bytes": 2506752}
+  ],
+  "validation": {
+    "tests_passed": 17,
+    "tests_failed": 0,
+    "oracle": "each fixture's independent analytical, finite-difference, residual, adjoint, or closed-form assertion",
+    "enzyme_execution_proof": "all linked executables run after the standalone Enzyme pass resolves their __enzyme intrinsic"
+  }
+}

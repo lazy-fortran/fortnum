@@ -132,6 +132,12 @@ implicit, hybrid, and finite-difference diagnostic candidates. Measured
 runtime, dispersion, peak memory, validation, hardware, and compiler evidence
 is committed in
 `docs/design/differentiation_benchmarks.md` and `benchmark/reference/`.
+The pre-refactor CPU Enzyme baseline covers all 17 fixtures: an Enzyme-only
+clean build takes 3.11 s with 139.7 MB peak RSS, while sequential complete
+fixture execution has a 27.5859 ms median and 3.6 MB peak RSS. The inventory
+also records 13 duplicated peak-memory interfaces, nine median/MAD
+implementations, and 22 raw Enzyme interfaces; these are the measured starting
+point for the shared-scaffolding migration.
 The cumulative report in `docs/design/differentiation_report.md` summarizes 32
 mechanism tournaments and provides reproducible `fortplot` figure generation
 without committing generated PNGs.
