@@ -1,7 +1,7 @@
 program bench_linear_solve_jvp
     use, intrinsic :: iso_fortran_env, only: dp => real64, int64
     use fortnum_linalg, only: LINALG_MAX_N, LINALG_OK, linear_solve_jvp, &
-        linear_solve_jvp_factored, lu_factor
+        linear_solve_jvp_factored, lu_factor, lu_solve
     use fortnum_benchmark_memory, only: peak_rss_bytes
     implicit none
 
@@ -11,7 +11,7 @@ program bench_linear_solve_jvp
     real(dp) :: a(n, n), factors(n, n), x(n), da(n, n), db(n), dx(n)
     real(dp) :: warmup
     integer :: ipiv(n), info, sample
-    character(16) :: candidate, mode
+    character(32) :: candidate, mode
     logical :: memory_only
 
     call get_command_argument(1, candidate)
@@ -25,6 +25,10 @@ program bench_linear_solve_jvp
     factors = a
     call lu_factor(n, factors, ipiv, info)
     if (info /= LINALG_OK) error stop "benchmark factorization failed"
+    if (trim(mode) == "--validation-error") then
+        call report_validation_error()
+        stop
+    end if
 
     if (memory_only) then
         warmup = run_sample(candidate, reps)
@@ -40,6 +44,29 @@ program bench_linear_solve_jvp
     end do
 
 contains
+
+    subroutine report_validation_error()
+        real(dp), parameter :: h = 1.0e-5_dp
+        real(dp) :: analytical(n), reference(n), b(n), ap(n, n), am(n, n)
+        real(dp) :: bp(n), bm(n), error
+
+        call linear_solve_jvp_factored(n, factors, ipiv, x, da, db, &
+            analytical, info)
+        if (info /= LINALG_OK) error stop "analytical JVP failed"
+        b = matmul(a, x)
+        ap = a + h*da
+        am = a - h*da
+        bp = b + h*db
+        bm = b - h*db
+        call lu_solve(n, ap, bp, info)
+        if (info /= LINALG_OK) error stop "positive complete solve failed"
+        call lu_solve(n, am, bm, info)
+        if (info /= LINALG_OK) error stop "negative complete solve failed"
+        reference = (bp - bm)/(2.0_dp*h)
+        error = maxval(abs(analytical - reference))
+        if (error > 2.0e-9_dp) error stop "linear-solve JVP validation failed"
+        write (*, "(es24.16)") error
+    end subroutine report_validation_error
 
     subroutine initialize_inputs()
         integer :: i, j

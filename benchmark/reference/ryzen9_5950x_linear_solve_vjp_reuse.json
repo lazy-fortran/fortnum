@@ -3,6 +3,8 @@
   "date": "2026-07-27",
   "operator": "linear_solve",
   "product": "vjp",
+  "source_revision": "7a69df364760a535315f281ebbb858c6e54727aa",
+  "evidence_refresh_source_revision": "d6d265a696d27a6e09786dea4656d3ae455259b4",
   "workload": "16x16 dense system, 200000 cotangents per sample, transposed primal LU reusable",
   "hardware": {
     "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
@@ -22,7 +24,14 @@
   },
   "validation": {
     "oracle": "central finite difference of cotangent-contracted complete solves in two directions",
-    "absolute_tolerance": 2e-9
+    "absolute_tolerance": 2e-9,
+    "maximum_absolute_error": 4.4504432081325478e-12
+  },
+  "native_code": {
+    "executable_bytes": 45040,
+    "refactor_vjp_symbol_bytes": 536,
+    "factored_vjp_symbol_bytes": 502,
+    "factored_many_vjp_symbol_bytes": 859
   },
   "memory_method": "getrusage(RUSAGE_SELF) inside each separately launched candidate",
   "candidates": [
