@@ -770,9 +770,9 @@ averaged across rows.
 | linear-solve VJP factor reuse | 16x16 | reuse transposed LU | 341.594 | refactor | 1,001.494 | 2.932x |
 | multiple JVP interface | 16 directions | repeated scalar | 12,834.573 | batched | 22,583.638 | 1.760x |
 | multiple VJP interface | 16 cotangents | repeated scalar | 18,924.946 | batched | 20,400.698 | 1.078x |
-| direct solve JVP | 16 directions | analytical implicit | 773.706 | diagnostic | 982.276 | 1.270x |
-| direct solve VJP | 16 cotangents | analytical adjoint | 852.922 | reverse autodiff | 1,089.863 | 1.278x |
-| iterative fixed-trace JVP | 32 steps, 16 directions | analytical recurrence | 5,226.153 | diagnostic | 8,143.141 | 1.558x |
+| direct solve JVP | 16 directions | analytical implicit | 642.542 | diagnostic | 816.418 | 1.271x |
+| direct solve VJP | 16 cotangents | analytical adjoint | 637.163 | reverse autodiff | 974.324 | 1.529x |
+| iterative fixed-trace JVP | 32 steps, 16 directions | analytical recurrence | 4,846.423 | diagnostic | 7,628.426 | 1.574x |
 
 Analytical implementations win all 12 measured workloads. This does not imply
 a policy preference: it is the outcome for the current small dense kernels,
@@ -798,8 +798,8 @@ tournaments do not.
 
 | Product | Analytical complete workload | Autodiff complete workload | Analytical advantage |
 |---|---:|---:|---:|
-| 16 value-plus-JVP directions | 773.7058 ns | 2,719.0076 ns | 3.5143x |
-| 16 scalar-objective VJPs | 852.9220 ns | 1,089.8630 ns | 1.2778x |
+| 16 value-plus-JVP directions | 642.5424 ns | 2,449.3696 ns | 3.8120x |
+| 16 scalar-objective VJPs | 637.1625 ns | 974.3235 ns | 1.5292x |
 
 The analytical candidates already use the mathematical solve rule and avoid
 differentiating elimination. A hybrid external-library rule would implement the
@@ -872,6 +872,41 @@ env FORTNUM_ITERATIVE_ACTION=--benchmark \
     FORTNUM_ITERATIVE_STEPS=32 FORTNUM_ITERATIVE_WORKLOADS=5000 \
     ctest --test-dir build-enzyme -V -R '^enzyme_iterative_solver_jvp$'
 ```
+
+### Generated-wrapper migration
+
+`fortsym` now generates the fixed-array forward wrapper with inactive
+trace-length and output-component integers. The fixture uses shared
+environment, three-warmup, 15-sample median/MAD, timer, and peak-RSS support,
+with candidate dispatch resolved before the measured loop. The primal
+Richardson trace and its analytical tangent recurrence remain one explicit
+implementation, independently checked by central differences of the same
+trace.
+
+Direction scaling at 32 steps:
+
+| Directions | Analytical ns (MAD) | Autodiff ns (MAD) | Diagnostic ns (MAD) | Winner |
+|---:|---:|---:|---:|---|
+| 1 | 300.4124 (2.0480) | 1,135.6892 (5.7728) | 489.0660 (2.9336) | `analytical` |
+| 4 | 1,208.3140 (1.9216) | 4,509.9750 (9.5080) | 1,919.0962 (1.1300) | `analytical` |
+| 16 | 4,846.4234 (22.7068) | 18,092.1266 (21.7452) | 7,628.4264 (20.2080) | `analytical` |
+
+At 16 directions analytical is 3.7331 times faster than forward autodiff and
+1.5740 times faster than the diagnostic. The selected complete-workload wall
+clock improves 7.27% over the previous fixture. One-direction wall clock
+remains approximately linear from 41.1956 ns at four steps through 609.1024
+ns at 64 steps.
+
+At 32 steps and 16 directions, analytical, autodiff, and diagnostic peak RSS
+are 2,674,688, 2,719,744, and 2,768,896 bytes. Their respective hardware
+counters are 22,130/57,152/1.048, 82,614/250,576/1.115, and
+35,436/62,896/1.051 cycles/instructions/cache misses per complete workload.
+Wall clock remains the selection metric.
+
+The incremental fixture build takes 0.65 s with 125,496 KiB peak RSS.
+Generated-wrapper support adds 5,672 executable bytes, or 0.26%. The
+controlled record is
+`benchmark/reference/ryzen9_5950x_iterative_solver_fixture_migration.json`.
 
 ## Multiple-right-hand-side adjoint solves
 

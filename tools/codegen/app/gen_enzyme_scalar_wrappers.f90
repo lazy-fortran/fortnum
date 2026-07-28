@@ -29,13 +29,18 @@ program gen_enzyme_scalar_wrappers
     call write_fixed_array_wrapper(output_directory, &
         "fortnum_generated_enzyme_direct_solver_component", &
         "fortnum_enzyme_direct_solver_component", &
-        "fortnum_direct_solve_component", [16, 4], .true., &
+        "fortnum_direct_solve_component", [16, 4], 1, &
         "fortnum_enzyme_direct_solver_component.f90")
     call write_fixed_array_wrapper(output_directory, &
         "fortnum_generated_enzyme_direct_solver_objective", &
         "fortnum_enzyme_direct_solver_objective", &
-        "fortnum_direct_solve_objective", [16, 4, 4], .false., &
+        "fortnum_direct_solve_objective", [16, 4, 4], 0, &
         "fortnum_enzyme_direct_solver_objective.f90")
+    call write_fixed_array_wrapper(output_directory, &
+        "fortnum_generated_enzyme_iterative_solver_component", &
+        "fortnum_enzyme_iterative_solver_component", &
+        "fortnum_iterative_solve_component", [16, 4], 2, &
+        "fortnum_enzyme_iterative_solver_component.f90")
 
 contains
 
@@ -145,11 +150,11 @@ contains
     end subroutine write_scalar_vector_wrapper
 
     subroutine write_fixed_array_wrapper(directory, module_name, wrapper_prefix, &
-            primal_symbol, array_sizes, trailing_integer, filename)
+            primal_symbol, array_sizes, inactive_integer_count, filename)
         character(*), intent(in) :: directory, module_name, wrapper_prefix
         character(*), intent(in) :: primal_symbol, filename
         integer, intent(in) :: array_sizes(:)
-        logical, intent(in) :: trailing_integer
+        integer, intent(in) :: inactive_integer_count
         type(enzyme_fixed_array_wrapper_spec_t) :: spec
         character(:), allocatable :: code, path
         integer :: unit, ios
@@ -158,7 +163,7 @@ contains
         spec%wrapper_prefix = str(wrapper_prefix)
         spec%primal_symbol = str(primal_symbol)
         spec%array_sizes = array_sizes
-        spec%trailing_integer = trailing_integer
+        spec%inactive_integer_count = inactive_integer_count
         spec%generator = str("gen_enzyme_scalar_wrappers")
         spec%generator_revision = str(fortsym_revision())
         spec%regenerate_command = str( &

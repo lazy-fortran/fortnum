@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "date": "2026-07-27",
+  "date": "2026-07-28",
   "decision": "do_not_add_hybrid_blas_lapack_rule",
   "hardware": {
     "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
@@ -8,18 +8,18 @@
   },
   "evidence": [
     {
-      "record": "ryzen9_5950x_direct_solver_jvp_enzyme.json",
+      "record": "ryzen9_5950x_direct_solver_fixture_migration.json",
       "product": "16 value-plus-JVP directions",
-      "analytical_ns": 773.705750,
-      "autodiff_ns": 2719.007600,
-      "analytical_speedup": 3.5143
+      "analytical_ns": 642.542350,
+      "autodiff_ns": 2449.369550,
+      "analytical_speedup": 3.8120
     },
     {
-      "record": "ryzen9_5950x_direct_solver_vjp_enzyme.json",
+      "record": "ryzen9_5950x_direct_solver_fixture_migration.json",
       "product": "16 scalar-objective value-plus-VJPs",
-      "analytical_ns": 852.922000,
-      "autodiff_ns": 1089.863000,
-      "analytical_speedup": 1.2778
+      "analytical_ns": 637.162500,
+      "autodiff_ns": 974.323500,
+      "analytical_speedup": 1.5292
     }
   ],
   "validation": {

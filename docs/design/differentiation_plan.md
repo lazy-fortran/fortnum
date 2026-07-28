@@ -86,9 +86,12 @@ The first implementation slice now also contains:
 - a `fortsym` fixed-array wrapper profile consumed by direct-solver JVP/VJP
   fixtures, including an inactive integer selector and fused primal-plus-VJP
   return; solver mathematics and validation oracles remain hand-written
+- the same fixed-array profile extended to two inactive integer controls for
+  the fixed-trace iterative-solver fixture, while preserving its explicit
+  analytical tangent recurrence and finite-difference trace oracle
 
 Remaining work is tracked item by item in `ROADMAP.md`; the next CPU Enzyme
-step migrates the iterative-solver Enzyme fixture.
+step migrates scalar-root JVP and VJP fixtures.
 
 ## 3. Terminology
 

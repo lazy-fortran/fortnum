@@ -99,31 +99,31 @@
       "name": "direct_solve_jvp",
       "scale": "16 directions",
       "winner": "analytical",
-      "winner_ns": 773.705750,
+      "winner_ns": 642.542350,
       "runner_up": "diagnostic",
-      "runner_up_ns": 982.276200,
-      "speedup": 1.2696,
-      "record": "ryzen9_5950x_direct_solver_jvp_enzyme.json"
+      "runner_up_ns": 816.418400,
+      "speedup": 1.2706,
+      "record": "ryzen9_5950x_direct_solver_fixture_migration.json"
     },
     {
       "name": "direct_solve_vjp",
       "scale": "16 cotangents",
       "winner": "analytical",
-      "winner_ns": 852.922000,
+      "winner_ns": 637.162500,
       "runner_up": "autodiff",
-      "runner_up_ns": 1089.863000,
-      "speedup": 1.2778,
-      "record": "ryzen9_5950x_direct_solver_vjp_enzyme.json"
+      "runner_up_ns": 974.323500,
+      "speedup": 1.5292,
+      "record": "ryzen9_5950x_direct_solver_fixture_migration.json"
     },
     {
       "name": "iterative_fixed_trace_jvp",
       "scale": "32 steps, 16 directions",
       "winner": "analytical",
-      "winner_ns": 5226.153400,
+      "winner_ns": 4846.423400,
       "runner_up": "diagnostic",
-      "runner_up_ns": 8143.140800,
-      "speedup": 1.5582,
-      "record": "ryzen9_5950x_iterative_solver_jvp_enzyme.json"
+      "runner_up_ns": 7628.426400,
+      "speedup": 1.5740,
+      "record": "ryzen9_5950x_iterative_solver_fixture_migration.json"
     }
   ],
   "overall": {
@@ -133,6 +133,6 @@
     "diagnostic_wins": 0,
     "hybrid_wins": 0,
     "closest_mechanism_contest": "direct_solve_vjp",
-    "closest_mechanism_speedup": 1.2778
+    "closest_mechanism_speedup": 1.5292
   }
 }

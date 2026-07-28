@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "operator": "fixed_trace_iterative_linear_solve",
+  "product": "value_plus_jvp",
+  "contract": "derivative of the executed Richardson trace",
+  "purpose": "generated-wrapper and shared-fixture migration",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "autodiff": "Enzyme 22",
+    "optimization": "O2",
+    "fortsym_revision": "0f59624c49326ca73169c7828e4adc3c0d26f907"
+  },
+  "migration": {
+    "generated_profile": "two fixed active arrays plus inactive step and component integers",
+    "shared_support": [
+      "environment parsing",
+      "three discarded warmups",
+      "15-sample median and median absolute deviation",
+      "timing",
+      "peak RSS"
+    ],
+    "hot_loop_dispatch": "candidate string resolved once before measurement"
+  },
+  "validation": {
+    "analytical_oracle": "explicit tangent recurrence of the same fixed trace",
+    "independent_oracle": "central differences of the same fixed trace",
+    "iteration_range": [4, 64],
+    "iteration_stride": 4,
+    "directions_checked": 16,
+    "autodiff_absolute_tolerance": 3e-12,
+    "diagnostic_absolute_tolerance": 3e-10
+  },
+  "sampling": {
+    "warmups": 3,
+    "samples": 15,
+    "runtime_aggregation": "median",
+    "dispersion": "median absolute deviation",
+    "workloads_per_sample": 5000,
+    "memory_processes_per_candidate": 5,
+    "perf_repetitions": 3
+  },
+  "direction_scaling_at_32_steps": [
+    {
+      "directions": 1,
+      "analytical_median_ns": 300.412400,
+      "analytical_mad_ns": 2.048000,
+      "autodiff_median_ns": 1135.689200,
+      "autodiff_mad_ns": 5.772800,
+      "diagnostic_median_ns": 489.066000,
+      "diagnostic_mad_ns": 2.933600
+    },
+    {
+      "directions": 4,
+      "analytical_median_ns": 1208.314000,
+      "analytical_mad_ns": 1.921600,
+      "autodiff_median_ns": 4509.975000,
+      "autodiff_mad_ns": 9.508000,
+      "diagnostic_median_ns": 1919.096200,
+      "diagnostic_mad_ns": 1.130000
+    },
+    {
+      "directions": 16,
+      "analytical_median_ns": 4846.423400,
+      "analytical_mad_ns": 22.706800,
+      "autodiff_median_ns": 18092.126600,
+      "autodiff_mad_ns": 21.745200,
+      "diagnostic_median_ns": 7628.426400,
+      "diagnostic_mad_ns": 20.208000
+    }
+  ],
+  "iteration_scaling_at_one_direction": [
+    {
+      "iterations": 4,
+      "analytical_median_ns": 41.195600,
+      "analytical_mad_ns": 0.232600,
+      "autodiff_median_ns": 143.192000,
+      "autodiff_mad_ns": 0.737400,
+      "diagnostic_median_ns": 54.901600,
+      "diagnostic_mad_ns": 0.144400
+    },
+    {
+      "iterations": 16,
+      "analytical_median_ns": 153.429200,
+      "analytical_mad_ns": 0.412800,
+      "autodiff_median_ns": 573.336800,
+      "autodiff_mad_ns": 1.414600,
+      "diagnostic_median_ns": 241.585400,
+      "diagnostic_mad_ns": 1.713000
+    },
+    {
+      "iterations": 64,
+      "analytical_median_ns": 609.102400,
+      "analytical_mad_ns": 1.254400,
+      "autodiff_median_ns": 2289.476600,
+      "autodiff_mad_ns": 2.917400,
+      "diagnostic_median_ns": 987.742200,
+      "diagnostic_mad_ns": 2.779200
+    }
+  ],
+  "memory": {
+    "directions": 16,
+    "iterations": 32,
+    "analytical_peak_rss_bytes": 2674688,
+    "autodiff_peak_rss_bytes": 2719744,
+    "diagnostic_peak_rss_bytes": 2768896
+  },
+  "perf": {
+    "directions": 16,
+    "iterations": 32,
+    "workloads_per_repetition": 9000,
+    "analytical": {
+      "cycles_per_workload": 22130.3436,
+      "instructions_per_workload": 57152.0029,
+      "cache_references_per_workload": 3.2887,
+      "cache_misses_per_workload": 1.0483
+    },
+    "autodiff": {
+      "cycles_per_workload": 82613.9294,
+      "instructions_per_workload": 250576.0209,
+      "cache_references_per_workload": 5.7068,
+      "cache_misses_per_workload": 1.1154
+    },
+    "diagnostic": {
+      "cycles_per_workload": 35435.5321,
+      "instructions_per_workload": 62896.0112,
+      "cache_references_per_workload": 3.7842,
+      "cache_misses_per_workload": 1.0511
+    }
+  },
+  "build_and_size": {
+    "incremental_fixture_build_wall_s": 0.65,
+    "incremental_fixture_build_peak_rss_kib": 125496,
+    "executable_bytes": 2190712,
+    "executable_change_bytes": 5672,
+    "executable_change_percent": 0.26
+  },
+  "selection": {
+    "selected": "analytical",
+    "criterion": "complete frozen-trace value-plus-JVP wall clock",
+    "directions": 16,
+    "iterations": 32,
+    "speedup_over_autodiff": 3.7331,
+    "speedup_over_diagnostic": 1.5740,
+    "selected_wall_clock_improvement_percent": 7.2660
+  }
+}
