@@ -178,6 +178,15 @@ The analytical path also executes 4.13 times fewer instructions and incurs
 plus a central finite difference of the complete objective, validate both
 candidates.
 
+The completed FFT tournament records observed oracle errors, timing MAD,
+candidate RSS, native code size, reusable plan state, product-count scaling,
+and CPU counters. The shared native FFT fixture's maximum scaled error is
+\(5.63\times10^{-11}\), including the complete-objective finite difference.
+The FFTW hybrid fixture's maximum relative error is
+\(6.13\times10^{-11}\). Production selections remain the analytical radix JVP
+and adjoint VJP, explicit analytical composition around FFTW, and the
+analytical spectral-objective gradient.
+
 Single-transform analytical products were measured at lengths 8, 64, 256,
 and 1024. JVP wall clock grows from 178 ns to 27.0 microseconds. VJP grows
 from 170 ns to 26.3 microseconds and stays within 6.3% of JVP at every length.

@@ -33,6 +33,7 @@
       "real interleaved dot-product adjoint identity"
     ],
     "relative_tolerance": 4e-13,
+    "observed_max_scaled_error_in_shared_fft_fixture": 5.62613e-11,
     "nan_check": "explicit"
   },
   "median_ns": {
@@ -66,5 +67,10 @@
     "mechanism": "analytical",
     "reason": "the analytical adjoint is valid, 3.16 to 4.90 times faster, uses less peak RSS, and executes fewer instructions; direct reverse Enzyme is invalid for this complex kernel",
     "autodiff_over_analytical_time_ratio": [3.1577, 4.2273, 4.9020]
+  },
+  "workload_contract": {
+    "reusable_primal_state": "none in the measured execution leaf; the analytical adjoint needs no primal tape",
+    "active_input_output_scaling": "16 active real components map to 16 outputs; cotangent counts 1, 4, and 16 measure reverse-product scaling",
+    "forward_reverse_crossover": "the companion JVP record measures forward mode over the same product counts"
   }
 }

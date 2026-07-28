@@ -33,15 +33,24 @@
       "central finite difference of the complete scalar objective along an independent direction"
     ],
     "direct_relative_tolerance": 4e-13,
-    "finite_difference_relative_tolerance": 2e-8
+    "finite_difference_relative_tolerance": 2e-8,
+    "observed_max_scaled_error_in_shared_fft_fixture": 5.62613e-11
   },
   "median_ns": {
     "analytical": 195.97775,
     "autodiff": 776.31560
   },
+  "mad_ns": {
+    "analytical": 7.16750,
+    "autodiff": 16.02970
+  },
   "peak_rss_bytes": {
     "analytical": 2916352,
     "autodiff": 2998272
+  },
+  "native_symbol_bytes": {
+    "analytical_fft_c2c8": 615,
+    "generated_autodiff_wrapper_and_jvp": 931
   },
   "perf_stat_single_run_500000_workloads": {
     "counter_order": ["cycles", "instructions", "cache_references", "cache_misses"],
@@ -52,5 +61,10 @@
     "mechanism": "analytical",
     "reason": "the analytical composition is valid, 3.96 times faster, uses 2.7% less peak RSS, and executes 4.13 times fewer instructions",
     "autodiff_over_analytical_time_ratio": 3.9612
+  },
+  "workload_contract": {
+    "reusable_primal_state": "the value and gradient share one primal FFT per call; no plan state is materialized for the fixed radix leaf",
+    "active_input_output_scaling": "16 active real components map to one scalar objective",
+    "forward_reverse_crossover": "the analytical adjoint is compared with the only valid Enzyme construction, 16 forward basis products; direct reverse Enzyme is rejected by validation"
   }
 }

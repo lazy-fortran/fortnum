@@ -31,6 +31,7 @@
     "primal_oracle": "independent O(n^2) direct DFT objective",
     "derivative_oracle": "central finite difference of the complete outer objective",
     "relative_tolerance": 4e-9,
+    "observed_max_relative_error": 6.12781e-11,
     "custom_rule_proof": "runtime counter requires exactly one custom-rule call"
   },
   "median_ns": {
@@ -67,5 +68,9 @@
     "mechanism": "analytical",
     "reason": "the candidates are within 3.3 percent, but analytical wins at 1 and 16 directions, uses less peak RSS, and does not require Enzyme at runtime",
     "hybrid_over_analytical_time_ratio": [1.0332, 0.9972, 1.0321]
+  },
+  "workload_contract": {
+    "active_input_output_scaling": "16 active real components map to one scalar output; direction counts 1, 4, and 16 measure JVP scaling",
+    "forward_reverse_crossover": "this released FFTW custom-rule pilot supports forward mode only; the native complex FFT tournament supplies the validated VJP comparison"
   }
 }

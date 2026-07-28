@@ -76,15 +76,15 @@ program enzyme_fft_jvp_tournament
         write_fixture_result
     implicit none
 
-    real(c_double) :: samples(fixture_sample_count), sink
+    real(c_double) :: samples(fixture_sample_count), sink, validation_error
     character(32) :: action, candidate, product_kind
     integer :: directions, iterations
     logical :: valid
 
     call read_fixture_environment("FORTNUM_FFT_ACTION", "validate", action)
     if (trim(action) == "validate") then
-        call validate_candidates()
-        write (*, "(a)") "PASS"
+        call validate_candidates(validation_error)
+        write (*, "('PASS max_scaled_error=',es12.5)") validation_error
         stop
     end if
     call read_fixture_environment("FORTNUM_FFT_CANDIDATE", "analytical", candidate)
@@ -116,16 +116,18 @@ program enzyme_fft_jvp_tournament
 
 contains
 
-    subroutine validate_candidates()
+    subroutine validate_candidates(max_scaled_error)
+        real(c_double), intent(out) :: max_scaled_error
         real(c_double), parameter :: tolerance = 4.0e-13_c_double
         real(c_double) :: x(real_size), direction(real_size)
         real(c_double) :: primal(real_size), enzyme_primal(real_size)
         real(c_double) :: expected(real_size), analytical(real_size)
-        real(c_double) :: autodiff(real_size), scale, lhs, rhs
+        real(c_double) :: autodiff(real_size), scale, lhs, rhs, error
         real(c_double) :: objective, direct_objective
         real(c_double) :: objective_plus, objective_minus
         integer :: i
 
+        max_scaled_error = 0.0_c_double
         do i = 1, real_size
             x(i) = sin(0.31_c_double*real(i, c_double))
             direction(i) = cos(0.47_c_double*real(i, c_double))
@@ -133,45 +135,66 @@ contains
         call fft8_primal(x, primal)
         call direct_dft(x, expected)
         scale = max(1.0_c_double, maxval(abs(expected)))
+        error = maxval(abs(primal - expected))/scale
+        max_scaled_error = max(max_scaled_error, error)
         if (maxval(abs(primal - expected)) > tolerance*scale) &
             error stop "production FFT disagrees with direct DFT"
 
         call analytical_jvp(direction, analytical)
         call direct_dft(direction, expected)
+        error = maxval(abs(analytical - expected))/scale
+        max_scaled_error = max(max_scaled_error, error)
         if (maxval(abs(analytical - expected)) > tolerance*scale) &
             error stop "analytical FFT JVP disagrees with direct DFT"
 
         call fortnum_enzyme_fft8_jvp(x, direction, enzyme_primal, autodiff)
+        error = maxval(abs(enzyme_primal - primal))/scale
+        max_scaled_error = max(max_scaled_error, error)
         if (maxval(abs(enzyme_primal - primal)) > tolerance*scale) &
             error stop "Enzyme FFT primal disagrees with production"
-        if (maxval(abs(autodiff - expected)) > tolerance*scale) &
+        error = maxval(abs(autodiff - expected))/scale
+        max_scaled_error = max(max_scaled_error, error)
+        if (error > tolerance) &
             error stop "autodiff FFT JVP disagrees with direct DFT"
 
         call analytical_vjp(direction, analytical)
         call direct_dft_adjoint(direction, expected)
         scale = max(1.0_c_double, maxval(abs(expected)))
+        error = maxval(abs(analytical - expected))/scale
+        max_scaled_error = max(max_scaled_error, error)
         if (maxval(abs(analytical - expected)) > tolerance*scale) &
             error stop "analytical FFT VJP disagrees with direct adjoint DFT"
 
         lhs = dot_product(direction, primal)
         rhs = dot_product(analytical, x)
+        error = abs(lhs - rhs)/max(1.0_c_double, abs(lhs), abs(rhs))
+        max_scaled_error = max(max_scaled_error, error)
         if (abs(lhs - rhs) > tolerance*max(1.0_c_double, abs(lhs), abs(rhs))) &
             error stop "FFT adjoint dot identity failed"
 
         call autodiff_vjp(x, direction, autodiff)
+        error = maxval(abs(autodiff - expected))/scale
+        max_scaled_error = max(max_scaled_error, error)
         if (maxval(abs(autodiff - expected)) > tolerance*scale) &
             error stop "autodiff FFT VJP disagrees with direct adjoint DFT"
 
         call spectral_objective_gradient(x, .true., objective, analytical)
         call spectral_objective_gradient(x, .false., objective, autodiff)
         call direct_spectral_objective(x, direct_objective, expected)
+        error = abs(objective - direct_objective)/ &
+            max(1.0_c_double, abs(direct_objective))
+        max_scaled_error = max(max_scaled_error, error)
         if (abs(objective - direct_objective) > tolerance* &
             max(1.0_c_double, abs(direct_objective))) &
             error stop "spectral objective disagrees with direct DFT"
         scale = max(1.0_c_double, maxval(abs(expected)))
+        error = maxval(abs(analytical - expected))/scale
+        max_scaled_error = max(max_scaled_error, error)
         if (maxval(abs(analytical - expected)) > tolerance*scale) &
             error stop "analytical spectral gradient disagrees with direct DFT"
-        if (maxval(abs(autodiff - expected)) > tolerance*scale) &
+        error = maxval(abs(autodiff - expected))/scale
+        max_scaled_error = max(max_scaled_error, error)
+        if (error > tolerance) &
             error stop "autodiff spectral gradient disagrees with direct DFT"
 
         call spectral_objective_value(x + 1.0e-6_c_double*direction, &
@@ -180,6 +203,8 @@ contains
             objective_minus)
         lhs = (objective_plus - objective_minus)/(2.0e-6_c_double)
         rhs = dot_product(expected, direction)
+        error = abs(lhs - rhs)/max(1.0_c_double, abs(lhs), abs(rhs))
+        max_scaled_error = max(max_scaled_error, error)
         if (abs(lhs - rhs) > 2.0e-8_c_double* &
             max(1.0_c_double, abs(lhs), abs(rhs))) &
             error stop "spectral gradient fails objective finite difference"
