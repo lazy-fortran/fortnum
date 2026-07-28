@@ -298,6 +298,15 @@ error of \(1.34\times10^{-17}\). The forward result is selected by complete
 wall clock: its compiler-optimized dot products beat the scalar-output
 reverse heuristic for this particular shape.
 
+The small PDE application forms a 64-state centered-difference nonlinear
+Poisson residual and differentiates its scalar half-squared norm. A direct
+analytical reverse stencil takes 897.51 ns. Reconstructing the gradient from
+64 analytical JVP directions takes 30.76 microseconds, while complete
+finite differences take 57.84 microseconds. Preserving the transpose stencil
+is therefore 34.27 times faster than forward reconstruction and 64.45 times
+faster than finite differences. All candidates have the same 2.82 MB peak RSS,
+and the independent complex-step error is \(3.15\times10^{-12}\).
+
 ## Current normalized set
 
 `benchmark/report/data/mechanism_tournaments.csv` includes only tournaments
