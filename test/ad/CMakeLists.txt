@@ -605,12 +605,18 @@ if(FORTNUM_ENABLE_ENZYME)
     fortnum_add_enzyme_test(
         NAME enzyme_hvp_forward_over_reverse
         SOURCES
+            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hvp/hvp_fixture_support.f90
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hvp/forward_over_reverse.f90
         MODE forward
         OPT_LEVEL O2)
     fortnum_add_enzyme_test(
         NAME enzyme_hvp_reverse_over_forward
         SOURCES
+            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hvp/hvp_fixture_support.f90
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hvp/reverse_over_forward.f90
         MODE reverse
         OPT_LEVEL O2)

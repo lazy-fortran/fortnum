@@ -48,6 +48,7 @@ end module reverse_over_forward_kernel
 program test_reverse_over_forward_hvp
     use, intrinsic :: iso_c_binding, only: c_double, c_int, c_funptr, c_funloc
     use reverse_over_forward_kernel, only: directional_derivative
+    use fortnum_hvp_fixture_support, only: hvp_size, run_hvp_fixture
     implicit none
 
     interface
@@ -66,25 +67,26 @@ program test_reverse_over_forward_hvp
         end function enzyme_autodiff
     end interface
 
-    integer(c_int), parameter :: n = 4
-    real(c_double) :: x(n), direction(n), target(n), target_direction(n)
-    real(c_double) :: x_bar(n), direction_bar(n), target_bar(n)
-    real(c_double) :: target_direction_bar(n), expected(n), value
+    call run_hvp_fixture("reverse_over_forward", evaluate_hvp)
 
-    x = [0.3_c_double, -0.7_c_double, 1.1_c_double, 0.5_c_double]
-    direction = [0.2_c_double, 0.4_c_double, -0.3_c_double, 0.8_c_double]
-    target = [0.1_c_double, -0.2_c_double, 0.7_c_double, 0.4_c_double]
-    target_direction = 0.0_c_double
-    x_bar = 0.0_c_double
-    direction_bar = 0.0_c_double
-    target_bar = 0.0_c_double
-    target_direction_bar = 0.0_c_double
-    value = enzyme_autodiff(c_funloc(directional_derivative), x, x_bar, &
-        direction, direction_bar, target, target_bar, target_direction, &
-        target_direction_bar, n)
-    expected = (6.0_c_double*x*x - 2.0_c_double*target)*direction
-    if (maxval(abs(x_bar - expected)) > 2.0e-12_c_double) then
-        error stop "reverse-over-forward HVP mismatch"
-    end if
-    write (*, "(a)") "PASS reverse-over-forward HVP"
+contains
+
+    subroutine evaluate_hvp(x, direction, target, product)
+        real(c_double), intent(in) :: x(hvp_size), direction(hvp_size)
+        real(c_double), intent(in) :: target(hvp_size)
+        real(c_double), intent(out) :: product(hvp_size)
+        real(c_double) :: direction_bar(hvp_size), target_bar(hvp_size)
+        real(c_double) :: target_direction(hvp_size)
+        real(c_double) :: target_direction_bar(hvp_size), value
+
+        product = 0.0_c_double
+        direction_bar = 0.0_c_double
+        target_bar = 0.0_c_double
+        target_direction = 0.0_c_double
+        target_direction_bar = 0.0_c_double
+        value = enzyme_autodiff(c_funloc(directional_derivative), x, product, &
+            direction, direction_bar, target, target_bar, target_direction, &
+            target_direction_bar, int(hvp_size, c_int))
+    end subroutine evaluate_hvp
+
 end program test_reverse_over_forward_hvp

@@ -50,6 +50,7 @@ end module forward_over_reverse_kernel
 program test_forward_over_reverse_hvp
     use, intrinsic :: iso_c_binding, only: c_double, c_int, c_funptr, c_funloc
     use forward_over_reverse_kernel, only: reverse_gradient
+    use fortnum_hvp_fixture_support, only: hvp_size, run_hvp_fixture
     implicit none
 
     interface
@@ -64,19 +65,19 @@ program test_forward_over_reverse_hvp
         end subroutine enzyme_fwddiff
     end interface
 
-    integer(c_int), parameter :: n = 4
-    real(c_double) :: x(n), direction(n), target(n), target_direction(n)
-    real(c_double) :: gradient(n), product(n), expected(n)
+    call run_hvp_fixture("forward_over_reverse", evaluate_hvp)
 
-    x = [0.3_c_double, -0.7_c_double, 1.1_c_double, 0.5_c_double]
-    direction = [0.2_c_double, 0.4_c_double, -0.3_c_double, 0.8_c_double]
-    target = [0.1_c_double, -0.2_c_double, 0.7_c_double, 0.4_c_double]
-    target_direction = 0.0_c_double
-    call enzyme_fwddiff(c_funloc(reverse_gradient), x, direction, gradient, &
-        product, target, target_direction, n)
-    expected = (6.0_c_double*x*x - 2.0_c_double*target)*direction
-    if (maxval(abs(product - expected)) > 2.0e-12_c_double) then
-        error stop "forward-over-reverse HVP mismatch"
-    end if
-    write (*, "(a)") "PASS forward-over-reverse HVP"
+contains
+
+    subroutine evaluate_hvp(x, direction, target, product)
+        real(c_double), intent(in) :: x(hvp_size), direction(hvp_size)
+        real(c_double), intent(in) :: target(hvp_size)
+        real(c_double), intent(out) :: product(hvp_size)
+        real(c_double) :: target_direction(hvp_size), gradient(hvp_size)
+
+        target_direction = 0.0_c_double
+        call enzyme_fwddiff(c_funloc(reverse_gradient), x, direction, gradient, &
+            product, target, target_direction, int(hvp_size, c_int))
+    end subroutine evaluate_hvp
+
 end program test_forward_over_reverse_hvp
