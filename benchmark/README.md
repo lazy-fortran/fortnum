@@ -42,6 +42,23 @@ checks the committed baseline, and retains raw JSON, peak-RSS, cache-counter,
 host, compiler, and source-revision evidence as a workflow artifact. It never
 rewrites or commits the baseline automatically.
 
+For the downstream `itpplasma/SIMPLE` comparison, build the same SIMPLE
+revision once with this checkout through
+`FETCHCONTENT_SOURCE_DIR_FORTNUM` and once with SIMPLE's pinned fortnum
+revision. Then run:
+
+```bash
+benchmark/itpplasma_simple_benchmark.sh \
+  /path/to/current/simple.x \
+  /path/to/pinned/simple.x \
+  /path/to/SIMPLE/test/golden_record/test_tokamak_classifier/simple.in \
+  /tmp/simple-fortnum-benchmark
+```
+
+The script pins one CPU, runs three warmups and 15 samples, verifies
+byte-identical deterministic application outputs, and records complete-process
+wall clock, peak RSS, and cache counters.
+
 ## Derivative tournaments
 
 Derivative benchmarks compare implementations of the same mathematical

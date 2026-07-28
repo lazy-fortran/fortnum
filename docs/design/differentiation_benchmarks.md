@@ -38,6 +38,7 @@ primal evaluations required by the stated oracle.
 | roots and fixed points | `ryzen9_5950x_scalar_root_*.json`, `ryzen9_5950x_vector_root_*.json`, `ryzen9_5950x_multiroot_*.json`, fixed-point records | implicit, hybrid, iteration autodiff, diagnostic, factor reuse | closed-form roots, complete-solve finite differences, residual equations, adjoint identities |
 | linear algebra | `ryzen9_5950x_linear_*.json`, direct/iterative solver records, LU record | factor reuse, multiple RHS, forward/reverse Enzyme, diagnostic | solve residuals, matrix products, finite differences, adjoint identities |
 | ODE | `ryzen9_5950x_ode_*.json` | continuous tangent, discrete tangent/adjoint, parameters, checkpoint/recompute, events, implicit stages | closed forms, refinement, frozen-map finite differences, matrix exponentials, adjoint identities |
+| downstream applications | `ryzen9_5950x_itpplasma_simple.json` | current fortnum versus the consumer-pinned revision inside implicit symplectic orbit steps | byte-identical deterministic SIMPLE analytic-field outputs |
 | selection | build and static-selection records | deterministic registry and CMake consumption | exact workload lookup and negative malformed-record tests |
 
 CPU records use separate processes when peak RSS must be attributed to one
@@ -306,6 +307,15 @@ finite differences take 57.84 microseconds. Preserving the transpose stencil
 is therefore 34.27 times faster than forward reconstruction and 64.45 times
 faster than finite differences. All candidates have the same 2.82 MB peak RSS,
 and the independent complex-step error is \(3.15\times10^{-12}\).
+
+The downstream `itpplasma/SIMPLE` application traces 32 deterministic
+particles through an analytic circular-tokamak field. Its implicit midpoint
+steps call `fortnum_multiroot`. With 460,064 field evaluations, current
+fortnum completes in 118.26 ms versus 122.35 ms for SIMPLE's pinned fortnum
+revision, a 1.035-times speedup. The 20.58 MB versus 20.45 MB peak-RSS
+difference is process noise. Four physical result files are byte-identical;
+the selection therefore follows the 3.35% lower complete-application wall
+clock.
 
 The first HVP tournament separates an isolated mixed-mode proof from the
 Newton-CG consumer kernel. On four separable residuals, Enzyme
