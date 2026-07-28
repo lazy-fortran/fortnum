@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "operator": "adaptive_frozen_trace",
+  "product": "value_plus_jvp",
+  "purpose": "generated-wrapper and shared-fixture migration",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "autodiff": "Enzyme 22",
+    "optimization": "O2",
+    "fortsym_revision": "6b6df9adf6e6dbe3e1482bb051c6ce2af46e8f89"
+  },
+  "migration": {
+    "temporary_generated_wrappers": [
+      "smooth integrand JVP",
+      "singular integrand JVP",
+      "smooth complete frozen-trace JVP",
+      "singular complete frozen-trace JVP"
+    ],
+    "removed_handwritten_mechanics": [
+      "raw Enzyme intrinsic interfaces",
+      "peak-RSS interface",
+      "timers",
+      "median/MAD sorting"
+    ],
+    "retained_mathematics": [
+      "adaptive primal trace construction and identity checks",
+      "analytical compact and generic trace products",
+      "finite-difference frozen-trace oracles"
+    ],
+    "hot_loop_dispatch": "candidate name resolved before measurement",
+    "generator_output": "silent by default; FORTNUM_CODEGEN_VERBOSE=1 opts in"
+  },
+  "validation": {
+    "smooth_oracle": "closed-form derivative of integral exp(p*x) on [0,1]",
+    "smooth_trace_panels": [[0.0, 0.5], [0.5, 0.75], [0.75, 1.0]],
+    "smooth_exact_candidate_maximum_error": 1.8189894035458565E-12,
+    "smooth_diagnostic_error": 6.768179446225986E-6,
+    "singular_oracle": "central difference of an independent fixed G10K21 trace",
+    "singular_candidate_absolute_tolerance": 2E-8,
+    "singular_continuous_bias_limit": 2E-2,
+    "trace_identity_checked": true
+  },
+  "sampling": {
+    "tournament_processes": 3,
+    "samples_per_process": 31,
+    "workloads_per_sample": 2000,
+    "candidate_order": "rotated each sample",
+    "runtime_aggregation": "median of process medians",
+    "dispersion_aggregation": "median of within-process MADs",
+    "memory_processes_per_candidate": 5,
+    "perf_repetitions": 3
+  },
+  "smooth": {
+    "candidates": [
+      {"id": "generic_explicit_tangent", "mechanism": "analytical", "median_ns": 1612.2475, "mad_ns": 5.6860, "peak_rss_bytes": 2940928},
+      {"id": "compact_explicit_tangent", "mechanism": "analytical", "median_ns": 1269.1610, "mad_ns": 6.9130, "peak_rss_bytes": 2924544, "cycles": 58290400, "instructions": 181823469, "cache_references": 253924, "cache_misses": 15559},
+      {"id": "enzyme_complete_compact_trace", "mechanism": "autodiff", "median_ns": 1264.4020, "mad_ns": 5.9415, "peak_rss_bytes": 2985984, "cycles": 58440116, "instructions": 182403123, "cache_references": 208744, "cache_misses": 15363},
+      {"id": "enzyme_integrand_generic_trace", "mechanism": "hybrid", "median_ns": 1599.1175, "mad_ns": 7.8445, "peak_rss_bytes": 2818048},
+      {"id": "enzyme_integrand_compact_trace", "mechanism": "hybrid", "median_ns": 1259.5680, "mad_ns": 5.4305, "peak_rss_bytes": 2891776, "cycles": 58083231, "instructions": 181836790, "cache_references": 307655, "cache_misses": 15952},
+      {"id": "frozen_trace_central_difference", "mechanism": "diagnostic", "median_ns": 1384.8490, "mad_ns": 6.8880, "peak_rss_bytes": 2826240, "cycles": 62905683, "instructions": 201133270, "cache_references": 119798, "cache_misses": 16431}
+    ],
+    "selection": {
+      "enzyme_enabled_fastest": "enzyme_integrand_compact_trace",
+      "normal_build_selected": "compact_explicit_tangent",
+      "criterion": "complete value-plus-JVP wall clock among candidates available in the target build",
+      "hybrid_speedup_over_analytical": 1.0076,
+      "hybrid_speedup_over_autodiff": 1.0038,
+      "reason": "hybrid has the lowest Enzyme-enabled median; analytical remains the normal-build selection because the advantage requires the optional Enzyme pipeline"
+    }
+  },
+  "singular": {
+    "candidates": [
+      {"id": "generic_explicit_tangent", "mechanism": "analytical", "median_ns": 6553.5970, "mad_ns": 23.6395, "peak_rss_bytes": 2936832},
+      {"id": "compact_explicit_tangent", "mechanism": "analytical", "median_ns": 2836.0585, "mad_ns": 9.2175, "peak_rss_bytes": 2904064, "cycles": 64317540, "instructions": 185843171, "cache_references": 124239, "cache_misses": 16002},
+      {"id": "enzyme_complete_compact_trace", "mechanism": "autodiff", "median_ns": 2806.7680, "mad_ns": 7.6400, "peak_rss_bytes": 2887680, "cycles": 65805452, "instructions": 185768181, "cache_references": 723645, "cache_misses": 15483},
+      {"id": "enzyme_integrand_generic_trace", "mechanism": "hybrid", "median_ns": 6970.2120, "mad_ns": 40.1455, "peak_rss_bytes": 2940928},
+      {"id": "enzyme_integrand_compact_trace", "mechanism": "hybrid", "median_ns": 3019.3785, "mad_ns": 7.3940, "peak_rss_bytes": 2990080, "cycles": 68281829, "instructions": 188078554, "cache_references": 78578, "cache_misses": 16059},
+      {"id": "frozen_trace_central_difference", "mechanism": "diagnostic", "median_ns": 2854.2425, "mad_ns": 9.9885, "peak_rss_bytes": 2850816, "cycles": 64949773, "instructions": 186918037, "cache_references": 121804, "cache_misses": 15989}
+    ],
+    "selection": {
+      "selected": "enzyme_complete_compact_trace",
+      "criterion": "complete value-plus-JVP wall clock",
+      "speedup_over_compact_analytical": 1.0104,
+      "speedup_over_compact_hybrid": 1.0757,
+      "speedup_over_diagnostic": 1.0169
+    }
+  },
+  "build_and_size": {
+    "incremental_fixture_build_wall_s": 1.87,
+    "incremental_fixture_build_peak_rss_kib": 132748,
+    "executable_bytes": 2277712,
+    "executable_change_bytes": 2816,
+    "text_bytes": 2066809,
+    "text_change_bytes": -400
+  }
+}

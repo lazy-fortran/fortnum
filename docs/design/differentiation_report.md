@@ -16,18 +16,18 @@ reliability-only experiments. Finite differences remain a validation
 `benchmark/report/data/mechanism_tournaments.csv` is the normalized plotting
 input. Every row names its source JSON record. `selected_mechanism` records the
 evidence-based production decision; `fastest_mechanism` records the lowest raw
-median. They differ for Dawson, where the 4.0% raw `hybrid` advantage is
-available only through the optional Enzyme pipeline while the selected
-analytical implementation is the fastest candidate admissible in a normal
-fortnum build.
+median. They differ for Dawson and smooth adaptive integration, where raw
+`hybrid` advantages are available only through the optional Enzyme pipeline
+while the selected analytical implementations are the fastest candidates
+admissible in a normal fortnum build.
 
 ## Overall result
 
 | Mechanism | Selected workloads | Share | Raw fastest workloads |
 |---|---:|---:|---:|
-| `analytical` | 26 | 81.2% | 25 |
+| `analytical` | 26 | 81.2% | 24 |
 | `autodiff` | 4 | 12.5% | 4 |
-| `hybrid` | 2 | 6.2% | 3 |
+| `hybrid` | 2 | 6.2% | 4 |
 | finite-difference diagnostic | 0 | 0.0% | 0 |
 
 Across the 32 workloads, the second-fastest candidate ranges from 1.001x to
@@ -84,6 +84,14 @@ shape, four analytical forward JVPs take 1.223 µs while one analytical reverse
 VJP takes 0.301 µs. The corresponding autodiff times are 1.702 µs and
 0.440 µs. Analytical remains selected for both products; peak RSS and cache
 misses do not materially distinguish the leading candidates.
+
+Adaptive integration generates only the smooth/singular integrand and compact
+frozen-trace Enzyme boundaries. The accepted-trace construction and identity
+guards remain explicit. On the smooth workload, compact hybrid is the
+Enzyme-enabled raw winner at 1.260 µs, followed by whole-trace autodiff at
+1.264 µs and compact analytical at 1.269 µs; analytical remains the normal
+build selection. The singular workload selects whole-trace autodiff at
+2.807 µs over compact analytical at 2.836 µs.
 
 The modified-Bessel outer objective strengthens that conclusion across primal
 regions. At 16 products, analytical wins series JVP/VJP, recurrence VJP, and

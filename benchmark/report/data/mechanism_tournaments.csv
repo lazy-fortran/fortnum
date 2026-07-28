@@ -3,8 +3,8 @@ dawson_outer,analytical,hybrid,20.059540,20.895565,ryzen9_5950x_dawson_square_fi
 fixed_quadrature_jvp,analytical,analytical,1223.4034,1225.1036,ryzen9_5950x_fixed_quadrature_fixture_migration.json
 fixed_quadrature_vjp,analytical,analytical,1191.8691,1236.2336,ryzen9_5950x_fixed_quadrature_fixture_migration.json
 adaptive_frozen_jvp,autodiff,autodiff,1306.9523,1423.0742,ryzen9_5950x_integrate_frozen_autodiff_jvp.json
-adaptive_singular_jvp,autodiff,autodiff,2839.8200,2862.8335,ryzen9_5950x_integrate_singular_tournament_jvp.json
-adaptive_smooth_jvp,analytical,analytical,1308.4690,1329.2185,ryzen9_5950x_integrate_smooth_tournament_jvp.json
+adaptive_singular_jvp,autodiff,autodiff,2806.7680,2836.0585,ryzen9_5950x_adaptive_fixture_migration.json
+adaptive_smooth_jvp,analytical,hybrid,1259.5680,1264.4020,ryzen9_5950x_adaptive_fixture_migration.json
 ode_forward_sensitivity,analytical,analytical,9322.0850,9690.5995,ryzen9_5950x_ode_hybrid_forward_sensitivity.json
 scalar_root_jvp,hybrid,hybrid,1.89136,2.29733,ryzen9_5950x_scalar_root_fixture_migration.json
 scalar_root_vjp,analytical,analytical,14.11701,19.48994,ryzen9_5950x_scalar_root_fixture_migration.json

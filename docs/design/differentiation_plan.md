@@ -100,9 +100,12 @@ The first implementation slice now also contains:
 - generated five-input integrand and four-input whole-operator Enzyme wrappers
   for fixed quadrature; the analytical quadrature contractions and closed-form
   integral oracle remain hand-written
+- generated smooth/singular integrand and complete frozen-trace Enzyme wrappers
+  for adaptive integration; trace construction, identity guards, analytical
+  trace products, and finite-difference oracles remain hand-written
 
 Remaining work is tracked item by item in `ROADMAP.md`; the next CPU Enzyme
-step migrates adaptive-integration Enzyme fixtures.
+step migrates the ODE forward-sensitivity Enzyme fixture.
 
 ## 3. Terminology
 
