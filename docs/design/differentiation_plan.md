@@ -93,9 +93,13 @@ The first implementation slice now also contains:
   fixed-Newton JVP/VJP candidates; implicit differentiation, analytical
   residual products, and complete-root finite-difference oracles remain
   hand-written
+- generated four-active-scalar wrappers for vector-root residual components
+  and fixed-Newton JVP/VJP candidates; the coupled implicit solves,
+  analytical residual products, and complete-root finite-difference oracles
+  remain hand-written
 
 Remaining work is tracked item by item in `ROADMAP.md`; the next CPU Enzyme
-step migrates vector-root JVP and VJP fixtures.
+step migrates fixed-quadrature JVP and VJP fixtures.
 
 ## 3. Terminology
 

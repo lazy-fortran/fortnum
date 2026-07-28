@@ -321,7 +321,7 @@ support.
 - [x] Migrate direct-solver JVP and VJP Enzyme fixtures.
 - [x] Migrate the iterative-solver Enzyme fixture.
 - [x] Migrate scalar-root JVP and VJP Enzyme fixtures.
-- [ ] Migrate vector-root JVP and VJP Enzyme fixtures.
+- [x] Migrate vector-root JVP and VJP Enzyme fixtures.
 - [ ] Migrate fixed-quadrature JVP and VJP Enzyme fixtures.
 - [ ] Migrate adaptive-integration Enzyme fixtures.
 - [ ] Migrate the ODE forward-sensitivity Enzyme fixture.

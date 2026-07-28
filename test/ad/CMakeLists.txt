@@ -233,6 +233,15 @@ if(FORTNUM_ENABLE_ENZYME)
             "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_scalar_root_vjp_residual.f90")
         set(_fortnum_scalar_root_vjp_newton_wrapper_source
             "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_scalar_root_vjp_newton.f90")
+        set(_fortnum_vector_root_jvp_wrapper_sources
+            "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_vector_root_residual_one.f90"
+            "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_vector_root_residual_two.f90"
+            "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_vector_root_newton_one.f90"
+            "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_vector_root_newton_two.f90")
+        set(_fortnum_vector_root_vjp_wrapper_sources
+            "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_vector_root_vjp_residual_one.f90"
+            "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_vector_root_vjp_residual_two.f90"
+            "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_vector_root_objective.f90")
         foreach(_wrapper
                 "${_fortnum_dawson_wrapper_source}"
                 "${_fortnum_square_wrapper_source}"
@@ -243,7 +252,9 @@ if(FORTNUM_ENABLE_ENZYME)
                 "${_fortnum_scalar_root_residual_wrapper_source}"
                 "${_fortnum_scalar_root_newton_wrapper_source}"
                 "${_fortnum_scalar_root_vjp_residual_wrapper_source}"
-                "${_fortnum_scalar_root_vjp_newton_wrapper_source}")
+                "${_fortnum_scalar_root_vjp_newton_wrapper_source}"
+                ${_fortnum_vector_root_jvp_wrapper_sources}
+                ${_fortnum_vector_root_vjp_wrapper_sources})
             if(NOT EXISTS "${_wrapper}")
                 message(FATAL_ERROR "Missing generated Enzyme wrapper: ${_wrapper}")
             endif()
@@ -351,6 +362,8 @@ if(FORTNUM_ENABLE_ENZYME)
             ${CMAKE_SOURCE_DIR}/src/linalg/fortnum_linalg.f90
             ${CMAKE_SOURCE_DIR}/src/roots/fortnum_multiroot.f90
             ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${_fortnum_vector_root_jvp_wrapper_sources}
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/vector_root_jvp.f90
         MODE forward
         OPT_LEVEL O2)
@@ -370,6 +383,8 @@ if(FORTNUM_ENABLE_ENZYME)
             ${CMAKE_SOURCE_DIR}/src/linalg/fortnum_linalg.f90
             ${CMAKE_SOURCE_DIR}/src/roots/fortnum_multiroot.f90
             ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${_fortnum_vector_root_vjp_wrapper_sources}
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/vector_root_vjp.f90
         MODE reverse
         OPT_LEVEL O2)

@@ -1,28 +1,20 @@
 module vector_root_vjp_hybrid_kernel
-    use, intrinsic :: iso_c_binding, only: c_double, c_funloc, c_funptr
+    use, intrinsic :: iso_c_binding, only: c_double
+    use fortnum_generated_enzyme_vector_root_objective, only: &
+        fortnum_enzyme_vector_root_objective_vjp
+    use fortnum_generated_enzyme_vector_root_vjp_residual_one, only: &
+        fortnum_enzyme_vector_root_vjp_residual_one_vjp
+    use fortnum_generated_enzyme_vector_root_vjp_residual_two, only: &
+        fortnum_enzyme_vector_root_vjp_residual_two_vjp
     use fortnum_kinds, only: dp
     use fortnum_multiroot, only: multiroot_implicit_vjp
     use fortnum_status, only: fortnum_status_t, status_ok
     implicit none
     private
 
-    type, bind(c) :: residual_gradient_t
-        real(c_double) :: values(4)
-    end type residual_gradient_t
-
     public :: analytical_root_vjp, hybrid_root_vjp
     public :: autodiff_iterations_root_vjp, finite_difference_root_vjp
     public :: residual_one, residual_two
-
-    interface
-        function enzyme_autodiff(f, x1, x2, p1, p2) result(gradient) &
-                bind(c, name="__enzyme_autodiff")
-            import :: c_double, c_funptr, residual_gradient_t
-            type(c_funptr), value :: f
-            real(c_double), value :: x1, x2, p1, p2
-            type(residual_gradient_t) :: gradient
-        end function enzyme_autodiff
-    end interface
 
 contains
 
@@ -94,11 +86,11 @@ contains
     function autodiff_iterations_root_vjp(p, u) result(jtu)
         real(dp), intent(in) :: p(2), u(2)
         real(dp) :: jtu(2)
-        type(residual_gradient_t) :: gradient
+        real(dp) :: ignored_u1bar, ignored_u2bar
 
-        gradient = enzyme_autodiff(c_funloc(newton_objective), &
-            p(1), p(2), u(1), u(2))
-        jtu = gradient%values(1:2)
+        call fortnum_enzyme_vector_root_objective_vjp( &
+            p(1), p(2), u(1), u(2), 1.0_dp, jtu(1), jtu(2), &
+            ignored_u1bar, ignored_u2bar)
     end function autodiff_iterations_root_vjp
 
     function finite_difference_root_vjp(p, u) result(jtu)
@@ -143,54 +135,52 @@ contains
         real(dp), intent(in) :: x(:), p(:)
         real(dp), intent(out) :: jac_x(size(x), size(x))
         class(*), intent(inout), optional :: context
-        type(residual_gradient_t) :: gradient_one, gradient_two
+        real(dp) :: ignored_p1bar, ignored_p2bar
 
-        gradient_one = enzyme_autodiff(c_funloc(residual_one), &
-            x(1), x(2), p(1), p(2))
-        gradient_two = enzyme_autodiff(c_funloc(residual_two), &
-            x(1), x(2), p(1), p(2))
-        jac_x(1, :) = gradient_one%values(1:2)
-        jac_x(2, :) = gradient_two%values(1:2)
+        call fortnum_enzyme_vector_root_vjp_residual_one_vjp( &
+            x(1), x(2), p(1), p(2), 1.0_dp, jac_x(1, 1), &
+            jac_x(1, 2), ignored_p1bar, ignored_p2bar)
+        call fortnum_enzyme_vector_root_vjp_residual_two_vjp( &
+            x(1), x(2), p(1), p(2), 1.0_dp, jac_x(2, 1), &
+            jac_x(2, 2), ignored_p1bar, ignored_p2bar)
     end subroutine autodiff_state_jacobian
 
     subroutine autodiff_parameter_vjp(x, p, u, f_p_t_u, context)
         real(dp), intent(in) :: x(:), p(:), u(:)
         real(dp), intent(out) :: f_p_t_u(size(p))
         class(*), intent(inout), optional :: context
-        type(residual_gradient_t) :: gradient_one, gradient_two
+        real(dp) :: ignored_x1bar, ignored_x2bar
+        real(dp) :: pbar_one(2), pbar_two(2)
 
-        gradient_one = enzyme_autodiff(c_funloc(residual_one), &
-            x(1), x(2), p(1), p(2))
-        gradient_two = enzyme_autodiff(c_funloc(residual_two), &
-            x(1), x(2), p(1), p(2))
-        f_p_t_u = u(1)*gradient_one%values(3:4) &
-            + u(2)*gradient_two%values(3:4)
+        call fortnum_enzyme_vector_root_vjp_residual_one_vjp( &
+            x(1), x(2), p(1), p(2), u(1), ignored_x1bar, &
+            ignored_x2bar, pbar_one(1), pbar_one(2))
+        call fortnum_enzyme_vector_root_vjp_residual_two_vjp( &
+            x(1), x(2), p(1), p(2), u(2), ignored_x1bar, &
+            ignored_x2bar, pbar_two(1), pbar_two(2))
+        f_p_t_u = pbar_one + pbar_two
     end subroutine autodiff_parameter_vjp
 
 end module vector_root_vjp_hybrid_kernel
 
 program enzyme_vector_root_vjp_hybrid
-    use, intrinsic :: iso_c_binding, only: c_int64_t
-    use, intrinsic :: iso_fortran_env, only: dp => real64, int64
+    use, intrinsic :: iso_fortran_env, only: dp => real64
+    use fortnum_enzyme_fixture_support, only: collect_fixture_samples, &
+        fixture_peak_rss_bytes, fixture_sample_count, fixture_timer_t, &
+        median_mad, write_fixture_result
     use vector_root_vjp_hybrid_kernel, only: analytical_root_vjp, &
         hybrid_root_vjp, autodiff_iterations_root_vjp, &
         finite_difference_root_vjp
     implicit none
 
-    interface
-        function peak_rss_bytes() bind(c, name="fortnum_peak_rss_bytes") &
-                result(bytes)
-            import :: c_int64_t
-            integer(c_int64_t) :: bytes
-        end function peak_rss_bytes
-    end interface
-
+    integer, parameter :: repetitions = 100000
     real(dp), parameter :: h = 1.0e-5_dp
     real(dp) :: p(2), pp(2), pm(2), u(2), xstar(2), xp(2), xm(2)
     real(dp) :: analytical(2), got(2), reference(2)
     real(dp) :: autodiff_iterations(2), diagnostic(2), errors(4)
+    real(dp) :: samples(fixture_sample_count), sink
     character(32) :: argument, candidate
-    integer :: parameter
+    integer :: parameter, candidate_kind
 
     call get_command_argument(1, argument)
     call get_command_argument(2, candidate)
@@ -253,108 +243,78 @@ contains
     end function solve_root
 
     subroutine run_benchmark()
-        integer, parameter :: samples = 15
-        integer(int64), parameter :: reps = 100000_int64
-        real(dp) :: analytical_times(samples), hybrid_times(samples)
-        real(dp) :: autodiff_times(samples), diagnostic_times(samples), sink
-        integer :: sample
-
-        do sample = 1, 3
-            call time_candidate("analytical", reps/100_int64, sink)
-            call time_candidate("hybrid", reps/100_int64, sink)
-            call time_candidate("autodiff", reps/100_int64, sink)
-            call time_candidate("diagnostic", reps/100_int64, sink)
-        end do
-        do sample = 1, samples
-            call time_candidate("analytical", reps, analytical_times(sample))
-            call time_candidate("hybrid", reps, hybrid_times(sample))
-            call time_candidate("autodiff", reps, autodiff_times(sample))
-            call time_candidate("diagnostic", reps, diagnostic_times(sample))
-        end do
-        call report("analytical", analytical_times, reps)
-        call report("hybrid", hybrid_times, reps)
-        call report("autodiff", autodiff_times, reps)
-        call report("diagnostic", diagnostic_times, reps)
+        call benchmark_one("analytical", 1)
+        call benchmark_one("hybrid", 2)
+        call benchmark_one("autodiff", 3)
+        call benchmark_one("diagnostic", 4)
     end subroutine run_benchmark
 
     subroutine run_peak_rss(name)
         character(*), intent(in) :: name
-        integer(int64), parameter :: reps = 100000_int64
-        real(dp) :: elapsed
 
-        if ((name /= "analytical") .and. (name /= "hybrid") .and. &
-                (name /= "autodiff") .and. (name /= "diagnostic")) then
-            error stop "usage: --peak-rss analytical|hybrid|autodiff|diagnostic"
-        end if
-        call time_candidate(name, reps, elapsed)
-        write (*, "(i0)") peak_rss_bytes()
+        call parse_candidate(name)
+        sink = measure_candidate()
+        write (*, "(i0)") fixture_peak_rss_bytes()
     end subroutine run_peak_rss
 
-    subroutine time_candidate(name, reps, elapsed_ns)
+    subroutine benchmark_one(name, kind)
         character(*), intent(in) :: name
-        integer(int64), intent(in) :: reps
-        real(dp), intent(out) :: elapsed_ns
-        integer(int64) :: i, start, finish, rate
-        real(dp) :: parameters(2), cotangent(2), x(2), jtu(2), sink
-
-        sink = 0.0_dp
-        call system_clock(start, rate)
-        do i = 1_int64, reps
-            x(1) = 1.05_dp + 0.001_dp*real(mod(i, 101_int64), dp)
-            x(2) = 0.85_dp + 0.001_dp*real(mod(i, 79_int64), dp)
-            parameters(1) = x(1)*x(1) + x(2)
-            parameters(2) = x(1) + x(2)*x(2)
-            cotangent(1) = 0.02_dp*real(mod(i, 17_int64) - 8_int64, dp)
-            cotangent(2) = -0.6_dp
-            select case (name)
-            case ("analytical")
-                jtu = analytical_root_vjp(x, parameters, cotangent)
-            case ("hybrid")
-                jtu = hybrid_root_vjp(x, parameters, cotangent)
-            case ("autodiff")
-                jtu = autodiff_iterations_root_vjp(parameters, cotangent)
-            case ("diagnostic")
-                jtu = finite_difference_root_vjp(parameters, cotangent)
-            end select
-            sink = sink + sum(jtu)
-        end do
-        call system_clock(finish)
-        elapsed_ns = 1.0e9_dp*real(finish - start, dp) &
-            / (real(rate, dp)*real(reps, dp))
-        if (sink /= sink) error stop "benchmark failed"
-    end subroutine time_candidate
-
-    subroutine report(name, values, reps)
-        character(*), intent(in) :: name
-        real(dp), intent(in) :: values(:)
-        integer(int64), intent(in) :: reps
-        real(dp) :: ordered(size(values)), deviations(size(values))
+        integer, intent(in) :: kind
         real(dp) :: median, mad
 
-        ordered = values
-        call sort_values(ordered)
-        median = ordered((size(ordered) + 1)/2)
-        deviations = abs(values - median)
-        call sort_values(deviations)
-        mad = deviations((size(deviations) + 1)/2)
-        write (*, "(a,',',i0,',',f12.4,',',f12.4)") &
-            name, reps, median, mad
-    end subroutine report
+        candidate_kind = kind
+        call collect_fixture_samples(measure_candidate, samples)
+        call median_mad(samples, median, mad)
+        call write_fixture_result(name, repetitions, median, mad)
+    end subroutine benchmark_one
 
-    subroutine sort_values(values)
-        real(dp), intent(inout) :: values(:)
-        real(dp) :: temporary
-        integer :: i, j
+    subroutine parse_candidate(name)
+        character(*), intent(in) :: name
 
-        do i = 1, size(values) - 1
-            do j = i + 1, size(values)
-                if (values(j) < values(i)) then
-                    temporary = values(i)
-                    values(i) = values(j)
-                    values(j) = temporary
-                end if
-            end do
+        select case (name)
+        case ("analytical")
+            candidate_kind = 1
+        case ("hybrid")
+            candidate_kind = 2
+        case ("autodiff")
+            candidate_kind = 3
+        case ("diagnostic")
+            candidate_kind = 4
+        case default
+            error stop "usage: --peak-rss analytical|hybrid|autodiff|diagnostic"
+        end select
+    end subroutine parse_candidate
+
+    function measure_candidate() result(elapsed_ns)
+        type(fixture_timer_t) :: timer
+        real(dp) :: elapsed_ns
+        integer :: i
+        real(dp) :: parameters(2), cotangent(2), x(2), jtu(2), local_sink
+
+        cotangent(2) = -0.6_dp
+        local_sink = 0.0_dp
+        call timer%start()
+        do i = 1, repetitions
+            x(1) = 1.05_dp + 0.001_dp*real(mod(i, 101), dp)
+            x(2) = 0.85_dp + 0.001_dp*real(mod(i, 79), dp)
+            parameters(1) = x(1)*x(1) + x(2)
+            parameters(2) = x(1) + x(2)*x(2)
+            cotangent(1) = 0.02_dp*real(mod(i, 17) - 8, dp)
+            select case (candidate_kind)
+            case (1)
+                jtu = analytical_root_vjp(x, parameters, cotangent)
+            case (2)
+                jtu = hybrid_root_vjp(x, parameters, cotangent)
+            case (3)
+                jtu = autodiff_iterations_root_vjp(parameters, cotangent)
+            case default
+                jtu = finite_difference_root_vjp(parameters, cotangent)
+            end select
+            local_sink = local_sink + sum(jtu)
         end do
-    end subroutine sort_values
+        elapsed_ns = timer%elapsed_ns()/real(repetitions, dp)
+        if (local_sink /= local_sink) error stop "vector-root VJP benchmark failed"
+        sink = local_sink
+    end function measure_candidate
 
 end program enzyme_vector_root_vjp_hybrid

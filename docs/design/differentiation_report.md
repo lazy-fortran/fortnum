@@ -25,9 +25,9 @@ fortnum build.
 
 | Mechanism | Selected workloads | Share | Raw fastest workloads |
 |---|---:|---:|---:|
-| `analytical` | 25 | 78.1% | 24 |
+| `analytical` | 26 | 81.2% | 25 |
 | `autodiff` | 4 | 12.5% | 4 |
-| `hybrid` | 3 | 9.4% | 4 |
+| `hybrid` | 2 | 6.2% | 3 |
 | finite-difference diagnostic | 0 | 0.0% | 0 |
 
 Across the 32 workloads, the second-fastest candidate ranges from 1.004x to
@@ -69,6 +69,14 @@ still differ at the same interface. Generated Enzyme residual products make
 the hybrid implicit JVP 1.215x faster than analytical, while the analytical
 implicit VJP is 1.381x faster than the reverse hybrid. Autodiff through the
 fixed Newton iterations loses both tournaments.
+
+The coupled two-state root makes the same point with a matrix implicit solve.
+The generated-wrapper migration leaves the hybrid JVP narrowly fastest at
+78.27 ns versus 78.31 ns analytical, but changes the VJP selection to
+analytical at 78.80 ns versus 79.82 ns hybrid. Autodiff through 12 Newton
+iterations is 2.79x slower for JVP and 2.62x slower for VJP than the selected
+implicit candidates. Cache misses are nearly identical, so the extra executed
+work—not cache behavior—explains the larger wall clock.
 
 The modified-Bessel outer objective strengthens that conclusion across primal
 regions. At 16 products, analytical wins series JVP/VJP, recurrence VJP, and

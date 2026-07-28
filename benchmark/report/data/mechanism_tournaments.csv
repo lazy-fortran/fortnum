@@ -8,8 +8,8 @@ adaptive_smooth_jvp,analytical,analytical,1308.4690,1329.2185,ryzen9_5950x_integ
 ode_forward_sensitivity,analytical,analytical,9322.0850,9690.5995,ryzen9_5950x_ode_hybrid_forward_sensitivity.json
 scalar_root_jvp,hybrid,hybrid,1.89136,2.29733,ryzen9_5950x_scalar_root_fixture_migration.json
 scalar_root_vjp,analytical,analytical,14.11701,19.48994,ryzen9_5950x_scalar_root_fixture_migration.json
-vector_root_jvp,hybrid,hybrid,80.4377,80.7424,ryzen9_5950x_vector_root_tournament_jvp.json
-vector_root_vjp,hybrid,hybrid,82.5682,83.3377,ryzen9_5950x_vector_root_tournament_vjp.json
+vector_root_jvp,hybrid,hybrid,78.265190,78.313290,ryzen9_5950x_vector_root_fixture_migration.json
+vector_root_vjp,analytical,analytical,78.797900,79.819820,ryzen9_5950x_vector_root_fixture_migration.json
 direct_solver_jvp,analytical,analytical,642.54235,816.41840,ryzen9_5950x_direct_solver_fixture_migration.json
 direct_solver_vjp,analytical,analytical,637.16250,974.32350,ryzen9_5950x_direct_solver_fixture_migration.json
 iterative_solver_jvp,analytical,analytical,4846.4234,7628.4264,ryzen9_5950x_iterative_solver_fixture_migration.json
