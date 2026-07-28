@@ -108,7 +108,7 @@ program enzyme_bspline_fixed_span_products
     real(c_double) :: coefficients(coefficient_count)
     real(c_double) :: directions(coefficient_count, 16)
     real(c_double) :: x_directions(16), cotangents(16)
-    real(c_double) :: samples(fixture_sample_count), sink
+    real(c_double) :: samples(fixture_sample_count), sink, validation_error
     character(32) :: action, candidate, product
     integer :: candidate_kind, product_kind, direction_count, iterations
     logical :: valid
@@ -117,8 +117,8 @@ program enzyme_bspline_fixed_span_products
     call read_fixture_environment("FORTNUM_BSPLINE_SPAN_ACTION", &
         "validate", action)
     if (trim(action) == "validate") then
-        call validate_candidates()
-        write (*, "(a)") "PASS"
+        call validate_candidates(validation_error)
+        write (*, "('PASS max_absolute_error=',es12.5)") validation_error
         stop
     end if
 
@@ -160,7 +160,8 @@ contains
         end do
     end subroutine initialize_inputs
 
-    subroutine validate_candidates()
+    subroutine validate_candidates(max_absolute_error)
+        real(c_double), intent(out) :: max_absolute_error
         real(c_double), parameter :: h = 1.0e-5_c_double
         real(c_double) :: analytical, automatic, finite_difference
         real(c_double) :: plus_coefficients(coefficient_count)
@@ -171,6 +172,7 @@ contains
         real(c_double) :: lhs, rhs, x
         integer :: direction
 
+        max_absolute_error = 0.0_c_double
         x = 0.37_c_double
         do direction = 1, 16
             analytical = analytical_jvp(x, coefficients, &
@@ -182,6 +184,9 @@ contains
             finite_difference = (spline_value(x + h*x_directions(direction), &
                 plus_coefficients) - spline_value(x - h*x_directions(direction), &
                 minus_coefficients))/(2.0_c_double*h)
+            max_absolute_error = max(max_absolute_error, &
+                abs(analytical - finite_difference), &
+                abs(automatic - finite_difference))
             if (abs(analytical - finite_difference) > 2.0e-10_c_double) then
                 error stop "analytical B-spline JVP mismatch"
             end if
@@ -192,6 +197,10 @@ contains
                 xbar_analytical, coefficient_bar_analytical)
             call autodiff_vjp(x, coefficients, cotangents(direction), &
                 xbar_autodiff, coefficient_bar_autodiff)
+            max_absolute_error = max(max_absolute_error, &
+                abs(xbar_analytical - xbar_autodiff), &
+                maxval(abs(coefficient_bar_analytical - &
+                coefficient_bar_autodiff)))
             if (abs(xbar_analytical - xbar_autodiff) > 2.0e-12_c_double .or. &
                 maxval(abs(coefficient_bar_analytical - &
                 coefficient_bar_autodiff)) > 2.0e-12_c_double) then
@@ -200,7 +209,8 @@ contains
             lhs = cotangents(direction)*analytical
             rhs = x_directions(direction)*xbar_analytical &
                 + dot_product(directions(:, direction), &
-                    coefficient_bar_analytical)
+                coefficient_bar_analytical)
+            max_absolute_error = max(max_absolute_error, abs(lhs - rhs))
             if (abs(lhs - rhs) > 2.0e-12_c_double) then
                 error stop "B-spline adjoint identity mismatch"
             end if

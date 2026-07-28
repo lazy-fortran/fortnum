@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "date": "2026-07-28",
+  "evidence_refresh_source_revision": "d0140f4e3f7b3adb5aace29ac1c27b34d846b064",
   "operator": "uniform_cubic_bspline_fixed_span",
   "purpose": "generated scalar-vector Enzyme wrapper and shared-fixture migration",
   "hardware": {
@@ -22,7 +23,8 @@
     "vjp_oracle": "analytical formula and adjoint dot-product identity",
     "directions_checked": 16,
     "jvp_absolute_tolerance": 2e-10,
-    "vjp_absolute_tolerance": 2e-12
+    "vjp_absolute_tolerance": 2e-12,
+    "observed_max_absolute_error": 9.52532e-12
   },
   "sampling": {
     "warmups": 3,
@@ -77,6 +79,15 @@
     "after_incremental_build_peak_rss_kib": 125404,
     "before_executable_bytes": 2168968,
     "after_executable_bytes": 2174720,
-    "executable_change_percent": 0.27
+    "executable_change_percent": 0.27,
+    "analytical_jvp_symbol_bytes": 310,
+    "analytical_vjp_symbol_bytes": 327,
+    "autodiff_jvp_symbol_bytes": 340,
+    "autodiff_vjp_symbol_bytes": 315
+  },
+  "workload_contract": {
+    "reusable_primal_state": "fixed coefficients are reused; each product evaluates the four-function local basis",
+    "active_input_output_scaling": "five active scalar inputs map to one output; product counts 1, 4, and 16 measure directional scaling",
+    "forward_reverse_crossover": "JVP and VJP timings are recorded separately at every product count"
   }
 }

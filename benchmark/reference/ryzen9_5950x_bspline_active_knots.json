@@ -1,6 +1,8 @@
 {
   "schema_version": 1,
   "date": "2026-07-27",
+  "source_revision": "9011e292322a278174daae8f37465df2617765ab",
+  "evidence_refresh_source_revision": "d0140f4e3f7b3adb5aace29ac1c27b34d846b064",
   "product": "fixed-span B-spline value with active breakpoint locations",
   "selection_criterion": "complete product wall clock",
   "hardware": "AMD Ryzen 9 5950X, CPU 4 pinned",
@@ -8,8 +10,10 @@
   "validation": {
     "jvp_oracle": "central finite difference of independently rebuilt primal knot vectors",
     "jvp_relative_error_limit": 2e-7,
+    "jvp_observed_relative_error_at_18_breakpoints": 1.3860246284025379e-11,
     "vjp_oracle": "adjoint dot-product identity",
     "vjp_relative_error_limit": 2e-13,
+    "vjp_finite_difference_observed_relative_error_at_18_breakpoints": 1.3113642790170176e-9,
     "contract": "fixed primal knot span"
   },
   "timings": [
@@ -38,9 +42,19 @@
     "analytical_vjp": {"cycles": 7350.382, "instructions": 21698.304, "cache_references": 0.37347, "cache_misses": 0.02051},
     "diagnostic_vjp": {"cycles": 15687.215, "instructions": 45484.038, "cache_references": 1.27790, "cache_misses": 0.16123}
   },
+  "native_code": {
+    "executable_bytes": 72456,
+    "analytical_jvp_symbol_bytes": 1880,
+    "analytical_vjp_symbol_bytes": 2341
+  },
   "selection": {
     "jvp": "analytical",
     "vjp": "analytical",
     "reason": "lowest complete-product wall clock at every measured breakpoint count"
+  },
+  "workload_contract": {
+    "reusable_primal_state": "the fixed primal spline workspace and coefficients are reused; finite-difference diagnostics rebuild perturbed knot vectors",
+    "active_input_output_scaling": "active breakpoint counts 6, 10, and 18 map to one scalar fixed-span output",
+    "forward_reverse_crossover": "JVP and VJP timings are recorded separately at every breakpoint count"
   }
 }

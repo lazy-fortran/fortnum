@@ -518,6 +518,18 @@ target_link_libraries(bench_bspline_knots PRIVATE bench_core)
 add_executable(bench_bspline_fit bench_bspline_fit.f90)
 target_link_libraries(bench_bspline_fit PRIVATE bench_core)
 
+foreach(product IN ITEMS jvp vjp)
+    add_test(NAME lagrange_nodes_${product}_validation
+        COMMAND bench_lagrange_nodes analytical ${product} 16
+            --validation-error)
+    add_test(NAME bspline_knots_${product}_validation
+        COMMAND bench_bspline_knots analytical ${product} 18
+            --validation-error)
+    add_test(NAME bspline_fit_${product}_validation
+        COMMAND bench_bspline_fit analytical ${product} 16
+            --validation-error)
+endforeach()
+
 add_executable(bench_interp_cell_status bench_interp_cell_status.f90)
 target_link_libraries(bench_interp_cell_status PRIVATE bench_core)
 

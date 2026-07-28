@@ -19,7 +19,7 @@ program bench_bspline_knots
     real(dp) :: warmup
     integer :: nbreak, sample
     integer(int64) :: reps
-    character(16) :: candidate, product, size_arg, mode
+    character(32) :: candidate, product, size_arg, mode
     logical :: memory_only
 
     call get_command_argument(1, candidate)
@@ -35,6 +35,10 @@ program bench_bspline_knots
     if ((nbreak < 4) .or. (nbreak > max_breaks)) error stop "invalid nbreak"
 
     call initialize_inputs()
+    if (trim(mode) == "--validation-error") then
+        call report_validation_error()
+        stop
+    end if
     if (trim(candidate) == "analytical") then
         reps = analytical_reps
     else if (trim(product) == "jvp") then
@@ -56,6 +60,31 @@ program bench_bspline_knots
     end do
 
 contains
+
+    subroutine report_validation_error()
+        real(dp) :: analytical_value, diagnostic_value, error, scale
+        real(dp) :: analytical_bar(max_breaks), diagnostic_bar(max_breaks)
+
+        if (trim(product) == "jvp") then
+            candidate = "analytical"
+            call run_jvp(analytical_value)
+            candidate = "diagnostic"
+            call run_jvp(diagnostic_value)
+            scale = max(1.0_dp, abs(diagnostic_value))
+            error = abs(analytical_value - diagnostic_value)/scale
+            if (error > 2.0e-7_dp) error stop "B-spline knot JVP validation failed"
+        else
+            candidate = "analytical"
+            call run_vjp(analytical_bar)
+            candidate = "diagnostic"
+            call run_vjp(diagnostic_bar)
+            scale = max(1.0_dp, maxval(abs(diagnostic_bar(:nbreak))))
+            error = maxval(abs(analytical_bar(:nbreak) - &
+                diagnostic_bar(:nbreak)))/scale
+            if (error > 2.0e-8_dp) error stop "B-spline knot VJP validation failed"
+        end if
+        write (*, "(es24.16)") error
+    end subroutine report_validation_error
 
     subroutine initialize_inputs()
         type(fortnum_status_t) :: status
