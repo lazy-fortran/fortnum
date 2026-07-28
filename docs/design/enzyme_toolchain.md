@@ -24,9 +24,9 @@ opt -load-pass-plugin=/path/to/LLVMEnzyme-MAJOR.so \
     -passes=enzyme input.ll -S -o output.ll
 ```
 
-CI builds Enzyme revision `c96508349d9f121957292308c646b4a1fd53c507`
-against released LLVM and Flang 22 packages, then requires every registered
-Enzyme pipeline to run. It generates temporary wrapper sources from the locked
+CI builds the [pinned Enzyme revision](../../.github/workflows/ci.yml) against
+released LLVM and Flang 22 packages, then requires every registered Enzyme
+pipeline to run. It generates temporary wrapper sources from the locked
 `fortsym` revision before configuration. The main library remains a normal
 Fortran build; each Enzyme test uses Flang at the derivative boundary.
 
