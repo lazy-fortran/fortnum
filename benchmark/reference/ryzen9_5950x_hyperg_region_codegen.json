@@ -2,6 +2,7 @@
   "schema_version": 1,
   "date": "2026-07-28",
   "source_revision": "a5958232b551147bbe8329afb73013ab74fb6699",
+  "evidence_refresh_source_revision": "ee7b0f019061f59a240bef08b59d8ad20b71de42",
   "operator": "log(1 + M(1,2.5,x)^2), asymptotic region x > 60",
   "products": ["jvp", "vjp"],
   "active_inputs": 1,
@@ -30,24 +31,46 @@
   "validation": {
     "complete_objective_oracle": "central difference",
     "relative_tolerance": 2e-7,
+    "observed_max_relative_error": 4.18741e-10,
     "array_oracle": "independently factored derivative evaluated at x=[64,80,120,160]",
     "array_tolerance_ulps": 64,
     "scalar_and_conformable_array_calls": true
   },
   "jvp_median_ns": {
-    "analytical_region": [35.5049, 44.8775, 62.2413],
-    "autodiff": [43.0522, 86.3307, 232.1273],
-    "analytical": [436.9782, 1689.0763, 6487.1579]
+    "analytical_region": [33.8638, 38.1279, 59.1003],
+    "autodiff": [40.5304, 79.3095, 229.7148],
+    "analytical": [403.7537, 1597.2223, 6286.2298]
+  },
+  "jvp_mad_ns": {
+    "analytical_region": [0.6041, 0.4047, 0.4067],
+    "autodiff": [0.2025, 0.3295, 0.6773],
+    "analytical": [3.6048, 28.9665, 58.0745]
   },
   "vjp_median_ns": {
-    "analytical_region": [36.6811, 38.9955, 58.7647],
-    "autodiff": [53.6881, 129.8056, 431.1664],
-    "analytical": [390.0839, 1511.4576, 6170.6006]
+    "analytical_region": [46.2662, 36.7673, 56.5515],
+    "autodiff": [54.4757, 127.4381, 433.7122],
+    "analytical": [403.5733, 1539.4455, 6293.1550]
+  },
+  "vjp_mad_ns": {
+    "analytical_region": [4.6728, 0.3907, 0.2876],
+    "autodiff": [0.4898, 0.5060, 9.8556],
+    "analytical": [2.3435, 4.6157, 32.9893]
   },
   "peak_rss_bytes_at_16_products": {
-    "analytical_region": 2826240,
-    "autodiff": 2699264,
-    "analytical": 2772992
+    "measurement": "median of five separate pinned processes",
+    "analytical_region_jvp": 2752512,
+    "analytical_region_vjp": 2785280,
+    "autodiff_jvp": 2805760,
+    "autodiff_vjp": 2797568,
+    "analytical_jvp": 2813952,
+    "analytical_vjp": 2912256
+  },
+  "native_code": {
+    "executable_bytes": 2199664,
+    "generated_analytical_jvp_symbol_bytes": 168,
+    "generated_analytical_vjp_symbol_bytes": 150,
+    "autodiff_jvp_symbol_bytes": 803,
+    "autodiff_vjp_scalar_symbol_bytes": 134
   },
   "perf_stat_five_run_aggregate_at_16_jvps": {
     "iterations": 100000,
@@ -67,6 +90,11 @@
   "selection": {
     "jvp": "analytical_region",
     "vjp": "analytical_region",
-    "reason": "lowest validated complete-workload wall clock at every measured direction count; 3.73x faster JVP and 7.34x faster VJP at 16 products, with 4.7% higher peak RSS than autodiff"
+    "reason": "lowest validated complete-workload wall clock at every measured direction count; 3.89x faster JVP and 7.67x faster VJP at 16 products, with indistinguishable peak RSS"
+  },
+  "workload_contract": {
+    "reusable_primal_state": "none; each product call evaluates the asymptotic scalar expression",
+    "active_input_output_scaling": "the pure-elemental scalar leaf fixes one active input and one output and maps conformable arrays; direction and cotangent counts 1, 4, and 16 measure product scaling",
+    "forward_reverse_crossover": "JVP and VJP timings are recorded separately at every product count"
   }
 }

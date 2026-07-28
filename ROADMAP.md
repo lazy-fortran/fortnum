@@ -388,7 +388,7 @@ support.
 
 ## Module tournaments
 
-- [ ] Complete the special-functions tournament and commit its evidence.
+- [x] Complete the special-functions tournament and commit its evidence.
 - [ ] Complete the interpolation tournament and commit its evidence.
 - [ ] Complete the FFT tournament and commit its evidence.
 - [ ] Complete the quadrature tournament and commit its evidence.

@@ -2,6 +2,7 @@
   "schema_version": 1,
   "date": "2026-07-28",
   "source_revision": "51e495ed7d190cb1e324f132d50383f4a55708f8",
+  "evidence_refresh_source_revision": "ee7b0f019061f59a240bef08b59d8ad20b71de42",
   "operator": "sin(P(2.5,x)) + P(2.5,x)^2",
   "products": ["jvp", "vjp"],
   "active_inputs": 1,
@@ -30,6 +31,7 @@
   "validation": {
     "oracle": "central difference of the complete outer objective",
     "relative_tolerance": 2e-8,
+    "observed_max_relative_error": 4.03302e-12,
     "regions_checked": ["series", "transition", "continued-fraction tail"],
     "hybrid_provenance": "one analytical gamma custom-rule call asserted per JVP"
   },
@@ -108,7 +110,16 @@
     }
   ],
   "peak_rss_bytes_at_16_products": {
-    "all_regions_and_candidates": 13463552
+    "measurement": "median of five separate pinned processes",
+    "series": {"analytical_jvp": 3272704, "autodiff_jvp": 3346432, "hybrid_jvp": 3371008, "analytical_vjp": 3211264, "autodiff_vjp": 3313664},
+    "transition": {"analytical_jvp": 3149824, "autodiff_jvp": 3211264, "hybrid_jvp": 3366912, "analytical_vjp": 3231744, "autodiff_vjp": 3231744},
+    "tail": {"analytical_jvp": 3203072, "autodiff_jvp": 3104768, "hybrid_jvp": 3125248, "analytical_vjp": 3186688, "autodiff_vjp": 3223552}
+  },
+  "native_code": {
+    "executable_bytes": 2185784,
+    "hybrid_jvp_symbol_bytes": 51,
+    "autodiff_jvp_symbol_bytes": 1276,
+    "autodiff_vjp_scalar_symbol_bytes": 255
   },
   "tail_perf_stat_five_run_aggregate": {
     "analytical_jvp": {
@@ -146,5 +157,10 @@
     "jvp": "autodiff in all measured regions and direction counts",
     "vjp": "analytical in all measured regions and cotangent counts",
     "reason": "complete-workload wall clock; peak memory and cache misses do not distinguish candidates"
+  },
+  "workload_contract": {
+    "reusable_primal_state": "none; each derivative-product call includes the fixed-shape gamma primal",
+    "active_input_output_scaling": "the measured fixed-shape operator has one active input and one output; direction and cotangent counts 1, 4, and 16 measure product scaling",
+    "forward_reverse_crossover": "JVP and VJP timings are recorded separately in all three numerical regions"
   }
 }

@@ -31,8 +31,8 @@ Finite differences are diagnostics and win no current production selection.
 | `hybrid` | 2 | 3.7% | 5 |
 | diagnostic | 0 | 0.0% | 0 |
 
-The second-fastest/fastest wall-clock ratio ranges from 1.001 to 1,224.355.
-Its median is 1.465 and geometric mean is 1.951. 21 workloads have a
+The second-fastest/fastest wall-clock ratio ranges from 1.000 to 1,224.355.
+Its median is 1.465 and geometric mean is 1.962. 21 workloads have a
 runner-up within 20%.
 
 These counts describe the measured workload set. They do not select new
@@ -51,8 +51,8 @@ refresh.
 | compact generated algebra | `analytical` | direct contracted and fused products avoid repeated primals |
 | Bessel | mixed | raw forward autodiff reuses recurrence work in two JVP regions; analytical wins the measured VJPs and series JVP |
 | regularized gamma, fixed shape | product-specific | forward autodiff reuses the primal iteration and wins JVPs; the analytical scalar adjoint wins VJPs |
-| erf | `analytical` practical tie | autodiff is under 1% raw-faster for JVP; generated analytical wins VJP and avoids an optional runtime dependency |
-| hypergeometric, fixed real parameters | region-specific | autodiff wins Kummer and series regions; fortsym-generated pure-elemental analytical products win the asymptotic region by 3.73× for 16 JVPs and 7.34× for 16 VJPs |
+| erf | `analytical` practical tie | raw candidates differ by at most 2.1% at 16 products; generated analytical avoids an optional runtime dependency |
+| hypergeometric, fixed real parameters | region-specific | autodiff wins Kummer and series regions; fortsym-generated pure-elemental analytical products win the asymptotic region by 3.89× for 16 JVPs and 7.67× for 16 VJPs |
 | length-eight complex FFT JVP | `analytical` practical tie | applying the transform directly wins at 1 to 4 directions; Enzyme is 4.4% raw-faster at 16, but analytical wins hardware counters and has no optional dependency |
 | length-eight complex FFT VJP | `analytical` | the adjoint transform is 3.16 to 4.90× faster than a valid forward-Enzyme construction; direct reverse Enzyme fails validation for this complex kernel |
 | external FFT composition | `analytical` practical tie | generated Enzyme scaffolding and an analytical FFTW custom rule compose correctly; explicit and hybrid outer JVPs remain within 3.3% |

@@ -2,6 +2,7 @@
   "schema_version": 1,
   "date": "2026-07-28",
   "source_revision": "0f104aae8073a159deaea2389612a557e0bc3124",
+  "evidence_refresh_source_revision": "ee7b0f019061f59a240bef08b59d8ad20b71de42",
   "operator": "sin(erf(x)) + erf(x)^2",
   "products": ["jvp", "vjp"],
   "active_inputs": 1,
@@ -29,6 +30,7 @@
   "validation": {
     "oracle": "central difference of the complete outer objective",
     "relative_tolerance": 2e-8,
+    "observed_max_relative_error": 2.38418e-11,
     "regions_checked": ["small", "transition", "saturated tail"],
     "hybrid_provenance": "one analytical erf custom-rule call asserted per JVP"
   },
@@ -37,44 +39,82 @@
       "name": "small",
       "x": 0.1,
       "jvp_median_ns": {
-        "analytical": [22.86128, 78.78600, 301.84864],
-        "autodiff": [22.93200, 77.55648, 299.67200],
-        "hybrid": [22.95806, 80.41312, 303.25920]
+        "analytical": [22.83302, 79.67972, 303.68478],
+        "autodiff": [23.12298, 79.26834, 301.16722],
+        "hybrid": [23.15702, 79.46634, 303.66854]
+      },
+      "jvp_mad_ns": {
+        "analytical": [0.21180, 0.55324, 0.39334],
+        "autodiff": [0.10162, 0.10040, 0.51496],
+        "hybrid": [0.15228, 0.30856, 0.50636]
       },
       "vjp_median_ns": {
-        "analytical": [23.53334, 78.81568, 304.04480],
-        "autodiff": [23.63454, 79.36152, 304.95840]
+        "analytical": [23.34098, 79.49758, 306.19890],
+        "autodiff": [23.61490, 79.64968, 306.33898]
+      },
+      "vjp_mad_ns": {
+        "analytical": [0.04588, 0.28274, 0.64502],
+        "autodiff": [0.08196, 0.39094, 0.63198]
       }
     },
     {
       "name": "transition",
       "x": 1.0,
       "jvp_median_ns": {
-        "analytical": [23.31632, 78.86784, 302.39040],
-        "autodiff": [23.03118, 77.96048, 299.40576],
-        "hybrid": [23.10252, 78.88304, 303.37792]
+        "analytical": [23.15120, 78.31394, 302.38592],
+        "autodiff": [22.94602, 78.11940, 299.39368],
+        "hybrid": [22.75266, 78.57284, 308.04900]
+      },
+      "jvp_mad_ns": {
+        "analytical": [0.15410, 0.14586, 0.33904],
+        "autodiff": [0.06392, 0.18036, 0.10900],
+        "hybrid": [0.04628, 0.16110, 0.27610]
       },
       "vjp_median_ns": {
-        "analytical": [23.42172, 78.64416, 304.29184],
-        "autodiff": [23.64774, 79.04496, 305.08352]
+        "analytical": [23.24820, 79.23688, 305.58576],
+        "autodiff": [23.54416, 79.42626, 306.83370]
+      },
+      "vjp_mad_ns": {
+        "analytical": [0.04990, 0.11322, 0.74160],
+        "autodiff": [0.05912, 0.25808, 1.86432]
       }
     },
     {
       "name": "tail",
       "x": 4.0,
       "jvp_median_ns": {
-        "analytical": [25.03578, 87.94576, 330.28640],
-        "autodiff": [24.76526, 85.98040, 327.00672],
-        "hybrid": [25.15138, 86.16632, 331.35712]
+        "analytical": [25.20188, 86.65988, 334.45716],
+        "autodiff": [25.33914, 85.66960, 327.51266],
+        "hybrid": [25.13434, 86.73382, 333.35586]
+      },
+      "jvp_mad_ns": {
+        "analytical": [0.13766, 0.45086, 0.68250],
+        "autodiff": [0.31198, 0.09998, 0.26472],
+        "hybrid": [0.10138, 0.42580, 0.79510]
       },
       "vjp_median_ns": {
-        "analytical": [25.19868, 86.98144, 330.41440],
-        "autodiff": [26.11880, 87.21792, 330.87968]
+        "analytical": [24.85684, 88.30238, 333.02726],
+        "autodiff": [25.13154, 87.61148, 334.55694]
+      },
+      "vjp_mad_ns": {
+        "analytical": [0.09258, 0.32862, 1.23552],
+        "autodiff": [0.10338, 0.43844, 0.96582]
       }
     }
   ],
   "peak_rss_bytes_at_16_products": {
-    "all_regions_and_candidates": 13643776
+    "measurement": "median of five separate pinned processes",
+    "small": {"analytical_jvp": 3096576, "autodiff_jvp": 2998272, "hybrid_jvp": 3092480, "analytical_vjp": 2940928, "autodiff_vjp": 2994176},
+    "transition": {"analytical_jvp": 3112960, "autodiff_jvp": 3035136, "hybrid_jvp": 3104768, "analytical_vjp": 3149824, "autodiff_vjp": 2981888},
+    "tail": {"analytical_jvp": 3121152, "autodiff_jvp": 3117056, "hybrid_jvp": 2953216, "analytical_vjp": 2990080, "autodiff_vjp": 2940928}
+  },
+  "native_code": {
+    "executable_bytes": 2175896,
+    "generated_analytical_jvp_symbol_bytes": 68,
+    "generated_analytical_vjp_symbol_bytes": 68,
+    "hybrid_jvp_symbol_bytes": 124,
+    "autodiff_jvp_symbol_bytes": 117,
+    "autodiff_vjp_scalar_symbol_bytes": 100
   },
   "tail_perf_stat_five_run_aggregate": {
     "analytical_jvp": {
@@ -112,5 +152,10 @@
     "jvp": "analytical under the practical-tie rule; autodiff is 0.7-1.0% raw-faster at 16 directions",
     "vjp": "analytical",
     "reason": "wall-clock tie, identical peak memory and cache behavior; generated analytical is always available and device-portable"
+  },
+  "workload_contract": {
+    "reusable_primal_state": "none; every derivative-product call evaluates the scalar objective",
+    "active_input_output_scaling": "the elemental scalar operator fixes one active input and one output; conformable arrays map the same leaf, while direction and cotangent counts 1, 4, and 16 measure product scaling",
+    "forward_reverse_crossover": "JVP and VJP timings are recorded separately in all three argument regions"
   }
 }
