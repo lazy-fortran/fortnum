@@ -258,6 +258,17 @@ analytical JVP and VJP kernels from the asymptotic definition. At 16 products
 they take 59.10 and 56.55 ns, versus Enzyme's 229.71 and 433.71 ns. Peak RSS
 differs by less than 2%, so wall clock selects the generated region kernels.
 
+The first application benchmark solves
+\(x^3+p_1x-p_2=0\), evaluates
+\(L=0.5x^2+0.1p_1^2\), and returns its two-component gradient. The analytical
+implicit path performs one complete root solve and takes 81.59 ns. The
+finite-difference diagnostic performs one baseline and four perturbed solves
+and takes 439.79 ns. Analytical is 5.39 times faster, executes 3.69 times
+fewer instructions, and incurs 3.17 times fewer cache misses per complete
+value-and-gradient call. Both agree with an independent bisection-based
+oracle within \(3.70\times10^{-12}\). Their maximum process RSS differs by
+only 49,152 bytes, which is treated as measurement noise.
+
 ## Current normalized set
 
 `benchmark/report/data/mechanism_tournaments.csv` includes only tournaments
