@@ -100,6 +100,14 @@ practical tie: raw autodiff takes 298 ns for JVP and 305 ns for VJP, versus
 candidate remains selected. The corresponding record includes peak RSS and
 cache counters.
 
+Transition regions remain product-specific. At 16 products, Bessel selects a
+3,531 ns autodiff JVP and a 5,566 ns analytical VJP. Gamma similarly selects a
+2,819 ns autodiff JVP and a 4,245 ns analytical VJP. Erf is again a practical
+tie: autodiff is raw-fastest for JVP, while analytical wins VJP and remains
+the portable normal-build selection. The cache counters track the same
+wall-clock verdicts: the clear winners execute fewer instructions and incur
+fewer misses.
+
 The hypergeometric tournament activates real `z` at fixed real parameters.
 Because Enzyme 22 cannot differentiate Flang's complex `cexp`, its candidate
 uses a real specialization of the same Kummer, Taylor, and asymptotic
