@@ -758,6 +758,17 @@ to raw. Exact scaling, dispersion, peak host RSS, cache counters, proof
 provenance, and transfer-inclusive timings are in
 `benchmark/reference/rtx5060ti_dawson_jvp_algebraic_variants.json`.
 
+Only the selected simplified leaf is committed, as
+`src/generated/fortnum_dawson_identity_jvp_kernel.f90`. Its generator always
+regenerates that production artifact. Supplying
+`FORTNUM_VARIANT_OUTPUT_DIR=<temporary-directory>` additionally reproduces the
+raw and factored losers for a tournament; neither loser is tracked. The
+regeneration gate compares the selected leaf byte-for-byte. Rechecking the
+committed leaf at 1,048,576 products measured 5.5130 ms on pinned CPU,
+0.1381/4.0531 ms for OpenACC resident/transfer, and 0.1390/4.0021 ms for OpenMP
+target resident/transfer. Peak host RSS was 47.2 MB on CPU and 150.0--244.3 MB
+for the GPU processes.
+
 ## Immediate implementation order
 
 The first pilot is the generated Dawson fused value/JVP leaf:
