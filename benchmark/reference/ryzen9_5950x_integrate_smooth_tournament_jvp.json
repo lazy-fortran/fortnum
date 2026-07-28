@@ -26,6 +26,7 @@
   },
   "validation": {
     "oracle": "closed-form derivative of the exactly integrated exponential",
+    "observed_maximum_absolute_error": 1.8189894035458565e-12,
     "trace_panels": [[0.0, 0.5], [0.5, 0.75], [0.75, 1.0]],
     "exact_absolute_tolerance": 1e-7,
     "trace_identity_checked": true

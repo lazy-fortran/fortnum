@@ -12,6 +12,11 @@
     "native_code": "generated determinant and inverse operation counts and symbol sizes, plus current linear-solve product symbol sizes",
     "products": "JVP and VJP are selected independently; direction and cotangent scaling are separate workloads"
   },
+  "observed_independent_validation_errors": {
+    "factor_reuse_jvp_maximum_absolute_error": 3.7204956129799349e-11,
+    "factor_reuse_vjp_maximum_absolute_error": 4.4504432081325478e-12,
+    "oracles": "complete perturbed linear solves; other workload-specific errors remain in the referenced records"
+  },
   "workloads": [
     {
       "name": "determinant_jvp",
