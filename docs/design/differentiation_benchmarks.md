@@ -288,6 +288,16 @@ times faster, executes 14.86 times fewer instructions, and incurs 90.85 times
 fewer cache misses. The complete-workload oracle error is
 \(1.72\times10^{-11}\), and peak RSS is tied within 20,480 bytes.
 
+The nonlinear least-squares application maps eight active inputs to 24
+sinusoidal residuals and a scalar half-squared-norm objective. Analytical
+forward column contractions take 219.21 ns, analytical reverse contraction
+takes 283.94 ns, and complete-objective finite differences take 1,668.34 ns.
+Forward is therefore 1.295 times faster than reverse and 7.61 times faster
+than finite differences at this size. Complex-step validation gives a maximum
+error of \(1.34\times10^{-17}\). The forward result is selected by complete
+wall clock: its compiler-optimized dot products beat the scalar-output
+reverse heuristic for this particular shape.
+
 ## Current normalized set
 
 `benchmark/report/data/mechanism_tournaments.csv` includes only tournaments

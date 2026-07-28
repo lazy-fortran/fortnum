@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "operator": "nonlinear_least_squares",
+  "product": "value_and_gradient",
+  "workload": "24 sinusoidal residuals, 8 active inputs, scalar half-squared-norm objective",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1 20260625",
+    "fortnum_commit": "50a3f2d",
+    "fortsym_commit": "724baf5b22894bc3e018b0653fac81bbf2f815eb"
+  },
+  "sampling": {
+    "warmup_rounds": 3,
+    "samples": 15,
+    "calls_per_sample": {
+      "analytical_forward": 200000,
+      "analytical_reverse": 200000,
+      "finite_difference_diagnostic": 20000
+    },
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum"
+  },
+  "validation": {
+    "oracle": "complex-step differentiation of an independently evaluated complex least-squares objective",
+    "maximum_absolute_error": 1.3444106938820255e-17,
+    "absolute_tolerance": 2e-12
+  },
+  "memory_method": "getrusage(RUSAGE_SELF) inside each separately launched candidate",
+  "candidates": [
+    {
+      "id": "analytical_forward",
+      "mechanism": "analytical",
+      "median_ns_per_call": 219.2111,
+      "mad_ns_per_call": 0.82,
+      "peak_rss_bytes": 3145728,
+      "cycles_per_call": 1007.05,
+      "instructions_per_call": 2928.37,
+      "cache_misses_per_call": 0.025465
+    },
+    {
+      "id": "analytical_reverse",
+      "mechanism": "analytical",
+      "median_ns_per_call": 283.9374,
+      "mad_ns_per_call": 0.2447,
+      "peak_rss_bytes": 2834432,
+      "cycles_per_call": 1297.77,
+      "instructions_per_call": 3875.37,
+      "cache_misses_per_call": 0.0249438
+    },
+    {
+      "id": "finite_difference_diagnostic",
+      "mechanism": "diagnostic",
+      "median_ns_per_call": 1668.3425,
+      "mad_ns_per_call": 10.4913,
+      "peak_rss_bytes": 2899968,
+      "cycles_per_call": 7400.81,
+      "instructions_per_call": 20754.7,
+      "cache_misses_per_call": 0.188866
+    }
+  ],
+  "selection": {
+    "selected": "analytical_forward",
+    "speedup_over_analytical_reverse": 1.2953,
+    "speedup_over_finite_difference": 7.6107,
+    "reason": "all candidates satisfy the independent complex-step oracle; at this fixed size the compiler-optimized forward column contractions minimize complete value-and-gradient wall clock despite the scalar output; RSS samples vary by 0.31 MB and do not override the wall-clock result"
+  }
+}
