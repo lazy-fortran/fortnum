@@ -65,9 +65,12 @@ The first implementation slice now also contains:
 - a machine-readable pre-refactor baseline for all 17 CPU Enzyme fixtures,
   including duplicated scaffold counts, clean build time, complete-suite wall
   clock, peak RSS, and native code size
+- one independently tested internal CPU Enzyme fixture-support module for
+  environment parsing, warmups and sampling, timing, median/MAD, standardized
+  output, and peak-RSS access
 
 Remaining work is tracked item by item in `ROADMAP.md`; the next CPU Enzyme
-step consolidates fixture support without changing derivative semantics.
+step generates the proven scalar wrapper shape before migrating fixtures.
 
 ## 3. Terminology
 

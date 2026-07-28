@@ -307,7 +307,7 @@ support.
 
 - [x] Record a machine-readable baseline for Enzyme fixture duplication,
   build time, runtime, peak RSS, and native code size.
-- [ ] Add one internal support module for environment parsing, timing, warmups,
+- [x] Add one internal support module for environment parsing, timing, warmups,
   median/MAD, standardized output, and peak-RSS access.
 - [ ] Generate wrappers for the proven scalar-kernel shape with one to four
   active scalar inputs, scalar output, forward JVP, reverse VJP, and an
