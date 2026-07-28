@@ -12,6 +12,15 @@ program gen_enzyme_scalar_wrappers
     do active_inputs = 1, 4
         call write_wrapper(output_directory, active_inputs)
     end do
+    call write_named_wrapper(output_directory, &
+        "fortnum_generated_enzyme_bessel_outer", &
+        "fortnum_enzyme_bessel_outer", "fortnum_bessel_outer", &
+        "fortnum_enzyme_bessel_outer.f90")
+    call write_named_wrapper(output_directory, &
+        "fortnum_generated_enzyme_bessel_outer_autodiff", &
+        "fortnum_enzyme_bessel_outer_autodiff", &
+        "fortnum_bessel_outer_autodiff", &
+        "fortnum_enzyme_bessel_outer_autodiff.f90")
 
 contains
 
@@ -65,5 +74,33 @@ contains
         close (unit)
         print "(a)", "wrote "//path
     end subroutine write_wrapper
+
+    subroutine write_named_wrapper(directory, module_name, wrapper_prefix, &
+            primal_symbol, filename)
+        character(*), intent(in) :: directory, module_name, wrapper_prefix
+        character(*), intent(in) :: primal_symbol, filename
+        type(enzyme_scalar_wrapper_spec_t) :: spec
+        character(:), allocatable :: code, path
+        integer :: unit, ios
+
+        spec%module_name = str(module_name)
+        spec%wrapper_prefix = str(wrapper_prefix)
+        spec%primal_symbol = str(primal_symbol)
+        spec%active_inputs = 1
+        spec%generator = str("gen_enzyme_scalar_wrappers")
+        spec%generator_revision = str(fortsym_revision())
+        spec%regenerate_command = str( &
+            "cd tools/codegen && FORTNUM_ENZYME_WRAPPER_OUTPUT_DIR=<dir> "// &
+            "fo exec gen_enzyme_scalar_wrappers")
+
+        path = directory//"/"//filename
+        open (newunit=unit, file=path, status="replace", action="write", &
+            iostat=ios)
+        if (ios /= 0) error stop "cannot write "//path
+        code = chars(emit_enzyme_scalar_wrapper(spec))
+        write (unit, "(a)") code(:len(code) - 1)
+        close (unit)
+        print "(a)", "wrote "//path
+    end subroutine write_named_wrapper
 
 end program gen_enzyme_scalar_wrappers
