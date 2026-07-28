@@ -142,6 +142,10 @@ One internal support module now centralizes environment parsing, warmup/sample
 collection, timing, median/MAD, standard output, and peak-RSS access. Its
 independent plain-compiler and Flang/Enzyme tests pass; existing numerical
 fixtures are intentionally unchanged until their dedicated migration items.
+`fortsym` now also generates temporary Enzyme JVP/VJP wrappers for one to four
+active scalar inputs and a scalar result, with an optional analytical forward
+rule. All eight generated products pass real-Enzyme formula and adjoint tests;
+the wrapper-plus-polynomial-kernel medians range from 7.21 to 8.30 ns.
 The cumulative report in `docs/design/differentiation_report.md` summarizes 32
 mechanism tournaments and provides reproducible `fortplot` figure generation
 without committing generated PNGs.

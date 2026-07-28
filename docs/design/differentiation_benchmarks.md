@@ -1017,6 +1017,29 @@ Enzyme fixtures remain unchanged and pass. Detailed build, runtime dispersion,
 memory, native size, and toolchain data are in
 `benchmark/reference/ryzen9_5950x_enzyme_fixture_support.json`.
 
+`fortsym` now generates the narrowly proven scalar Enzyme ABI for one to four
+active scalar inputs and one scalar result. Every arity exposes a forward JVP
+and reverse VJP; the one-input validation also exercises the optional
+analytical forward custom-rule hook. Generated wrappers remain temporary
+build-tree artifacts.
+
+All products pass independent polynomial-gradient checks and the adjoint
+identity over 257 cases per arity. In-process medians are:
+
+| Active inputs | JVP ns | VJP ns | JVP/VJP symbol B |
+|---:|---:|---:|---:|
+| 1 | 7.2097 | 8.1126 | 38 / 45 |
+| 2 | 7.2470 | 7.9894 | 101 / 93 |
+| 3 | 7.3821 | 8.2847 | 140 / 141 |
+| 4 | 7.4097 | 8.2977 | 209 / 190 |
+
+For these small polynomial kernels, wrapper-plus-kernel wall clock changes by
+only 2.8% for JVP and 2.3% for VJP from one to four active inputs. Peak RSS
+ranges from 2,506,752 to 2,805,760 B. The generated-family clean build takes
+0.72 s with 128,389,120 B peak RSS. Exact dispersion, cache counters, native
+sizes, and provenance are in
+`benchmark/reference/ryzen9_5950x_generated_enzyme_scalar_wrappers.json`.
+
 ## Active Lagrange support-node products
 
 For

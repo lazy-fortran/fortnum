@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "source_revision": "3de9e10023569ee584f37ff59817a51c647328f2",
+  "fortsym_revision": "63772bdd42686ade6aceab69cb04bf9970dd5633",
+  "component": "generated scalar Enzyme JVP/VJP wrapper family",
+  "classification": ["autodiff", "hybrid"],
+  "supported_shape": {
+    "active_scalar_inputs": [1, 2, 3, 4],
+    "outputs": 1,
+    "products": ["forward JVP", "reverse VJP"],
+    "optional_rule": "analytical forward custom rule"
+  },
+  "source_ownership": {
+    "generator": "tools/codegen/app/gen_enzyme_scalar_wrappers.f90",
+    "emitter": "fortsym_enzyme",
+    "generated_wrappers": "temporary build-tree artifacts",
+    "committed_generated_wrappers": 0
+  },
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_core": 4
+  },
+  "toolchain": {
+    "flang": "22.1.8",
+    "llvm_opt": "22.1.8",
+    "enzyme_commit": "c96508349d9f121957292308c646b4a1fd53c507",
+    "optimization": "O2"
+  },
+  "validation": {
+    "cases_per_input_count": 257,
+    "jvp_oracle": "independently written polynomial gradient contracted with the input tangent",
+    "vjp_oracle": "independently written polynomial gradient scaled by the output cotangent",
+    "adjoint_identity": "passed for every case and input count",
+    "relative_tolerance": 3e-13,
+    "custom_rule_case": "the one-input wrapper is linked with generated analytical forward-rule metadata",
+    "enzyme_execution_proof": "the standalone Enzyme pass resolves generated forward and reverse intrinsics for all four arities"
+  },
+  "benchmark": {
+    "repetitions_per_sample": 200000,
+    "samples": 15,
+    "warmup_samples": 3,
+    "metric": "in-process complete generated-wrapper plus differentiated-kernel wall clock in ns per product"
+  },
+  "median_ns": {
+    "active_inputs": [1, 2, 3, 4],
+    "jvp": [7.209735, 7.247005, 7.382110, 7.409660],
+    "vjp": [8.112590, 7.989355, 8.284710, 8.297685]
+  },
+  "mad_ns": {
+    "active_inputs": [1, 2, 3, 4],
+    "jvp": [0.016530, 0.011370, 0.020735, 0.025495],
+    "vjp": [0.022990, 0.056560, 0.017230, 0.015730]
+  },
+  "peak_rss_bytes": {
+    "active_inputs": [1, 2, 3, 4],
+    "jvp": [2506752, 2539520, 2600960, 2519040],
+    "vjp": [2523136, 2805760, 2510848, 2506752]
+  },
+  "native_code": {
+    "fixture_file_bytes": 2169992,
+    "fixture_text_bytes": 1981522,
+    "wrapper_symbol_bytes": {
+      "jvp": [38, 101, 140, 209],
+      "vjp": [45, 93, 141, 190]
+    }
+  },
+  "clean_build": {
+    "wall_s": 0.72,
+    "peak_rss_bytes": 128389120,
+    "user_s": 0.66,
+    "system_s": 0.40
+  },
+  "cache_counters": {
+    "scope": "complete 15-sample benchmark process; launch and driver included",
+    "jvp_p1": {"cycles": 120028272, "instructions": 367790394, "cache_references": 52533, "cache_misses": 16170},
+    "jvp_p4": {"cycles": 121140331, "instructions": 374990034, "cache_references": 53297, "cache_misses": 15949},
+    "vjp_p1": {"cycles": 133802432, "instructions": 418187173, "cache_references": 52762, "cache_misses": 15532},
+    "vjp_p4": {"cycles": 137087437, "instructions": 436186895, "cache_references": 52567, "cache_misses": 15867}
+  },
+  "verdict": "one generator covers the proven scalar ABI without committed wrapper duplication; JVP and VJP wall clock changes by only 2.8% and 2.3% from one to four active inputs for these small polynomial kernels"
+}
