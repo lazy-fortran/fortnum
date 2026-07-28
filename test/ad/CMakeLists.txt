@@ -159,9 +159,29 @@ add_executable(test_derivative_registry test_derivative_registry.f90)
 target_link_libraries(test_derivative_registry PRIVATE fortnum)
 add_test(NAME ad_derivative_registry COMMAND test_derivative_registry)
 
+add_executable(test_enzyme_fixture_support
+    ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+    ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
+    ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/test_enzyme_fixture_support.f90)
+add_test(NAME ad_enzyme_fixture_support COMMAND test_enzyme_fixture_support)
+set_tests_properties(ad_enzyme_fixture_support PROPERTIES
+    ENVIRONMENT
+        "FORTNUM_FIXTURE_TEST_TEXT=configured;FORTNUM_FIXTURE_TEST_INTEGER=42;FORTNUM_FIXTURE_TEST_INVALID=not-an-integer")
+
 # --- #38 Enzyme smoke tests (compiler-AD path; skipped when unavailable) ---
 if(FORTNUM_ENABLE_ENZYME)
     include(FortnumAddEnzymeTest)
+    fortnum_add_enzyme_test(
+        NAME enzyme_fixture_support
+        SOURCES
+            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/test_enzyme_fixture_support.f90
+        MODE forward
+        OPT_LEVEL O2)
+    set_tests_properties(enzyme_fixture_support PROPERTIES
+        ENVIRONMENT
+            "FORTNUM_FIXTURE_TEST_TEXT=configured;FORTNUM_FIXTURE_TEST_INTEGER=42;FORTNUM_FIXTURE_TEST_INVALID=not-an-integer")
     fortnum_add_enzyme_test(
         NAME enzyme_square
         SOURCES ${CMAKE_SOURCE_DIR}/cmake/enzyme/smoke/square.f90
