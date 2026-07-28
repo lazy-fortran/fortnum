@@ -64,6 +64,8 @@ add_library(bench_core STATIC
     ${FORTNUM_CORE_DIR}/generated/fortnum_implicit_root_residual_kernel.f90
     ${FORTNUM_CORE_DIR}/generated/fortnum_lagrange4_jvp_kernel.f90
     ${FORTNUM_CORE_DIR}/generated/fortnum_lagrange4_vjp_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_sqrt1pm1_raw_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_sqrt1pm1_stable_kernel.f90
     ${FORTNUM_MULTI_INPUT_SOURCES}
     ${FORTNUM_CORE_DIR}/quadrature/fortnum_quadrature.f90
     ${FORTNUM_CORE_DIR}/quadrature/fortnum_integrate_gk.f90
@@ -561,6 +563,10 @@ target_link_libraries(bench_scalar_root_tangent PRIVATE bench_core)
 
 add_executable(bench_scalar_root_adjoint bench_scalar_root_adjoint.f90)
 target_link_libraries(bench_scalar_root_adjoint PRIVATE bench_core)
+
+add_executable(bench_stable_sqrt_difference
+    bench_stable_sqrt_difference.f90)
+target_link_libraries(bench_stable_sqrt_difference PRIVATE bench_core)
 
 add_executable(bench_vector_root_tangent bench_vector_root_tangent.f90)
 target_link_libraries(bench_vector_root_tangent PRIVATE bench_core)

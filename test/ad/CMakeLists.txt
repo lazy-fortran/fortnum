@@ -21,6 +21,10 @@ add_executable(test_complex_step test_complex_step.f90)
 target_link_libraries(test_complex_step PRIVATE fortnum_ad_test_utils)
 add_test(NAME ad_complex_step COMMAND test_complex_step)
 
+add_executable(test_stable_sqrt_difference test_stable_sqrt_difference.f90)
+target_link_libraries(test_stable_sqrt_difference PRIVATE fortnum)
+add_test(NAME ad_stable_sqrt_difference COMMAND test_stable_sqrt_difference)
+
 add_executable(test_dot_products test_dot_products.f90)
 target_link_libraries(test_dot_products PRIVATE fortnum_ad_test_utils)
 add_test(NAME ad_dot_products COMMAND test_dot_products)

@@ -66,7 +66,7 @@ expect_failure "stale aggregate benchmark statistics" "${case_root}"
 
 case_root="${temp_dir}/generator-lock"
 cp -a "${base}" "${case_root}"
-sed -i 's/Generator revision: fortsym@./Generator revision: fortsym@0/' \
+sed -i 's/Generator revision: fortsym@[0-9a-f]*/Generator revision: fortsym@0000000000000000000000000000000000000000/' \
     "${case_root}/src/generated/fortnum_dawson_outer_kernel.f90"
 expect_failure "a generated revision mismatch" "${case_root}"
 
