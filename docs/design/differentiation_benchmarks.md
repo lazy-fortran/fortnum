@@ -51,6 +51,19 @@ respectively, and executes 22.4% fewer instructions without a cache penalty.
 All four scalar candidates use fixed storage; their roughly 2.8 to 2.9 MB process
 RSS does not resolve derivative workspace differences.
 
+Root and fixed-point records support the same operator-level conclusion.
+For the two-state fixed-point fixture, the analytical implicit JVP takes
+97.80 ns versus 1,224.40 ns for two complete perturbed solves; its VJP takes
+132.40 ns versus 2,495.14 ns for four solves. The speedups are 12.52× and
+18.85×, with maximum absolute errors of \(1.18\times10^{-11}\) and
+\(1.01\times10^{-10}\). Reusing a converged 16-state root factorization makes
+the JVP 2.96× faster and the VJP 2.98× faster than refactorization. The fixed
+point and factor-reuse choices change candidate-process RSS by at most 184,320
+bytes, so wall clock decides these workloads. Scalar and two-state root
+tournaments compare analytical, hybrid, fixed-iteration autodiff, and
+diagnostic implementations separately for JVP and VJP; no mechanism is assumed
+to win both products.
+
 ## GPU record families
 
 | Family | Record pattern | Selection question |

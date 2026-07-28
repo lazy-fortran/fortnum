@@ -13,14 +13,14 @@ program bench_fixed_point_adjoint
     type(fortnum_status_t) :: status
     integer(int64) :: reps
     integer :: sample
-    character(16) :: candidate, mode
+    character(32) :: candidate, mode
     logical :: memory_only
 
     call get_command_argument(1, candidate)
     call get_command_argument(2, mode)
     memory_only = trim(mode) == "--peak-rss"
     if ((trim(candidate) /= "analytical") .and. &
-            (trim(candidate) /= "reference")) then
+        (trim(candidate) /= "reference")) then
         error stop "usage: bench_fixed_point_adjoint analytical|reference"
     end if
 
@@ -28,6 +28,10 @@ program bench_fixed_point_adjoint
     u = [1.3_dp, -0.4_dp]
     call solve_fixed_point(p, xstar)
     call map_derivatives(xstar, p, map_x, map_p)
+    if (trim(mode) == "--validation-error") then
+        call report_validation_error()
+        stop
+    end if
     if (trim(candidate) == "analytical") then
         reps = analytical_reps
     else
@@ -48,6 +52,27 @@ program bench_fixed_point_adjoint
     end do
 
 contains
+
+    subroutine report_validation_error()
+        real(dp) :: analytical(2), reference(2), pp(2), pm(2), xp(2), xm(2)
+        real(dp) :: error
+        integer :: i
+
+        call fixed_point_vjp(map_x, map_p, u, analytical, status)
+        if (.not. status_ok(status)) error stop "fixed-point VJP failed"
+        do i = 1, 2
+            pp = p
+            pm = p
+            pp(i) = pp(i) + h
+            pm(i) = pm(i) - h
+            call solve_fixed_point(pp, xp)
+            call solve_fixed_point(pm, xm)
+            reference(i) = dot_product(u, xp - xm)/(2.0_dp*h)
+        end do
+        error = maxval(abs(analytical - reference))
+        if (error > 1.0e-9_dp) error stop "fixed-point VJP validation failed"
+        write (*, "(es24.16)") error
+    end subroutine report_validation_error
 
     function run_sample(name, count) result(ns_per_call)
         character(*), intent(in) :: name

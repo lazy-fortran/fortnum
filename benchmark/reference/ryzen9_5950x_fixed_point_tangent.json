@@ -3,6 +3,8 @@
   "date": "2026-07-27",
   "operator": "fixed_point",
   "product": "jvp",
+  "source_revision": "afa91177312de14833ffb2e40f9d09b17de6710e",
+  "evidence_refresh_source_revision": "055bb2d391f03fe369522bc3da7a6b2b68329a16",
   "workload": "2-state nonlinear map, 2 active parameters, reusable converged state and map derivatives",
   "hardware": {
     "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
@@ -25,7 +27,12 @@
   },
   "validation": {
     "oracle": "central finite difference of complete converged fixed-point solves at p+h*tp and p-h*tp",
-    "absolute_tolerance": 1e-9
+    "absolute_tolerance": 1e-9,
+    "maximum_absolute_error": 1.1838419133880507e-11
+  },
+  "native_code": {
+    "executable_bytes": 89008,
+    "analytical_jvp_symbol_bytes": 3355
   },
   "memory_method": "getrusage(RUSAGE_SELF) inside each separately launched candidate",
   "candidates": [
@@ -35,6 +42,10 @@
       "median_ns_per_call": 97.8032,
       "mad_ns_per_call": 2.4065,
       "peak_rss_bytes": 12554240,
+      "cycles_per_call": 424.952,
+      "instructions_per_call": 1650.037,
+      "cache_references_per_call": 0.029306,
+      "cache_misses_per_call": 0.002150,
       "reusable_primal_state": "converged fixed point, G_x, and G_p"
     },
     {
@@ -43,6 +54,10 @@
       "median_ns_per_call": 1224.4016,
       "mad_ns_per_call": 10.1642,
       "peak_rss_bytes": 12550144,
+      "cycles_per_call": 5572.454,
+      "instructions_per_call": 6383.490,
+      "cache_references_per_call": 0.462163,
+      "cache_misses_per_call": 0.075405,
       "reusable_primal_state": "none; two complete solves per direction"
     }
   ],

@@ -3,6 +3,8 @@
   "date": "2026-07-28",
   "operator": "vector_root",
   "purpose": "generated-wrapper and shared-fixture migration",
+  "source_revision": "0e8e97d816acb8989f98ca33caf8debd9992dfa4",
+  "evidence_refresh_source_revision": "055bb2d391f03fe369522bc3da7a6b2b68329a16",
   "hardware": {
     "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
     "pinned_cpu": 4
@@ -19,6 +21,12 @@
     "outputs": 2,
     "newton_steps_for_autodiff_and_diagnostic": 12,
     "calls_per_sample": 100000
+  },
+  "workload_contract": {
+    "reusable_primal_state": "the converged vector root and its Jacobian factorization are reusable by implicit analytical and hybrid candidates",
+    "jvp": "one direction in two active parameters returns two root tangents",
+    "vjp": "one two-component root cotangent returns two parameter cotangents",
+    "autodiff_scope": "autodiff and diagnostic candidates differentiate twelve fixed coupled-Newton steps"
   },
   "migration": {
     "temporary_generated_wrappers": [
@@ -167,6 +175,15 @@
     "jvp_executable_bytes": 2228936,
     "jvp_executable_change_bytes": 2288,
     "vjp_executable_bytes": 2233040,
-    "vjp_executable_change_bytes": 6184
+    "vjp_executable_change_bytes": 6184,
+    "native_symbol_bytes": {
+      "generated_residual_jvp": 51,
+      "analytical_root_jvp": 346,
+      "hybrid_root_jvp": 346,
+      "autodiff_iteration_jvp": 926,
+      "analytical_root_vjp": 367,
+      "hybrid_root_vjp": 367,
+      "autodiff_iteration_vjp": 829
+    }
   }
 }

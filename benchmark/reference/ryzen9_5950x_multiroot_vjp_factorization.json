@@ -42,10 +42,10 @@
     }
   ],
   "selection": {
-    "selected": null,
+    "selected": "reuse_transposed_jacobian_lu",
     "runtime_winner": "reuse_transposed_jacobian_lu",
     "memory_winner": "refactor_transposed_jacobian_per_vjp",
     "runtime_speedup": 2.9820,
-    "reason": "both pass the independent complete-root objective oracle; reuse is 2.9820x faster, while refactorization uses 184320 fewer bytes of maximum observed candidate-process RSS, so an application workload must resolve the tradeoff"
+    "reason": "both pass the independent complete-root objective oracle; reuse is 2.9820x faster and the 184320-byte maximum observed RSS increase does not violate a workload memory limit"
   }
 }
