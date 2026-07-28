@@ -65,6 +65,18 @@ relevant.
 returned values. Never compare an isolated derivative kernel with a
 value-plus-derivative candidate without labeling the difference.
 
+The scalar FFT benchmark runs through CTest so validation and timing use the
+same executable:
+
+```bash
+cmake -S benchmark -B build-bench -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build-bench --target bench_fft_scalar
+FORTNUM_FFT_SCALAR_ACTION=benchmark \
+FORTNUM_FFT_SCALAR_PRODUCT=jvp \
+FORTNUM_FFT_SCALAR_LENGTH=1024 \
+ctest --test-dir build-bench -R '^fft_scalar_validation$' -V
+```
+
 ## Reports
 
 Generate the cumulative CPU report:

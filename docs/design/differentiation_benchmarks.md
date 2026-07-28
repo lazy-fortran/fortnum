@@ -30,7 +30,7 @@ primal evaluations required by the stated oracle.
 | Family | Record pattern | Products and comparisons | Independent validation |
 | --- | --- | --- | --- |
 | generated algebra | `ryzen9_5950x_dawson_generated_family.json`, determinant and inverse records | fused/separate, generated/diagnostic, JVP/VJP | formulas, finite differences, matrix identities, adjoint identities |
-| FFT | `ryzen9_5950x_fft8_{jvp,vjp}_tournament.json`, `ryzen9_5950x_fftw8_custom_rule.json` | analytical transform products versus Enzyme, external-library custom rule, product scaling | direct DFT, direct adjoint DFT, dot identity, finite difference, and NumPy transform oracle |
+| FFT | `ryzen9_5950x_fft8_{jvp,vjp}_tournament.json`, `ryzen9_5950x_fftw8_custom_rule.json`, `ryzen9_5950x_fft_scalar_products.json` | analytical transform products versus Enzyme, external-library custom rule, scalar scaling | direct DFT, direct adjoint DFT, dot identity, finite difference, and NumPy transform oracle |
 | special functions | `ryzen9_5950x_bessel_*.json`, gamma, erf, and hypergeometric tournament records | analytical, autodiff, hybrid across numerical regions | complete-objective finite differences and custom-rule provenance |
 | Enzyme infrastructure | `ryzen9_5950x_enzyme_*.json`, `*_fixture_migration.json` | wrapper ABI, shared support, code size, migration regression | real Enzyme formulas, adjoint identities, negative repository guards |
 | interpolation | `ryzen9_5950x_lagrange_*.json`, `ryzen9_5950x_bspline_*.json` | active points, values, nodes, knots, coefficients, fused products | independent cubic formulas, finite differences, adjoint identities, crossing status |
@@ -141,6 +141,14 @@ fixed-array wrapper prevents an unsupported reverse request from entering the
 Enzyme module. Analytical and hybrid JVPs differ by at most 3.3% over 1, 4,
 and 16 directions. At 16 directions they take 4,745 and 4,897 ns, with peak
 RSS of 4.94 and 4.99 MB. The explicit analytical composition remains selected.
+
+Single-transform analytical products were measured at lengths 8, 64, 256,
+and 1024. JVP wall clock grows from 178 ns to 27.0 microseconds. VJP grows
+from 170 ns to 26.3 microseconds and stays within 6.3% of JVP at every length.
+Length-1024 peak RSS is 2.86 MB for JVP and 2.91 MB for VJP. These complete
+public calls include plan construction for lengths other than 8. The scalar
+record therefore describes the current caller-visible cost, including its
+lack of reusable complex-plan state.
 
 The hypergeometric tournament activates real `z` at fixed real parameters.
 Because Enzyme 22 cannot differentiate Flang's complex `cexp`, its candidate

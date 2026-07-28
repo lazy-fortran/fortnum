@@ -66,6 +66,8 @@ add_library(bench_core STATIC
     ${FORTNUM_CORE_DIR}/generated/fortnum_lagrange4_vjp_kernel.f90
     ${FORTNUM_CORE_DIR}/generated/fortnum_sqrt1pm1_raw_kernel.f90
     ${FORTNUM_CORE_DIR}/generated/fortnum_sqrt1pm1_stable_kernel.f90
+    ${FORTNUM_CORE_DIR}/fft/fortnum_fft8_kernel.f90
+    ${FORTNUM_CORE_DIR}/fft/fortnum_fft.f90
     ${FORTNUM_MULTI_INPUT_SOURCES}
     ${FORTNUM_CORE_DIR}/quadrature/fortnum_quadrature.f90
     ${FORTNUM_CORE_DIR}/quadrature/fortnum_integrate_gk.f90
@@ -477,6 +479,10 @@ target_link_libraries(bench_linalg3_cpu PRIVATE bench_linalg3_cpu_core)
 
 add_executable(bench_fft8_cpu gpu/bench_fft8_gpu.f90)
 target_link_libraries(bench_fft8_cpu PRIVATE bench_fft8_cpu_core)
+
+add_executable(bench_fft_scalar bench_fft_scalar.f90)
+target_link_libraries(bench_fft_scalar PRIVATE bench_core)
+add_test(NAME fft_scalar_validation COMMAND bench_fft_scalar)
 
 add_executable(bench_ode_trace2_cpu gpu/bench_ode_trace2_gpu.f90)
 target_link_libraries(bench_ode_trace2_cpu PRIVATE bench_ode_trace2_cpu_core)
