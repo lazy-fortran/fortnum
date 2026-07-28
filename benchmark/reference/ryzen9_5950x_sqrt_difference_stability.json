@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "operation": "sqrt(1+x)-1 near cancellation",
+  "candidates": {
+    "raw": "sqrt(1+x)-1",
+    "stable": "x/(1+sqrt(1+x))"
+  },
+  "selection_contract": {
+    "boundary_region": "stable",
+    "ordinary_region": "raw unless the stable result is required by the caller's accuracy contract",
+    "reason": "the raw form is faster but returns zero for the one-ULP boundary input; the rationalized form agrees with the real128 oracle"
+  },
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4,
+    "working_set": "two 1048576-element real64 arrays, approximately 16 MiB and cache-resident after warmup"
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 15.2.0",
+    "build": "Release",
+    "fortsym_revision": "0fb62d205c6bd41dc8f99e5b259d33bfa49afe8c"
+  },
+  "validation": {
+    "symbolic": "SymEngine proves raw minus rationalized is zero",
+    "boundary_oracle": "real128 evaluation at x=nearest(1,1)-1",
+    "raw_boundary_result": 0.0,
+    "stable_boundary_result": 1.1102230246251565e-16,
+    "result": "stable has lower absolute error and retains the nonzero increment"
+  },
+  "workload": {
+    "batch_elements": 1048576,
+    "passes_per_sample": 32,
+    "runtime_processes": 15,
+    "memory_processes": 5,
+    "runtime_aggregation": "median",
+    "dispersion": "median absolute deviation",
+    "memory_aggregation": "maximum"
+  },
+  "wall_clock_ns_per_element": {
+    "raw": {
+      "median": 2.635266,
+      "mad": 0.008003
+    },
+    "stable": {
+      "median": 3.564199,
+      "mad": 0.013456
+    },
+    "stable_over_raw": 1.3525
+  },
+  "peak_rss_bytes": {
+    "raw": 19488768,
+    "stable": 19488768
+  },
+  "perf_stat_single_process": {
+    "raw": {
+      "cycles_per_element": 12.1155,
+      "instructions_per_element": 16.6392,
+      "cache_misses_per_element": 0.007329,
+      "cache_miss_fraction": 0.009557
+    },
+    "stable": {
+      "cycles_per_element": 16.4118,
+      "instructions_per_element": 18.6390,
+      "cache_misses_per_element": 0.007072,
+      "cache_miss_fraction": 0.009223
+    },
+    "interpretation": "cache behavior is equivalent; the stable overhead is arithmetic, dominated by the added division"
+  },
+  "native_text_bytes": {
+    "raw": 29,
+    "stable": 37
+  },
+  "verdict": "Use the stable generated candidate at cancellation-sensitive boundaries and retain the raw generated candidate elsewhere. Do not apply the rewrite globally."
+}

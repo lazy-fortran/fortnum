@@ -53,6 +53,11 @@ source-dir = "app"
 main = "gen_erf_products.f90"
 
 [[executable]]
+name = "gen_stable_sqrt_difference"
+source-dir = "app"
+main = "gen_stable_sqrt_difference.f90"
+
+[[executable]]
 name = "gen_enzyme_scalar_wrappers"
 source-dir = "app"
 main = "gen_enzyme_scalar_wrappers.f90"

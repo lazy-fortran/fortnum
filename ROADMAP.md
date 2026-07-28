@@ -357,7 +357,7 @@ support.
   hand-written implicit tangent and adjoint solves.
 - [x] Generate explicit vector local residual products while retaining
   hand-written implicit tangent and adjoint solves.
-- [ ] Add stability-preserving symbolic transformations with equivalence and
+- [x] Add stability-preserving symbolic transformations with equivalence and
   numerical boundary tests.
 - [ ] Add target-aware factoring only when native complete-workload benchmarks
   justify it.

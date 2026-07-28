@@ -75,6 +75,10 @@ Generated code must pass symbolic equivalence where available, numerical
 boundary tests, byte-stable regeneration, native compilation, and complete
 workload benchmarks.
 
+Numerical-stability rewrites are explicit, region-specific candidates. They
+are never global algebraic defaults: symbolic equivalence, a higher-precision
+boundary oracle, and complete-workload measurements must accompany each rule.
+
 ## Candidate tournament
 
 Every tournament records:
