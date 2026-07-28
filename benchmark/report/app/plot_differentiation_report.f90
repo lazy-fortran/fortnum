@@ -137,18 +137,18 @@ contains
     subroutine plot_direct_solver_scaling(output_path)
         character(len=*), intent(in) :: output_path
         real(dp), parameter :: products(3) = [1.0_dp, 4.0_dp, 16.0_dp]
-        real(dp), parameter :: jvp_analytical(3) = [55.3112_dp, 207.7022_dp, &
-            773.70575_dp]
-        real(dp), parameter :: jvp_autodiff(3) = [189.42425_dp, 720.94535_dp, &
-            2719.0076_dp]
-        real(dp), parameter :: jvp_diagnostic(3) = [72.16495_dp, 257.4344_dp, &
-            982.2762_dp]
-        real(dp), parameter :: vjp_analytical(3) = [59.397_dp, 227.0375_dp, &
-            852.922_dp]
-        real(dp), parameter :: vjp_autodiff(3) = [73.5035_dp, 307.519_dp, &
-            1089.863_dp]
-        real(dp), parameter :: vjp_diagnostic(3) = [1025.3865_dp, 3972.388_dp, &
-            15454.5425_dp]
+        real(dp), parameter :: jvp_analytical(3) = [40.72935_dp, 163.41985_dp, &
+            642.54235_dp]
+        real(dp), parameter :: jvp_autodiff(3) = [151.68270_dp, 612.00675_dp, &
+            2449.36955_dp]
+        real(dp), parameter :: jvp_diagnostic(3) = [49.34410_dp, 200.25985_dp, &
+            816.41840_dp]
+        real(dp), parameter :: vjp_analytical(3) = [46.29750_dp, 163.72900_dp, &
+            637.16250_dp]
+        real(dp), parameter :: vjp_autodiff(3) = [80.97250_dp, 241.45600_dp, &
+            974.32350_dp]
+        real(dp), parameter :: vjp_diagnostic(3) = [868.14300_dp, 3522.74200_dp, &
+            14036.64600_dp]
 
         call scaling_figure(products, jvp_analytical, jvp_autodiff, &
             jvp_diagnostic, 'Direct-solver forward JVP scaling', &

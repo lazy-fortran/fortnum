@@ -83,9 +83,12 @@ The first implementation slice now also contains:
 - a `fortsym` scalar-plus-fixed-vector wrapper profile consumed by the
   fixed-span B-spline JVP/VJP fixture, with generated wrappers remaining
   temporary and only one hand-written numerical basis implementation
+- a `fortsym` fixed-array wrapper profile consumed by direct-solver JVP/VJP
+  fixtures, including an inactive integer selector and fused primal-plus-VJP
+  return; solver mathematics and validation oracles remain hand-written
 
 Remaining work is tracked item by item in `ROADMAP.md`; the next CPU Enzyme
-step migrates direct-solver JVP and VJP fixtures.
+step migrates the iterative-solver Enzyme fixture.
 
 ## 3. Terminology
 

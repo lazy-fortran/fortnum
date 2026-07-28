@@ -1,7 +1,8 @@
 program gen_enzyme_scalar_wrappers
     use fortsym_string, only: str, chars
-    use fortsym_enzyme, only: enzyme_scalar_vector_wrapper_spec_t, &
-        enzyme_scalar_wrapper_spec_t, emit_enzyme_scalar_vector_wrapper, &
+    use fortsym_enzyme, only: enzyme_fixed_array_wrapper_spec_t, &
+        enzyme_scalar_vector_wrapper_spec_t, enzyme_scalar_wrapper_spec_t, &
+        emit_enzyme_fixed_array_wrapper, emit_enzyme_scalar_vector_wrapper, &
         emit_enzyme_scalar_wrapper
     use fortnum_codegen_provenance, only: codegen_log, fortsym_revision
     implicit none
@@ -25,6 +26,16 @@ program gen_enzyme_scalar_wrappers
         "fortnum_generated_enzyme_square", "fortnum_enzyme_square", &
         "fortnum_smoke_square", "fortnum_enzyme_square.f90")
     call write_scalar_vector_wrapper(output_directory)
+    call write_fixed_array_wrapper(output_directory, &
+        "fortnum_generated_enzyme_direct_solver_component", &
+        "fortnum_enzyme_direct_solver_component", &
+        "fortnum_direct_solve_component", [16, 4], .true., &
+        "fortnum_enzyme_direct_solver_component.f90")
+    call write_fixed_array_wrapper(output_directory, &
+        "fortnum_generated_enzyme_direct_solver_objective", &
+        "fortnum_enzyme_direct_solver_objective", &
+        "fortnum_direct_solve_objective", [16, 4, 4], .false., &
+        "fortnum_enzyme_direct_solver_objective.f90")
 
 contains
 
@@ -132,5 +143,36 @@ contains
         close (unit)
         call codegen_log("wrote "//path)
     end subroutine write_scalar_vector_wrapper
+
+    subroutine write_fixed_array_wrapper(directory, module_name, wrapper_prefix, &
+            primal_symbol, array_sizes, trailing_integer, filename)
+        character(*), intent(in) :: directory, module_name, wrapper_prefix
+        character(*), intent(in) :: primal_symbol, filename
+        integer, intent(in) :: array_sizes(:)
+        logical, intent(in) :: trailing_integer
+        type(enzyme_fixed_array_wrapper_spec_t) :: spec
+        character(:), allocatable :: code, path
+        integer :: unit, ios
+
+        spec%module_name = str(module_name)
+        spec%wrapper_prefix = str(wrapper_prefix)
+        spec%primal_symbol = str(primal_symbol)
+        spec%array_sizes = array_sizes
+        spec%trailing_integer = trailing_integer
+        spec%generator = str("gen_enzyme_scalar_wrappers")
+        spec%generator_revision = str(fortsym_revision())
+        spec%regenerate_command = str( &
+            "cd tools/codegen && FORTNUM_ENZYME_WRAPPER_OUTPUT_DIR=<dir> "// &
+            "fo exec gen_enzyme_scalar_wrappers")
+
+        path = directory//"/"//filename
+        open (newunit=unit, file=path, status="replace", action="write", &
+            iostat=ios)
+        if (ios /= 0) error stop "cannot write "//path
+        code = chars(emit_enzyme_fixed_array_wrapper(spec))
+        write (unit, "(a)") code(:len(code) - 1)
+        close (unit)
+        call codegen_log("wrote "//path)
+    end subroutine write_fixed_array_wrapper
 
 end program gen_enzyme_scalar_wrappers

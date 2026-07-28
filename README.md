@@ -302,23 +302,23 @@ interface rather than the selected hot-loop implementation.
 The matching multiple-cotangent adjoint interface reuses one transposed
 factorization. At 16 cotangents, repeated scalar VJPs take 18.925 µs versus
 20.401 µs batched, so repeated scalar remains selected by wall clock.
-A real forward-Enzyme comparator differentiates a 4×4 direct elimination
-kernel. For 16 value-plus-JVP directions, analytical implicit differentiation
-takes 0.774 µs, finite differences 0.982 µs, and `autodiff` 2.719 µs.
-For the scalar-objective VJP with 20 active solve inputs, reverse Enzyme is much
-more competitive: one cotangent takes 73.50 ns versus 59.40 ns analytically and
-1,025.39 ns by componentwise finite differences.
+A generated-wrapper forward-Enzyme comparator differentiates a 4×4 direct
+elimination kernel. For 16 value-plus-JVP directions, analytical implicit
+differentiation takes 0.643 µs, finite differences 0.816 µs, and `autodiff`
+2.449 µs. For the scalar-objective VJP with 20 active solve inputs, the fused
+value-plus-reverse wrapper takes 0.974 µs for 16 cotangents versus 0.637 µs
+analytically and 14.037 µs by componentwise finite differences.
 A fixed-trace iterative-solver comparator distinguishes the executed iteration
 map from the converged solve. At 32 iterations and 16 directions, the analytical
 tangent recurrence takes 5.226 µs, finite differences 8.143 µs, and forward
 `autodiff` 19.764 µs.
 No hybrid BLAS/LAPACK custom rule is selected yet: the measured analytical
-direct-solver JVP and VJP already beat Enzyme by 3.51× and 1.28× respectively,
+direct-solver JVP and VJP already beat Enzyme by 3.81× and 1.53× respectively,
 so an extra external-rule boundary is not currently justified.
 The completed linear-algebra tournament covers 12 product or interface
 workloads. Analytical implementations win all 12 by complete-workload wall
 clock; the closest mechanism contest is the direct-solver VJP, where analytical
-is 1.28× faster than reverse Enzyme.
+is 1.53× faster than reverse Enzyme.
 
 The ODE forward sensitivity now has an explicit continuous contract: it
 approximates the variational IVP at fixed terminal time on the primal's frozen

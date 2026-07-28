@@ -1,21 +1,12 @@
 module direct_solver_jvp_kernel
-    use, intrinsic :: iso_c_binding, only: c_double, c_funloc, c_funptr, c_int
+    use, intrinsic :: iso_c_binding, only: c_double, c_int
+    use fortnum_generated_enzyme_direct_solver_component, only: &
+        fortnum_enzyme_direct_solver_component_jvp
     implicit none
     private
 
     integer, parameter, public :: solver_size = 4
     public :: analytical_jvp, autodiff_jvp, diagnostic_jvp, solve_direct
-
-    interface
-        function enzyme_fwddiff(f, a, da, b, db, component) result(dx) &
-                bind(c, name="__enzyme_fwddiff")
-            import :: c_double, c_funptr, c_int
-            type(c_funptr), value :: f
-            real(c_double), intent(in) :: a(*), da(*), b(*), db(*)
-            integer(c_int), value :: component
-            real(c_double) :: dx
-        end function enzyme_fwddiff
-    end interface
 
 contains
 
@@ -83,7 +74,7 @@ contains
 
         call solve_direct(a, b, x)
         do component = 1, solver_size
-            dx(component) = enzyme_fwddiff(c_funloc(solve_component), &
+            dx(component) = fortnum_enzyme_direct_solver_component_jvp( &
                 a, da, b, db, int(component, c_int))
         end do
     end subroutine autodiff_jvp
@@ -112,38 +103,27 @@ contains
 end module direct_solver_jvp_kernel
 
 program enzyme_direct_solver_jvp
-    use, intrinsic :: iso_c_binding, only: c_double, c_int64_t
-    use, intrinsic :: iso_fortran_env, only: int64
+    use, intrinsic :: iso_c_binding, only: c_double
     use direct_solver_jvp_kernel, only: analytical_jvp, autodiff_jvp, &
         diagnostic_jvp, solver_size
+    use fortnum_enzyme_fixture_support, only: collect_fixture_samples, &
+        fixture_peak_rss_bytes, fixture_sample_count, fixture_timer_t, &
+        median_mad, read_fixture_environment, read_fixture_integer, &
+        write_fixture_result
     implicit none
-
-    interface
-        function peak_rss_bytes() bind(c, name="fortnum_peak_rss_bytes") &
-                result(bytes)
-            import :: c_int64_t
-            integer(c_int64_t) :: bytes
-        end function peak_rss_bytes
-    end interface
 
     real(c_double) :: a(solver_size, solver_size), b(solver_size)
     real(c_double) :: da(solver_size, solver_size, 16), db(solver_size, 16)
     real(c_double) :: x(solver_size), dx(solver_size), reference(solver_size)
-    integer :: direction, direction_count
-    integer(int64) :: iterations
+    real(c_double) :: samples(fixture_sample_count), sink
+    integer :: candidate_kind, direction, direction_count, iterations
     character(32) :: action, candidate
+    logical :: valid
 
     call initialize_inputs()
-    call get_environment_variable("FORTNUM_DIRECT_SOLVER_ACTION", action)
-    call get_environment_variable("FORTNUM_DIRECT_SOLVER_CANDIDATE", candidate)
-    call read_integer_env("FORTNUM_DIRECT_SOLVER_DIRECTIONS", direction_count, 16)
-    call read_int64_env("FORTNUM_DIRECT_SOLVER_ITERATIONS", iterations, 20000_int64)
-    if (trim(action) == "--benchmark") then
-        call benchmark_candidate(trim(candidate), direction_count, iterations)
-    else if (trim(action) == "--peak-rss") then
-        call benchmark_candidate(trim(candidate), direction_count, iterations)
-        write (*, "(a,i0)") "peak_rss_bytes=", peak_rss_bytes()
-    else
+    call read_fixture_environment("FORTNUM_DIRECT_SOLVER_ACTION", &
+        "validate", action)
+    if (trim(action) == "validate") then
         do direction = 1, 16
             call analytical_jvp(a, da(:, :, direction), b, db(:, direction), &
                 x, reference)
@@ -157,7 +137,28 @@ program enzyme_direct_solver_jvp
             end if
         end do
         write (*, "(a)") "PASS"
+        stop
     end if
+
+    call read_fixture_environment("FORTNUM_DIRECT_SOLVER_CANDIDATE", &
+        "analytical", candidate)
+    call read_fixture_integer("FORTNUM_DIRECT_SOLVER_DIRECTIONS", 16, &
+        direction_count, valid)
+    if (.not. valid) error stop "invalid direct-solver direction count"
+    call read_fixture_integer("FORTNUM_DIRECT_SOLVER_ITERATIONS", 20000, &
+        iterations, valid)
+    if (.not. valid) error stop "invalid direct-solver iteration count"
+    call parse_configuration()
+
+    if (trim(action) == "benchmark" .or. trim(action) == "--benchmark") then
+        call benchmark_candidate()
+    else if (trim(action) == "peak-rss" .or. trim(action) == "--peak-rss") then
+        sink = measure_candidate()
+        write (*, "(i0)") fixture_peak_rss_bytes()
+    else
+        error stop "action must be validate, benchmark, or peak-rss"
+    end if
+    if (sink /= sink) error stop "direct-solver JVP benchmark produced NaN"
 
 contains
 
@@ -184,74 +185,61 @@ contains
         end do
     end subroutine initialize_inputs
 
-    subroutine benchmark_candidate(name, directions, count)
-        character(*), intent(in) :: name
-        integer, intent(in) :: directions
-        integer(int64), intent(in) :: count
-        integer :: active_direction
-        integer(int64) :: iteration, start, finish, rate
-        real(c_double) :: elapsed_ns, sink
-
-        if (directions < 1 .or. directions > 16) error stop "directions must be 1..16"
-        if (name /= "analytical" .and. name /= "autodiff" .and. &
-            name /= "diagnostic") then
-            error stop "candidate must be analytical, autodiff, or diagnostic"
+    subroutine parse_configuration()
+        if (direction_count < 1 .or. direction_count > 16) then
+            error stop "directions must be 1..16"
         end if
-        sink = 0.0_c_double
-        call system_clock(start, rate)
-        do iteration = 1, count
+        if (iterations < 1) error stop "iterations must be positive"
+        select case (trim(candidate))
+        case ("analytical")
+            candidate_kind = 1
+        case ("autodiff")
+            candidate_kind = 2
+        case ("diagnostic")
+            candidate_kind = 3
+        case default
+            error stop "candidate must be analytical, autodiff, or diagnostic"
+        end select
+    end subroutine parse_configuration
+
+    subroutine benchmark_candidate()
+        real(c_double) :: median, mad
+        character(96) :: name
+
+        call collect_fixture_samples(measure_candidate, samples)
+        call median_mad(samples, median, mad)
+        write (name, "(a,'_jvp_d',i0)") trim(candidate), direction_count
+        call write_fixture_result(trim(name), iterations, median, mad)
+    end subroutine benchmark_candidate
+
+    function measure_candidate() result(elapsed_ns)
+        type(fixture_timer_t) :: timer
+        integer :: active_direction
+        integer :: iteration
+        real(c_double) :: elapsed_ns, local_sink
+
+        local_sink = 0.0_c_double
+        call timer%start()
+        do iteration = 1, iterations
             b(1) = 0.5_c_double + 1.0e-12_c_double*real( &
-                mod(iteration, 1024_int64), c_double)
-            do active_direction = 1, directions
-                select case (name)
-                case ("analytical")
+                mod(iteration, 1024), c_double)
+            do active_direction = 1, direction_count
+                select case (candidate_kind)
+                case (1)
                     call analytical_jvp(a, da(:, :, active_direction), b, &
                         db(:, active_direction), x, dx)
-                case ("autodiff")
+                case (2)
                     call autodiff_jvp(a, da(:, :, active_direction), b, &
                         db(:, active_direction), x, dx)
                 case default
                     call diagnostic_jvp(a, da(:, :, active_direction), b, &
                         db(:, active_direction), x, dx)
                 end select
-                sink = sink + x(1) + dx(1)
+                local_sink = local_sink + x(1) + dx(1)
             end do
         end do
-        call system_clock(finish)
-        if (sink /= sink) error stop "benchmark produced NaN"
-        elapsed_ns = real(finish - start, c_double)*1.0e9_c_double / &
-            (real(rate, c_double)*real(count, c_double))
-        write (*, "(a,a,a,i0,a,i0,a,f0.6,a,es12.4)") "candidate=", name, &
-            " directions=", directions, " iterations=", count, &
-            " ns_per_workload=", elapsed_ns, " sink=", sink
-    end subroutine benchmark_candidate
-
-    subroutine read_integer_env(name, value, default_value)
-        character(*), intent(in) :: name
-        integer, intent(out) :: value
-        integer, intent(in) :: default_value
-        character(32) :: text
-        integer :: status, ios
-
-        value = default_value
-        call get_environment_variable(name, text, status=status)
-        if (status /= 0 .or. len_trim(text) == 0) return
-        read (text, *, iostat=ios) value
-        if (ios /= 0) error stop "invalid integer environment value"
-    end subroutine read_integer_env
-
-    subroutine read_int64_env(name, value, default_value)
-        character(*), intent(in) :: name
-        integer(int64), intent(out) :: value
-        integer(int64), intent(in) :: default_value
-        character(32) :: text
-        integer :: status, ios
-
-        value = default_value
-        call get_environment_variable(name, text, status=status)
-        if (status /= 0 .or. len_trim(text) == 0) return
-        read (text, *, iostat=ios) value
-        if (ios /= 0) error stop "invalid int64 environment value"
-    end subroutine read_int64_env
+        elapsed_ns = timer%elapsed_ns()/real(iterations, c_double)
+        sink = local_sink
+    end function measure_candidate
 
 end program enzyme_direct_solver_jvp
