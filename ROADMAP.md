@@ -428,7 +428,7 @@ Every tournament record must include:
 ## Second order
 
 - [x] Identify a concrete consumer that requires an HVP.
-- [ ] Add an autodiff forward-over-reverse HVP candidate.
+- [x] Add an autodiff forward-over-reverse HVP candidate.
 - [ ] Add an autodiff reverse-over-forward HVP candidate.
 - [ ] Add an analytical or hybrid implicit HVP where justified.
 - [ ] Validate HVPs with an independent second-directional or high-precision
