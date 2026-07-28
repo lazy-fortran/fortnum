@@ -82,6 +82,7 @@ add_library(bench_core STATIC
     gpu/fortnum_gpu_linalg3_wrapper.f90
     gpu/fortnum_gpu_fft8_wrapper.f90
     gpu/fortnum_gpu_ode_trace2_wrapper.f90
+    gpu/fortnum_gpu_ode_objective_wrapper.f90
     gpu/test_gpu_multi_input_support.f90
     gpu/test_gpu_implicit_root_support.f90
     gpu/test_gpu_lagrange4_support.f90
@@ -89,6 +90,7 @@ add_library(bench_core STATIC
     gpu/test_gpu_linalg3_support.f90
     gpu/test_gpu_fft8_support.f90
     gpu/test_gpu_ode_trace2_support.f90
+    gpu/test_gpu_ode_objective_support.f90
     fortnum_benchmark.f90
     fortnum_benchmark_memory.f90
     peak_rss.c
@@ -190,6 +192,19 @@ set_target_properties(bench_ode_trace2_cpu_core PROPERTIES
 target_include_directories(bench_ode_trace2_cpu_core PUBLIC
     ${PROJECT_BINARY_DIR}/include-ode-trace2-cpu)
 
+add_library(bench_ode_objective_cpu_core STATIC
+    ${FORTNUM_CORE_DIR}/fortnum_kinds.f90
+    gpu/fortnum_gpu_ode_trace2_wrapper.f90
+    gpu/fortnum_gpu_ode_objective_wrapper.f90
+    fortnum_benchmark_memory.f90
+    peak_rss.c
+)
+set_target_properties(bench_ode_objective_cpu_core PROPERTIES
+    Fortran_MODULE_DIRECTORY
+        ${PROJECT_BINARY_DIR}/include-ode-objective-cpu)
+target_include_directories(bench_ode_objective_cpu_core PUBLIC
+    ${PROJECT_BINARY_DIR}/include-ode-objective-cpu)
+
 add_executable(bench_main bench_main.f90)
 target_link_libraries(bench_main PRIVATE bench_core)
 
@@ -255,6 +270,12 @@ if(FORTNUM_GPU_BACKEND STREQUAL "OPENACC")
     add_test(NAME openacc_ode_trace2_offload
         COMMAND test_openacc_ode_trace2_offload)
 
+    add_executable(test_openacc_ode_objective_offload
+        gpu/test_openacc_ode_objective_offload.f90)
+    target_link_libraries(test_openacc_ode_objective_offload PRIVATE bench_core)
+    add_test(NAME openacc_ode_objective_offload
+        COMMAND test_openacc_ode_objective_offload)
+
     add_executable(bench_openacc_dawson_offload
         gpu/bench_openacc_dawson_offload.f90)
     target_link_libraries(bench_openacc_dawson_offload PRIVATE bench_core)
@@ -307,6 +328,12 @@ elseif(FORTNUM_GPU_BACKEND STREQUAL "OPENMP")
     add_test(NAME openmp_ode_trace2_offload
         COMMAND test_openmp_ode_trace2_offload)
 
+    add_executable(test_openmp_ode_objective_offload
+        gpu/test_openmp_ode_objective_offload.f90)
+    target_link_libraries(test_openmp_ode_objective_offload PRIVATE bench_core)
+    add_test(NAME openmp_ode_objective_offload
+        COMMAND test_openmp_ode_objective_offload)
+
     add_executable(bench_openmp_dawson_offload
         gpu/bench_openmp_dawson_offload.f90)
     target_link_libraries(bench_openmp_dawson_offload PRIVATE bench_core)
@@ -346,6 +373,9 @@ if(NOT FORTNUM_GPU_BACKEND STREQUAL "NONE")
 
     add_executable(bench_ode_trace2_gpu gpu/bench_ode_trace2_gpu.f90)
     target_link_libraries(bench_ode_trace2_gpu PRIVATE bench_core)
+
+    add_executable(bench_ode_objective_gpu gpu/bench_ode_objective_gpu.f90)
+    target_link_libraries(bench_ode_objective_gpu PRIVATE bench_core)
 endif()
 
 add_executable(bench_multi_input_cpu
@@ -382,6 +412,10 @@ target_link_libraries(bench_fft8_cpu PRIVATE bench_fft8_cpu_core)
 
 add_executable(bench_ode_trace2_cpu gpu/bench_ode_trace2_gpu.f90)
 target_link_libraries(bench_ode_trace2_cpu PRIVATE bench_ode_trace2_cpu_core)
+
+add_executable(bench_ode_objective_cpu gpu/bench_ode_objective_gpu.f90)
+target_link_libraries(bench_ode_objective_cpu PRIVATE
+    bench_ode_objective_cpu_core)
 
 add_executable(bench_linear_solve_jvp bench_linear_solve_jvp.f90)
 target_link_libraries(bench_linear_solve_jvp PRIVATE bench_core)
