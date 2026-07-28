@@ -8,6 +8,8 @@ module vector_root_hybrid_kernel
         fortnum_enzyme_vector_root_residual_one_jvp
     use fortnum_generated_enzyme_vector_root_residual_two, only: &
         fortnum_enzyme_vector_root_residual_two_jvp
+    use fortnum_generated_vector_root_residual_jvp, only: &
+        fortnum_vector_root_residual_jvp_kernel
     use fortnum_kinds, only: dp
     use fortnum_multiroot, only: multiroot_implicit_jvp
     use fortnum_status, only: fortnum_status_t, status_ok
@@ -129,11 +131,7 @@ contains
         class(*), intent(inout), optional :: context
 
         if (size(p) /= 2) error stop "vector residual expects two parameters"
-        jac_x(1, 1) = 2.0_dp*x(1)
-        jac_x(1, 2) = 1.0_dp
-        jac_x(2, 1) = 1.0_dp
-        jac_x(2, 2) = 2.0_dp*x(2)
-        f_p_tp = -tp
+        call fortnum_vector_root_residual_jvp_kernel(x, tp, jac_x, f_p_tp)
     end subroutine analytical_residual_jvp
 
     subroutine autodiff_residual_jvp(x, p, tp, jac_x, f_p_tp, context)

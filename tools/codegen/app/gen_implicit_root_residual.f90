@@ -16,6 +16,7 @@ program gen_implicit_root_residual
     type(arena_t), target :: arena
     type(expr_t) :: x, p, dp, residual
     type(expr_t) :: p1, p2, tp1, tp2, u, scalar_residual
+    type(expr_t) :: x1, x2, u1, u2
     type(expr_t) :: x_variables(1), p_variables(1), parameter_tangent(1)
     type(expr_t) :: residuals(1), residual_x(1)
     type(expr_t) :: tangent_rhs(1), roots(3)
@@ -25,9 +26,29 @@ program gen_implicit_root_residual
     type(expr_t) :: scalar_f_p_tp(1), scalar_f_p_t_u(2)
     type(expr_t) :: scalar_jvp_roots(2), scalar_vjp_roots(3)
     type(expr_t) :: unit_tangent(1)
+    type(expr_t) :: vector_residuals(2), vector_x_variables(2)
+    type(expr_t) :: vector_p_variables(2), vector_p_tangents(2)
+    type(expr_t) :: vector_state_direction_one(2)
+    type(expr_t) :: vector_state_direction_two(2)
+    type(expr_t) :: vector_cotangents(2)
+    type(expr_t) :: vector_jacobian_column_one(2)
+    type(expr_t) :: vector_jacobian_column_two(2)
+    type(expr_t) :: vector_parameter_jvp(2), vector_parameter_vjp(2)
+    type(expr_t) :: vector_jvp_roots(6), vector_jacobian_roots(4)
+    type(expr_t) :: vector_vjp_roots(2)
     type(str_t) :: base_args(3), base_outputs(3)
     type(str_t) :: scalar_jvp_args(4), scalar_jvp_outputs(2)
     type(str_t) :: scalar_vjp_args(3), scalar_vjp_outputs(3)
+    type(str_t) :: vector_jvp_args(2), vector_jvp_arg_shapes(2)
+    type(str_t) :: vector_jvp_outputs(2), vector_jvp_output_shapes(2)
+    type(str_t) :: vector_jvp_references(6)
+    type(str_t) :: vector_jacobian_args(1), vector_jacobian_arg_shapes(1)
+    type(str_t) :: vector_jacobian_outputs(1)
+    type(str_t) :: vector_jacobian_output_shapes(1)
+    type(str_t) :: vector_jacobian_references(4)
+    type(str_t) :: vector_vjp_args(1), vector_vjp_arg_shapes(1)
+    type(str_t) :: vector_vjp_outputs(1), vector_vjp_output_shapes(1)
+    type(str_t) :: vector_vjp_references(2)
     type(symengine_engine_t) :: engine
     type(engine_result_t) :: simplified
     type(kernel_spec_t) :: spec
@@ -125,26 +146,106 @@ program gen_implicit_root_residual
     scalar_vjp_outputs(1) = str("f_x")
     scalar_vjp_outputs(2) = str("f_p1_t_u")
     scalar_vjp_outputs(3) = str("f_p2_t_u")
-    call write_scalar_product( &
+    call write_product( &
         "fortnum_scalar_root_residual_jvp_kernel.f90", &
         "fortnum_scalar_root_residual_jvp_kernel", &
         "fortnum_generated_scalar_root_residual_jvp", &
         scalar_jvp_args, scalar_jvp_outputs, scalar_jvp_outputs, &
         scalar_jvp_roots)
-    call write_scalar_product( &
+    call write_product( &
         "fortnum_scalar_root_residual_vjp_kernel.f90", &
         "fortnum_scalar_root_residual_vjp_kernel", &
         "fortnum_generated_scalar_root_residual_vjp", &
         scalar_vjp_args, scalar_vjp_outputs, scalar_vjp_outputs, &
         scalar_vjp_roots)
 
+    x1 = sym(arena, "x(1)")
+    x2 = sym(arena, "x(2)")
+    u1 = sym(arena, "u(1)")
+    u2 = sym(arena, "u(2)")
+    vector_residuals(1) = x1**2 + x2 - p1
+    vector_residuals(2) = x1 + x2**2 - p2
+    vector_x_variables(1) = x1
+    vector_x_variables(2) = x2
+    vector_p_variables(1) = p1
+    vector_p_variables(2) = p2
+    vector_p_tangents(1) = sym(arena, "tp(1)")
+    vector_p_tangents(2) = sym(arena, "tp(2)")
+    vector_state_direction_one(1) = num(arena, 1)
+    vector_state_direction_one(2) = num(arena, 0)
+    vector_state_direction_two(1) = num(arena, 0)
+    vector_state_direction_two(2) = num(arena, 1)
+    vector_cotangents(1) = u1
+    vector_cotangents(2) = u2
+    vector_jacobian_column_one = jvp( &
+        vector_residuals, vector_x_variables, vector_state_direction_one)
+    vector_jacobian_column_two = jvp( &
+        vector_residuals, vector_x_variables, vector_state_direction_two)
+    vector_parameter_jvp = jvp( &
+        vector_residuals, vector_p_variables, vector_p_tangents)
+    vector_parameter_vjp = vjp( &
+        vector_residuals, vector_p_variables, vector_cotangents)
+    vector_jvp_roots(1) = vector_jacobian_column_one(1)
+    vector_jvp_roots(2) = vector_jacobian_column_two(1)
+    vector_jvp_roots(3) = vector_jacobian_column_one(2)
+    vector_jvp_roots(4) = vector_jacobian_column_two(2)
+    vector_jvp_roots(5) = vector_parameter_jvp(1)
+    vector_jvp_roots(6) = vector_parameter_jvp(2)
+    vector_jacobian_roots = vector_jvp_roots(1:4)
+    vector_vjp_roots = vector_parameter_vjp
+    vector_jvp_args(1) = str("x")
+    vector_jvp_args(2) = str("tp")
+    vector_jvp_arg_shapes(1) = str("(2)")
+    vector_jvp_arg_shapes(2) = str("(2)")
+    vector_jvp_outputs(1) = str("jac_x")
+    vector_jvp_outputs(2) = str("f_p_tp")
+    vector_jvp_output_shapes(1) = str("(2,2)")
+    vector_jvp_output_shapes(2) = str("(2)")
+    vector_jvp_references(1) = str("jac_x(1,1)")
+    vector_jvp_references(2) = str("jac_x(1,2)")
+    vector_jvp_references(3) = str("jac_x(2,1)")
+    vector_jvp_references(4) = str("jac_x(2,2)")
+    vector_jvp_references(5) = str("f_p_tp(1)")
+    vector_jvp_references(6) = str("f_p_tp(2)")
+    vector_jacobian_args(1) = str("x")
+    vector_jacobian_arg_shapes(1) = str("(2)")
+    vector_jacobian_outputs(1) = str("jac_x")
+    vector_jacobian_output_shapes(1) = str("(2,2)")
+    vector_jacobian_references = vector_jvp_references(1:4)
+    vector_vjp_args(1) = str("u")
+    vector_vjp_arg_shapes(1) = str("(2)")
+    vector_vjp_outputs(1) = str("f_p_t_u")
+    vector_vjp_output_shapes(1) = str("(2)")
+    vector_vjp_references(1) = str("f_p_t_u(1)")
+    vector_vjp_references(2) = str("f_p_t_u(2)")
+    call write_product( &
+        "fortnum_vector_root_residual_jvp_kernel.f90", &
+        "fortnum_vector_root_residual_jvp_kernel", &
+        "fortnum_generated_vector_root_residual_jvp", &
+        vector_jvp_args, vector_jvp_outputs, vector_jvp_references, &
+        vector_jvp_roots, vector_jvp_arg_shapes, vector_jvp_output_shapes)
+    call write_product( &
+        "fortnum_vector_root_residual_jacobian_kernel.f90", &
+        "fortnum_vector_root_residual_jacobian_kernel", &
+        "fortnum_generated_vector_root_residual_jacobian", &
+        vector_jacobian_args, vector_jacobian_outputs, &
+        vector_jacobian_references, vector_jacobian_roots, &
+        vector_jacobian_arg_shapes, vector_jacobian_output_shapes)
+    call write_product( &
+        "fortnum_vector_root_residual_vjp_kernel.f90", &
+        "fortnum_vector_root_residual_vjp_kernel", &
+        "fortnum_generated_vector_root_residual_vjp", &
+        vector_vjp_args, vector_vjp_outputs, vector_vjp_references, &
+        vector_vjp_roots, vector_vjp_arg_shapes, vector_vjp_output_shapes)
+
 contains
 
-    subroutine write_scalar_product(filename, name, module_name, arguments, &
-            outputs, output_references, expressions, output_shapes)
+    subroutine write_product(filename, name, module_name, arguments, &
+            outputs, output_references, expressions, arg_shapes, output_shapes)
         character(*), intent(in) :: filename, name, module_name
         type(str_t), intent(in) :: arguments(:), outputs(:), output_references(:)
         type(expr_t), intent(in) :: expressions(:)
+        type(str_t), intent(in), optional :: arg_shapes(:)
         type(str_t), intent(in), optional :: output_shapes(:)
         type(kernel_spec_t) :: product_spec
         type(expr_t) :: product_roots(size(expressions))
@@ -172,6 +273,7 @@ contains
         product_spec%args = arguments
         product_spec%outputs = outputs
         product_spec%output_references = output_references
+        if (present(arg_shapes)) product_spec%arg_shapes = arg_shapes
         if (present(output_shapes)) product_spec%output_shapes = output_shapes
 
         open (newunit=product_unit, file=generated_path(filename), &
@@ -184,6 +286,6 @@ contains
         call codegen_log("wrote "//generated_path(filename))
         call codegen_log_count( &
             "post-CSE structural operations: ", product_operations%total)
-    end subroutine write_scalar_product
+    end subroutine write_product
 
 end program gen_implicit_root_residual

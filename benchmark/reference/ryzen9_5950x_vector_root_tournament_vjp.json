@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "date": "2026-07-27",
+  "date": "2026-07-28",
   "operator": "vector_root",
   "product": "vjp",
   "workload": "coupled 2-state residual, 2 parameters, fixed 12-step Newton trace, 100000 varying cotangents per sample",
@@ -11,11 +11,12 @@
   "toolchain": {
     "flang_llvm": "22.1.8",
     "enzyme_commit": "c96508349d9f",
+    "fortsym_revision": "1e2b66151160010009116597777f58f596c53d4c",
     "build": "Release -O2"
   },
   "sampling": {
     "warmup_rounds": 3,
-    "samples": 15,
+    "samples": 31,
     "calls_per_sample": 100000,
     "memory_processes_per_candidate": 5,
     "memory_aggregation": "maximum"
@@ -35,34 +36,34 @@
     {
       "id": "analytical_implicit",
       "mechanism": "analytical",
-      "median_ns_per_call": 83.3377,
-      "mad_ns_per_call": 0.8708,
-      "peak_rss_bytes": 2535424
+      "median_ns_per_call": 80.12711,
+      "mad_ns_per_call": 0.60844,
+      "peak_rss_bytes": 3129344
     },
     {
       "id": "enzyme_residual_implicit",
       "mechanism": "hybrid",
-      "median_ns_per_call": 82.5682,
-      "mad_ns_per_call": 0.5024,
-      "peak_rss_bytes": 2510848
+      "median_ns_per_call": 74.82272,
+      "mad_ns_per_call": 0.31480,
+      "peak_rss_bytes": 3014656
     },
     {
       "id": "enzyme_through_newton_iterations",
       "mechanism": "autodiff",
-      "median_ns_per_call": 228.8764,
-      "mad_ns_per_call": 1.0845,
-      "peak_rss_bytes": 2457600
+      "median_ns_per_call": 211.09026,
+      "mad_ns_per_call": 2.17099,
+      "peak_rss_bytes": 3080192
     },
     {
       "id": "complete_solve_central_difference",
       "mechanism": "diagnostic",
-      "median_ns_per_call": 392.2317,
-      "mad_ns_per_call": 3.4115,
-      "peak_rss_bytes": 2437120
+      "median_ns_per_call": 343.33843,
+      "mad_ns_per_call": 1.08665,
+      "peak_rss_bytes": 3063808
     }
   ],
   "selection": {
     "selected": "enzyme_residual_implicit",
-    "reason": "hybrid has the lowest runtime and uses 24576 fewer peak-RSS bytes than analytical while passing the complete-solve oracle"
+    "reason": "hybrid has the lowest measured complete-workload wall clock, passes the complete-solve oracle, and uses 114688 fewer peak-RSS bytes than analytical"
   }
 }

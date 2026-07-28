@@ -6,6 +6,10 @@ module vector_root_vjp_hybrid_kernel
         fortnum_enzyme_vector_root_vjp_residual_one_vjp
     use fortnum_generated_enzyme_vector_root_vjp_residual_two, only: &
         fortnum_enzyme_vector_root_vjp_residual_two_vjp
+    use fortnum_generated_vector_root_residual_jacobian, only: &
+        fortnum_vector_root_residual_jacobian_kernel
+    use fortnum_generated_vector_root_residual_vjp, only: &
+        fortnum_vector_root_residual_vjp_kernel
     use fortnum_kinds, only: dp
     use fortnum_multiroot, only: multiroot_implicit_vjp
     use fortnum_status, only: fortnum_status_t, status_ok
@@ -116,10 +120,7 @@ contains
         class(*), intent(inout), optional :: context
 
         if (size(p) /= 2) error stop "vector residual expects two parameters"
-        jac_x(1, 1) = 2.0_dp*x(1)
-        jac_x(1, 2) = 1.0_dp
-        jac_x(2, 1) = 1.0_dp
-        jac_x(2, 2) = 2.0_dp*x(2)
+        call fortnum_vector_root_residual_jacobian_kernel(x, jac_x)
     end subroutine analytical_state_jacobian
 
     subroutine analytical_parameter_vjp(x, p, u, f_p_t_u, context)
@@ -128,7 +129,7 @@ contains
         class(*), intent(inout), optional :: context
 
         if (size(x) /= 2) error stop "vector residual expects two states"
-        f_p_t_u = -u
+        call fortnum_vector_root_residual_vjp_kernel(u, f_p_t_u)
     end subroutine analytical_parameter_vjp
 
     subroutine autodiff_state_jacobian(x, p, jac_x, context)
