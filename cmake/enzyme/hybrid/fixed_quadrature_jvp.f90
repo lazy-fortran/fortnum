@@ -186,8 +186,10 @@ contains
 
     subroutine validate_candidates()
         real(dp) :: analytical, autodiff, hybrid, diagnostic, reference
+        real(dp) :: maximum_error
         integer :: direction
 
+        maximum_error = 0.0_dp
         do direction = 1, max_directions
             reference = exact_integral_jvp(parameters, directions(:, direction))
             analytical = analytical_integral_jvp(nodes, weights, parameters, &
@@ -201,20 +203,23 @@ contains
             errors(2) = abs(autodiff - reference)
             errors(3) = abs(hybrid - reference)
             errors(4) = abs(diagnostic - reference)
+            maximum_error = max(maximum_error, maxval(errors))
             if (maxval(errors(1:3)) > 2.0e-14_dp .or. &
                 errors(4) > 2.0e-10_dp) then
                 print *, "fixed-quadrature JVP mismatch", direction, errors
                 error stop 1
             end if
         end do
-        print *, "PASS fixed-quadrature hybrid JVP"
+        print *, "PASS fixed-quadrature hybrid JVP max_absolute_error", &
+            maximum_error
     end subroutine validate_candidates
 
     subroutine validate_batch_candidates()
         real(dp) :: analytical, autodiff, hybrid, diagnostic, reference
-        real(dp) :: batch_parameters(4), batch_errors(4)
+        real(dp) :: batch_parameters(4), batch_errors(4), maximum_error
         integer :: batch, direction
 
+        maximum_error = 0.0_dp
         do batch = 1, 16
             batch_parameters = parameters
             batch_parameters(1) = batch_parameters(1) + &
@@ -234,6 +239,7 @@ contains
                 batch_errors(2) = abs(autodiff - reference)
                 batch_errors(3) = abs(hybrid - reference)
                 batch_errors(4) = abs(diagnostic - reference)
+                maximum_error = max(maximum_error, maxval(batch_errors))
                 if (maxval(batch_errors(1:3)) > 2.0e-14_dp .or. &
                     batch_errors(4) > 2.0e-10_dp) then
                     print *, "batched quadrature JVP mismatch", batch, &
@@ -242,6 +248,7 @@ contains
                 end if
             end do
         end do
+        print *, "PASS batched quadrature JVP max_absolute_error", maximum_error
     end subroutine validate_batch_candidates
 
     subroutine run_benchmark()

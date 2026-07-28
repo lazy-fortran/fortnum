@@ -1,6 +1,8 @@
 {
   "schema_version": 1,
   "date": "2026-07-28",
+  "source_revision": "d4dccc0c5a623c7cf78922619fc57f4b7607ad79",
+  "evidence_refresh_source_revision": "3737c01c58c112e796b64486ec1a701ded19e76a",
   "operator": "adaptive_frozen_trace",
   "product": "value_plus_jvp",
   "purpose": "generated-wrapper and shared-fixture migration",
@@ -42,7 +44,9 @@
     "smooth_diagnostic_error": 6.768179446225986E-6,
     "singular_oracle": "central difference of an independent fixed G10K21 trace",
     "singular_candidate_absolute_tolerance": 2E-8,
+    "singular_observed_max_candidate_error": 4.936140385325416E-11,
     "singular_continuous_bias_limit": 2E-2,
+    "singular_observed_continuous_bias": 1.1560343784629445E-2,
     "trace_identity_checked": true
   },
   "sampling": {
@@ -96,6 +100,17 @@
     "executable_bytes": 2277712,
     "executable_change_bytes": 2816,
     "text_bytes": 2066809,
-    "text_change_bytes": -400
+    "text_change_bytes": -400,
+    "compact_analytical_jvp_symbol_bytes": 2371,
+    "autodiff_jvp_symbol_bytes": 444,
+    "compact_hybrid_jvp_symbol_bytes": 2387,
+    "singular_compact_analytical_jvp_symbol_bytes": 698,
+    "singular_autodiff_jvp_symbol_bytes": 1580,
+    "singular_compact_hybrid_jvp_symbol_bytes": 1272
+  },
+  "workload_contract": {
+    "reusable_primal_state": "the accepted adaptive panels form a frozen trace reused by every candidate",
+    "active_input_output_scaling": "one active scalar parameter maps to one value-plus-JVP result; generic and compact traces expose panel-count effects",
+    "forward_reverse_crossover": "this adaptive tournament is forward-only; the fixed-quadrature tournament supplies the module's measured JVP/VJP crossover"
   }
 }

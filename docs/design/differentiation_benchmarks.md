@@ -187,6 +187,20 @@ The FFTW hybrid fixture's maximum relative error is
 and adjoint VJP, explicit analytical composition around FFTW, and the
 analytical spectral-objective gradient.
 
+The completed quadrature tournament covers fixed JVP/VJP products, smooth and
+singular frozen adaptive traces, and batched full Jacobians. For four fixed
+products, analytical JVP takes 1,223 ns versus 1,225 ns hybrid, 1,702 ns
+autodiff, and 2,212 ns finite-difference diagnostic. One analytical VJP returns
+the four-parameter gradient in 301 ns, 4.07× faster than four analytical JVPs.
+At batch size 16, the complete analytical reverse Jacobian takes 4.75
+microseconds, versus 19.54 microseconds for analytical forward products and
+6.98 microseconds for reverse autodiff. Smooth and singular adaptive winners
+remain within 1.1% of their nearest validated competitors. Maximum observed
+fixed-rule errors are \(4.11\times10^{-11}\) for JVP and
+\(7.00\times10^{-11}\) for VJP. The singular frozen-trace candidates agree
+within \(4.94\times10^{-11}\); their 0.0116 difference from the continuous
+integral is the documented frozen-trace bias.
+
 Single-transform analytical products were measured at lengths 8, 64, 256,
 and 1024. JVP wall clock grows from 178 ns to 27.0 microseconds. VJP grows
 from 170 ns to 26.3 microseconds and stays within 6.3% of JVP at every length.

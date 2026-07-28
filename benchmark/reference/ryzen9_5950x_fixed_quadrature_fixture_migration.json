@@ -1,6 +1,8 @@
 {
   "schema_version": 1,
   "date": "2026-07-28",
+  "source_revision": "b9b8da9d58172a93634e8b11e83b291d2795b76a",
+  "evidence_refresh_source_revision": "3737c01c58c112e796b64486ec1a701ded19e76a",
   "operator": "fixed_gauss_legendre_integral",
   "purpose": "generated-wrapper and shared-fixture migration",
   "hardware": {
@@ -45,6 +47,8 @@
     "cotangents_checked": 4,
     "analytical_autodiff_hybrid_absolute_tolerance": 2E-14,
     "diagnostic_absolute_tolerance": 2E-10,
+    "observed_max_jvp_absolute_error": 4.1146433482630584E-11,
+    "observed_max_vjp_absolute_error": 7.003536639516028E-11,
     "batch_sizes_checked": [1, 4, 16]
   },
   "sampling": {
@@ -181,6 +185,17 @@
     "jvp_executable_bytes": 2196624,
     "jvp_executable_change_bytes": 2056,
     "vjp_executable_bytes": 2196520,
-    "vjp_executable_change_bytes": 2056
+    "vjp_executable_change_bytes": 2056,
+    "analytical_jvp_symbol_bytes": 924,
+    "autodiff_jvp_symbol_bytes": 765,
+    "hybrid_jvp_symbol_bytes": 476,
+    "analytical_vjp_symbol_bytes": 730,
+    "autodiff_vjp_symbol_bytes": 867,
+    "hybrid_vjp_symbol_bytes": 730
+  },
+  "workload_contract": {
+    "reusable_primal_state": "the 32 fixed nodes and weights are reused; every product includes all integrand evaluations and the quadrature contraction",
+    "active_input_output_scaling": "four active parameters map to one scalar integral; product counts 1, 2, and 4 plus batch sizes 1, 4, and 16 are measured",
+    "forward_reverse_crossover": "four JVPs form the full parameter gradient, while one VJP returns it directly"
   }
 }

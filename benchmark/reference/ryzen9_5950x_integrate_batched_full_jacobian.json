@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "date": "2026-07-27",
+  "source_revision": "3737c01c58c112e796b64486ec1a701ded19e76a",
   "operator": "batched_fixed_quadrature",
   "product": "full_block_jacobian",
   "workload": "B independent 32-point Gauss-Legendre integrals, four active parameters per scalar output, Jacobian shape B by 4B",
@@ -13,8 +14,9 @@
     "build": "Release -O2"
   },
   "sampling": {
-    "processes": 3,
-    "samples_per_process": 31,
+    "processes": 1,
+    "samples_per_process": 15,
+    "warmup_samples": 3,
     "batches_per_sample": 2000,
     "runtime_aggregation": "median of process medians",
     "dispersion_aggregation": "median of within-process MADs",
@@ -27,19 +29,33 @@
     "batch_sizes": [1, 4, 16],
     "active_inputs_per_output": 4,
     "exact_absolute_tolerance": 2e-14,
-    "diagnostic_absolute_tolerance": 2e-10
+    "diagnostic_absolute_tolerance": 2e-10,
+    "observed_max_jvp_absolute_error": 4.1146433482630584e-11,
+    "observed_max_vjp_absolute_error": 7.003536639516028e-11
   },
   "forward_full_jacobian_ns": {
-    "analytical": [1280.6130, 5117.0365, 20318.8290],
-    "autodiff": [1788.8005, 6995.6110, 28073.2040],
-    "hybrid": [1272.2220, 5095.4910, 20674.0080],
-    "diagnostic": [2325.1010, 9263.2680, 37533.0330]
+    "analytical": [1221.4565, 4894.9225, 19544.3745],
+    "autodiff": [1687.7700, 6807.3310, 26958.5690],
+    "hybrid": [1226.7665, 4925.0950, 19537.2560],
+    "diagnostic": [2205.4305, 8816.5115, 35521.7135]
+  },
+  "forward_full_jacobian_mad_ns": {
+    "analytical": [2.9955, 9.1170, 43.9575],
+    "autodiff": [2.8955, 13.5755, 50.5700],
+    "hybrid": [3.1360, 10.8350, 33.2775],
+    "diagnostic": [8.0550, 10.9105, 142.9340]
   },
   "reverse_full_jacobian_ns": {
-    "analytical": [319.2215, 1199.5500, 4884.7135],
-    "autodiff": [450.3835, 1871.6915, 6994.6890],
-    "hybrid": [340.7270, 1315.5990, 5011.5825],
-    "diagnostic": [2323.7430, 9115.6250, 36628.8195]
+    "analytical": [325.4530, 1184.5920, 4747.2245],
+    "autodiff": [436.5075, 1744.4920, 6982.7615],
+    "hybrid": [306.5775, 1228.6545, 4970.6655],
+    "diagnostic": [2220.4185, 8886.1675, 35744.9540]
+  },
+  "reverse_full_jacobian_mad_ns": {
+    "analytical": [1.6980, 1.9135, 7.2335],
+    "autodiff": [0.8165, 3.6320, 20.3030],
+    "hybrid": [0.7910, 4.0270, 9.0820],
+    "diagnostic": [2.7350, 15.6945, 73.3785]
   },
   "batch_16_peak_rss_bytes": {
     "forward_analytical": 3026944,
@@ -61,10 +77,25 @@
   "selection": {
     "selected": "reverse_analytical",
     "criterion": "complete full-Jacobian wall clock",
-    "batch_16_speedup_over_forward_analytical": 4.1597,
-    "batch_16_speedup_over_reverse_autodiff": 1.4319,
-    "batch_16_speedup_over_reverse_hybrid": 1.0260,
-    "batch_16_speedup_over_reverse_diagnostic": 7.4987,
+    "batch_16_speedup_over_forward_analytical": 4.1170,
+    "batch_16_speedup_over_reverse_autodiff": 1.4709,
+    "batch_16_speedup_over_reverse_hybrid": 1.0471,
+    "batch_16_speedup_over_reverse_diagnostic": 7.5297,
     "reason": "four active inputs and one scalar output per independent integral favor one reverse sweep over four forward sweeps; analytical reverse has the lowest batch-16 wall clock"
+  },
+  "native_code": {
+    "jvp_executable_bytes": 2196656,
+    "vjp_executable_bytes": 2196552,
+    "analytical_jvp_symbol_bytes": 924,
+    "autodiff_jvp_symbol_bytes": 765,
+    "hybrid_jvp_symbol_bytes": 476,
+    "analytical_vjp_symbol_bytes": 730,
+    "autodiff_vjp_symbol_bytes": 867,
+    "hybrid_vjp_symbol_bytes": 730
+  },
+  "workload_contract": {
+    "reusable_primal_state": "all batch members reuse the same 32 nodes and weights; integrand values are evaluated within every product",
+    "active_input_output_scaling": "batch sizes 1, 4, and 16 produce Jacobians of shape B by 4B",
+    "forward_reverse_crossover": "four forward products per output are compared with one reverse product per output"
   }
 }

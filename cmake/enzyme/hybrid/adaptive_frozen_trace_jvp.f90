@@ -632,7 +632,7 @@ contains
     end subroutine validate_singular_name
 
     subroutine validate_singular_candidates()
-        real(dp) :: values(6), reference
+        real(dp) :: values(6), reference, candidate_error, continuous_bias
 
         reference = singular_diagnostic_value_jvp(0.7_dp)
         values(1) = singular_analytical_value_jvp(0.7_dp)
@@ -641,11 +641,14 @@ contains
         values(4) = singular_hybrid_value_jvp(0.7_dp)
         values(5) = singular_compact_hybrid_value_jvp(0.7_dp)
         values(6) = reference
-        if (maxval(abs(values(1:5) - reference)) > 2.0e-8_dp .or. &
-            abs(reference - singular_exact_jvp(0.7_dp)) > 2.0e-2_dp) then
+        candidate_error = maxval(abs(values(1:5) - reference))
+        continuous_bias = abs(reference - singular_exact_jvp(0.7_dp))
+        if (candidate_error > 2.0e-8_dp .or. continuous_bias > 2.0e-2_dp) then
             print *, "singular frozen-trace JVP mismatch", values - reference
             error stop 1
         end if
+        print *, "PASS singular frozen-trace max_candidate_error", &
+            candidate_error, "continuous_bias", continuous_bias
     end subroutine validate_singular_candidates
 
     subroutine run_benchmark(name)
