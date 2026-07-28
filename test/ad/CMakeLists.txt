@@ -240,6 +240,14 @@ if(FORTNUM_ENABLE_ENZYME)
                 message(FATAL_ERROR "Missing generated Enzyme wrapper: ${_wrapper}")
             endif()
         endforeach()
+        set(_fortnum_hyperg_wrapper_sources
+            "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_hyperg_outer.f90"
+            "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_hyperg_outer_autodiff.f90")
+        foreach(_wrapper IN LISTS _fortnum_hyperg_wrapper_sources)
+            if(NOT EXISTS "${_wrapper}")
+                message(FATAL_ERROR "Missing generated Enzyme wrapper: ${_wrapper}")
+            endif()
+        endforeach()
         set(_fortnum_dawson_wrapper_sources
             "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_dawson_outer.f90"
             "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_dawson_outer_autodiff.f90")
@@ -550,6 +558,23 @@ if(FORTNUM_ENABLE_ENZYME)
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/erf_tournament.f90
         FORWARD_RULES
             fortnum_erf_kernel=fortnum_erf_kernel_derivative
+        MODE forward
+        OPT_LEVEL O2)
+    fortnum_add_enzyme_test(
+        NAME enzyme_hyperg_tournament
+        SOURCES
+            ${CMAKE_SOURCE_DIR}/src/fortnum_status.f90
+            ${CMAKE_SOURCE_DIR}/src/special/fortnum_special_hypergeometric_1f1.f90
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/hyperg_kernel.f90
+            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_rule_counter.c
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/hyperg_rule.c
+            ${_fortnum_hyperg_wrapper_sources}
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/hyperg_outer.f90
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/hyperg_tournament.f90
+        FORWARD_RULES
+            fortnum_hyperg_kernel_hybrid=fortnum_hyperg_kernel_hybrid_derivative
         MODE forward
         OPT_LEVEL O2)
 endif()

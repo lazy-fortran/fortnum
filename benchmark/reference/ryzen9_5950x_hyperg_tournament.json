@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "source_revision": "90bc17ac68ab7ff315fdbecbc03c17883ca8f1bd",
+  "operator": "log(1 + M(1,2.5,x)^2)",
+  "products": ["jvp", "vjp"],
+  "active_inputs": 1,
+  "outputs": 1,
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "autodiff": "Enzyme 22",
+    "optimization": "O2"
+  },
+  "candidates": {
+    "analytical": "production complex primal plus parameter-shift product and outer chain rule",
+    "autodiff": "Enzyme through an equivalent fixed-real-parameter specialization",
+    "hybrid": "Enzyme outer derivative with the production analytical parameter-shift JVP"
+  },
+  "specialization_contract": {
+    "reason": "Enzyme 22 has no augmented rule for Flang complex cexp",
+    "real_primal": "same Kummer transform, Taylor recurrence, threshold 60, and a=1 asymptotic formula",
+    "validation": "real specialization agrees with the production complex primal within 5e-12 in every benchmark region"
+  },
+  "sampling": {
+    "samples": 15,
+    "warmup_samples": 3,
+    "derivative_calls_per_sample": 10000,
+    "direction_counts": [1, 4, 16]
+  },
+  "validation": {
+    "derivative_oracle": "central difference of the complete bounded objective",
+    "relative_tolerance": 2e-7,
+    "hybrid_provenance": "one analytical hypergeometric custom-rule call asserted per JVP"
+  },
+  "regions": [
+    {
+      "name": "kummer",
+      "x": -4.0,
+      "jvp_median_ns": {
+        "analytical": [903.2637, 3646.8508, 14474.5344],
+        "autodiff": [198.4309, 790.6940, 3186.9808],
+        "hybrid": [598.5888, 2396.1544, 10476.3632]
+      },
+      "vjp_median_ns": {
+        "analytical": [905.6964, 3635.9544, 14527.7216],
+        "autodiff": [462.3882, 1838.1152, 9695.4992]
+      }
+    },
+    {
+      "name": "series",
+      "x": 4.0,
+      "jvp_median_ns": {
+        "analytical": [912.7827, 3636.3028, 14542.0064],
+        "autodiff": [239.8478, 935.1380, 3761.0704],
+        "hybrid": [579.5028, 2315.6188, 9227.5936]
+      },
+      "vjp_median_ns": {
+        "analytical": [906.5300, 3622.6332, 14508.0048],
+        "autodiff": [418.6789, 1665.3376, 6652.7408]
+      }
+    },
+    {
+      "name": "asymptotic",
+      "x": 80.0,
+      "jvp_median_ns": {
+        "analytical": [397.0811, 1533.1724, 6477.2112],
+        "autodiff": [14.7268, 49.7456, 188.3056],
+        "hybrid": [210.9405, 854.1692, 3362.1440]
+      },
+      "vjp_median_ns": {
+        "analytical": [382.4335, 1521.6828, 6115.7776],
+        "autodiff": [28.6510, 102.1124, 396.9552]
+      }
+    }
+  ],
+  "peak_rss_bytes_at_16_products": {
+    "all_regions_and_candidates": 14082048
+  },
+  "asymptotic_perf_stat_five_run_aggregate": {
+    "analytical_jvp": {
+      "cycles": 318438848,
+      "instructions": 906887677,
+      "cache_references": 67894,
+      "cache_misses": 17640
+    },
+    "autodiff_jvp": {
+      "cycles": 10148530,
+      "instructions": 29207609,
+      "cache_references": 51512,
+      "cache_misses": 16067
+    },
+    "hybrid_jvp": {
+      "cycles": 173464387,
+      "instructions": 495048917,
+      "cache_references": 61161,
+      "cache_misses": 17382
+    },
+    "analytical_vjp": {
+      "cycles": 315825017,
+      "instructions": 905807598,
+      "cache_references": 592638,
+      "cache_misses": 17321
+    },
+    "autodiff_vjp": {
+      "cycles": 21175992,
+      "instructions": 55306972,
+      "cache_references": 52300,
+      "cache_misses": 16413
+    }
+  },
+  "selection": {
+    "jvp": "autodiff in all measured regions and direction counts",
+    "vjp": "autodiff in all measured regions and cotangent counts",
+    "reason": "lowest complete-workload wall clock with equal peak memory and validated primal equivalence"
+  }
+}
