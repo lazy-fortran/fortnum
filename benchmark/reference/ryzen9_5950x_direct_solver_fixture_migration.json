@@ -1,0 +1,195 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "operator": "direct_linear_solve",
+  "purpose": "generated-wrapper and shared-fixture migration",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "autodiff": "Enzyme 22",
+    "optimization": "O2",
+    "fortsym_revision": "8833c6e5912c70ddaeed3edc63526b370f23919f"
+  },
+  "migration": {
+    "generated_profiles": [
+      "two fixed active arrays plus inactive integer selector",
+      "three fixed active arrays with fused value-plus-VJP return"
+    ],
+    "shared_support": [
+      "environment parsing",
+      "three discarded warmups",
+      "15-sample median and median absolute deviation",
+      "timing",
+      "peak RSS"
+    ],
+    "hot_loop_dispatch": "candidate string resolved once before measurement"
+  },
+  "validation": {
+    "directions_checked": 16,
+    "cotangents_checked": 16,
+    "jvp_oracles": [
+      "analytical implicit tangent A*dx=db-dA*x",
+      "central differences of complete primal solves"
+    ],
+    "vjp_oracles": [
+      "analytical adjoint A^T*lambda=u",
+      "componentwise central differences of the complete scalar objective"
+    ],
+    "autodiff_absolute_tolerance": 2e-12,
+    "diagnostic_absolute_tolerance": 2e-10
+  },
+  "sampling": {
+    "warmups": 3,
+    "samples": 15,
+    "runtime_aggregation": "median",
+    "dispersion": "median absolute deviation",
+    "jvp_iterations_per_sample": 20000,
+    "vjp_iterations_per_sample": 2000,
+    "memory_processes_per_candidate": 5,
+    "perf_repetitions": 3
+  },
+  "jvp_scaling": [
+    {
+      "directions": 1,
+      "analytical_median_ns": 40.729350,
+      "analytical_mad_ns": 0.141750,
+      "autodiff_median_ns": 151.682700,
+      "autodiff_mad_ns": 0.174300,
+      "diagnostic_median_ns": 49.344100,
+      "diagnostic_mad_ns": 0.295550
+    },
+    {
+      "directions": 4,
+      "analytical_median_ns": 163.419850,
+      "analytical_mad_ns": 1.581500,
+      "autodiff_median_ns": 612.006750,
+      "autodiff_mad_ns": 1.616550,
+      "diagnostic_median_ns": 200.259850,
+      "diagnostic_mad_ns": 0.555550
+    },
+    {
+      "directions": 16,
+      "analytical_median_ns": 642.542350,
+      "analytical_mad_ns": 4.689850,
+      "autodiff_median_ns": 2449.369550,
+      "autodiff_mad_ns": 6.506300,
+      "diagnostic_median_ns": 816.418400,
+      "diagnostic_mad_ns": 2.364000
+    }
+  ],
+  "vjp_scaling": [
+    {
+      "cotangents": 1,
+      "analytical_median_ns": 46.297500,
+      "analytical_mad_ns": 0.210000,
+      "autodiff_median_ns": 80.972500,
+      "autodiff_mad_ns": 0.235000,
+      "diagnostic_median_ns": 868.143000,
+      "diagnostic_mad_ns": 1.427500
+    },
+    {
+      "cotangents": 4,
+      "analytical_median_ns": 163.729000,
+      "analytical_mad_ns": 0.826500,
+      "autodiff_median_ns": 241.456000,
+      "autodiff_mad_ns": 1.563500,
+      "diagnostic_median_ns": 3522.742000,
+      "diagnostic_mad_ns": 40.285500
+    },
+    {
+      "cotangents": 16,
+      "analytical_median_ns": 637.162500,
+      "analytical_mad_ns": 2.685000,
+      "autodiff_median_ns": 974.323500,
+      "autodiff_mad_ns": 2.520000,
+      "diagnostic_median_ns": 14036.646000,
+      "diagnostic_mad_ns": 28.278500
+    }
+  ],
+  "memory": {
+    "directions_or_cotangents": 16,
+    "jvp_peak_rss_bytes": {
+      "analytical": 2473984,
+      "autodiff": 2514944,
+      "diagnostic": 2519040
+    },
+    "vjp_peak_rss_bytes": {
+      "analytical": 2703360,
+      "autodiff": 2674688,
+      "diagnostic": 2707456
+    }
+  },
+  "perf": {
+    "directions_or_cotangents": 16,
+    "workloads_per_repetition": 180000,
+    "jvp": {
+      "analytical": {
+        "cycles_per_workload": 3032.7611,
+        "instructions_per_workload": 4355.4765,
+        "cache_references_per_workload": 0.2168,
+        "cache_misses_per_workload": 0.0544
+      },
+      "autodiff": {
+        "cycles_per_workload": 11346.0397,
+        "instructions_per_workload": 27795.4820,
+        "cache_references_per_workload": 0.6440,
+        "cache_misses_per_workload": 0.0766
+      },
+      "diagnostic": {
+        "cycles_per_workload": 3960.5314,
+        "instructions_per_workload": 6899.4762,
+        "cache_references_per_workload": 1.8118,
+        "cache_misses_per_workload": 0.3262
+      }
+    },
+    "vjp": {
+      "analytical": {
+        "cycles_per_workload": 2993.2316,
+        "instructions_per_workload": 4306.4625,
+        "cache_references_per_workload": 0.2468,
+        "cache_misses_per_workload": 0.0576
+      },
+      "autodiff": {
+        "cycles_per_workload": 4508.4426,
+        "instructions_per_workload": 8098.4627,
+        "cache_references_per_workload": 0.2791,
+        "cache_misses_per_workload": 0.0614
+      },
+      "diagnostic": {
+        "cycles_per_workload": 64353.9749,
+        "instructions_per_workload": 70754.4826,
+        "cache_references_per_workload": 3.4782,
+        "cache_misses_per_workload": 0.3971
+      }
+    }
+  },
+  "build_and_size": {
+    "incremental_two_fixture_build_wall_s": 0.64,
+    "incremental_two_fixture_build_peak_rss_kib": 126096,
+    "jvp_executable_bytes": 2178136,
+    "jvp_executable_change_bytes": 5608,
+    "vjp_executable_bytes": 2182272,
+    "vjp_executable_change_bytes": 5616
+  },
+  "selection": {
+    "jvp": {
+      "selected": "analytical",
+      "criterion": "complete value-plus-JVP wall clock",
+      "directions": 16,
+      "speedup_over_autodiff": 3.8120,
+      "speedup_over_diagnostic": 1.2706,
+      "selected_wall_clock_improvement_percent": 16.9526
+    },
+    "vjp": {
+      "selected": "analytical",
+      "criterion": "complete scalar-objective value-plus-VJP wall clock",
+      "cotangents": 16,
+      "speedup_over_autodiff": 1.5292,
+      "speedup_over_diagnostic": 22.0299,
+      "selected_wall_clock_improvement_percent": 25.2965
+    }
+  }
+}

@@ -219,10 +219,16 @@ if(FORTNUM_ENABLE_ENZYME)
             "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_square.f90")
         set(_fortnum_bspline_wrapper_source
             "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_bspline_fixed_span.f90")
+        set(_fortnum_direct_solver_component_wrapper_source
+            "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_direct_solver_component.f90")
+        set(_fortnum_direct_solver_objective_wrapper_source
+            "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_direct_solver_objective.f90")
         foreach(_wrapper
                 "${_fortnum_dawson_wrapper_source}"
                 "${_fortnum_square_wrapper_source}"
-                "${_fortnum_bspline_wrapper_source}")
+                "${_fortnum_bspline_wrapper_source}"
+                "${_fortnum_direct_solver_component_wrapper_source}"
+                "${_fortnum_direct_solver_objective_wrapper_source}")
             if(NOT EXISTS "${_wrapper}")
                 message(FATAL_ERROR "Missing generated Enzyme wrapper: ${_wrapper}")
             endif()
@@ -244,6 +250,8 @@ if(FORTNUM_ENABLE_ENZYME)
         NAME enzyme_direct_solver_jvp
         SOURCES
             ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${_fortnum_direct_solver_component_wrapper_source}
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/direct_solver_jvp.f90
         MODE forward
         OPT_LEVEL O2)
@@ -251,6 +259,8 @@ if(FORTNUM_ENABLE_ENZYME)
         NAME enzyme_direct_solver_vjp
         SOURCES
             ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${_fortnum_direct_solver_objective_wrapper_source}
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/direct_solver_vjp.f90
         MODE reverse
         OPT_LEVEL O2)

@@ -31,8 +31,8 @@ fortnum build.
 | finite-difference diagnostic | 0 | 0.0% | 0 |
 
 Across the 32 workloads, the second-fastest candidate ranges from 1.004x to
-1,224.355x the fastest wall clock. The median ratio is 1.260x and the
-geometric mean is 2.041x. Fifteen workloads have a runner-up within 20% of the
+1,224.355x the fastest wall clock. The median ratio is 1.261x and the
+geometric mean is 2.053x. Fifteen workloads have a runner-up within 20% of the
 fastest candidate; full finite-difference VJPs of fitted coefficients provide
 the largest separation.
 Consequently, mechanism counts describe only the current measured workload
@@ -46,15 +46,15 @@ clock on the AMD Ryzen 9 5950X reference host.
 
 | Product count | Analytical JVP | Autodiff JVP | Diagnostic JVP | Analytical VJP | Autodiff VJP | Diagnostic VJP |
 |---:|---:|---:|---:|---:|---:|---:|
-| 1 | 0.055 us | 0.189 us | 0.072 us | 0.059 us | 0.074 us | 1.025 us |
-| 4 | 0.208 us | 0.721 us | 0.257 us | 0.227 us | 0.308 us | 3.972 us |
-| 16 | 0.774 us | 2.719 us | 0.982 us | 0.853 us | 1.090 us | 15.455 us |
+| 1 | 0.041 us | 0.152 us | 0.049 us | 0.046 us | 0.081 us | 0.868 us |
+| 4 | 0.163 us | 0.612 us | 0.200 us | 0.164 us | 0.241 us | 3.523 us |
+| 16 | 0.643 us | 2.449 us | 0.816 us | 0.637 us | 0.974 us | 14.037 us |
 
 Both forward and reverse products scale approximately linearly with the number
 of requested directions or cotangents in this small fixed-size workload.
 Analytical is fastest in both cases. Reverse autodiff is much closer to
-analytical than forward autodiff: at 16 products analytical is 1.278x faster
-than reverse autodiff, while it is 3.514x faster than forward autodiff. This
+analytical than forward autodiff: at 16 products analytical is 1.529x faster
+than reverse autodiff, while it is 3.812x faster than forward autodiff. This
 does not establish a universal forward/reverse crossover; it shows why the two
 products need separate tournaments as input and output dimensions change.
 

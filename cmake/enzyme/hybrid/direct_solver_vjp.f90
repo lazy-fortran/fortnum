@@ -1,21 +1,12 @@
 module direct_solver_vjp_kernel
-    use, intrinsic :: iso_c_binding, only: c_double, c_funloc, c_funptr
+    use, intrinsic :: iso_c_binding, only: c_double
+    use fortnum_generated_enzyme_direct_solver_objective, only: &
+        fortnum_enzyme_direct_solver_objective_vjp
     implicit none
     private
 
     integer, parameter, public :: solver_size = 4
     public :: analytical_vjp, autodiff_vjp, diagnostic_vjp
-
-    interface
-        function enzyme_autodiff(f, a, abar, b, bbar, u, ubar) result(value) &
-                bind(c, name="__enzyme_autodiff")
-            import :: c_double, c_funptr
-            type(c_funptr), value :: f
-            real(c_double), intent(in) :: a(*), b(*), u(*)
-            real(c_double), intent(inout) :: abar(*), bbar(*), ubar(*)
-            real(c_double) :: value
-        end function enzyme_autodiff
-    end interface
 
 contains
 
@@ -84,11 +75,8 @@ contains
         real(c_double), intent(out) :: bbar(solver_size)
         real(c_double) :: ubar(solver_size)
 
-        abar = 0.0_c_double
-        bbar = 0.0_c_double
-        ubar = 0.0_c_double
-        value = enzyme_autodiff(c_funloc(solve_objective), &
-            a, abar, b, bbar, u, ubar)
+        value = fortnum_enzyme_direct_solver_objective_vjp( &
+            a, b, u, 1.0_c_double, abar, bbar, ubar)
     end subroutine autodiff_vjp
 
     pure subroutine diagnostic_vjp(a, b, u, value, abar, bbar)
@@ -127,41 +115,28 @@ contains
 end module direct_solver_vjp_kernel
 
 program enzyme_direct_solver_vjp
-    use, intrinsic :: iso_c_binding, only: c_double, c_int64_t
-    use, intrinsic :: iso_fortran_env, only: int64
+    use, intrinsic :: iso_c_binding, only: c_double
     use direct_solver_vjp_kernel, only: analytical_vjp, autodiff_vjp, &
         diagnostic_vjp, solver_size
+    use fortnum_enzyme_fixture_support, only: collect_fixture_samples, &
+        fixture_peak_rss_bytes, fixture_sample_count, fixture_timer_t, &
+        median_mad, read_fixture_environment, read_fixture_integer, &
+        write_fixture_result
     implicit none
-
-    interface
-        function peak_rss_bytes() bind(c, name="fortnum_peak_rss_bytes") &
-                result(bytes)
-            import :: c_int64_t
-            integer(c_int64_t) :: bytes
-        end function peak_rss_bytes
-    end interface
 
     real(c_double) :: a(solver_size, solver_size), b(solver_size)
     real(c_double) :: u(solver_size, 16), abar(solver_size, solver_size)
     real(c_double) :: bbar(solver_size), reference_a(solver_size, solver_size)
     real(c_double) :: reference_b(solver_size), value, reference_value
-    integer :: cotangent, cotangent_count
-    integer(int64) :: iterations
+    real(c_double) :: samples(fixture_sample_count), sink
+    integer :: candidate_kind, cotangent, cotangent_count, iterations
     character(32) :: action, candidate
+    logical :: valid
 
     call initialize_inputs()
-    call get_environment_variable("FORTNUM_DIRECT_SOLVER_VJP_ACTION", action)
-    call get_environment_variable("FORTNUM_DIRECT_SOLVER_VJP_CANDIDATE", candidate)
-    call read_integer_env("FORTNUM_DIRECT_SOLVER_VJP_COTANGENTS", &
-        cotangent_count, 16)
-    call read_int64_env("FORTNUM_DIRECT_SOLVER_VJP_ITERATIONS", iterations, &
-        2000_int64)
-    if (trim(action) == "--benchmark") then
-        call benchmark_candidate(trim(candidate), cotangent_count, iterations)
-    else if (trim(action) == "--peak-rss") then
-        call benchmark_candidate(trim(candidate), cotangent_count, iterations)
-        write (*, "(a,i0)") "peak_rss_bytes=", peak_rss_bytes()
-    else
+    call read_fixture_environment("FORTNUM_DIRECT_SOLVER_VJP_ACTION", &
+        "validate", action)
+    if (trim(action) == "validate") then
         do cotangent = 1, 16
             call analytical_vjp(a, b, u(:, cotangent), reference_value, &
                 reference_a, reference_b)
@@ -184,7 +159,28 @@ program enzyme_direct_solver_vjp
             end if
         end do
         write (*, "(a)") "PASS"
+        stop
     end if
+
+    call read_fixture_environment("FORTNUM_DIRECT_SOLVER_VJP_CANDIDATE", &
+        "analytical", candidate)
+    call read_fixture_integer("FORTNUM_DIRECT_SOLVER_VJP_COTANGENTS", 16, &
+        cotangent_count, valid)
+    if (.not. valid) error stop "invalid direct-solver cotangent count"
+    call read_fixture_integer("FORTNUM_DIRECT_SOLVER_VJP_ITERATIONS", 2000, &
+        iterations, valid)
+    if (.not. valid) error stop "invalid direct-solver iteration count"
+    call parse_configuration()
+
+    if (trim(action) == "benchmark" .or. trim(action) == "--benchmark") then
+        call benchmark_candidate()
+    else if (trim(action) == "peak-rss" .or. trim(action) == "--peak-rss") then
+        sink = measure_candidate()
+        write (*, "(i0)") fixture_peak_rss_bytes()
+    else
+        error stop "action must be validate, benchmark, or peak-rss"
+    end if
+    if (sink /= sink) error stop "direct-solver VJP benchmark produced NaN"
 
 contains
 
@@ -207,76 +203,61 @@ contains
         end do
     end subroutine initialize_inputs
 
-    subroutine benchmark_candidate(name, cotangents, count)
-        character(*), intent(in) :: name
-        integer, intent(in) :: cotangents
-        integer(int64), intent(in) :: count
-        integer :: active_cotangent
-        integer(int64) :: iteration, start, finish, rate
-        real(c_double) :: elapsed_ns, sink
-
-        if (cotangents < 1 .or. cotangents > 16) then
+    subroutine parse_configuration()
+        if (cotangent_count < 1 .or. cotangent_count > 16) then
             error stop "cotangents must be 1..16"
         end if
-        if (name /= "analytical" .and. name /= "autodiff" .and. &
-            name /= "diagnostic") then
+        if (iterations < 1) error stop "iterations must be positive"
+        select case (trim(candidate))
+        case ("analytical")
+            candidate_kind = 1
+        case ("autodiff")
+            candidate_kind = 2
+        case ("diagnostic")
+            candidate_kind = 3
+        case default
             error stop "candidate must be analytical, autodiff, or diagnostic"
-        end if
-        sink = 0.0_c_double
-        call system_clock(start, rate)
-        do iteration = 1, count
+        end select
+    end subroutine parse_configuration
+
+    subroutine benchmark_candidate()
+        real(c_double) :: median, mad
+        character(96) :: name
+
+        call collect_fixture_samples(measure_candidate, samples)
+        call median_mad(samples, median, mad)
+        write (name, "(a,'_vjp_d',i0)") trim(candidate), cotangent_count
+        call write_fixture_result(trim(name), iterations, median, mad)
+    end subroutine benchmark_candidate
+
+    function measure_candidate() result(elapsed_ns)
+        type(fixture_timer_t) :: timer
+        integer :: active_cotangent
+        integer :: iteration
+        real(c_double) :: elapsed_ns, local_sink
+
+        local_sink = 0.0_c_double
+        call timer%start()
+        do iteration = 1, iterations
             b(1) = 0.5_c_double + 1.0e-12_c_double*real( &
-                mod(iteration, 1024_int64), c_double)
-            do active_cotangent = 1, cotangents
-                select case (name)
-                case ("analytical")
+                mod(iteration, 1024), c_double)
+            do active_cotangent = 1, cotangent_count
+                select case (candidate_kind)
+                case (1)
                     call analytical_vjp(a, b, u(:, active_cotangent), value, &
                         abar, bbar)
-                case ("autodiff")
+                case (2)
                     call autodiff_vjp(a, b, u(:, active_cotangent), value, &
                         abar, bbar)
                 case default
                     call diagnostic_vjp(a, b, u(:, active_cotangent), value, &
                         abar, bbar)
                 end select
-                sink = sink + value + abar(1, 1) + bbar(1)
+                local_sink = local_sink + value + abar(1, 1) + bbar(1)
             end do
         end do
-        call system_clock(finish)
-        if (sink /= sink) error stop "benchmark produced NaN"
-        elapsed_ns = real(finish - start, c_double)*1.0e9_c_double / &
-            (real(rate, c_double)*real(count, c_double))
-        write (*, "(a,a,a,i0,a,i0,a,f0.6,a,es12.4)") "candidate=", name, &
-            " cotangents=", cotangents, " iterations=", count, &
-            " ns_per_workload=", elapsed_ns, " sink=", sink
-    end subroutine benchmark_candidate
-
-    subroutine read_integer_env(name, value, default_value)
-        character(*), intent(in) :: name
-        integer, intent(out) :: value
-        integer, intent(in) :: default_value
-        character(32) :: text
-        integer :: status, ios
-
-        value = default_value
-        call get_environment_variable(name, text, status=status)
-        if (status /= 0 .or. len_trim(text) == 0) return
-        read (text, *, iostat=ios) value
-        if (ios /= 0) error stop "invalid integer environment value"
-    end subroutine read_integer_env
-
-    subroutine read_int64_env(name, value, default_value)
-        character(*), intent(in) :: name
-        integer(int64), intent(out) :: value
-        integer(int64), intent(in) :: default_value
-        character(32) :: text
-        integer :: status, ios
-
-        value = default_value
-        call get_environment_variable(name, text, status=status)
-        if (status /= 0 .or. len_trim(text) == 0) return
-        read (text, *, iostat=ios) value
-        if (ios /= 0) error stop "invalid int64 environment value"
-    end subroutine read_int64_env
+        elapsed_ns = timer%elapsed_ns()/real(iterations, c_double)
+        sink = local_sink
+    end function measure_candidate
 
 end program enzyme_direct_solver_vjp

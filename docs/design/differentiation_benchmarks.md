@@ -709,6 +709,49 @@ env FORTNUM_DIRECT_SOLVER_VJP_ACTION=--benchmark \
     ctest --test-dir build-enzyme -V -R '^enzyme_direct_solver_vjp$'
 ```
 
+### Generated-wrapper migration
+
+`fortsym` now generates the two fixed-array Enzyme boundaries. The forward
+boundary accepts the active matrix and right-hand side plus an inactive
+solution-component selector. The reverse boundary accepts three active arrays
+and returns the primal objective with its VJP, avoiding a duplicate solve.
+Both fixtures use shared environment, warmup, 15-sample median/MAD, timer, and
+peak-RSS support. Candidate strings are resolved before the timed loop. The
+direct elimination, analytical implicit tangent/adjoint, and independent
+finite-difference diagnostics remain explicit mathematical implementations.
+
+| Product | Count | Analytical ns (MAD) | Autodiff ns (MAD) | Diagnostic ns (MAD) | Winner |
+|---|---:|---:|---:|---:|---|
+| JVP | 1 | 40.7294 (0.1418) | 151.6827 (0.1743) | 49.3441 (0.2956) | `analytical` |
+| JVP | 4 | 163.4199 (1.5815) | 612.0068 (1.6166) | 200.2599 (0.5556) | `analytical` |
+| JVP | 16 | 642.5424 (4.6899) | 2,449.3696 (6.5063) | 816.4184 (2.3640) | `analytical` |
+| VJP | 1 | 46.2975 (0.2100) | 80.9725 (0.2350) | 868.1430 (1.4275) | `analytical` |
+| VJP | 4 | 163.7290 (0.8265) | 241.4560 (1.5635) | 3,522.7420 (40.2855) | `analytical` |
+| VJP | 16 | 637.1625 (2.6850) | 974.3235 (2.5200) | 14,036.6460 (28.2785) | `analytical` |
+
+At width 16, analytical is 3.8120 times faster than forward autodiff and
+1.5292 times faster than reverse autodiff. Relative to the prior selected
+fixtures, complete JVP and VJP wall clock improves by 16.95% and 25.30%.
+Peak RSS is 2.47--2.52 MB for JVP candidates and 2.67--2.71 MB for VJP
+candidates.
+
+At width 16, hardware counters per complete workload are:
+
+| Product | Candidate | Cycles | Instructions | Cache references | Cache misses |
+|---|---|---:|---:|---:|---:|
+| JVP | `analytical` | 3,032.761 | 4,355.477 | 0.217 | 0.054 |
+| JVP | `autodiff` | 11,346.040 | 27,795.482 | 0.644 | 0.077 |
+| JVP | diagnostic | 3,960.531 | 6,899.476 | 1.812 | 0.326 |
+| VJP | `analytical` | 2,993.232 | 4,306.462 | 0.247 | 0.058 |
+| VJP | `autodiff` | 4,508.443 | 8,098.463 | 0.279 | 0.061 |
+| VJP | diagnostic | 64,353.975 | 70,754.483 | 3.478 | 0.397 |
+
+The two-fixture incremental build takes 0.64 s with 126,096 KiB peak RSS.
+Generated-wrapper support adds 5,608 bytes to the JVP executable and 5,616
+bytes to the VJP executable, both 0.26%. The controlled machine-readable
+record is
+`benchmark/reference/ryzen9_5950x_direct_solver_fixture_migration.json`.
+
 ## Linear-algebra tournament summary
 
 All implemented linear-algebra derivative products and reusable-interface

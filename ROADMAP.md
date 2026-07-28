@@ -318,7 +318,7 @@ support.
   plus no complete-workload regression beyond 3% or combined dispersion.
 - [x] Migrate Dawson and the scalar Enzyme smoke fixtures.
 - [x] Migrate fixed-span B-spline Enzyme fixtures.
-- [ ] Migrate direct-solver JVP and VJP Enzyme fixtures.
+- [x] Migrate direct-solver JVP and VJP Enzyme fixtures.
 - [ ] Migrate the iterative-solver Enzyme fixture.
 - [ ] Migrate scalar-root JVP and VJP Enzyme fixtures.
 - [ ] Migrate vector-root JVP and VJP Enzyme fixtures.
