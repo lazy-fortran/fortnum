@@ -1,33 +1,14 @@
 module bspline_fixed_span_kernel
-    use, intrinsic :: iso_c_binding, only: c_double, c_funloc, c_funptr
+    use, intrinsic :: iso_c_binding, only: c_double
+    use fortnum_generated_enzyme_bspline_fixed_span, only: &
+        fortnum_enzyme_bspline_fixed_span_jvp, &
+        fortnum_enzyme_bspline_fixed_span_vjp
     implicit none
     private
 
     integer, parameter, public :: coefficient_count = 4
     public :: analytical_jvp, analytical_vjp, autodiff_jvp, autodiff_vjp
     public :: spline_value
-
-    interface
-        function enzyme_fwddiff(f, x, dx, coefficients, dcoefficients) &
-                result(derivative) bind(c, name="__enzyme_fwddiff")
-            import :: c_double, c_funptr
-            type(c_funptr), value :: f
-            real(c_double), intent(in) :: x, dx
-            real(c_double), intent(in) :: coefficients(*), dcoefficients(*)
-            real(c_double) :: derivative
-        end function enzyme_fwddiff
-
-        function enzyme_autodiff(f, x, xbar, coefficients, coefficients_bar) &
-                result(value) bind(c, name="__enzyme_autodiff")
-            import :: c_double, c_funptr
-            type(c_funptr), value :: f
-            real(c_double), intent(in) :: x
-            real(c_double), intent(inout) :: xbar
-            real(c_double), intent(in) :: coefficients(*)
-            real(c_double), intent(inout) :: coefficients_bar(*)
-            real(c_double) :: value
-        end function enzyme_autodiff
-    end interface
 
 contains
 
@@ -84,8 +65,8 @@ contains
         real(c_double), intent(in) :: dcoefficients(coefficient_count)
         real(c_double) :: derivative
 
-        derivative = enzyme_fwddiff(c_funloc(spline_value), x, dx, &
-            coefficients, dcoefficients)
+        derivative = fortnum_enzyme_bspline_fixed_span_jvp( &
+            x, coefficients, dx, dcoefficients)
     end function autodiff_jvp
 
     pure subroutine analytical_vjp(x, coefficients, cotangent, xbar, &
@@ -107,56 +88,61 @@ contains
         real(c_double), intent(in) :: cotangent
         real(c_double), intent(out) :: xbar
         real(c_double), intent(out) :: coefficients_bar(coefficient_count)
-        real(c_double) :: ignored_value
 
-        xbar = 0.0_c_double
-        coefficients_bar = 0.0_c_double
-        ignored_value = enzyme_autodiff(c_funloc(spline_value), x, xbar, coefficients, &
-            coefficients_bar)
-        xbar = cotangent*xbar
-        coefficients_bar = cotangent*coefficients_bar
+        call fortnum_enzyme_bspline_fixed_span_vjp( &
+            x, coefficients, cotangent, xbar, coefficients_bar)
     end subroutine autodiff_vjp
 
 end module bspline_fixed_span_kernel
 
 program enzyme_bspline_fixed_span_products
-    use, intrinsic :: iso_c_binding, only: c_double, c_int64_t
-    use, intrinsic :: iso_fortran_env, only: int64
+    use, intrinsic :: iso_c_binding, only: c_double
     use bspline_fixed_span_kernel, only: analytical_jvp, analytical_vjp, &
         autodiff_jvp, autodiff_vjp, coefficient_count, spline_value
+    use fortnum_enzyme_fixture_support, only: collect_fixture_samples, &
+        fixture_peak_rss_bytes, fixture_sample_count, fixture_timer_t, &
+        median_mad, read_fixture_environment, read_fixture_integer, &
+        write_fixture_result
     implicit none
 
-    interface
-        function peak_rss_bytes() bind(c, name="fortnum_peak_rss_bytes") &
-                result(bytes)
-            import :: c_int64_t
-            integer(c_int64_t) :: bytes
-        end function peak_rss_bytes
-    end interface
-
-    real(c_double) :: coefficients(coefficient_count), directions(coefficient_count, 16)
+    real(c_double) :: coefficients(coefficient_count)
+    real(c_double) :: directions(coefficient_count, 16)
     real(c_double) :: x_directions(16), cotangents(16)
-    integer :: direction_count
-    integer(int64) :: iterations
+    real(c_double) :: samples(fixture_sample_count), sink
     character(32) :: action, candidate, product
+    integer :: candidate_kind, product_kind, direction_count, iterations
+    logical :: valid
 
     call initialize_inputs()
-    call get_environment_variable("FORTNUM_BSPLINE_SPAN_ACTION", action)
-    call get_environment_variable("FORTNUM_BSPLINE_SPAN_CANDIDATE", candidate)
-    call get_environment_variable("FORTNUM_BSPLINE_SPAN_PRODUCT", product)
-    call read_integer_env("FORTNUM_BSPLINE_SPAN_DIRECTIONS", direction_count, 16)
-    call read_int64_env("FORTNUM_BSPLINE_SPAN_ITERATIONS", iterations, 100000_int64)
-    if (trim(action) == "--benchmark") then
-        call benchmark_candidate(trim(candidate), trim(product), direction_count, &
-            iterations)
-    else if (trim(action) == "--peak-rss") then
-        call benchmark_candidate(trim(candidate), trim(product), direction_count, &
-            iterations)
-        write (*, "(a,i0)") "peak_rss_bytes=", peak_rss_bytes()
-    else
+    call read_fixture_environment("FORTNUM_BSPLINE_SPAN_ACTION", &
+        "validate", action)
+    if (trim(action) == "validate") then
         call validate_candidates()
         write (*, "(a)") "PASS"
+        stop
     end if
+
+    call read_fixture_environment("FORTNUM_BSPLINE_SPAN_CANDIDATE", &
+        "analytical", candidate)
+    call read_fixture_environment("FORTNUM_BSPLINE_SPAN_PRODUCT", &
+        "jvp", product)
+    call read_fixture_integer("FORTNUM_BSPLINE_SPAN_DIRECTIONS", 16, &
+        direction_count, valid)
+    if (.not. valid) error stop "invalid B-spline direction count"
+    call read_fixture_integer("FORTNUM_BSPLINE_SPAN_ITERATIONS", 100000, &
+        iterations, valid)
+    if (.not. valid) error stop "invalid B-spline iteration count"
+    call parse_configuration()
+
+    if (trim(action) == "benchmark" .or. trim(action) == "--benchmark") then
+        call benchmark_candidate()
+    else if (trim(action) == "peak-rss" .or. trim(action) == "--peak-rss") then
+        sink = measure_candidate()
+        write (*, "(i0)") fixture_peak_rss_bytes()
+    else
+        error stop "action must be validate, benchmark, or peak-rss"
+    end if
+    if (sink /= sink) error stop "B-spline benchmark produced NaN"
 
 contains
 
@@ -187,10 +173,10 @@ contains
 
         x = 0.37_c_double
         do direction = 1, 16
-            analytical = analytical_jvp(x, coefficients, x_directions(direction), &
-                directions(:, direction))
-            automatic = autodiff_jvp(x, coefficients, x_directions(direction), &
-                directions(:, direction))
+            analytical = analytical_jvp(x, coefficients, &
+                x_directions(direction), directions(:, direction))
+            automatic = autodiff_jvp(x, coefficients, &
+                x_directions(direction), directions(:, direction))
             plus_coefficients = coefficients + h*directions(:, direction)
             minus_coefficients = coefficients - h*directions(:, direction)
             finite_difference = (spline_value(x + h*x_directions(direction), &
@@ -207,100 +193,89 @@ contains
             call autodiff_vjp(x, coefficients, cotangents(direction), &
                 xbar_autodiff, coefficient_bar_autodiff)
             if (abs(xbar_analytical - xbar_autodiff) > 2.0e-12_c_double .or. &
-                maxval(abs(coefficient_bar_analytical &
-                - coefficient_bar_autodiff)) > 2.0e-12_c_double) then
+                maxval(abs(coefficient_bar_analytical - &
+                coefficient_bar_autodiff)) > 2.0e-12_c_double) then
                 error stop "autodiff B-spline VJP mismatch"
             end if
             lhs = cotangents(direction)*analytical
             rhs = x_directions(direction)*xbar_analytical &
                 + dot_product(directions(:, direction), &
-                coefficient_bar_analytical)
+                    coefficient_bar_analytical)
             if (abs(lhs - rhs) > 2.0e-12_c_double) then
                 error stop "B-spline adjoint identity mismatch"
             end if
         end do
     end subroutine validate_candidates
 
-    subroutine benchmark_candidate(name, derivative_product, active_count, count)
-        character(*), intent(in) :: name, derivative_product
-        integer, intent(in) :: active_count
-        integer(int64), intent(in) :: count
-        real(c_double) :: derivative, xbar, coefficient_bar(coefficient_count)
-        real(c_double) :: elapsed_ns, sink, x
-        integer :: direction
-        integer(int64) :: iteration, start, finish, rate
-
-        if (active_count < 1 .or. active_count > 16) then
+    subroutine parse_configuration()
+        if (direction_count < 1 .or. direction_count > 16) then
             error stop "directions must be 1..16"
         end if
-        if (name /= "analytical" .and. name /= "autodiff") then
+        if (iterations < 1) error stop "iterations must be positive"
+        select case (trim(candidate))
+        case ("analytical")
+            candidate_kind = 1
+        case ("autodiff")
+            candidate_kind = 2
+        case default
             error stop "candidate must be analytical or autodiff"
-        end if
-        if (derivative_product /= "jvp" .and. derivative_product /= "vjp") then
+        end select
+        select case (trim(product))
+        case ("jvp")
+            product_kind = 1
+        case ("vjp")
+            product_kind = 2
+        case default
             error stop "product must be jvp or vjp"
-        end if
-        sink = 0.0_c_double
-        call system_clock(start, rate)
-        do iteration = 1, count
+        end select
+    end subroutine parse_configuration
+
+    subroutine benchmark_candidate()
+        real(c_double) :: median, mad
+        character(96) :: name
+
+        call collect_fixture_samples(measure_candidate, samples)
+        call median_mad(samples, median, mad)
+        write (name, "(a,'_',a,'_d',i0)") trim(candidate), trim(product), &
+            direction_count
+        call write_fixture_result(trim(name), iterations, median, mad)
+    end subroutine benchmark_candidate
+
+    function measure_candidate() result(elapsed_ns)
+        type(fixture_timer_t) :: timer
+        real(c_double) :: coefficient_bar(coefficient_count)
+        real(c_double) :: derivative, elapsed_ns, local_sink, x, xbar
+        integer :: direction, iteration
+
+        local_sink = 0.0_c_double
+        call timer%start()
+        do iteration = 1, iterations
             x = 0.37_c_double + 1.0e-12_c_double*real( &
-                mod(iteration, 1024_int64), c_double)
-            do direction = 1, active_count
-                if (derivative_product == "jvp") then
-                    if (name == "analytical") then
+                mod(iteration, 1024), c_double)
+            do direction = 1, direction_count
+                if (product_kind == 1) then
+                    if (candidate_kind == 1) then
                         derivative = analytical_jvp(x, coefficients, &
                             x_directions(direction), directions(:, direction))
                     else
                         derivative = autodiff_jvp(x, coefficients, &
                             x_directions(direction), directions(:, direction))
                     end if
-                    sink = sink + derivative
+                    local_sink = local_sink + derivative
                 else
-                    if (name == "analytical") then
+                    if (candidate_kind == 1) then
                         call analytical_vjp(x, coefficients, &
                             cotangents(direction), xbar, coefficient_bar)
                     else
-                        call autodiff_vjp(x, coefficients, cotangents(direction), &
-                            xbar, coefficient_bar)
+                        call autodiff_vjp(x, coefficients, &
+                            cotangents(direction), xbar, coefficient_bar)
                     end if
-                    sink = sink + xbar + coefficient_bar(1)
+                    local_sink = local_sink + xbar + coefficient_bar(1)
                 end if
             end do
         end do
-        call system_clock(finish)
-        if (sink /= sink) error stop "benchmark produced NaN"
-        elapsed_ns = real(finish - start, c_double)*1.0e9_c_double &
-            /(real(rate, c_double)*real(count, c_double))
-        write (*, "(a,a,a,a,a,i0,a,i0,a,f0.6,a,es12.4)") "candidate=", name, &
-            " product=", derivative_product, " directions=", active_count, &
-            " iterations=", count, " ns_per_workload=", elapsed_ns, " sink=", sink
-    end subroutine benchmark_candidate
-
-    subroutine read_integer_env(name, value, default_value)
-        character(*), intent(in) :: name
-        integer, intent(out) :: value
-        integer, intent(in) :: default_value
-        character(32) :: text
-        integer :: status, ios
-
-        value = default_value
-        call get_environment_variable(name, text, status=status)
-        if (status /= 0 .or. len_trim(text) == 0) return
-        read (text, *, iostat=ios) value
-        if (ios /= 0) error stop "invalid integer environment value"
-    end subroutine read_integer_env
-
-    subroutine read_int64_env(name, value, default_value)
-        character(*), intent(in) :: name
-        integer(int64), intent(out) :: value
-        integer(int64), intent(in) :: default_value
-        character(32) :: text
-        integer :: status, ios
-
-        value = default_value
-        call get_environment_variable(name, text, status=status)
-        if (status /= 0 .or. len_trim(text) == 0) return
-        read (text, *, iostat=ios) value
-        if (ios /= 0) error stop "invalid int64 environment value"
-    end subroutine read_int64_env
+        elapsed_ns = timer%elapsed_ns()/real(iterations, c_double)
+        sink = local_sink
+    end function measure_candidate
 
 end program enzyme_bspline_fixed_span_products
