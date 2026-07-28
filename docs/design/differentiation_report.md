@@ -24,7 +24,7 @@ Finite differences are diagnostics and win no current production selection.
 | diagnostic | 0 | 0.0% | 0 |
 
 The second-fastest/fastest wall-clock ratio ranges from 1.001 to 1,224.355.
-Its median is 1.275 and geometric mean is 2.076. Thirteen workloads have a
+Its median is 1.275 and geometric mean is 2.076. 13 workloads have a
 runner-up within 20%.
 
 These counts describe the measured workload set. They do not select new
