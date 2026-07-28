@@ -21,6 +21,14 @@
     "direction_counts": [1, 4, 16, 64],
     "cotangent_counts": [1, 4, 16]
   },
+  "forward_reverse_crossover": {
+    "workload": "direct 2-by-2 solve with 16 derivative products",
+    "autodiff_jvp_median_ns": 2449.369550,
+    "autodiff_vjp_median_ns": 974.323500,
+    "selected": "reverse",
+    "reverse_speedup": 2.5139,
+    "qualification": "JVP returns 16 directional products; VJP returns 16 scalar-objective cotangent products"
+  },
   "evidence_contract": {
     "runtime": "median complete-workload wall clock with MAD in each referenced record",
     "memory": "candidate-specific peak RSS in separate processes",

@@ -22,6 +22,12 @@
     "cotangent_or_objective_counts": [1, 4, 16],
     "accepted_step_counts": [2, 400]
   },
+  "forward_reverse_crossover": {
+    "one_parameter": "analytical forward, 1.1608 times faster than reverse",
+    "four_parameters": "analytical reverse, 2.5434 times faster than forward",
+    "sixteen_parameters": "analytical reverse, 8.5060 times faster than forward",
+    "observed_crossover": "between one and four active parameters for the measured scalar objective"
+  },
   "evidence_contract": {
     "runtime": "median complete primal-plus-product wall clock with MAD in each referenced record",
     "memory": "candidate-specific peak RSS in separate processes and retained trace bytes where applicable",
