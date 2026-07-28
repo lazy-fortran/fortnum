@@ -86,7 +86,9 @@ fixed-size linear algebra: resident GPU is 21.5 to 33.4 times faster at
 products remain 1.32 to 1.36 times faster on GPU. A shared analytical
 length-8 radix-2 leaf covers batched FFT JVP/VJP: resident GPU is 26.8 to 29.6
 times faster at 1,048,576 transforms, while transfer-inclusive execution stays
-on CPU. Fixed-trace ODE products remain an explicit unchecked roadmap item.
+on CPU. Fixed-trace two-state ODE tangent/adjoint recurrences are also covered:
+at 1,048,576 trajectories and 64 recorded maps, resident GPU is 50.7 to 52.1
+times faster and transfer-inclusive GPU is 17.7 to 17.9 times faster.
 `fortnum` uses `fortsym` at build time for symbolic algebra and code
 generation. The first pinned generator is under `tools/codegen/`; generated
 production sources are committed under `src/generated/`. The

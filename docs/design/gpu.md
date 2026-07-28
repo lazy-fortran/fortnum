@@ -519,7 +519,7 @@ required validate–measure–document–commit cycle independently.
 | Fixed quadrature | covered pilot | arbitrary-order analytical JVP/VJP loops; exact-polynomial and adjoint oracles; resident and transfer wall clock |
 | Fixed-size linear algebra | covered pilot | generated 3x3 determinant/inverse JVP/VJP; finite-difference, matrix-product, and adjoint oracles; resident and transfer wall clock |
 | FFT rules | covered fixed-length pilot | shared analytical length-8 radix-2 JVP/VJP; direct-DFT and complex-adjoint oracles; resident and transfer wall clock |
-| Fixed-trace ODE products | pending | no validated device pilot |
+| Fixed-trace ODE products | covered pilot | two-state transition-map tangent/adjoint recurrences; closed-form scaled-rotation and adjoint oracles; batch/trace scaling, cache, resident and transfer wall clock |
 
 For special functions, the largest transfer-inclusive Dawson value/JVP
 workload is 2.006 times faster than its CPU comparator with OpenACC and 1.6585
@@ -661,6 +661,46 @@ The two live complex arrays occupy 268,435,456 B at the largest batch. CPU peak
 host RSS is about 273.9 MB. GPU-process host peak RSS ranges from 258,519,040
 to 399,101,952 B. Exact dispersion, memory, provenance, and all three workload
 sizes are in `benchmark/reference/rtx5060ti_fft8_products.json`.
+
+### Fixed-trace ODE pilot
+
+The fixed-trace ODE boundary receives the recorded local transition map of each
+accepted discrete step. JVP applies those maps in chronological order; VJP
+applies their transposes in reverse order. Adaptive decisions and construction
+of the maps remain inactive. One shared device leaf implements both recurrences
+without callbacks, solver allocation, or a full Jacobian product.
+
+The pilot uses two-state maps so the complete trace can be validated
+independently: every step is a known scale times a rotation. Their product is
+the product of scales and the rotation by the sum of angles. Both real-device
+tests compare 4,096 trajectories with that closed form and the adjoint identity.
+
+Complete-workload medians for representative JVP workloads are:
+
+| Trajectories | Steps | CPU ms | OpenACC resident/transfer ms | OpenMP resident/transfer ms |
+| ---: | ---: | ---: | ---: | ---: |
+| 256 | 64 | 0.019625 | 0.014645 / 0.034609 | 0.015238 / 0.035730 |
+| 65,536 | 8 | 0.3410 | 0.0210 / 0.3309 | 0.0200 / 0.3269 |
+| 65,536 | 64 | 5.0471 | 0.1111 / 0.4201 | 0.1099 / 0.4110 |
+| 65,536 | 512 | 49.3090 | 0.8411 / 1.1680 | 0.8230 / 1.1389 |
+| 1,048,576 | 64 | 81.1939 | 1.5879 / 4.5888 | 1.5571 / 4.7769 |
+
+VJP follows the same scaling. At 1,048,576 trajectories and 64 steps, resident
+GPU is 52.1 times faster for JVP and 50.7 times faster for VJP.
+Transfer-inclusive speedups are 17.7 and 17.9 times. Even the eight-step,
+65,536-trajectory workload narrowly amortizes transfers; the 256-trajectory
+workload selects GPU only when data is already resident.
+
+CPU cache-miss fraction rises from 2.90 percent at eight steps to 3.44 percent
+at 64 and 4.72 percent at 512. The common trace occupies only 16 KiB at 512
+steps, so the larger slowdown is dominated by the serial dependency recurrence
+rather than trace capacity alone.
+
+At the largest batch and 64 steps, live arrays occupy 33,556,480 B. CPU peak
+host RSS is about 38.8 MB; GPU-process host peak RSS ranges from 142,426,112 to
+163,590,144 B. Exact JVP/VJP dispersion, all trace scaling, raw cache counters,
+memory, and provenance are in
+`benchmark/reference/rtx5060ti_ode_trace2_products.json`.
 
 ## Immediate implementation order
 

@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "source_revision": "4d73cc40818c233fc41806f0ae408f131ee03d73",
+  "operation": "batched two-state fixed-trace ODE JVP/VJP",
+  "classification": "analytical",
+  "derivative_contract": "JVP applies recorded local transition maps forward; VJP applies their transposes in reverse order",
+  "trace_contract": "adaptive decisions and step construction are inactive; transitions are the recorded derivative of each accepted discrete step",
+  "residency_policy": "transfer-inclusive and resident measured separately",
+  "device_execution_proof": "OpenACC NVIDIA device check and mandatory non-host OpenMP target check",
+  "workload": {
+    "state_size": 2,
+    "workloads": ["256x64", "65536x8", "65536x64", "65536x512", "1048576x64"],
+    "samples": 31,
+    "warmup_samples": 3,
+    "pinned_cpu": 4,
+    "small_batch_repetitions": "ceil(65536/batch_size), reported per call"
+  },
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "gpu": "NVIDIA GeForce RTX 5060 Ti",
+    "driver": "610.43.03"
+  },
+  "toolchain": {
+    "compiler": "NVHPC nvfortran 26.5",
+    "openacc_flags": "-fast -O3 -acc",
+    "openmp_flags": "-fast -O3 -mp=gpu -mp"
+  },
+  "validation": {
+    "trajectories": 4096,
+    "steps": 64,
+    "oracle": "closed-form product of scaled rotations for both directions and adjoint identity",
+    "relative_tolerance": 3e-13
+  },
+  "median_ms": {
+    "workloads": ["256x64", "65536x8", "65536x64", "65536x512", "1048576x64"],
+    "jvp": {
+      "cpu": [0.019625, 0.341000, 5.047100, 49.309000, 81.193900],
+      "openacc_resident": [0.014645, 0.021000, 0.111100, 0.841100, 1.587900],
+      "openacc_transfer": [0.034609, 0.330900, 0.420100, 1.168000, 4.588800],
+      "openmp_resident": [0.015238, 0.020000, 0.109900, 0.823000, 1.557100],
+      "openmp_transfer": [0.035730, 0.326900, 0.411000, 1.138900, 4.776900]
+    },
+    "vjp": {
+      "cpu": [0.019511, 0.376000, 4.908100, 49.190000, 78.988100],
+      "openacc_resident": [0.014715, 0.020000, 0.112000, 0.841200, 1.588100],
+      "openacc_transfer": [0.035023, 0.330000, 0.407900, 1.138000, 4.420900],
+      "openmp_resident": [0.015219, 0.020000, 0.109200, 0.823100, 1.558000],
+      "openmp_transfer": [0.035594, 0.325900, 0.409900, 1.124100, 4.415000]
+    }
+  },
+  "mad_ms": {
+    "workloads": ["256x64", "65536x8", "65536x64", "65536x512", "1048576x64"],
+    "jvp": {
+      "cpu": [0.000039, 0.003000, 0.015000, 0.334000, 0.316800],
+      "openacc_resident": [0.000188, 0.000900, 0.000200, 0.000200, 0.001000],
+      "openacc_transfer": [0.000243, 0.003100, 0.006900, 0.005000, 0.060700],
+      "openmp_resident": [0.000109, 0.000000, 0.000300, 0.000900, 0.001000],
+      "openmp_transfer": [0.000359, 0.002900, 0.005000, 0.005000, 0.103000]
+    },
+    "vjp": {
+      "cpu": [0.000285, 0.021900, 0.016200, 0.101100, 0.270200],
+      "openacc_resident": [0.000196, 0.000100, 0.000100, 0.001200, 0.001200],
+      "openacc_transfer": [0.000550, 0.006900, 0.001900, 0.003100, 0.018800],
+      "openmp_resident": [0.000012, 0.000000, 0.000300, 0.000100, 0.000900],
+      "openmp_transfer": [0.000133, 0.006300, 0.004900, 0.004000, 0.012100]
+    }
+  },
+  "cpu_cache_counters_jvp_batch65536": {
+    "steps": [8, 64, 512],
+    "cycles": [58920829, 822155138, 8019873825],
+    "instructions": [198865581, 905347214, 6557191026],
+    "cache_references": [2533492, 2661525, 4567331],
+    "cache_misses": [73358, 91652, 215673],
+    "cache_miss_fraction": [0.02896, 0.03443, 0.04722]
+  },
+  "peak_host_rss_bytes_at_batch1048576_steps64": {
+    "live_numerical_arrays": 33556480,
+    "jvp": {
+      "cpu": 38768640,
+      "openacc_resident": 142548992,
+      "openacc_transfer": 159490048,
+      "openmp_resident": 148045824,
+      "openmp_transfer": 163119104
+    },
+    "vjp": {
+      "cpu": 38772736,
+      "openacc_resident": 142426112,
+      "openacc_transfer": 158760960,
+      "openmp_resident": 147443712,
+      "openmp_transfer": 163590144
+    }
+  },
+  "selection": {
+    "batch256_steps64": "resident GPU; CPU when transfers are required",
+    "batch65536_steps8": "GPU including transfers, with a narrow four-percent margin",
+    "batch65536_steps64_or_more": "GPU resident and transfer-inclusive",
+    "batch1048576_steps64": "GPU resident and transfer-inclusive",
+    "reason": "minimum measured complete-workload wall clock; selection depends on batch size, trace length, and residency"
+  },
+  "verdict": "at 1048576 trajectories and 64 steps, resident GPU wins by 50.7 to 52.1 times and transfer-inclusive GPU wins by 17.7 to 17.9 times"
+}
