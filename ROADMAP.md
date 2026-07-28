@@ -330,6 +330,16 @@ support.
 
 ## Analytical and hybrid generation migration
 
+- [x] Establish a compact documentation map and rewrite the README, contributor
+  guide, benchmark guide, and repository templates around current behavior.
+- [ ] Rewrite the API guide and module design documents as concise contracts
+  checked against the production source.
+- [ ] Rewrite the differentiation, GPU, migration, and evidence documents;
+  remove append-only implementation history while preserving authoritative
+  benchmark data and decisions.
+- [ ] Add documentation drift checks for internal links, source ownership,
+  terminology, generated revisions, and stale future-tense claims.
+
 - [x] Inventory every derivative kernel as `fortsym`-generated, hand-written
   algorithmic, hand-written stable recurrence, implicit solve, frozen trace,
   or generated hybrid boundary.

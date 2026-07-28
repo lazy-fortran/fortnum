@@ -1,122 +1,105 @@
-# Contributing to fortnum
+# Contributing
 
-fortnum is a clean-room Fortran numerical library. Every public procedure is
-primal-first and derivative-plural. This document describes how to contribute,
-what the milestone structure is, and what contract a new or ported module must
-satisfy.
+`fortnum` accepts small, independently validated changes. Read
+[AGENTS.md](AGENTS.md) and the relevant design contract before editing a
+numerical module.
 
-## Milestones
+## Workflow
 
-| Milestone | Scope |
-|-----------|-------|
-| M0 | Infrastructure: CMake, fpm, CI skeleton, code style, AD policy framework |
-| M1 | Special-function kernels (Bessel, gamma, error function, …) |
-| M2 | ODE solvers |
-| M3 | Roots, interpolation, random number generation |
-| M4 | Adaptive integration and quadrature |
-| M5 | Hardening: edge cases, precision audit, portability |
-| M6 | Differentiability: Enzyme wiring, oracle suite, AD policy review |
+1. Select one unchecked item in [ROADMAP.md](ROADMAP.md), or one narrowly
+   scoped issue.
+2. Make the smallest complete change.
+3. Add an independent behavioral oracle.
+4. Update the affected user, design, and benchmark documentation.
+5. Run focused checks while developing.
+6. Run the full gate before committing.
+7. Check off the ROADMAP item, commit, push `main`, and install.
 
-Work in a feature branch. Name it `m<N>/<short-description>`, e.g.
-`m1/bessel-j0`. Open a PR against `main` when tests pass.
+The full local gate is:
 
-## Build
-
-CMake is the primary build system:
-
-```
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
-cmake --build build -j
+```bash
+fo
+cmake -S . -B build
+cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-`fpm` also works via `fo`. Run `fo` (no arguments) for the full pipeline:
-static analysis, build, test, lint, format check.
+Code-generation changes also require:
 
-## Code style
+```bash
+cd tools/codegen
+./check_generated.sh
+```
 
-- Free source form. `implicit none` in every scoping unit.
-- `use <mod>, only: ...` before `implicit none`.
-- `real(dp)` via `use, intrinsic :: iso_fortran_env, only: dp => real64`.
-- All dummy arguments have explicit `intent`. Declarations at start of scope.
-- Derived-type names end in `_t`. `allocatable` over pointers.
-- No module-level `save` or global mutable state.
-- `fprettify`: 88-column width, 4-space indent.
-- Comments say why a choice was made, not what the next line does.
+Use `fo test <name>` and `fo exec <target>` for focused Fortran work. Do not
+invoke build-tree test binaries directly.
 
-## Per-module contract
+## Numerical changes
 
-Every public procedure must satisfy the following contract before a PR merges.
+Tests must compare behavior with an independent source:
 
-### 1. Derivative candidates
+- an exact formula or manufactured solution
+- an adjoint dot-product identity
+- a residual linearization
+- high-precision or published reference data
+- central finite differences or complex step when their assumptions hold
 
-Each public procedure documents the admissible candidates for every supported
-derivative product. Use the terminology from `docs/design/ad.md`:
+A check that restates the implementation is not an oracle. Cover normal
+inputs, boundaries, regime changes, singular cases, and documented failure
+status where applicable.
 
-- `autodiff`: compiler or source-transformation differentiation
-- `analytical`: expressions, recurrences, implicit rules, tangent or adjoint
-  solves, linear operators, and frozen traces
-- `hybrid`: autodiff composition with analytical rules at mathematical
-  operator boundaries
-- `primal_only`: no derivative is meaningful for the declared active arguments
+Preserve stable floating-point semantics. Fast-math, reassociation, approximate
+functions, and relaxed contraction need a stated accuracy contract plus a
+measured complete-workload benefit.
 
-Candidates are not exclusive procedure classes. A root JVP can have an
-analytical implicit candidate, an autodiff comparator, and a hybrid candidate
-that uses autodiff residual products.
+## Derivative changes
 
-Selected production implementations require independent validation plus
-runtime and peak-memory evidence for representative workloads. Read
-`docs/design/differentiation_plan.md` before derivative implementation work.
+Use `autodiff`, `analytical`, and `hybrid` as defined in
+[docs/design/ad.md](docs/design/ad.md). Register competing candidates per
+product. A mechanism name never selects a winner.
 
-Future symbolic algebra and code generation belong in `../fortsym`. The library
-is unfinished, so do not invent a `fortsym` API or duplicate a provisional
-symbolic engine in `fortnum`.
+Document:
 
-### 2. Active vs. inactive arguments
+- the mathematical operator
+- active and inactive arguments
+- requested product (`JVP`, `VJP`, gradient, or `HVP`)
+- all admissible candidates
+- the independent validation oracle
+- workload dimensions and reusable primal state
+- median wall clock, dispersion, and candidate-specific peak memory
+- input, output, and direction scaling when it can change forward/reverse
+  selection
+- cache or device counters when they explain complete-workload wall clock
 
-The module doc comment or the procedure doc comment must list which dummy
-arguments are *active* (carry derivative information) and which are *inactive*
-(parameters, indices, tolerances). The explicit declaration is the contract for
-all autodiff, analytical, and hybrid candidates.
+Use an analytical implicit candidate for residual-defined outputs. Keep solver
+iterations, adaptive decisions, and index searches outside generic autodiff
+unless a measured candidate deliberately differentiates a fixed trace.
 
-### 3. Primal purity
+Use `../lazy-fortran/fortsym` for symbolic algebra and generated Fortran.
+Generated code handles local explicit algebra and mechanical Enzyme
+boundaries. Stable recurrences, solver orchestration, traces, and independent
+oracles remain hand-written. Extend and test `fortsym` in its own repository
+when its supported interface is insufficient.
 
-Write primal routines `pure` wherever the algorithm allows it. Avoid I/O,
-internal state, and pointer aliasing in the primal path. A `pure` primal is a
-prerequisite for reliable autodiff and keeps oracle tests deterministic.
+## Fortran style
 
-### 4. Tests
+- free-form Fortran 2018
+- `implicit none` in every scope
+- explicit `intent` on every dummy argument
+- declarations at the start of a scope
+- `use ..., only:` before `implicit none`
+- `real(dp)` with `dp => real64`
+- `_t` suffix for derived types
+- `allocatable` in preference to pointers
+- no mutable global numerical state
+- no allocation inside hot loops
+- 4-space indentation and an 88-column formatting target
 
-Every numerical module requires:
+Fortran `.and.` and `.or.` do not short-circuit. Split guards that protect
+indexing, allocation, optional arguments, pointer association, or descriptors.
 
-- **Unit tests** under `test/<domain>/` covering normal inputs and documented
-  edge cases.
-- **Oracle tests** under `test/oracle/` that compare the routine against an
-  independent reference (scipy, DLMF tables, or an analytic result). The
-  oracle test is the ground truth for both value and derivative correctness.
-  Use `test-drive` assertions with explicit tolerances.
+## Pull requests and issues
 
-Tests run via CTest. Do not merge if any test fails.
-
-## Filing issues
-
-Use the issue templates in `.github/ISSUE_TEMPLATE/`. Two templates exist:
-
-- **Module port**: for porting a known algorithm from a published
-  reference.
-- **Clean-room implementation**: for writing a new routine from primary
-  sources (DLMF, textbooks, papers) without reference to existing code.
-
-Both templates ask for derivative candidates up front. List all admissible
-candidates, or mark the list `TBD` and open a follow-up referencing
-`docs/design/ad.md`.
-
-## Pull requests
-
-Use the pull request template. A PR must include:
-
-- a reference to the issue it closes,
-- the derivative candidates for each new public procedure and product,
-- real `ctest` output showing all tests pass.
-
-Do not open a PR that skips, weakens, or disables existing tests.
+Use the repository templates. A pull request identifies its oracle, commands
+run, benchmark evidence, documentation changes, and generated-source status.
+Do not weaken or skip a failing test.

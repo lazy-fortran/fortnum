@@ -1,29 +1,40 @@
-## Issue
+## Scope
 
 Closes #
 
-## Summary
+What behavior changes, and what remains outside this pull request?
 
-What does this add or change, and why?
+## Numerical contract
 
-## Derivative candidates
-
-For each new public procedure and product, list the admissible `autodiff`,
-`analytical`, and `hybrid` candidates. Identify `primal_only` operations with a
-justification. See `docs/design/ad.md`.
-
-| Procedure | Product | Candidates | Active args | Validation oracle |
-|---|---|---|---|---|
+| Procedure or kernel | Active arguments | Product | Candidates | Selected candidate |
+| --- | --- | --- | --- | --- |
 | | | | | |
 
-If this PR selects a production winner, link runtime and peak-memory evidence.
+For residual-defined outputs, include the analytical implicit candidate.
+
+## Validation
+
+What independent oracle checks the behavior? Include boundary, singular, or
+trace cases relevant to the change.
+
+## Performance
+
+Give complete-workload median wall clock, dispersion, and candidate-specific
+peak memory. State the comparison baseline, workload dimensions, compiler,
+hardware, and affinity. Add scaling and cache or device counters when they
+affect selection.
+
+## Generated sources and documentation
+
+- [ ] Generated files reproduce byte-for-byte, or this change has none
+- [ ] README, API, design, migration, and benchmark docs are current
+- [ ] No generated PNG files are committed
 
 ## Verification
 
-Paste real `ctest` output below. Do not paste partial output or summarize it.
+Paste the commands and result counts:
 
-```
+```text
+fo
 ctest --test-dir build --output-on-failure
 ```
-
-All tests must pass. Do not weaken or skip failing tests.

@@ -1,53 +1,40 @@
 ---
 name: Clean-room implementation
-about: Implement a routine from primary sources with no reference code
+about: Implement a numerical operator from primary sources
 labels: new-routine
 ---
 
-## Routine
+## Operator
 
-Name and domain (e.g. `dop853`, ODE solvers).
+Name, mathematical definition, domain, and expected public module.
 
 ## Primary sources
 
-List the algorithms, papers, or standards (DLMF, textbooks) the implementation
-will follow. No reference to GPL/LGPL source code.
+List equations, algorithms, standards, and test data. Do not consult
+license-incompatible implementation source.
 
-## Derivative candidates
+## Interface
 
-Select every admissible candidate per derivative product or mark `TBD`. See
-`docs/design/ad.md`.
+Sketch the Fortran signature. Identify active inputs, inactive controls,
+outputs, status behavior, numerical regimes, and stability requirements.
 
-- [ ] `autodiff`
-- [ ] `analytical`
-- [ ] `hybrid`
-- [ ] `finite_difference_reference`
-- [ ] `primal_only` (justify below)
+## Derivative products
 
-Justification for `primal_only` (if applicable):
+| Product | `autodiff` candidates | `analytical` candidates | `hybrid` candidates |
+| --- | --- | --- | --- |
+| JVP | | | |
+| VJP | | | |
+| gradient or HVP | | | |
 
-Requested products and candidate details:
+Explain any unsupported product. Include an analytical implicit candidate when
+the output is defined by a residual.
 
-Validation oracle:
+## Validation
 
-Representative benchmark workloads:
+Name an independent oracle and include boundary, regime-transition, singular,
+and failure-status cases.
 
-## Active arguments
+## Performance
 
-List which dummy arguments carry derivative information and which are inactive
-(indices, tolerances, mode flags).
-
-## Oracle reference
-
-Where will the oracle test get its reference values? (scipy, DLMF table,
-analytic result, manufactured solution, …)
-
-## Public interface sketch
-
-Paste a draft Fortran interface or subroutine signature. Enough to agree on
-argument names, intents, and types before implementation starts.
-
-## Milestone
-
-Which milestone does this belong to? (M1 kernels, M2 ODE, M3 roots/interp/rng,
-M4 adaptive integration)
+List representative dimensions, batches, active-input/output counts,
+directions, reusable primal state, and target hardware.
