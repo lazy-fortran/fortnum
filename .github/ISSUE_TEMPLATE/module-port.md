@@ -1,50 +1,40 @@
 ---
 name: Module port
-about: Port an existing algorithm from a published reference
+about: Reimplement a published numerical algorithm
 labels: port
 ---
 
-## Routine
+## Operator
 
-Name and domain (e.g. `bessel_j0`, special functions).
+Name, mathematical definition, domain, and expected public module.
 
-## Reference implementation
+## Sources and license
 
-Link or citation: library, file, function name, version or commit.
+List the paper, standard, textbook, or reference implementation with its exact
+version. State the source license and the clean-room boundary required for an
+MIT implementation.
 
-Note any license restrictions. fortnum is MIT; the port must be a
-clean-room reimplementation if the source is GPL or LGPL.
+## Interface
 
-## Derivative candidates
+Sketch the Fortran signature. Identify active inputs, inactive controls,
+outputs, status behavior, and numerical regimes.
 
-Select every admissible candidate per derivative product or mark `TBD`. See
-`docs/design/ad.md`.
+## Derivative products
 
-- [ ] `autodiff`
-- [ ] `analytical`
-- [ ] `hybrid`
-- [ ] `finite_difference_reference`
-- [ ] `primal_only` (justify below)
+| Product | `autodiff` candidates | `analytical` candidates | `hybrid` candidates |
+| --- | --- | --- | --- |
+| JVP | | | |
+| VJP | | | |
+| gradient or HVP | | | |
 
-Justification for `primal_only` (if applicable):
+Explain any unsupported product. Include an analytical implicit candidate when
+the output is defined by a residual.
 
-Requested products and candidate details:
+## Validation
 
-Validation oracle:
+Name an independent oracle and its boundary or singular test cases.
 
-Representative benchmark workloads:
+## Performance
 
-## Active arguments
-
-List which dummy arguments carry derivative information and which are inactive
-(indices, tolerances, mode flags).
-
-## Oracle reference
-
-Where will the oracle test get its reference values? (scipy, DLMF table,
-analytic result, …)
-
-## Milestone
-
-Which milestone does this belong to? (M1 kernels, M2 ODE, M3 roots/interp/rng,
-M4 adaptive integration)
+List representative dimensions, batches, active-input/output counts,
+directions, reusable primal state, and target hardware.

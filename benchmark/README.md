@@ -1,120 +1,113 @@
-# fortnum benchmarks
+# Benchmarks
 
-Micro-benchmark harness for primal call overhead. Each benchmark is a
-`(name, callable)` pair; the harness times the callable over many
-repetitions and reports nanoseconds per call.
+`benchmark/` contains three kinds of performance evidence:
 
-## Run
+| Location | Purpose |
+| --- | --- |
+| `benchmark/reference/*.json` | Machine-readable measurements and selections |
+| `benchmark/report/data/*.csv` | Normalized data for cross-kernel reports |
+| `benchmark/report/app/*.f90` | `fortplot` figure generators |
 
-The benchmark build is standalone and never touches `src/` or `test/`:
+Generated figures stay outside the repository.
+
+## Primal microbenchmarks
+
+Build the standalone harness in Release mode:
 
 ```bash
 cmake -S benchmark -B build-bench -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build-bench -j
+cmake --build build-bench
 ./build-bench/bin/bench_main
 ```
 
-Use `Release`. At `-O0` the numbers measure the compiler's missing
-optimizer, not the routine.
-
-Output is one row per case: name, repetitions, ns/call, and the
-derivative columns (empty until M6 fills them).
-
-Derivative tournaments that require the Flang/Enzyme pipeline live in the
-Enzyme test build rather than this gfortran-only primal harness. Their
-machine-readable reference runs are committed under `benchmark/reference/`;
-see `docs/design/differentiation_benchmarks.md` for commands and tables.
-
-The cumulative differentiation report normalizes mechanism-level tournaments
-and generates figures with a pinned `fortplot`:
-
-```bash
-mkdir -p /tmp/fortnum-differentiation-report
-cd benchmark/report
-fo exec plot_differentiation_report \
-  data/mechanism_tournaments.csv /tmp/fortnum-differentiation-report
-```
-
-Only the generator and its normalized source data are committed; generated
-PNGs remain outside the repository. See
-`docs/design/differentiation_report.md` for the inclusion rule and overall
-statistics.
-
-## Add a benchmark
-
-A kernel is a function returning `real(dp)`. Return the result so the
-optimizer cannot delete the work:
-
-```fortran
-function kernel_my_routine() result(sink)
-    use my_module, only: my_routine
-    real(dp) :: sink
-    sink = my_routine(...)
-end function kernel_my_routine
-```
-
-Register it in `bench_main.f90`:
-
-```fortran
-call registry%add("my_routine", kernel_my_routine)
-```
-
-If the routine pulls in more `src/` modules, add their source paths to
-`add_executable(bench_main ...)` in `benchmark/CMakeLists.txt`.
-
-## Derivative overhead (M6, issue #36)
-
-`registry%add` takes an optional `deriv=` kernel of the same shape. Pass
-the JVP/VJP variant of a routine and the harness times both, then reports
-the primal/derivative ratio:
-
-```fortran
-call registry%add("rosenbrock", primal_rosenbrock, deriv=vjp_rosenbrock)
-```
-
-The result type and the report table already carry the derivative
-columns, so M6 adds autodiff kernels without changing the harness.
-
-## Regression gate
-
-`bench_main --json` emits a machine-readable run that `gate.py` compares
-against `baseline.json`. A primal benchmark slower than `baseline * factor`
-(default 2.0) fails the gate with a nonzero exit. CI runs it on every push.
+JSON output can be checked against the committed baseline:
 
 ```bash
 ./build-bench/bin/bench_main --json | python3 benchmark/gate.py
-# or against a saved run, with a custom factor:
 python3 benchmark/gate.py --run run.json --factor 1.5
 ```
 
-The JSON schema is one object per benchmark under `benchmarks`:
-`name`, `reps`, `ns_per_call`, a legacy `backend` tag
-(`analytic | implicit | trace | generated | primal`), and the
-derivative-product fields `deriv_ns_per_call`, `jvp_primal`, `vjp_primal`,
-`grad_primal`, `hvp_primal`. The derivative fields are `null` until M6
-supplies autodiff kernels; the schema reserves them now so the baseline
-format does not change when they arrive.
-
-New derivative evidence uses the public mechanism names `autodiff`,
-`analytical`, and `hybrid`. The legacy field is retained only for compatibility
-with the original primal regression baseline.
-
-Derivative-overhead ratios are checked but non-blocking by default (runner
-noise on those ratios is not yet characterized). Pass `--gate-derivative`
-to make them fail the gate once a noise budget is set.
-
-### Refresh the baseline
-
-Regenerate after an intended performance change, on a quiet machine, in a
-Release build:
+Refresh `benchmark/baseline.json` only for an intentional performance change
+measured on a quiet reference host:
 
 ```bash
-cmake -S benchmark -B build-bench -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build-bench -j
 ./build-bench/bin/bench_main --json > benchmark/baseline.json
 ```
 
-Commit the new `baseline.json` with the change that motivated it. The same
-command refreshes derivative timings: once `bench_main` registers JVP/VJP
-kernels, their `deriv_ns_per_call` and `*_primal` ratios populate
-automatically in the regenerated baseline.
+Commit the new baseline with the implementation that changed it.
+
+## Derivative tournaments
+
+Derivative benchmarks compare implementations of the same mathematical
+product and workload. Use these public labels:
+
+- `analytical`
+- `autodiff`
+- `hybrid`
+- `finite_difference_reference` for diagnostics
+
+Each record must state:
+
+- operator, product, active inputs, outputs, and derivative directions
+- compiler, flags, source revision, hardware, and affinity
+- workload repetitions, warmups, samples, median, and dispersion
+- validation error and oracle
+- candidate-specific peak memory
+- reusable primal values, traces, factors, or preconditioners
+- selected candidate and deterministic reason
+
+Report complete-workload wall clock first. Add CPU work and cache counters,
+native code size, transfer-inclusive GPU time, resident GPU time, device
+memory, bandwidth, occupancy, registers, and spills when available and
+relevant.
+
+“Faster” always compares rows with the same operator, product, workload, and
+returned values. Never compare an isolated derivative kernel with a
+value-plus-derivative candidate without labeling the difference.
+
+## Reports
+
+Generate the cumulative CPU report:
+
+```bash
+output_dir=$(mktemp -d)
+cd benchmark/report
+fo exec plot_differentiation_report \
+  data/mechanism_tournaments.csv "${output_dir}"
+```
+
+Generate the GPU report:
+
+```bash
+output_dir=$(mktemp -d)
+cd benchmark/report
+fo exec plot_gpu_report \
+  data/gpu_batch_scaling.csv \
+  data/gpu_active_scaling.csv \
+  data/gpu_profile.csv \
+  "${output_dir}"
+```
+
+The report programs use the pinned `fortplot` dependency from
+`benchmark/report/fpm.toml`.
+
+## Add a benchmark
+
+Keep the benchmark workload observable so the optimizer cannot delete it.
+Measure candidates in separate processes when peak RSS must be attributed to
+one candidate. Pin the process and record the affinity for low-latency CPU
+workloads.
+
+For a new derivative tournament:
+
+1. implement an independent oracle
+2. validate every candidate before timing
+3. choose representative workload classes
+4. record raw or machine-readable results
+5. normalize report rows when the tournament meets the report inclusion rule
+6. update the evidence index and selected-candidate registry where applicable
+
+See [docs/design/differentiation_benchmarks.md](../docs/design/differentiation_benchmarks.md)
+for the evidence catalog and
+[docs/design/differentiation_report.md](../docs/design/differentiation_report.md)
+for aggregate statistics.
