@@ -30,9 +30,9 @@ fortnum build.
 | `hybrid` | 2 | 6.2% | 3 |
 | finite-difference diagnostic | 0 | 0.0% | 0 |
 
-Across the 32 workloads, the second-fastest candidate ranges from 1.004x to
-1,224.355x the fastest wall clock. The median ratio is 1.275x and the
-geometric mean is 2.080x. Thirteen workloads have a runner-up within 20% of the
+Across the 32 workloads, the second-fastest candidate ranges from 1.001x to
+1,224.360x the fastest wall clock. The median ratio is 1.275x and the
+geometric mean is 2.078x. Thirteen workloads have a runner-up within 20% of the
 fastest candidate; full finite-difference VJPs of fitted coefficients provide
 the largest separation.
 Consequently, mechanism counts describe only the current measured workload
@@ -77,6 +77,13 @@ analytical at 78.80 ns versus 79.82 ns hybrid. Autodiff through 12 Newton
 iterations is 2.79x slower for JVP and 2.62x slower for VJP than the selected
 implicit candidates. Cache misses are nearly identical, so the extra executed
 work—not cache behavior—explains the larger wall clock.
+
+Fixed quadrature now uses generated Enzyme wrappers for both the five-input
+integrand and four-input complete operator. For its four-input, one-output
+shape, four analytical forward JVPs take 1.223 µs while one analytical reverse
+VJP takes 0.301 µs. The corresponding autodiff times are 1.702 µs and
+0.440 µs. Analytical remains selected for both products; peak RSS and cache
+misses do not materially distinguish the leading candidates.
 
 The modified-Bessel outer objective strengthens that conclusion across primal
 regions. At 16 products, analytical wins series JVP/VJP, recurrence VJP, and

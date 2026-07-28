@@ -1775,6 +1775,48 @@ taskset -c 4 \
     --benchmark hybrid 1
 ```
 
+### Generated-wrapper migration
+
+The fixture now generates both mechanical Enzyme boundaries from `fortsym`: a
+five-input scalar wrapper for the integrand and a four-input scalar wrapper for
+the complete quadrature operator. The previous hand-written forward and
+reverse whole-operator modules, raw Enzyme interfaces, reverse result structs,
+timers, peak-RSS interfaces, and median/MAD sorting are removed. The analytical
+quadrature contractions and closed-form derivative oracle remain independent
+hand-written mathematics.
+
+Fresh medians use 15 samples after three warmups with candidate dispatch
+resolved before timing:
+
+| Products | JVP analytical | JVP hybrid | JVP autodiff | JVP diagnostic |
+|---:|---:|---:|---:|---:|
+| 1 | 308.4890 ns | 309.6503 ns | 426.1717 ns | 552.5608 ns |
+| 2 | 614.4644 ns | 614.1378 ns | 851.7804 ns | 1,107.2717 ns |
+| 4 | 1,223.4034 ns | 1,225.1036 ns | 1,701.5230 ns | 2,212.0026 ns |
+
+| Products | VJP analytical | VJP hybrid | VJP autodiff | VJP diagnostic |
+|---:|---:|---:|---:|---:|
+| 1 | 300.8006 ns | 309.1954 ns | 439.7283 ns | 2,252.1852 ns |
+| 2 | 600.6143 ns | 616.6546 ns | 880.3522 ns | 4,449.8227 ns |
+| 4 | 1,191.8691 ns | 1,236.2336 ns | 1,783.7159 ns | 8,877.6300 ns |
+
+The two-direction JVP difference is smaller than combined dispersion; the
+four-direction production workload still selects `analytical`. One analytical
+reverse VJP returns the full four-input gradient in 300.8006 ns, whereas four
+analytical forward JVPs take 1,223.4034 ns, a 4.0672-times ratio. The matching
+autodiff and hybrid forward/reverse ratios are 3.8695 and 3.9622. This is the
+expected input/output scaling for four inputs and one output.
+
+At the representative four-JVP workload, analytical executes 392,115,178
+instructions and whole-operator autodiff executes 551,635,802. At one VJP the
+counts are 99,255,280 and 144,875,753. Absolute cache misses are close enough
+to be supporting evidence only; wall clock follows instruction and cycle
+counts. Peak RSS ranges from 2.89 to 3.25 MB and does not select a mechanism.
+
+The current machine-readable record is
+`benchmark/reference/ryzen9_5950x_fixed_quadrature_fixture_migration.json`; the
+earlier JVP and VJP records remain as pre-migration evidence.
+
 ## Analytical frozen-trace adaptive integration
 
 `integrate_qag_jvp` replays the Gauss-Kronrod rule on the exact subdivision

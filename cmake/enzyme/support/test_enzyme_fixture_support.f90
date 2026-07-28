@@ -3,7 +3,7 @@ program test_enzyme_fixture_support
     use fortnum_enzyme_fixture_support, only: fixture_peak_rss_bytes, &
         fixture_sample_count, fixture_timer_t, fixture_warmup_count, &
         collect_fixture_samples, median_mad, read_fixture_environment, &
-        read_fixture_integer, write_fixture_result
+        read_fixture_integer, write_fixture_result, write_fixture_scaling_result
     implicit none
 
     type(fixture_timer_t) :: timer
@@ -59,6 +59,17 @@ program test_enzyme_fixture_support
     if (trim(line) /= &
         "candidate,11,  2.5000000000000000E+00,  2.5000000000000000E-01") then
         error stop "standard result format mismatch"
+    end if
+
+    open (newunit=unit, status="scratch", action="readwrite")
+    call write_fixture_scaling_result( &
+        "candidate", 4, 11, 2.5_dp, 0.25_dp, unit)
+    rewind (unit)
+    read (unit, "(a)") line
+    close (unit)
+    if (trim(line) /= &
+        "candidate,4,11,  2.5000000000000000E+00,  2.5000000000000000E-01") then
+        error stop "scaling result format mismatch"
     end if
 
     call timer%start()

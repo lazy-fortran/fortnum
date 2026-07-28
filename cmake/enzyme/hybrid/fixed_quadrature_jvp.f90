@@ -1,6 +1,9 @@
 module fixed_quadrature_hybrid_kernel
-    use, intrinsic :: iso_c_binding, only: c_double, c_funloc, c_funptr
-    use fixed_quadrature_full_jvp_autodiff, only: full_quadrature_jvp
+    use, intrinsic :: iso_c_binding, only: c_double
+    use fortnum_generated_enzyme_fixed_quadrature_integrand, only: &
+        fortnum_enzyme_fixed_quadrature_integrand_jvp
+    use fortnum_generated_enzyme_fixed_quadrature_kernel, only: &
+        fortnum_enzyme_fixed_quadrature_kernel_jvp
     use fortnum_kinds, only: dp
     use fortnum_quadrature, only: gauss_legendre_jvp
     implicit none
@@ -13,17 +16,6 @@ module fixed_quadrature_hybrid_kernel
     public :: analytical_integral_jvp, autodiff_integral_jvp, hybrid_integral_jvp
     public :: diagnostic_integral_jvp, exact_integral_jvp
     public :: configure_quadrature_kernel
-
-    interface
-        function enzyme_fwddiff(f, x, dx, p1, dp1, p2, dp2, p3, dp3, &
-                p4, dp4) result(df) bind(c, name="__enzyme_fwddiff")
-            import :: c_double, c_funptr
-            type(c_funptr), value :: f
-            real(c_double), value :: x, dx, p1, dp1, p2, dp2
-            real(c_double), value :: p3, dp3, p4, dp4
-            real(c_double) :: df
-        end function enzyme_fwddiff
-    end interface
 
 contains
 
@@ -43,7 +35,7 @@ contains
     end subroutine configure_quadrature_kernel
 
     function quadrature_kernel(p1, p2, p3, p4) result(value) &
-            bind(c, name="fortnum_fixed_quadrature_jvp_kernel")
+            bind(c, name="fortnum_fixed_quadrature_kernel")
         real(c_double), value :: p1, p2, p3, p4
         real(c_double) :: value
         integer :: i
@@ -71,7 +63,9 @@ contains
         real(dp), intent(in) :: parameters(4), direction(4)
         real(dp) :: jvp
 
-        jvp = full_quadrature_jvp(parameters, direction)
+        jvp = fortnum_enzyme_fixed_quadrature_kernel_jvp( &
+            parameters(1), direction(1), parameters(2), direction(2), &
+            parameters(3), direction(3), parameters(4), direction(4))
     end function autodiff_integral_jvp
 
     function hybrid_integral_jvp(nodes, weights, parameters, direction) &
@@ -81,7 +75,7 @@ contains
         integer :: i
 
         do i = 1, size(nodes)
-            tangent_values(i) = enzyme_fwddiff(c_funloc(integrand), &
+            tangent_values(i) = fortnum_enzyme_fixed_quadrature_integrand_jvp( &
                 nodes(i), 0.0_dp, parameters(1), direction(1), &
                 parameters(2), direction(2), parameters(3), direction(3), &
                 parameters(4), direction(4))
@@ -128,11 +122,13 @@ contains
 end module fixed_quadrature_hybrid_kernel
 
 program enzyme_fixed_quadrature_jvp_hybrid
-    use, intrinsic :: iso_c_binding, only: c_int64_t
-    use, intrinsic :: iso_fortran_env, only: dp => real64, int64
+    use, intrinsic :: iso_fortran_env, only: dp => real64
     use fixed_quadrature_hybrid_kernel, only: analytical_integral_jvp, &
         autodiff_integral_jvp, hybrid_integral_jvp, diagnostic_integral_jvp, &
         exact_integral_jvp, configure_quadrature_kernel
+    use fortnum_enzyme_fixture_support, only: collect_fixture_samples, &
+        fixture_peak_rss_bytes, fixture_sample_count, fixture_timer_t, &
+        median_mad, write_fixture_scaling_result
     use fortnum_quadrature, only: gauss_legendre_ab
     implicit none
 
@@ -140,16 +136,10 @@ program enzyme_fixed_quadrature_jvp_hybrid
     integer, parameter :: max_directions = 4
     real(dp) :: nodes(rule_size), weights(rule_size)
     real(dp) :: parameters(4), directions(4, max_directions), errors(4)
+    real(dp) :: samples(fixture_sample_count), sink
     character(32) :: argument, candidate, direction_argument
-    integer :: direction_count
-
-    interface
-        function peak_rss_bytes() bind(c, name="fortnum_peak_rss_bytes") &
-                result(bytes)
-            import :: c_int64_t
-            integer(c_int64_t) :: bytes
-        end function peak_rss_bytes
-    end interface
+    integer :: direction_count, candidate_kind, measurement_count
+    integer :: repetitions
 
     call initialize_workload()
     call get_command_argument(1, argument)
@@ -269,59 +259,55 @@ contains
     subroutine run_single_benchmark(name, count)
         character(*), intent(in) :: name
         integer, intent(in) :: count
-        integer, parameter :: samples = 31
-        integer(int64), parameter :: reps = 10000_int64
-        real(dp) :: elapsed(samples), sink
-        integer :: sample
+        real(dp) :: median, mad
 
         call validate_request(name, count)
-        do sample = 1, 3
-            call time_candidate(name, count, reps/100_int64, sink)
-        end do
-        do sample = 1, samples
-            call time_candidate(name, count, reps, elapsed(sample))
-        end do
-        call report(name, count, elapsed, reps)
+        call select_candidate(name)
+        measurement_count = count
+        repetitions = 10000
+        call collect_fixture_samples(measure_candidate, samples)
+        call median_mad(samples, median, mad)
+        call write_fixture_scaling_result( &
+            name, count, repetitions, median, mad)
     end subroutine run_single_benchmark
 
     subroutine run_peak_rss(name, count)
         character(*), intent(in) :: name
         integer, intent(in) :: count
-        integer(int64), parameter :: reps = 20000_int64
-        real(dp) :: elapsed
 
         call validate_request(name, count)
-        call time_candidate(name, count, reps, elapsed)
-        write (*, "(i0)") peak_rss_bytes()
+        call select_candidate(name)
+        measurement_count = count
+        repetitions = 20000
+        sink = measure_candidate()
+        write (*, "(i0)") fixture_peak_rss_bytes()
     end subroutine run_peak_rss
 
     subroutine run_batch_benchmark(name, batch_size)
         character(*), intent(in) :: name
         integer, intent(in) :: batch_size
-        integer, parameter :: samples = 31
-        integer(int64), parameter :: reps = 2000_int64
-        real(dp) :: elapsed(samples), sink
-        integer :: sample
+        real(dp) :: median, mad
 
         call validate_batch_request(name, batch_size)
-        do sample = 1, 3
-            call time_batch_candidate(name, batch_size, reps/20_int64, sink)
-        end do
-        do sample = 1, samples
-            call time_batch_candidate(name, batch_size, reps, elapsed(sample))
-        end do
-        call report(name, batch_size, elapsed, reps)
+        call select_candidate(name)
+        measurement_count = batch_size
+        repetitions = 2000
+        call collect_fixture_samples(measure_batch_candidate, samples)
+        call median_mad(samples, median, mad)
+        call write_fixture_scaling_result( &
+            name, batch_size, repetitions, median, mad)
     end subroutine run_batch_benchmark
 
     subroutine run_batch_peak_rss(name, batch_size)
         character(*), intent(in) :: name
         integer, intent(in) :: batch_size
-        integer(int64), parameter :: reps = 5000_int64
-        real(dp) :: elapsed
 
         call validate_batch_request(name, batch_size)
-        call time_batch_candidate(name, batch_size, reps, elapsed)
-        write (*, "(i0)") peak_rss_bytes()
+        call select_candidate(name)
+        measurement_count = batch_size
+        repetitions = 5000
+        sink = measure_batch_candidate()
+        write (*, "(i0)") fixture_peak_rss_bytes()
     end subroutine run_batch_peak_rss
 
     subroutine validate_batch_request(name, batch_size)
@@ -335,46 +321,48 @@ contains
         end if
     end subroutine validate_batch_request
 
-    subroutine time_batch_candidate(name, batch_size, reps, elapsed_ns)
-        character(*), intent(in) :: name
-        integer, intent(in) :: batch_size
-        integer(int64), intent(in) :: reps
-        real(dp), intent(out) :: elapsed_ns
-        integer(int64) :: iteration, start, finish, rate
+    function measure_batch_candidate() result(elapsed_ns)
+        type(fixture_timer_t) :: timer
+        real(dp) :: elapsed_ns
+        integer :: iteration
         integer :: batch, direction
-        real(dp) :: varied_parameters(4), sink
+        real(dp) :: varied_parameters(4), local_sink
 
-        sink = 0.0_dp
-        call system_clock(start, rate)
-        do iteration = 1, reps
-            do batch = 1, batch_size
+        local_sink = 0.0_dp
+        call timer%start()
+        do iteration = 1, repetitions
+            do batch = 1, measurement_count
                 varied_parameters = parameters
                 varied_parameters(1) = varied_parameters(1) + &
-                    1.0e-6_dp*real(mod(iteration, 101_int64), dp) + &
+                    1.0e-6_dp*real(mod(iteration, 101), dp) + &
                     1.0e-3_dp*real(batch - 1, dp)
                 do direction = 1, 4
-                    select case (name)
-                    case ("analytical")
-                        sink = sink + analytical_integral_jvp(nodes, weights, &
+                    select case (candidate_kind)
+                    case (1)
+                        local_sink = local_sink + analytical_integral_jvp( &
+                            nodes, weights, &
                             varied_parameters, directions(:, direction))
-                    case ("autodiff")
-                        sink = sink + autodiff_integral_jvp(varied_parameters, &
-                            directions(:, direction))
-                    case ("hybrid")
-                        sink = sink + hybrid_integral_jvp(nodes, weights, &
+                    case (2)
+                        local_sink = local_sink + autodiff_integral_jvp( &
                             varied_parameters, directions(:, direction))
-                    case ("diagnostic")
-                        sink = sink + diagnostic_integral_jvp(nodes, weights, &
+                    case (3)
+                        local_sink = local_sink + hybrid_integral_jvp( &
+                            nodes, weights, &
+                            varied_parameters, directions(:, direction))
+                    case default
+                        local_sink = local_sink + diagnostic_integral_jvp( &
+                            nodes, weights, &
                             varied_parameters, directions(:, direction))
                     end select
                 end do
             end do
         end do
-        call system_clock(finish)
-        elapsed_ns = 1.0e9_dp*real(finish - start, dp)/ &
-            (real(rate, dp)*real(reps, dp))
-        if (sink == huge(sink)) print *, sink
-    end subroutine time_batch_candidate
+        elapsed_ns = timer%elapsed_ns()/real(repetitions, dp)
+        if (local_sink /= local_sink) then
+            error stop "fixed-quadrature JVP batch benchmark failed"
+        end if
+        sink = local_sink
+    end function measure_batch_candidate
 
     subroutine validate_request(name, count)
         character(*), intent(in) :: name
@@ -389,76 +377,58 @@ contains
         end if
     end subroutine validate_request
 
-    subroutine time_candidate(name, count, reps, elapsed_ns)
+    subroutine select_candidate(name)
         character(*), intent(in) :: name
-        integer, intent(in) :: count
-        integer(int64), intent(in) :: reps
-        real(dp), intent(out) :: elapsed_ns
-        integer(int64) :: iteration, start, finish, rate
-        integer :: direction
-        real(dp) :: varied_parameters(4), sink
 
-        sink = 0.0_dp
-        call system_clock(start, rate)
-        do iteration = 1, reps
+        select case (name)
+        case ("analytical")
+            candidate_kind = 1
+        case ("autodiff")
+            candidate_kind = 2
+        case ("hybrid")
+            candidate_kind = 3
+        case default
+            candidate_kind = 4
+        end select
+    end subroutine select_candidate
+
+    function measure_candidate() result(elapsed_ns)
+        type(fixture_timer_t) :: timer
+        real(dp) :: elapsed_ns
+        integer :: iteration
+        integer :: direction
+        real(dp) :: varied_parameters(4), local_sink
+
+        local_sink = 0.0_dp
+        call timer%start()
+        do iteration = 1, repetitions
             varied_parameters = parameters
             varied_parameters(1) = varied_parameters(1) + &
-                1.0e-6_dp*real(mod(iteration, 101_int64), dp)
-            do direction = 1, count
-                select case (name)
-                case ("analytical")
-                    sink = sink + analytical_integral_jvp(nodes, weights, &
+                1.0e-6_dp*real(mod(iteration, 101), dp)
+            do direction = 1, measurement_count
+                select case (candidate_kind)
+                case (1)
+                    local_sink = local_sink + analytical_integral_jvp( &
+                        nodes, weights, &
                         varied_parameters, directions(:, direction))
-                case ("autodiff")
-                    sink = sink + autodiff_integral_jvp(varied_parameters, &
-                        directions(:, direction))
-                case ("hybrid")
-                    sink = sink + hybrid_integral_jvp(nodes, weights, &
+                case (2)
+                    local_sink = local_sink + autodiff_integral_jvp( &
                         varied_parameters, directions(:, direction))
-                case ("diagnostic")
-                    sink = sink + diagnostic_integral_jvp(nodes, weights, &
+                case (3)
+                    local_sink = local_sink + hybrid_integral_jvp(nodes, weights, &
+                        varied_parameters, directions(:, direction))
+                case default
+                    local_sink = local_sink + diagnostic_integral_jvp( &
+                        nodes, weights, &
                         varied_parameters, directions(:, direction))
                 end select
             end do
         end do
-        call system_clock(finish)
-        elapsed_ns = 1.0e9_dp*real(finish - start, dp)/ &
-            (real(rate, dp)*real(reps, dp))
-        if (sink == huge(sink)) print *, sink
-    end subroutine time_candidate
-
-    subroutine report(name, count, values, reps)
-        character(*), intent(in) :: name
-        integer, intent(in) :: count
-        real(dp), intent(in) :: values(:)
-        integer(int64), intent(in) :: reps
-        real(dp) :: ordered(size(values)), deviations(size(values))
-        real(dp) :: median, mad
-
-        ordered = values
-        call sort_values(ordered)
-        median = ordered((size(ordered) + 1)/2)
-        deviations = abs(values - median)
-        call sort_values(deviations)
-        mad = deviations((size(deviations) + 1)/2)
-        write (*, "(a,',',i0,',',i0,',',f12.4,',',f12.4)") &
-            name, count, reps, median, mad
-    end subroutine report
-
-    subroutine sort_values(values)
-        real(dp), intent(inout) :: values(:)
-        real(dp) :: temporary
-        integer :: i, j
-
-        do i = 1, size(values) - 1
-            do j = i + 1, size(values)
-                if (values(j) < values(i)) then
-                    temporary = values(i)
-                    values(i) = values(j)
-                    values(j) = temporary
-                end if
-            end do
-        end do
-    end subroutine sort_values
+        elapsed_ns = timer%elapsed_ns()/real(repetitions, dp)
+        if (local_sink /= local_sink) then
+            error stop "fixed-quadrature JVP benchmark failed"
+        end if
+        sink = local_sink
+    end function measure_candidate
 
 end program enzyme_fixed_quadrature_jvp_hybrid

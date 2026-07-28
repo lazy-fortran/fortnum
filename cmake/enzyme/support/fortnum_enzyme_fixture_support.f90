@@ -28,6 +28,7 @@ module fortnum_enzyme_fixture_support
     public :: read_fixture_environment
     public :: read_fixture_integer
     public :: write_fixture_result
+    public :: write_fixture_scaling_result
 
     interface
         function c_peak_rss_bytes() bind(c, name="fortnum_peak_rss_bytes") &
@@ -131,6 +132,20 @@ contains
         write (destination, "(a,',',i0,',',es24.16,',',es24.16)") &
             trim(name), repetitions, median, mad
     end subroutine write_fixture_result
+
+    subroutine write_fixture_scaling_result(name, scale, repetitions, median, &
+            mad, unit)
+        character(*), intent(in) :: name
+        integer, intent(in) :: scale, repetitions
+        real(dp), intent(in) :: median, mad
+        integer, intent(in), optional :: unit
+        integer :: destination
+
+        destination = output_unit
+        if (present(unit)) destination = unit
+        write (destination, "(a,',',i0,',',i0,',',es24.16,',',es24.16)") &
+            trim(name), scale, repetitions, median, mad
+    end subroutine write_fixture_scaling_result
 
     function fixture_peak_rss_bytes() result(bytes)
         integer(int64) :: bytes

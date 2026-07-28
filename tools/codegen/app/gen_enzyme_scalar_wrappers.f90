@@ -78,6 +78,16 @@ program gen_enzyme_scalar_wrappers
         "fortnum_enzyme_vector_root_objective", &
         "fortnum_vector_newton_objective", &
         "fortnum_enzyme_vector_root_objective.f90", 4)
+    call write_named_wrapper(output_directory, &
+        "fortnum_generated_enzyme_fixed_quadrature_integrand", &
+        "fortnum_enzyme_fixed_quadrature_integrand", &
+        "fortnum_fixed_quadrature_integrand", &
+        "fortnum_enzyme_fixed_quadrature_integrand.f90", 5)
+    call write_named_wrapper(output_directory, &
+        "fortnum_generated_enzyme_fixed_quadrature_kernel", &
+        "fortnum_enzyme_fixed_quadrature_kernel", &
+        "fortnum_fixed_quadrature_kernel", &
+        "fortnum_enzyme_fixed_quadrature_kernel.f90", 4)
     call write_scalar_vector_wrapper(output_directory)
     call write_fixed_array_wrapper(output_directory, &
         "fortnum_generated_enzyme_direct_solver_component", &
