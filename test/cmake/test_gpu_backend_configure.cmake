@@ -45,3 +45,8 @@ check_configure(
     host_openmp_rejected failure "requires explicit.*offload target"
     -DFORTNUM_GPU_BACKEND=OPENMP
     -DFORTNUM_OPENMP_TARGET_FLAGS=)
+check_configure(
+    unvalidated_openmp_compiler_rejected failure
+    "supports only the validated NVHPC nvfortran compiler"
+    -DFORTNUM_GPU_BACKEND=OPENMP
+    -DFORTNUM_OPENMP_TARGET_FLAGS=-fopenmp)
