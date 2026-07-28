@@ -1,19 +1,11 @@
 module ode_rhs_forward_autodiff
-    use, intrinsic :: iso_c_binding, only: c_double, c_funloc, c_funptr
+    use, intrinsic :: iso_c_binding, only: c_double
+    use fortnum_generated_enzyme_ode_scalar_rhs, only: &
+        fortnum_enzyme_ode_scalar_rhs_jvp
     implicit none
     private
 
     public :: rhs_jvp
-
-    interface
-        function enzyme_fwddiff(f, t, dt, y, dy, k, dk) result(derivative) &
-                bind(c, name="__enzyme_fwddiff")
-            import :: c_double, c_funptr
-            type(c_funptr), value :: f
-            real(c_double), value :: t, dt, y, dy, k, dk
-            real(c_double) :: derivative
-        end function enzyme_fwddiff
-    end interface
 
 contains
 
@@ -29,7 +21,7 @@ contains
         real(c_double), intent(in) :: t, y, dy, k, dk
         real(c_double) :: derivative
 
-        derivative = enzyme_fwddiff(c_funloc(scalar_rhs), t, 0.0_c_double, &
+        derivative = fortnum_enzyme_ode_scalar_rhs_jvp(t, 0.0_c_double, &
             y, dy, k, dk)
     end function rhs_jvp
 
@@ -165,21 +157,17 @@ contains
 end module ode_forward_sensitivity_kernel
 
 program enzyme_ode_forward_sensitivity_jvp
-    use, intrinsic :: iso_c_binding, only: c_int64_t
-    use, intrinsic :: iso_fortran_env, only: dp => real64, int64
+    use, intrinsic :: iso_fortran_env, only: dp => real64
+    use fortnum_enzyme_fixture_support, only: collect_fixture_samples, &
+        fixture_peak_rss_bytes, fixture_sample_count, fixture_timer_t, &
+        median_mad, write_fixture_result
     use ode_forward_sensitivity_kernel, only: analytical_value_jvp, &
         hybrid_value_jvp, diagnostic_value_jvp, exact_jvp
     implicit none
 
-    interface
-        function peak_rss_bytes() bind(c, name="fortnum_peak_rss_bytes") &
-                result(bytes)
-            import :: c_int64_t
-            integer(c_int64_t) :: bytes
-        end function peak_rss_bytes
-    end interface
-
     character(32) :: action, candidate
+    real(dp) :: samples(fixture_sample_count), sink
+    integer :: candidate_kind, repetitions
 
     call get_command_argument(1, action)
     call get_command_argument(2, candidate)
@@ -215,29 +203,24 @@ contains
 
     subroutine run_benchmark(name)
         character(*), intent(in) :: name
-        integer, parameter :: samples = 31
-        integer(int64), parameter :: reps = 2000_int64
-        real(dp) :: elapsed(samples), sink
-        integer :: sample
+        real(dp) :: median, mad
 
         call validate_name(name)
-        do sample = 1, 3
-            call time_candidate(name, reps/20_int64, sink)
-        end do
-        do sample = 1, samples
-            call time_candidate(name, reps, elapsed(sample))
-        end do
-        call report(name, elapsed, reps)
+        call select_candidate(name)
+        repetitions = 2000
+        call collect_fixture_samples(measure_candidate, samples)
+        call median_mad(samples, median, mad)
+        call write_fixture_result(name, repetitions, median, mad)
     end subroutine run_benchmark
 
     subroutine run_peak_rss(name)
         character(*), intent(in) :: name
-        integer(int64), parameter :: reps = 5000_int64
-        real(dp) :: elapsed
 
         call validate_name(name)
-        call time_candidate(name, reps, elapsed)
-        write (*, "(i0)") peak_rss_bytes()
+        call select_candidate(name)
+        repetitions = 5000
+        sink = measure_candidate()
+        write (*, "(i0)") fixture_peak_rss_bytes()
     end subroutine run_peak_rss
 
     subroutine validate_name(name)
@@ -249,63 +232,43 @@ contains
         end if
     end subroutine validate_name
 
-    subroutine time_candidate(name, reps, elapsed_ns)
+    subroutine select_candidate(name)
         character(*), intent(in) :: name
-        integer(int64), intent(in) :: reps
-        real(dp), intent(out) :: elapsed_ns
-        integer(int64) :: iteration, start, finish, rate
-        real(dp) :: k, sink
 
-        sink = 0.0_dp
-        call system_clock(start, rate)
-        do iteration = 1, reps
-            k = 0.7_dp + 1.0e-6_dp*real(mod(iteration, 101_int64), dp)
-            select case (name)
-            case ("analytical")
-                sink = sink + analytical_value_jvp(k)
-            case ("hybrid")
-                sink = sink + hybrid_value_jvp(k)
-            case ("diagnostic")
-                sink = sink + diagnostic_value_jvp(k)
+        select case (name)
+        case ("analytical")
+            candidate_kind = 1
+        case ("hybrid")
+            candidate_kind = 2
+        case default
+            candidate_kind = 3
+        end select
+    end subroutine select_candidate
+
+    function measure_candidate() result(elapsed_ns)
+        type(fixture_timer_t) :: timer
+        real(dp) :: elapsed_ns
+        real(dp) :: k, local_sink
+        integer :: iteration
+
+        local_sink = 0.0_dp
+        call timer%start()
+        do iteration = 1, repetitions
+            k = 0.7_dp + 1.0e-6_dp*real(mod(iteration, 101), dp)
+            select case (candidate_kind)
+            case (1)
+                local_sink = local_sink + analytical_value_jvp(k)
+            case (2)
+                local_sink = local_sink + hybrid_value_jvp(k)
+            case default
+                local_sink = local_sink + diagnostic_value_jvp(k)
             end select
         end do
-        call system_clock(finish)
-        elapsed_ns = 1.0e9_dp*real(finish - start, dp)/ &
-            (real(rate, dp)*real(reps, dp))
-        if (sink == huge(sink)) print *, sink
-    end subroutine time_candidate
-
-    subroutine report(name, values, reps)
-        character(*), intent(in) :: name
-        real(dp), intent(in) :: values(:)
-        integer(int64), intent(in) :: reps
-        real(dp) :: ordered(size(values)), deviations(size(values))
-        real(dp) :: median, mad
-
-        ordered = values
-        call sort_values(ordered)
-        median = ordered((size(ordered) + 1)/2)
-        deviations = abs(values - median)
-        call sort_values(deviations)
-        mad = deviations((size(deviations) + 1)/2)
-        write (*, "(a,',',i0,',',f12.4,',',f12.4)") &
-            name, reps, median, mad
-    end subroutine report
-
-    subroutine sort_values(values)
-        real(dp), intent(inout) :: values(:)
-        real(dp) :: temporary
-        integer :: i, j
-
-        do i = 1, size(values) - 1
-            do j = i + 1, size(values)
-                if (values(j) < values(i)) then
-                    temporary = values(i)
-                    values(i) = values(j)
-                    values(j) = temporary
-                end if
-            end do
-        end do
-    end subroutine sort_values
+        elapsed_ns = timer%elapsed_ns()/real(repetitions, dp)
+        if (local_sink /= local_sink) then
+            error stop "ODE forward-sensitivity benchmark failed"
+        end if
+        sink = local_sink
+    end function measure_candidate
 
 end program enzyme_ode_forward_sensitivity_jvp

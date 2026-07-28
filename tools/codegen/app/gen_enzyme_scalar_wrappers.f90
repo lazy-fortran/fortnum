@@ -108,6 +108,10 @@ program gen_enzyme_scalar_wrappers
         "fortnum_enzyme_singular_frozen_trace", &
         "fortnum_singular_frozen_trace_value", &
         "fortnum_enzyme_singular_frozen_trace.f90")
+    call write_named_wrapper(output_directory, &
+        "fortnum_generated_enzyme_ode_scalar_rhs", &
+        "fortnum_enzyme_ode_scalar_rhs", "fortnum_ode_scalar_rhs", &
+        "fortnum_enzyme_ode_scalar_rhs.f90", 3)
     call write_scalar_vector_wrapper(output_directory)
     call write_fixed_array_wrapper(output_directory, &
         "fortnum_generated_enzyme_direct_solver_component", &

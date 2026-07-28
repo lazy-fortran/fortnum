@@ -324,7 +324,7 @@ support.
 - [x] Migrate vector-root JVP and VJP Enzyme fixtures.
 - [x] Migrate fixed-quadrature JVP and VJP Enzyme fixtures.
 - [x] Migrate adaptive-integration Enzyme fixtures.
-- [ ] Migrate the ODE forward-sensitivity Enzyme fixture.
+- [x] Migrate the ODE forward-sensitivity Enzyme fixture.
 - [ ] Remove superseded duplicate helpers and reject new copies in repository
   checks.
 

@@ -103,9 +103,12 @@ The first implementation slice now also contains:
 - generated smooth/singular integrand and complete frozen-trace Enzyme wrappers
   for adaptive integration; trace construction, identity guards, analytical
   trace products, and finite-difference oracles remain hand-written
+- a generated three-input RHS JVP wrapper for ODE forward sensitivity; the
+  adaptive primal trajectory, frozen accepted-step sensitivity solve,
+  analytical variational equation, and complete-solve oracle remain hand-written
 
 Remaining work is tracked item by item in `ROADMAP.md`; the next CPU Enzyme
-step migrates the ODE forward-sensitivity Enzyme fixture.
+step removes superseded duplicate helpers and rejects new copies.
 
 ## 3. Terminology
 
