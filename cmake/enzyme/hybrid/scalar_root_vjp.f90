@@ -4,6 +4,8 @@ module scalar_root_vjp_hybrid_kernel
         fortnum_enzyme_scalar_root_vjp_newton_vjp
     use fortnum_generated_enzyme_scalar_root_vjp_residual, only: &
         fortnum_enzyme_scalar_root_vjp_residual_vjp
+    use fortnum_generated_scalar_root_residual_vjp, only: &
+        fortnum_scalar_root_residual_vjp_kernel
     use fortnum_kinds, only: dp
     use fortnum_roots, only: root_implicit_vjp
     use fortnum_status, only: fortnum_status_t, status_ok
@@ -84,9 +86,8 @@ contains
         real(dp), intent(out) :: f_x, f_p_t_u(size(p))
         class(*), intent(inout), optional :: context
 
-        f_x = 3.0_dp*x*x + p(1)
-        f_p_t_u(1) = u*x
-        f_p_t_u(2) = -u
+        call fortnum_scalar_root_residual_vjp_kernel( &
+            x, p(1), u, f_x, f_p_t_u(1), f_p_t_u(2))
     end subroutine analytical_residual_vjp
 
     subroutine autodiff_residual_vjp(x, p, u, f_x, f_p_t_u, context)

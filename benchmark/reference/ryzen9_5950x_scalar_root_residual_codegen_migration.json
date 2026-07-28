@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "operation": "replace hand-written scalar-root local residual JVP and VJP algebra with fortsym-generated contracted products",
+  "residual": "x^3 + p1*x - p2",
+  "boundary": "fortsym generates only local residual products; fortnum retains the hand-written implicit tangent and adjoint solves",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "autodiff": "Enzyme 22",
+    "optimization": "O2",
+    "fortsym_revision": "e855b5116c51f4d1bb9aabd3ee83560a66e40920"
+  },
+  "validation": {
+    "oracle": "central finite difference of independent 100-step bisection solves",
+    "absolute_tolerance": 1e-9,
+    "result": "pass for analytical, hybrid, autodiff-through-iterations, and diagnostic candidates"
+  },
+  "sampling": {
+    "generated_samples": 31,
+    "baseline_samples": 15,
+    "calls_per_sample": 100000,
+    "runtime_aggregation": "median",
+    "dispersion": "median absolute deviation",
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum"
+  },
+  "migration_comparison": [
+    {
+      "product": "jvp",
+      "manual_ns_per_call": 8.6395,
+      "generated_ns_per_call": 2.16939,
+      "generated_mad_ns": 0.00652,
+      "speedup": 3.9825,
+      "manual_peak_rss_bytes": 2818048,
+      "generated_peak_rss_bytes": 2973696
+    },
+    {
+      "product": "vjp",
+      "manual_ns_per_call": 17.3524,
+      "generated_ns_per_call": 14.34350,
+      "generated_mad_ns": 0.03236,
+      "speedup": 1.2098,
+      "manual_peak_rss_bytes": 2830336,
+      "generated_peak_rss_bytes": 2969600
+    }
+  ],
+  "current_candidate_wall_clock_ns_per_call": {
+    "jvp": {
+      "analytical": 2.16939,
+      "hybrid": 1.85369,
+      "autodiff": 115.32206,
+      "diagnostic": 73.42130,
+      "selected": "hybrid"
+    },
+    "vjp": {
+      "analytical": 14.34350,
+      "hybrid": 19.39371,
+      "autodiff": 157.54063,
+      "diagnostic": 143.10686,
+      "selected": "analytical"
+    }
+  },
+  "native_text_bytes": {
+    "generated_jvp_kernel": 43,
+    "generated_vjp_kernel": 55
+  },
+  "verdict": "Keep the generated local products. Hybrid remains the scalar-root JVP winner, while generated analytical becomes the scalar-root VJP winner."
+}

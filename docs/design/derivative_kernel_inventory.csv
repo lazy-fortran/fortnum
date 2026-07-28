@@ -12,6 +12,8 @@ src/generated/fortnum_det2_vjp_kernel.f90,fortnum_det2_vjp_kernel,fortsym-genera
 src/generated/fortnum_det3_jvp_kernel.f90,fortnum_det3_jvp_kernel,fortsym-generated,analytical,generated contracted determinant JVP
 src/generated/fortnum_det3_vjp_kernel.f90,fortnum_det3_vjp_kernel,fortsym-generated,analytical,generated contracted determinant VJP
 src/generated/fortnum_implicit_root_residual_kernel.f90,fortnum_implicit_root_residual_kernel,fortsym-generated,analytical,generated fused residual and local tangent products
+src/generated/fortnum_scalar_root_residual_jvp_kernel.f90,fortnum_scalar_root_residual_jvp_kernel,fortsym-generated,analytical,generated contracted scalar-residual local JVP
+src/generated/fortnum_scalar_root_residual_vjp_kernel.f90,fortnum_scalar_root_residual_vjp_kernel,fortsym-generated,analytical,generated contracted scalar-residual local VJP
 src/generated/fortnum_inv2_jvp_kernel.f90,fortnum_inv2_jvp_kernel,fortsym-generated,analytical,generated contracted inverse JVP
 src/generated/fortnum_inv2_vjp_kernel.f90,fortnum_inv2_vjp_kernel,fortsym-generated,analytical,generated contracted inverse VJP
 src/generated/fortnum_inv3_jvp_kernel.f90,fortnum_inv3_jvp_kernel,fortsym-generated,analytical,generated contracted inverse JVP
