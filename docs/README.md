@@ -20,6 +20,7 @@ measured evidence.
 | [Architecture](design.md) | Module boundaries and repository invariants |
 | [Derivative contract](design/ad.md) | Terminology, products, candidate selection, and generated-source ownership |
 | [Optimizer API](design/optimizer_api.md) | Flat active vectors and backend-independent callbacks |
+| [Array temporaries](design/array_temporaries.md) | Compiler-warning baseline and drift check |
 | [Downstream active kernels](design/downstream_ad.md) | Packing and composing downstream differentiable kernels |
 | [Enzyme toolchain](design/enzyme_toolchain.md) | Supported CPU Flang/Enzyme boundary |
 | [CPU/GPU contract](design/gpu.md) | Device leaves, supported mechanisms, and offload gates |
