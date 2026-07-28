@@ -14,6 +14,13 @@
     "reusable_primal_state": "each child record states whether the primal value, LU factors, or transposed LU factors are reused; reuse and refactorization are separate named candidates",
     "complete_products": "all reported timings return the full value-plus-JVP or scalar-objective-plus-VJP required by the named workload"
   },
+  "scaling_coverage": {
+    "matrix_orders": [2, 3, 16],
+    "active_input_counts": [4, 9, 16],
+    "output_counts": [1, 4, 9, 16],
+    "direction_counts": [1, 4, 16, 64],
+    "cotangent_counts": [1, 4, 16]
+  },
   "evidence_contract": {
     "runtime": "median complete-workload wall clock with MAD in each referenced record",
     "memory": "candidate-specific peak RSS in separate processes",

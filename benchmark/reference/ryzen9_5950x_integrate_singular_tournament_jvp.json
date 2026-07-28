@@ -3,6 +3,9 @@
   "date": "2026-07-27",
   "operator": "singular_adaptive_qags_frozen_trace",
   "product": "value_plus_jvp",
+  "active_inputs": 1,
+  "outputs": 1,
+  "direction_counts": [1],
   "workload": "QAGS integral of exp(p)/sqrt(x) on [0,1], p=0.7, verified six-panel trace",
   "hardware": {
     "cpu": "AMD Ryzen 9 5950X 16-Core Processor"
