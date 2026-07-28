@@ -56,6 +56,17 @@ Newton-CG workload: validation, achieved residual reduction, wall clock, and
 peak memory. A faster isolated HVP does not win if it increases outer or inner
 iterations.
 
+For residuals \(r=\sin(Ax)-y\), the analytical candidate contracts
+
+\[
+H(x)v=A^T\left[
+  \left(\cos^2(Ax)-r\sin(Ax)\right)\mathbin{\odot}(Av)
+\right].
+\]
+
+The benchmark implementation keeps only residual-sized work arrays and does
+not form \(J\) or \(H\).
+
 ## Candidate opacity
 
 The callback shape does not expose `autodiff`, `analytical`, or `hybrid`
