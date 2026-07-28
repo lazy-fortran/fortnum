@@ -5,7 +5,7 @@ fixed_quadrature_vjp,analytical,analytical,1191.8691,1236.2336,ryzen9_5950x_fixe
 adaptive_frozen_jvp,autodiff,autodiff,1306.9523,1423.0742,ryzen9_5950x_integrate_frozen_autodiff_jvp.json
 adaptive_singular_jvp,autodiff,autodiff,2806.7680,2836.0585,ryzen9_5950x_adaptive_fixture_migration.json
 adaptive_smooth_jvp,analytical,hybrid,1259.5680,1264.4020,ryzen9_5950x_adaptive_fixture_migration.json
-ode_forward_sensitivity,analytical,analytical,9322.0850,9690.5995,ryzen9_5950x_ode_hybrid_forward_sensitivity.json
+ode_forward_sensitivity,analytical,hybrid,9071.2215,9168.7700,ryzen9_5950x_ode_fixture_migration.json
 scalar_root_jvp,hybrid,hybrid,1.89136,2.29733,ryzen9_5950x_scalar_root_fixture_migration.json
 scalar_root_vjp,analytical,analytical,14.11701,19.48994,ryzen9_5950x_scalar_root_fixture_migration.json
 vector_root_jvp,hybrid,hybrid,78.265190,78.313290,ryzen9_5950x_vector_root_fixture_migration.json

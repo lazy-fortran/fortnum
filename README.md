@@ -235,6 +235,11 @@ three-way race: compact hybrid takes 1.260 µs, whole-trace autodiff 1.264 µs,
 and compact analytical 1.269 µs. Analytical remains the normal-build
 selection; the singular Enzyme-enabled workload selects autodiff at 2.807 µs
 versus 2.836 µs analytical. The adaptive trace and its guards are not generated.
+ODE forward sensitivity now generates only the local three-input Enzyme RHS
+wrapper. The complete trajectory-plus-JVP workload takes 9.071 µs hybrid,
+9.169 µs analytical, and 14.846 µs by complete-solve finite differences.
+Analytical remains the normal-build selection; the solver and variational
+equation stay explicit.
 The fixed-quadrature Enzyme mechanics are generated from one five-input
 integrand profile and one four-input whole-operator profile; the old hand-written
 forward and reverse wrapper modules are gone. For a full four-input gradient,

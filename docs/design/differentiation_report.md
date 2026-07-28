@@ -16,23 +16,23 @@ reliability-only experiments. Finite differences remain a validation
 `benchmark/report/data/mechanism_tournaments.csv` is the normalized plotting
 input. Every row names its source JSON record. `selected_mechanism` records the
 evidence-based production decision; `fastest_mechanism` records the lowest raw
-median. They differ for Dawson and smooth adaptive integration, where raw
-`hybrid` advantages are available only through the optional Enzyme pipeline
-while the selected analytical implementations are the fastest candidates
-admissible in a normal fortnum build.
+median. They differ for Dawson, smooth adaptive integration, and ODE forward
+sensitivity, where raw `hybrid` advantages are available only through the
+optional Enzyme pipeline while the selected analytical implementations are
+the fastest candidates admissible in a normal fortnum build.
 
 ## Overall result
 
 | Mechanism | Selected workloads | Share | Raw fastest workloads |
 |---|---:|---:|---:|
-| `analytical` | 26 | 81.2% | 24 |
+| `analytical` | 26 | 81.2% | 23 |
 | `autodiff` | 4 | 12.5% | 4 |
-| `hybrid` | 2 | 6.2% | 4 |
+| `hybrid` | 2 | 6.2% | 5 |
 | finite-difference diagnostic | 0 | 0.0% | 0 |
 
 Across the 32 workloads, the second-fastest candidate ranges from 1.001x to
 1,224.360x the fastest wall clock. The median ratio is 1.275x and the
-geometric mean is 2.078x. Thirteen workloads have a runner-up within 20% of the
+geometric mean is 2.076x. Thirteen workloads have a runner-up within 20% of the
 fastest candidate; full finite-difference VJPs of fitted coefficients provide
 the largest separation.
 Consequently, mechanism counts describe only the current measured workload
@@ -92,6 +92,12 @@ Enzyme-enabled raw winner at 1.260 µs, followed by whole-trace autodiff at
 1.264 µs and compact analytical at 1.269 µs; analytical remains the normal
 build selection. The singular workload selects whole-trace autodiff at
 2.807 µs over compact analytical at 2.836 µs.
+
+ODE forward sensitivity similarly generates only the local three-input RHS
+JVP boundary. The Enzyme-enabled hybrid takes 9.071 µs for the complete primal
+trajectory plus sensitivity, versus 9.169 µs analytical and 14.846 µs for
+complete-solve finite differences. Analytical remains selected for normal
+builds; cache events are too dispersed to override wall clock.
 
 The modified-Bessel outer objective strengthens that conclusion across primal
 regions. At 16 products, analytical wins series JVP/VJP, recurrence VJP, and

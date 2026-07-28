@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "operator": "cash_karp_frozen_trace_forward_sensitivity",
+  "product": "value_plus_jvp",
+  "purpose": "generated-wrapper and shared-fixture migration",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "autodiff": "Enzyme 22",
+    "optimization": "O2",
+    "fortsym_revision": "6b6df9adf6e6dbe3e1482bb051c6ce2af46e8f89"
+  },
+  "workload": {
+    "equation": "y'=-k*y",
+    "initial_value": 1.3,
+    "end_time": 2.0,
+    "parameter": 0.7,
+    "active_inputs": 1,
+    "outputs": 1
+  },
+  "migration": {
+    "temporary_generated_wrappers": ["three-input scalar RHS JVP"],
+    "removed_handwritten_mechanics": [
+      "raw Enzyme intrinsic interface",
+      "peak-RSS interface",
+      "timer",
+      "median/MAD sorting"
+    ],
+    "retained_mathematics": [
+      "adaptive primal trajectory",
+      "frozen accepted-step sensitivity solve",
+      "analytical variational RHS",
+      "complete-solve central-difference oracle"
+    ],
+    "hot_loop_dispatch": "candidate name resolved before measurement",
+    "generator_output": "silent by default; FORTNUM_CODEGEN_VERBOSE=1 opts in"
+  },
+  "validation": {
+    "closed_form_oracle": "-t1*y0*exp(-k*t1)",
+    "complete_solve_central_difference": true,
+    "analytical_error": 2.9509839016839123E-11,
+    "hybrid_error": 2.9509839016839123E-11,
+    "diagnostic_error": 3.617151023149745E-11,
+    "analytical_hybrid_tolerance": 2E-8,
+    "diagnostic_tolerance": 2E-7
+  },
+  "sampling": {
+    "processes": 3,
+    "samples_per_process": 15,
+    "workloads_per_sample": 2000,
+    "runtime_aggregation": "median of process medians",
+    "dispersion_aggregation": "median of within-process MADs",
+    "memory_processes_per_candidate": 5,
+    "perf_repetitions": 3
+  },
+  "candidates": [
+    {
+      "id": "explicit_rhs_jvp",
+      "mechanism": "analytical",
+      "median_ns": 9168.7700,
+      "mad_ns": 7.2490,
+      "peak_rss_bytes": 3092480,
+      "cycles": 223318964,
+      "instructions": 625414603,
+      "cache_references": 1368686,
+      "cache_misses": 71746
+    },
+    {
+      "id": "generated_enzyme_rhs_jvp",
+      "mechanism": "hybrid",
+      "median_ns": 9071.2215,
+      "mad_ns": 17.0920,
+      "peak_rss_bytes": 2990080,
+      "cycles": 213371688,
+      "instructions": 621909600,
+      "cache_references": 514261,
+      "cache_misses": 19307
+    },
+    {
+      "id": "complete_solve_central_difference",
+      "mechanism": "diagnostic",
+      "median_ns": 14846.3170,
+      "mad_ns": 18.8805,
+      "peak_rss_bytes": 3043328,
+      "cycles": 338959184,
+      "instructions": 843314253,
+      "cache_references": 377075,
+      "cache_misses": 22632
+    }
+  ],
+  "selection": {
+    "enzyme_enabled_fastest": "generated_enzyme_rhs_jvp",
+    "normal_build_selected": "explicit_rhs_jvp",
+    "criterion": "complete primal-trajectory-plus-JVP wall clock among candidates available in the target build",
+    "hybrid_speedup_over_analytical": 1.0108,
+    "hybrid_speedup_over_diagnostic": 1.6366,
+    "reason": "generated Enzyme RHS products have the lowest Enzyme-enabled median; analytical remains the normal-build selection because the hybrid requires the optional Enzyme pipeline"
+  },
+  "cache_interpretation": "cache counters were highly dispersed and do not override wall clock",
+  "build_and_size": {
+    "incremental_fixture_build_wall_s": 2.33,
+    "incremental_fixture_build_peak_rss_kib": 137572,
+    "executable_bytes": 2293360,
+    "executable_change_bytes": 5864,
+    "text_bytes": 2070785,
+    "text_change_bytes": 1824
+  }
+}

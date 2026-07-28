@@ -250,6 +250,8 @@ if(FORTNUM_ENABLE_ENZYME)
             "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_singular_integrand.f90"
             "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_adaptive_frozen_trace.f90"
             "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_singular_frozen_trace.f90")
+        set(_fortnum_ode_forward_wrapper_source
+            "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_ode_scalar_rhs.f90")
         foreach(_wrapper
                 "${_fortnum_dawson_wrapper_source}"
                 "${_fortnum_square_wrapper_source}"
@@ -264,7 +266,8 @@ if(FORTNUM_ENABLE_ENZYME)
                 ${_fortnum_vector_root_jvp_wrapper_sources}
                 ${_fortnum_vector_root_vjp_wrapper_sources}
                 ${_fortnum_fixed_quadrature_wrapper_sources}
-                ${_fortnum_adaptive_wrapper_sources})
+                ${_fortnum_adaptive_wrapper_sources}
+                "${_fortnum_ode_forward_wrapper_source}")
             if(NOT EXISTS "${_wrapper}")
                 message(FATAL_ERROR "Missing generated Enzyme wrapper: ${_wrapper}")
             endif()
@@ -451,6 +454,8 @@ if(FORTNUM_ENABLE_ENZYME)
             ${CMAKE_SOURCE_DIR}/src/ode/fortnum_ode_cash_karp.f90
             ${CMAKE_SOURCE_DIR}/src/ode/fortnum_ode.f90
             ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${_fortnum_ode_forward_wrapper_source}
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/ode_forward_sensitivity_jvp.f90
         MODE forward
         OPT_LEVEL O2)
