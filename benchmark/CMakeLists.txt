@@ -66,6 +66,7 @@ add_library(bench_core STATIC
     ${FORTNUM_CORE_DIR}/generated/fortnum_lagrange4_vjp_kernel.f90
     ${FORTNUM_CORE_DIR}/generated/fortnum_sqrt1pm1_raw_kernel.f90
     ${FORTNUM_CORE_DIR}/generated/fortnum_sqrt1pm1_stable_kernel.f90
+    ${FORTNUM_CORE_DIR}/special/fortnum_special_dawson.f90
     ${FORTNUM_CORE_DIR}/fft/fortnum_fft8_kernel.f90
     ${FORTNUM_CORE_DIR}/fft/fortnum_fft.f90
     ${FORTNUM_MULTI_INPUT_SOURCES}
