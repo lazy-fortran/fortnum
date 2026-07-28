@@ -76,9 +76,13 @@ The first implementation slice now also contains:
 - a migrated Bessel pilot using shared fixture support, a generated `hybrid`
   outer wrapper, and the shared rule counter; all selected width-16 workloads
   are 0.7% to 9.2% faster than the controlled pre-migration build
+- migrated Dawson and one-active-scalar square fixtures with temporary
+  `fortsym` wrappers; Dawson shares benchmark/counter support, while the square
+  smoke binary deliberately excludes benchmark support to avoid 0.54 MB of
+  measured test-only binary bloat
 
 Remaining work is tracked item by item in `ROADMAP.md`; the next CPU Enzyme
-step migrates Dawson and the scalar smoke fixtures.
+step migrates fixed-span B-spline fixtures.
 
 ## 3. Terminology
 

@@ -316,7 +316,7 @@ support.
   selection without kernel-specific counter boilerplate.
 - [x] Migrate the Bessel fixture as the pilot and require equivalent validation
   plus no complete-workload regression beyond 3% or combined dispersion.
-- [ ] Migrate Dawson and the scalar Enzyme smoke fixtures.
+- [x] Migrate Dawson and the scalar Enzyme smoke fixtures.
 - [ ] Migrate fixed-span B-spline Enzyme fixtures.
 - [ ] Migrate direct-solver JVP and VJP Enzyme fixtures.
 - [ ] Migrate the iterative-solver Enzyme fixture.

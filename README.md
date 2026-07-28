@@ -119,6 +119,9 @@ contracted JVP/VJP, and fused value/product leaves from one symbolic DAG. On
 the reference CPU the fused complete workload is 1.5699 times faster for JVP
 and 1.6779 times faster for VJP than calling the generated value and product
 leaves separately.
+Generators are quiet by default to keep build logs concise; set
+`FORTNUM_CODEGEN_VERBOSE=1` to print generated paths, equivalence proofs, and
+operation counts.
 
 Current derivative infrastructure includes generic analytical implicit JVP and
 VJP boundaries for scalar and vector roots, analytical fixed-point and
@@ -138,6 +141,11 @@ fixture execution has a 27.5859 ms median and 3.6 MB peak RSS. The inventory
 also records 13 duplicated peak-memory interfaces, nine median/MAD
 implementations, and 22 raw Enzyme interfaces; these are the measured starting
 point for the shared-scaffolding migration.
+The migrated scalar fixtures now generate their mechanical Enzyme wrappers
+with `fortsym`. Dawson uses the shared timing and custom-rule counter; its
+normal-build analytical JVP changes by 1.0%, inside the 3% gate. The generated
+square VJP wrapper is 6.5% faster than the equivalent raw wrapper and adds only
+344 bytes to the smoke executable.
 One internal support module now centralizes environment parsing, warmup/sample
 collection, timing, median/MAD, standard output, and peak-RSS access. Its
 independent plain-compiler and Flang/Enzyme tests pass; existing numerical
