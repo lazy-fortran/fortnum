@@ -309,7 +309,7 @@ support.
   build time, runtime, peak RSS, and native code size.
 - [x] Add one internal support module for environment parsing, timing, warmups,
   median/MAD, standardized output, and peak-RSS access.
-- [ ] Generate wrappers for the proven scalar-kernel shape with one to four
+- [x] Generate wrappers for the proven scalar-kernel shape with one to four
   active scalar inputs, scalar output, forward JVP, reverse VJP, and an
   optional analytical forward custom rule.
 - [ ] Add shared custom-rule counter support that proves analytical rule

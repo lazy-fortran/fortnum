@@ -68,9 +68,12 @@ The first implementation slice now also contains:
 - one independently tested internal CPU Enzyme fixture-support module for
   environment parsing, warmups and sampling, timing, median/MAD, standardized
   output, and peak-RSS access
+- `fortsym`-generated forward-JVP and reverse-VJP wrappers for the proven
+  one-to-four-active-scalar ABI, including an optional analytical forward-rule
+  hook and no committed generated-wrapper copies
 
 Remaining work is tracked item by item in `ROADMAP.md`; the next CPU Enzyme
-step generates the proven scalar wrapper shape before migrating fixtures.
+step centralizes custom-rule counters before migrating fixtures.
 
 ## 3. Terminology
 
