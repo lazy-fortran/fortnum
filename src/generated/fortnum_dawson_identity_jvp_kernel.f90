@@ -9,7 +9,7 @@ module fortnum_generated_dawson_identity_jvp
     public :: fortnum_dawson_identity_jvp_kernel
 contains
 
-    pure subroutine fortnum_dawson_identity_jvp_kernel(x, d, tx, td, jvp)
+    pure elemental subroutine fortnum_dawson_identity_jvp_kernel(x, d, tx, td, jvp)
         !$omp declare target
         !$acc routine seq
         use, intrinsic :: iso_fortran_env, only: dp => real64

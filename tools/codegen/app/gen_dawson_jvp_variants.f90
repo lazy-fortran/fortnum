@@ -113,6 +113,7 @@ contains
         spec%generator_revision = str(fortsym_revision())
         spec%regenerate_command = str(regenerate_command)
         spec%pure_procedure = .true.
+        spec%elemental_procedure = .true.
         spec%openmp_declare_target = .true.
         spec%openacc_routine_seq = .true.
         spec%args = [str("x"), str("d"), str("tx"), str("td")]

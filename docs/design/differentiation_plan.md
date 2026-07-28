@@ -58,6 +58,11 @@ Use one mathematical source for a local explicit operator. `fortsym` may emit:
 - CPU and annotation-only device leaves
 - temporary Enzyme wrappers
 
+Prefer one pure-elemental scalar leaf for an element-independent expression:
+the same generated procedure then supplies scalar and conformable-array calls.
+Emit explicit shaped-array code only for reductions, contractions, stencils,
+or layout-sensitive algorithms that elemental semantics cannot express.
+
 Generate a full Jacobian only when a caller reuses it enough to justify
 materialization.
 

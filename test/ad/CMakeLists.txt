@@ -25,6 +25,12 @@ add_executable(test_stable_sqrt_difference test_stable_sqrt_difference.f90)
 target_link_libraries(test_stable_sqrt_difference PRIVATE fortnum)
 add_test(NAME ad_stable_sqrt_difference COMMAND test_stable_sqrt_difference)
 
+add_executable(test_generated_elemental_array
+    test_generated_elemental_array.f90
+    ${CMAKE_SOURCE_DIR}/src/generated/fortnum_dawson_identity_jvp_kernel.f90)
+add_test(NAME ad_generated_elemental_array
+    COMMAND test_generated_elemental_array)
+
 add_executable(test_dot_products test_dot_products.f90)
 target_link_libraries(test_dot_products PRIVATE fortnum_ad_test_utils)
 add_test(NAME ad_dot_products COMMAND test_dot_products)
