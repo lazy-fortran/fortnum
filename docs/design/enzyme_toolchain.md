@@ -80,3 +80,11 @@ remain outside the pass:
 
 CPU Enzyme does not launch GPU kernels and does not differentiate OpenACC or
 OpenMP target regions.
+
+## Mixed-mode second order
+
+`cmake/enzyme/hvp/forward_over_reverse.f90` proves nested mixed mode through
+the released pipeline. Its inner reverse call generates a nonlinear
+least-squares gradient; an outer forward call differentiates that gradient
+along one direction. The transformed HVP is checked against a closed-form
+Hessian contraction.
