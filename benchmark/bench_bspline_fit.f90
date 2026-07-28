@@ -4,7 +4,7 @@ program bench_bspline_fit
     use fortnum_bspline, only: bspline_workspace_t, bspline_init, &
         bspline_set_knots, bspline_eval_basis, bspline_fit_jvp_factored, &
         bspline_fit_vjp_factored
-    use fortnum_linalg, only: lu_factor, lu_solve, LINALG_OK
+    use fortnum_linalg, only: lu_factor, lu_solve, lu_solve_factored, LINALG_OK
     use fortnum_status, only: fortnum_status_t, FORTNUM_OK
     implicit none
 
@@ -30,7 +30,8 @@ program bench_bspline_fit
     if ((trim(candidate) /= "analytical") .and. &
         (trim(candidate) /= "diagnostic")) error stop "invalid candidate"
     if ((trim(product) /= "jvp") .and. &
-        (trim(product) /= "vjp")) error stop "invalid product"
+        (trim(product) /= "vjp") .and. &
+        (trim(product) /= "application")) error stop "invalid product"
     if ((n /= 4) .and. (n /= 8) .and. (n /= 16)) error stop "n must be 4, 8, or 16"
 
     call initialize_inputs()
@@ -39,9 +40,17 @@ program bench_bspline_fit
         stop
     end if
     if (trim(candidate) == "analytical") then
-        reps = merge(200000_int64, 100000_int64, trim(product) == "jvp")
+        if (trim(product) == "application") then
+            reps = 20000_int64
+        else
+            reps = merge(200000_int64, 100000_int64, trim(product) == "jvp")
+        end if
     else
-        reps = merge(20000_int64, 200_int64, trim(product) == "jvp")
+        if (trim(product) == "application") then
+            reps = 100_int64
+        else
+            reps = merge(20000_int64, 200_int64, trim(product) == "jvp")
+        end if
     end if
     if (memory_only) then
         warmup = run_sample(max(1_int64, reps/10_int64))
@@ -58,7 +67,7 @@ program bench_bspline_fit
 contains
 
     subroutine report_validation_error()
-        real(dp) :: error, scale
+        real(dp) :: error, scale, plus, minus
         real(dp) :: analytical_coef(n)
         real(dp) :: analytical_basis_bar(n, n), analytical_values_bar(n)
 
@@ -71,7 +80,7 @@ contains
             scale = max(1.0_dp, maxval(abs(dcoef)))
             error = maxval(abs(analytical_coef - dcoef))/scale
             if (error > 3.0e-9_dp) error stop "B-spline fit JVP validation failed"
-        else
+        else if (trim(product) == "vjp") then
             candidate = "analytical"
             call run_vjp()
             analytical_basis_bar = basis_bar
@@ -84,6 +93,17 @@ contains
                 maxval(abs(analytical_basis_bar - basis_bar)), &
                 maxval(abs(analytical_values_bar - values_bar)))/scale
             if (error > 3.0e-9_dp) error stop "B-spline fit VJP validation failed"
+        else
+            candidate = "analytical"
+            call run_application(plus, analytical_values_bar)
+            candidate = "diagnostic"
+            call run_application(minus, values_bar)
+            scale = max(1.0_dp, abs(plus), maxval(abs(values_bar)))
+            error = max(abs(plus - minus), &
+                maxval(abs(analytical_values_bar - values_bar)))/scale
+            if (error > 3.0e-9_dp) then
+                error stop "B-spline application validation failed"
+            end if
         end if
         write (*, "(es24.16)") error
     end subroutine report_validation_error
@@ -136,9 +156,12 @@ contains
             if (trim(product) == "jvp") then
                 call run_jvp()
                 sink = sink + dcoef(1)
-            else
+            else if (trim(product) == "vjp") then
                 call run_vjp()
                 sink = sink + basis_bar(1, 1) + values_bar(1)
+            else
+                call run_application(warmup, values_bar)
+                sink = sink + warmup + values_bar(1)
             end if
         end do
         call system_clock(tick1)
@@ -203,5 +226,40 @@ contains
             values_bar(j) = (plus - minus)/(2.0_dp*h)
         end do
     end subroutine run_vjp
+
+    subroutine run_application(objective, gradient)
+        real(dp), intent(out) :: objective, gradient(n)
+        real(dp) :: work_a(n, n), work_b(n), transpose_a(n, n)
+        real(dp) :: local_basis_bar(n, n), plus, minus
+        integer :: local_pivots(n), transpose_local_pivots(n), j
+        type(fortnum_status_t) :: status
+
+        work_a = basis
+        work_b = values
+        call lu_factor(n, work_a, local_pivots, info)
+        call lu_solve_factored(n, work_a, local_pivots, work_b, info)
+        objective = dot_product(cbar, work_b)
+        if (trim(candidate) == "analytical") then
+            transpose_a = transpose(basis)
+            call lu_factor(n, transpose_a, transpose_local_pivots, info)
+            call bspline_fit_vjp_factored(transpose_a, transpose_local_pivots, &
+                work_b, cbar, local_basis_bar, gradient, status)
+            if (status%code /= FORTNUM_OK) error stop "spline VJP failed"
+            return
+        end if
+        do j = 1, n
+            work_a = basis
+            work_b = values
+            work_b(j) = work_b(j) + h
+            call lu_solve(n, work_a, work_b, info)
+            plus = dot_product(cbar, work_b)
+            work_a = basis
+            work_b = values
+            work_b(j) = work_b(j) - h
+            call lu_solve(n, work_a, work_b, info)
+            minus = dot_product(cbar, work_b)
+            gradient(j) = (plus - minus)/(2.0_dp*h)
+        end do
+    end subroutine run_application
 
 end program bench_bspline_fit

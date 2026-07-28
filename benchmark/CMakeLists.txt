@@ -534,6 +534,8 @@ foreach(product IN ITEMS jvp vjp)
         COMMAND bench_bspline_fit analytical ${product} 16
             --validation-error)
 endforeach()
+add_test(NAME bspline_fit_application_validation
+    COMMAND bench_bspline_fit analytical application 16 --validation-error)
 
 add_executable(bench_interp_cell_status bench_interp_cell_status.f90)
 target_link_libraries(bench_interp_cell_status PRIVATE bench_core)

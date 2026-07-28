@@ -279,6 +279,15 @@ times fewer cache misses. Both agree with the independent closed form within
 \(4.44\times10^{-16}\); their 16,384-byte maximum-RSS difference is process
 noise.
 
+The spline application factors and solves a 16-by-16 cubic B-spline
+collocation fit, evaluates a scalar linear objective of the coefficients, and
+returns the gradient with respect to all 16 fitted values. The analytical
+implicit VJP takes 2.183 microseconds; componentwise finite differences of
+complete refactor-and-fit calls take 31.435 microseconds. Analytical is 14.40
+times faster, executes 14.86 times fewer instructions, and incurs 90.85 times
+fewer cache misses. The complete-workload oracle error is
+\(1.72\times10^{-11}\), and peak RSS is tied within 20,480 bytes.
+
 ## Current normalized set
 
 `benchmark/report/data/mechanism_tournaments.csv` includes only tournaments
