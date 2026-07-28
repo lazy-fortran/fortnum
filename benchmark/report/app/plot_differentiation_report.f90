@@ -10,11 +10,14 @@ program plot_differentiation_report
         character(len=16) :: 'analytical', 'autodiff', 'hybrid', 'diagnostic']
     character(len=16) :: selected(max_rows), fastest(max_rows)
     real(dp) :: fastest_ns(max_rows), runner_up_ns(max_rows)
+    real(dp) :: inputs(3), forward_runtime(3), reverse_runtime(3)
+    real(dp) :: forward_rss(3), reverse_rss(3)
+    real(dp) :: forward_misses(3), reverse_misses(3)
     integer :: counts(mechanism_count)
     integer :: n_rows
-    character(len=512) :: data_path, output_dir
+    character(len=512) :: data_path, crossover_path, output_dir
 
-    call require_arguments(data_path, output_dir)
+    call require_arguments(data_path, crossover_path, output_dir)
     call read_tournaments(trim(data_path), selected, fastest, fastest_ns, &
         runner_up_ns, n_rows)
     call count_mechanisms(selected(:n_rows), mechanisms, counts)
@@ -24,18 +27,46 @@ program plot_differentiation_report
     call plot_direct_solver_scaling(trim(output_dir))
     call plot_bspline_span_scaling(trim(output_dir))
     call plot_bessel_regions(trim(output_dir))
+    call read_crossover(trim(crossover_path), inputs, forward_runtime, &
+        reverse_runtime, forward_rss, reverse_rss, forward_misses, &
+        reverse_misses)
+    call plot_crossover(inputs, forward_runtime, reverse_runtime, forward_rss, &
+        reverse_rss, forward_misses, reverse_misses, trim(output_dir))
 
 contains
 
-    subroutine require_arguments(data_file, output_path)
-        character(len=*), intent(out) :: data_file, output_path
+    subroutine require_arguments(data_file, crossover_file, output_path)
+        character(len=*), intent(out) :: data_file, crossover_file, output_path
 
-        if (command_argument_count() /= 2) then
-            error stop 'usage: plot_differentiation_report DATA.csv OUTPUT_DIR'
+        if (command_argument_count() /= 3) then
+            error stop 'usage: plot_differentiation_report ' // &
+                'TOURNAMENTS.csv CROSSOVER.csv OUTPUT_DIR'
         end if
         call get_command_argument(1, data_file)
-        call get_command_argument(2, output_path)
+        call get_command_argument(2, crossover_file)
+        call get_command_argument(3, output_path)
     end subroutine require_arguments
+
+    subroutine read_crossover(path, x, forward_time, reverse_time, forward_mem, &
+            reverse_mem, forward_cache, reverse_cache)
+        character(len=*), intent(in) :: path
+        real(dp), intent(out) :: x(:), forward_time(:), reverse_time(:)
+        real(dp), intent(out) :: forward_mem(:), reverse_mem(:)
+        real(dp), intent(out) :: forward_cache(:), reverse_cache(:)
+        character(len=512) :: line
+        integer :: unit, stat, i
+
+        open (newunit=unit, file=path, status='old', action='read', iostat=stat)
+        if (stat /= 0) error stop 'cannot open crossover data'
+        read (unit, '(a)', iostat=stat) line
+        if (stat /= 0) error stop 'cannot read crossover header'
+        do i = 1, size(x)
+            read (unit, *, iostat=stat) x(i), forward_time(i), reverse_time(i), &
+                forward_mem(i), reverse_mem(i), forward_cache(i), reverse_cache(i)
+            if (stat /= 0) error stop 'invalid crossover row'
+        end do
+        close (unit)
+    end subroutine read_crossover
 
     subroutine read_tournaments(path, selected_values, fastest_values, &
             fastest_times, runner_up_times, n)
@@ -228,6 +259,49 @@ contains
         call legend()
         call save_checked(trim(output_path)//'/bessel_vjp_regions.png')
     end subroutine plot_bessel_regions
+
+    subroutine plot_crossover(x, forward_time, reverse_time, forward_mem, &
+            reverse_mem, forward_cache, reverse_cache, output_path)
+        real(dp), intent(in) :: x(:), forward_time(:), reverse_time(:)
+        real(dp), intent(in) :: forward_mem(:), reverse_mem(:)
+        real(dp), intent(in) :: forward_cache(:), reverse_cache(:)
+        character(len=*), intent(in) :: output_path
+        real(dp), parameter :: blue(3) = [0.0_dp, 114.0_dp, 178.0_dp]/255.0_dp
+        real(dp), parameter :: orange(3) = [230.0_dp, 159.0_dp, 0.0_dp]/255.0_dp
+
+        call figure()
+        call plot(x, forward_time/1000.0_dp, label='forward', color=blue, &
+            linestyle='-', marker='o', linewidth=2.0_dp)
+        call plot(x, reverse_time/1000.0_dp, label='reverse', color=orange, &
+            linestyle='--', marker='s', linewidth=2.0_dp)
+        call title('ODE parameter-gradient wall-clock crossover')
+        call xlabel('active inputs (count)')
+        call ylabel('complete workload (microseconds)')
+        call legend()
+        call save_checked(trim(output_path)//'/ode_input_runtime_crossover.png')
+
+        call figure()
+        call plot(x, forward_mem/(1024.0_dp**2), label='forward', color=blue, &
+            linestyle='-', marker='o', linewidth=2.0_dp)
+        call plot(x, reverse_mem/(1024.0_dp**2), label='reverse', color=orange, &
+            linestyle='--', marker='s', linewidth=2.0_dp)
+        call title('ODE parameter-gradient peak memory')
+        call xlabel('active inputs (count)')
+        call ylabel('peak RSS (MiB)')
+        call legend()
+        call save_checked(trim(output_path)//'/ode_input_memory_crossover.png')
+
+        call figure()
+        call plot(x, forward_cache, label='forward', color=blue, linestyle='-', &
+            marker='o', linewidth=2.0_dp)
+        call plot(x, reverse_cache, label='reverse', color=orange, &
+            linestyle='--', marker='s', linewidth=2.0_dp)
+        call title('ODE parameter-gradient cache misses')
+        call xlabel('active inputs (count)')
+        call ylabel('cache misses per complete workload')
+        call legend()
+        call save_checked(trim(output_path)//'/ode_input_cache_crossover.png')
+    end subroutine plot_crossover
 
     subroutine scaling_figure(x, analytical, autodiff, diagnostic, heading, &
             x_label, path)

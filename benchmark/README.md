@@ -85,7 +85,9 @@ Generate the cumulative CPU report:
 output_dir=$(mktemp -d)
 cd benchmark/report
 fo exec plot_differentiation_report \
-  data/mechanism_tournaments.csv "${output_dir}"
+  data/mechanism_tournaments.csv \
+  data/ode_parameter_crossover.csv \
+  "${output_dir}"
 ```
 
 Generate the GPU report:
