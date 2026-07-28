@@ -332,7 +332,7 @@ support.
 
 - [x] Establish a compact documentation map and rewrite the README, contributor
   guide, benchmark guide, and repository templates around current behavior.
-- [ ] Rewrite the API guide and module design documents as concise contracts
+- [x] Rewrite the API guide and module design documents as concise contracts
   checked against the production source.
 - [ ] Rewrite the differentiation, GPU, migration, and evidence documents;
   remove append-only implementation history while preserving authoritative
