@@ -1,5 +1,4 @@
 program gen_dawson_jvp_variants
-    use, intrinsic :: iso_fortran_env, only: output_unit
     use fortsym_string, only: str, chars
     use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, sym, num, exp, operator(+), operator(-), &
@@ -9,7 +8,8 @@ program gen_dawson_jvp_variants
         operation_count_t, KERNEL_SUBROUTINE
     use fortsym_engine, only: engine_result_t, VERDICT_TRUE
     use fortsym_engine_symengine, only: symengine_engine_t, make_symengine_engine
-    use fortnum_codegen_provenance, only: fortsym_revision, generated_path
+    use fortnum_codegen_provenance, only: codegen_log, codegen_log_count, &
+        fortsym_revision, generated_path
     implicit none
 
     type(arena_t), target :: arena
@@ -92,7 +92,7 @@ contains
         if (proof%verdict /= VERDICT_TRUE) then
             error stop label//" variant was not proved equivalent"
         end if
-        write (output_unit, "(a)") "proved equivalent: "//label
+        call codegen_log("proved equivalent: "//label)
     end subroutine prove_equivalent
 
     subroutine write_variant(path, label, module_name, procedure_name, &
@@ -125,9 +125,9 @@ contains
         close (unit)
 
         operations = count_operations([expression])
-        write (output_unit, "(a)") "wrote "//path
-        write (output_unit, "(a,i0)") label//" post-CSE operations: ", &
-            operations%total
+        call codegen_log("wrote "//path)
+        call codegen_log_count(label//" post-CSE operations: ", &
+            operations%total)
     end subroutine write_variant
 
 end program gen_dawson_jvp_variants
