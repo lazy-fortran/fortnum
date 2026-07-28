@@ -31,6 +31,12 @@ add_executable(test_generated_elemental_array
 add_test(NAME ad_generated_elemental_array
     COMMAND test_generated_elemental_array)
 
+add_executable(test_generated_hyperg_region_array
+    test_generated_hyperg_region_array.f90)
+target_link_libraries(test_generated_hyperg_region_array PRIVATE fortnum)
+add_test(NAME ad_generated_hyperg_region_array
+    COMMAND test_generated_hyperg_region_array)
+
 add_executable(test_dot_products test_dot_products.f90)
 target_link_libraries(test_dot_products PRIVATE fortnum_ad_test_utils)
 add_test(NAME ad_dot_products COMMAND test_dot_products)
@@ -563,6 +569,8 @@ if(FORTNUM_ENABLE_ENZYME)
     fortnum_add_enzyme_test(
         NAME enzyme_hyperg_tournament
         SOURCES
+            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_hyperg_asymptotic_outer_jvp_kernel.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_hyperg_asymptotic_outer_vjp_kernel.f90
             ${CMAKE_SOURCE_DIR}/src/fortnum_status.f90
             ${CMAKE_SOURCE_DIR}/src/special/fortnum_special_hypergeometric_1f1.f90
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/hyperg_kernel.f90

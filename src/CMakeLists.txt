@@ -30,6 +30,8 @@ target_sources(fortnum PRIVATE
     generated/fortnum_erf_vjp_kernel.f90
     generated/fortnum_erfc_jvp_kernel.f90
     generated/fortnum_erfc_vjp_kernel.f90
+    generated/fortnum_hyperg_asymptotic_outer_jvp_kernel.f90
+    generated/fortnum_hyperg_asymptotic_outer_vjp_kernel.f90
     generated/fortnum_inv2_jvp_kernel.f90
     generated/fortnum_inv2_vjp_kernel.f90
     generated/fortnum_inv3_jvp_kernel.f90

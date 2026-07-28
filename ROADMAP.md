@@ -370,7 +370,7 @@ support.
 - [x] Run an analytical, autodiff, and hybrid gamma-function tournament.
 - [x] Run an analytical, autodiff, and hybrid error-function tournament.
 - [x] Run an analytical, autodiff, and hybrid hypergeometric tournament.
-- [ ] Generate region-specific analytical candidates with `fortsym`.
+- [x] Generate region-specific analytical candidates with `fortsym`.
 - [ ] Benchmark fused and separate value/JVP special-function candidates.
 - [ ] Benchmark representative small-argument regions.
 - [ ] Benchmark representative transition regions.
