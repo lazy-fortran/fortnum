@@ -421,7 +421,7 @@ Every tournament record must include:
 - [x] Benchmark an event-driven trajectory.
 - [x] Benchmark a small PDE or residual application.
 - [ ] Benchmark a representative `itpplasma` workload.
-- [ ] Measure end-to-end forward/reverse scaling over active-input counts.
+- [x] Measure end-to-end forward/reverse scaling over active-input counts.
 - [ ] Measure end-to-end forward/reverse scaling over output counts.
 - [ ] Record wall-clock, peak-memory, and cache-performance crossover curves.
 
