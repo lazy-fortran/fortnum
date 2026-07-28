@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "purpose": "remove superseded hybrid-fixture helpers and prevent recurrence",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "autodiff": "Enzyme 22",
+    "optimization": "O2",
+    "fortsym_revision": "6b6df9adf6e6dbe3e1482bb051c6ce2af46e8f89"
+  },
+  "inventory": {
+    "hybrid_fixture_raw_enzyme_interfaces": 0,
+    "hybrid_fixture_local_timers": 0,
+    "hybrid_fixture_local_sort_helpers": 0,
+    "hybrid_fixture_local_peak_rss_bindings": 0,
+    "intentional_raw_array_smoke_probes": 2
+  },
+  "generated_migrations": [
+    "Dawson raw-autodiff scalar JVP comparator",
+    "Bessel raw-autodiff scalar JVP and VJP comparator"
+  ],
+  "guard": {
+    "scope": "cmake/enzyme/hybrid/*.f90",
+    "positive_cases": [
+      "current hybrid fixture directory",
+      "temporary clean fixture"
+    ],
+    "negative_cases": [
+      "raw __enzyme_fwddiff",
+      "local sort_values",
+      "local system_clock timer",
+      "local fortnum_peak_rss_bytes binding"
+    ],
+    "wall_seconds_for_100_checks": 0.51,
+    "mean_wall_ms_per_check": 5.1,
+    "peak_rss_kib": 3836
+  },
+  "affected_comparator_wall_clock": {
+    "dawson_ns_per_jvp": {
+      "analytical": 20.528880,
+      "autodiff": 23.618100,
+      "hybrid": 19.847295
+    },
+    "bessel_recurrence_16_products_ns": {
+      "analytical_jvp": 5503.82875,
+      "autodiff_jvp": 3553.66075,
+      "hybrid_jvp": 5490.25270,
+      "analytical_vjp": 5472.12950,
+      "autodiff_vjp": 6011.41070
+    },
+    "bessel_hybrid_vjp": "unsupported; no reverse custom rule exists"
+  },
+  "build_and_size": {
+    "incremental_two_fixture_build_wall_s": 1.14,
+    "incremental_two_fixture_build_peak_rss_kib": 124140,
+    "dawson_executable_bytes": 2180712,
+    "dawson_executable_change_bytes": 472,
+    "bessel_executable_bytes": 2199080,
+    "bessel_executable_change_bytes": 4560
+  },
+  "selection_effect": "none; production selections remain workload-specific and unchanged"
+}

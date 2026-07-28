@@ -43,15 +43,17 @@ contains
 end module bessel_outer_kernel
 
 program enzyme_bessel_tournament
-    use, intrinsic :: iso_c_binding, only: c_double, c_funloc, c_funptr, &
-        c_int64_t
+    use, intrinsic :: iso_c_binding, only: c_double, c_int64_t
     use fortnum_enzyme_fixture_support, only: collect_fixture_samples, &
         fixture_peak_rss_bytes, fixture_sample_count, fixture_timer_t, &
         median_mad, read_fixture_environment, read_fixture_integer, &
         write_fixture_result
     use fortnum_generated_enzyme_bessel_outer, only: &
         fortnum_enzyme_bessel_outer_jvp
-    use bessel_outer_kernel, only: outer, outer_autodiff
+    use fortnum_generated_enzyme_bessel_outer_autodiff, only: &
+        fortnum_enzyme_bessel_outer_autodiff_jvp, &
+        fortnum_enzyme_bessel_outer_autodiff_vjp_scalar
+    use bessel_outer_kernel, only: outer
     use fortnum_special_bessel, only: bessel_in
     implicit none
 
@@ -66,22 +68,6 @@ program enzyme_bessel_tournament
     logical :: valid
 
     interface
-        function enzyme_fwddiff(f, x, dx) result(derivative) &
-                bind(c, name="__enzyme_fwddiff")
-            import :: c_double, c_funptr
-            type(c_funptr), value :: f
-            real(c_double), value :: x, dx
-            real(c_double) :: derivative
-        end function enzyme_fwddiff
-
-        function enzyme_autodiff(f, x) result(derivative) &
-                bind(c, name="__enzyme_autodiff")
-            import :: c_double, c_funptr
-            type(c_funptr), value :: f
-            real(c_double), value :: x
-            real(c_double) :: derivative
-        end function enzyme_autodiff
-
         subroutine rule_counter_reset() &
                 bind(c, name="fortnum_enzyme_rule_counter_reset")
         end subroutine rule_counter_reset
@@ -158,7 +144,7 @@ contains
         real(c_double), intent(in) :: x, direction
         real(c_double) :: derivative
 
-        derivative = enzyme_fwddiff(c_funloc(outer_autodiff), x, direction)
+        derivative = fortnum_enzyme_bessel_outer_autodiff_jvp(x, direction)
     end function autodiff_jvp
 
     function hybrid_jvp(x, direction) result(derivative)
@@ -172,7 +158,8 @@ contains
         real(c_double), intent(in) :: x, cotangent
         real(c_double) :: derivative
 
-        derivative = cotangent*enzyme_autodiff(c_funloc(outer_autodiff), x)
+        derivative = fortnum_enzyme_bessel_outer_autodiff_vjp_scalar( &
+            x, cotangent)
     end function autodiff_vjp
 
     subroutine validate_candidates()

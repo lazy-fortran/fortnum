@@ -207,14 +207,16 @@ if(FORTNUM_ENABLE_ENZYME)
             MODE forward
             OPT_LEVEL O2)
         set(_fortnum_bessel_wrapper_sources
-            "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_bessel_outer.f90")
+            "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_bessel_outer.f90"
+            "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_bessel_outer_autodiff.f90")
         foreach(_wrapper IN LISTS _fortnum_bessel_wrapper_sources)
             if(NOT EXISTS "${_wrapper}")
                 message(FATAL_ERROR "Missing generated Enzyme wrapper: ${_wrapper}")
             endif()
         endforeach()
-        set(_fortnum_dawson_wrapper_source
-            "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_dawson_outer.f90")
+        set(_fortnum_dawson_wrapper_sources
+            "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_dawson_outer.f90"
+            "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_dawson_outer_autodiff.f90")
         set(_fortnum_square_wrapper_source
             "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_square.f90")
         set(_fortnum_bspline_wrapper_source
@@ -253,7 +255,7 @@ if(FORTNUM_ENABLE_ENZYME)
         set(_fortnum_ode_forward_wrapper_source
             "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_ode_scalar_rhs.f90")
         foreach(_wrapper
-                "${_fortnum_dawson_wrapper_source}"
+                ${_fortnum_dawson_wrapper_sources}
                 "${_fortnum_square_wrapper_source}"
                 "${_fortnum_bspline_wrapper_source}"
                 "${_fortnum_direct_solver_component_wrapper_source}"
@@ -327,7 +329,7 @@ if(FORTNUM_ENABLE_ENZYME)
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_rule_counter.c
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/dawson_rule.c
-            ${_fortnum_dawson_wrapper_source}
+            ${_fortnum_dawson_wrapper_sources}
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/dawson_outer.f90
         FORWARD_RULES
             fortnum_dawson_kernel=fortnum_dawson_kernel_derivative
