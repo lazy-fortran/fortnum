@@ -12,7 +12,7 @@ artifacts.
 
 ## Scope
 
-`benchmark/report/data/mechanism_tournaments.csv` contains 53 derivative
+`benchmark/report/data/mechanism_tournaments.csv` contains 54 derivative
 workloads with competing mechanism timings. Every row names its source JSON
 record.
 
@@ -26,13 +26,13 @@ Finite differences are diagnostics and win no current production selection.
 
 | Mechanism | Selected workloads | Share | Raw fastest workloads |
 | --- | ---: | ---: | ---: |
-| `analytical` | 40 | 75.5% | 33 |
-| `autodiff` | 11 | 20.8% | 15 |
-| `hybrid` | 2 | 3.8% | 5 |
+| `analytical` | 41 | 75.9% | 34 |
+| `autodiff` | 11 | 20.4% | 15 |
+| `hybrid` | 2 | 3.7% | 5 |
 | diagnostic | 0 | 0.0% | 0 |
 
 The second-fastest/fastest wall-clock ratio ranges from 1.001 to 1,224.355.
-Its median is 1.438 and geometric mean is 1.925. 21 workloads have a
+Its median is 1.465 and geometric mean is 1.951. 21 workloads have a
 runner-up within 20%.
 
 These counts describe the measured workload set. They do not select new
@@ -56,6 +56,7 @@ refresh.
 | length-eight complex FFT JVP | `analytical` practical tie | applying the transform directly wins at 1 to 4 directions; Enzyme is 4.4% raw-faster at 16, but analytical wins hardware counters and has no optional dependency |
 | length-eight complex FFT VJP | `analytical` | the adjoint transform is 3.16 to 4.90× faster than a valid forward-Enzyme construction; direct reverse Enzyme fails validation for this complex kernel |
 | external FFT composition | `analytical` practical tie | generated Enzyme scaffolding and an analytical FFTW custom rule compose correctly; explicit and hybrid outer JVPs remain within 3.3% |
+| FFT spectral objective | `analytical` | the complete 16-input, scalar-output gradient is 3.96× faster than contraction from 16 forward-Enzyme basis products |
 | fixed quadrature | `analytical` | fixed linear contractions beat Enzyme and complete finite differences |
 | adaptive integration | mixed | whole-trace autodiff narrowly wins two measured JVP workloads; normal-build analytical remains for an optional hybrid raw win |
 | scalar/vector roots | product-specific | hybrid residual JVP can win; analytical implicit VJP and factor reuse remain strongest |

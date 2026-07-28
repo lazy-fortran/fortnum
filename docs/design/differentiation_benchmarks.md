@@ -148,6 +148,16 @@ Enzyme module. Analytical and hybrid JVPs differ by at most 3.3% over 1, 4,
 and 16 directions. At 16 directions they take 4,745 and 4,897 ns, with peak
 RSS of 4.94 and 4.99 MB. The explicit analytical composition remains selected.
 
+A complete frequency-weighted spectral objective maps 16 real components to
+one scalar and differentiates the composition, not an isolated transform. One
+primal FFT followed by the analytical adjoint takes 196 ns. Contracting the
+same gradient from 16 Enzyme forward-mode basis products takes 776 ns, so the
+analytical composition is 3.96 times faster. Peak RSS is 2.92 versus 3.00 MB.
+The analytical path also executes 4.13 times fewer instructions and incurs
+5.43 times fewer measured cache misses. An independent direct DFT and adjoint,
+plus a central finite difference of the complete objective, validate both
+candidates.
+
 Single-transform analytical products were measured at lengths 8, 64, 256,
 and 1024. JVP wall clock grows from 178 ns to 27.0 microseconds. VJP grows
 from 170 ns to 26.3 microseconds and stays within 6.3% of JVP at every length.

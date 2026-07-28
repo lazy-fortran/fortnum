@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "source_revision": "8a77fa771a4989dab85a3180eac3ad34c6f7914a",
+  "operator": "frequency-weighted scalar objective of an unnormalized length-8 complex FFT",
+  "product": "gradient",
+  "active_inputs": 16,
+  "outputs": 1,
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor"
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "autodiff": "Enzyme 22",
+    "optimization": "O2"
+  },
+  "objective": "one half times dot(FFT(x), W FFT(x)), with W diagonal and frequency weights 1+k^2",
+  "candidates": {
+    "analytical": "one primal FFT followed by its analytical adjoint applied to W FFT(x)",
+    "autodiff": "one primal FFT followed by a VJP contracted from 16 Enzyme forward-mode basis products"
+  },
+  "rejected_candidates": {
+    "reverse_autodiff": "Enzyme 22 reverse mode through the in-place complex radix-8 leaf produced NaNs in the prerequisite VJP tournament"
+  },
+  "sampling": {
+    "samples": 15,
+    "warmup_samples": 3,
+    "calls_per_sample": 20000
+  },
+  "validation": {
+    "oracles": [
+      "independent O(n^2) direct DFT objective and direct adjoint DFT gradient",
+      "central finite difference of the complete scalar objective along an independent direction"
+    ],
+    "direct_relative_tolerance": 4e-13,
+    "finite_difference_relative_tolerance": 2e-8
+  },
+  "median_ns": {
+    "analytical": 195.97775,
+    "autodiff": 776.31560
+  },
+  "peak_rss_bytes": {
+    "analytical": 2916352,
+    "autodiff": 2998272
+  },
+  "perf_stat_single_run_500000_workloads": {
+    "counter_order": ["cycles", "instructions", "cache_references", "cache_misses"],
+    "analytical": [8040936785, 28760845893, 1395418, 95943],
+    "autodiff": [32781610111, 118697848300, 7989441, 520932]
+  },
+  "selection": {
+    "mechanism": "analytical",
+    "reason": "the analytical composition is valid, 3.96 times faster, uses 2.7% less peak RSS, and executes 4.13 times fewer instructions",
+    "autodiff_over_analytical_time_ratio": 3.9612
+  }
+}
