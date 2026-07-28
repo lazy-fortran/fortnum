@@ -419,7 +419,7 @@ Every tournament record must include:
 - [x] Benchmark stiff ODE sensitivity.
 - [x] Benchmark nonstiff ODE sensitivity.
 - [x] Benchmark an event-driven trajectory.
-- [ ] Benchmark a small PDE or residual application.
+- [x] Benchmark a small PDE or residual application.
 - [ ] Benchmark a representative `itpplasma` workload.
 - [ ] Measure end-to-end forward/reverse scaling over active-input counts.
 - [ ] Measure end-to-end forward/reverse scaling over output counts.

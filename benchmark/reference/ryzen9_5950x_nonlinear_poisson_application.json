@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "operator": "nonlinear_poisson_residual_objective",
+  "product": "value_and_gradient",
+  "workload": "64-state centered-difference nonlinear Poisson residual and scalar half-squared-norm objective",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1 20260625",
+    "fortnum_commit": "b5544af",
+    "fortsym_commit": "724baf5b22894bc3e018b0653fac81bbf2f815eb"
+  },
+  "sampling": {
+    "warmup_rounds": 3,
+    "samples": 15,
+    "calls_per_sample": {
+      "analytical_reverse_stencil": 200000,
+      "analytical_forward_reconstruction": 5000,
+      "finite_difference_diagnostic": 2000
+    },
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum"
+  },
+  "validation": {
+    "oracle": "complex-step differentiation of an independently evaluated complex residual objective",
+    "maximum_absolute_error": 3.1477043194172438e-12,
+    "absolute_tolerance": 2e-10
+  },
+  "memory_method": "getrusage(RUSAGE_SELF) inside separately launched candidates",
+  "candidates": [
+    {
+      "id": "analytical_reverse_stencil",
+      "mechanism": "analytical",
+      "median_ns_per_call": 897.5063,
+      "mad_ns_per_call": 1.6732,
+      "peak_rss_bytes": 2818048,
+      "cycles_per_call": 4115.89,
+      "instructions_per_call": 10465.4,
+      "cache_misses_per_call": 0.0342797
+    },
+    {
+      "id": "analytical_forward_reconstruction",
+      "mechanism": "analytical",
+      "median_ns_per_call": 30757.8438,
+      "mad_ns_per_call": 54.0358,
+      "peak_rss_bytes": 2818048,
+      "cycles_per_call": 140019,
+      "instructions_per_call": 395928,
+      "cache_misses_per_call": 1.0514
+    },
+    {
+      "id": "finite_difference_diagnostic",
+      "mechanism": "diagnostic",
+      "median_ns_per_call": 57840.8865,
+      "mad_ns_per_call": 35.903,
+      "peak_rss_bytes": 2818048,
+      "cycles_per_call": 262952,
+      "instructions_per_call": 610980,
+      "cache_misses_per_call": 1.83742
+    }
+  ],
+  "selection": {
+    "selected": "analytical_reverse_stencil",
+    "speedup_over_forward_reconstruction": 34.2703,
+    "speedup_over_finite_difference": 64.4462,
+    "reason": "all candidates satisfy the independent complex-step oracle; preserving the local transpose stencil minimizes complete value-and-gradient wall clock, instructions, and cache misses, while peak RSS is identical"
+  }
+}
