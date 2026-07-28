@@ -217,9 +217,12 @@ if(FORTNUM_ENABLE_ENZYME)
             "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_dawson_outer.f90")
         set(_fortnum_square_wrapper_source
             "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_square.f90")
+        set(_fortnum_bspline_wrapper_source
+            "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_bspline_fixed_span.f90")
         foreach(_wrapper
                 "${_fortnum_dawson_wrapper_source}"
-                "${_fortnum_square_wrapper_source}")
+                "${_fortnum_square_wrapper_source}"
+                "${_fortnum_bspline_wrapper_source}")
             if(NOT EXISTS "${_wrapper}")
                 message(FATAL_ERROR "Missing generated Enzyme wrapper: ${_wrapper}")
             endif()
@@ -393,6 +396,8 @@ if(FORTNUM_ENABLE_ENZYME)
         NAME enzyme_bspline_fixed_span_products
         SOURCES
             ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${_fortnum_bspline_wrapper_source}
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/bspline_fixed_span_products.f90
         MODE forward
         OPT_LEVEL O2)

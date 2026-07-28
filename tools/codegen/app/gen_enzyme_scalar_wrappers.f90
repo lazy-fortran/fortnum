@@ -1,6 +1,7 @@
 program gen_enzyme_scalar_wrappers
     use fortsym_string, only: str, chars
-    use fortsym_enzyme, only: enzyme_scalar_wrapper_spec_t, &
+    use fortsym_enzyme, only: enzyme_scalar_vector_wrapper_spec_t, &
+        enzyme_scalar_wrapper_spec_t, emit_enzyme_scalar_vector_wrapper, &
         emit_enzyme_scalar_wrapper
     use fortnum_codegen_provenance, only: codegen_log, fortsym_revision
     implicit none
@@ -23,6 +24,7 @@ program gen_enzyme_scalar_wrappers
     call write_named_wrapper(output_directory, &
         "fortnum_generated_enzyme_square", "fortnum_enzyme_square", &
         "fortnum_smoke_square", "fortnum_enzyme_square.f90")
+    call write_scalar_vector_wrapper(output_directory)
 
 contains
 
@@ -104,5 +106,31 @@ contains
         close (unit)
         call codegen_log("wrote "//path)
     end subroutine write_named_wrapper
+
+    subroutine write_scalar_vector_wrapper(directory)
+        character(*), intent(in) :: directory
+        type(enzyme_scalar_vector_wrapper_spec_t) :: spec
+        character(:), allocatable :: code, path
+        integer :: unit, ios
+
+        spec%module_name = str("fortnum_generated_enzyme_bspline_fixed_span")
+        spec%wrapper_prefix = str("fortnum_enzyme_bspline_fixed_span")
+        spec%primal_symbol = str("fortnum_bspline_fixed_span_value")
+        spec%vector_size = 4
+        spec%generator = str("gen_enzyme_scalar_wrappers")
+        spec%generator_revision = str(fortsym_revision())
+        spec%regenerate_command = str( &
+            "cd tools/codegen && FORTNUM_ENZYME_WRAPPER_OUTPUT_DIR=<dir> "// &
+            "fo exec gen_enzyme_scalar_wrappers")
+
+        path = directory//"/fortnum_enzyme_bspline_fixed_span.f90"
+        open (newunit=unit, file=path, status="replace", action="write", &
+            iostat=ios)
+        if (ios /= 0) error stop "cannot write "//path
+        code = chars(emit_enzyme_scalar_vector_wrapper(spec))
+        write (unit, "(a)") code(:len(code) - 1)
+        close (unit)
+        call codegen_log("wrote "//path)
+    end subroutine write_scalar_vector_wrapper
 
 end program gen_enzyme_scalar_wrappers
