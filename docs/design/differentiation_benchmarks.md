@@ -30,7 +30,7 @@ primal evaluations required by the stated oracle.
 | Family | Record pattern | Products and comparisons | Independent validation |
 | --- | --- | --- | --- |
 | generated algebra | `ryzen9_5950x_dawson_generated_family.json`, determinant and inverse records | fused/separate, generated/diagnostic, JVP/VJP | formulas, finite differences, matrix identities, adjoint identities |
-| FFT | `ryzen9_5950x_fft8_jvp_tournament.json` | analytical transform versus forward Enzyme, direction scaling | direct DFT and NumPy transform oracle |
+| FFT | `ryzen9_5950x_fft8_{jvp,vjp}_tournament.json` | analytical transform products versus Enzyme, product scaling | direct DFT, direct adjoint DFT, dot identity, and NumPy transform oracle |
 | special functions | `ryzen9_5950x_bessel_*.json`, gamma, erf, and hypergeometric tournament records | analytical, autodiff, hybrid across numerical regions | complete-objective finite differences and custom-rule provenance |
 | Enzyme infrastructure | `ryzen9_5950x_enzyme_*.json`, `*_fixture_migration.json` | wrapper ABI, shared support, code size, migration regression | real Enzyme formulas, adjoint identities, negative repository guards |
 | interpolation | `ryzen9_5950x_lagrange_*.json`, `ryzen9_5950x_bspline_*.json` | active points, values, nodes, knots, coefficients, fused products | independent cubic formulas, finite differences, adjoint identities, crossing status |
@@ -48,7 +48,7 @@ For the generated Dawson outer objective, one fused value/JVP call takes
 9.67 ns versus 15.28 ns for separate value and JVP calls. The fused value/VJP
 takes 9.75 ns versus 15.81 ns. Fusion is therefore 1.58× and 1.62× faster,
 respectively, and executes 22.4% fewer instructions without a cache penalty.
-All four scalar candidates use fixed storage; their roughly 2.8–2.9 MB process
+All four scalar candidates use fixed storage; their roughly 2.8 to 2.9 MB process
 RSS does not resolve derivative workspace differences.
 
 ## GPU record families
@@ -125,6 +125,14 @@ analytical, which also has lower RSS, fewer instructions and misses, and is
 available in normal and device builds. Plan construction is correctly
 inactive: Enzyme 22 cannot differentiate Flang's `_FortranAAssign`, and plan
 derivatives are not part of the mathematical FFT contract.
+
+For the corresponding VJP, the analytical adjoint transform takes 272, 691,
+and 2,420 ns for 1, 4, and 16 cotangents. A valid autodiff construction uses
+16 Enzyme forward-mode basis products per cotangent and takes 859, 2,920, and
+11,865 ns. The analytical VJP is 3.16 to 4.90 times faster and uses 2.81 MB
+peak RSS versus 2.90 MB. Direct reverse Enzyme through the in-place complex
+radix kernel produced NaNs and failed the direct-adjoint oracle, so it is a
+rejected candidate rather than a timing result.
 
 The hypergeometric tournament activates real `z` at fixed real parameters.
 Because Enzyme 22 cannot differentiate Flang's complex `cexp`, its candidate

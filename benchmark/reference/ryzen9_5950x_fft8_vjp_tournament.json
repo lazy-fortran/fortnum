@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "source_revision": "844a4f3fb051f13773c433cfbf0e8f171e4afdcb",
+  "operator": "unnormalized forward complex FFT of length 8",
+  "product": "vjp",
+  "active_inputs": 16,
+  "outputs": 16,
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor"
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "autodiff": "Enzyme 22",
+    "optimization": "O2"
+  },
+  "candidates": {
+    "analytical": "apply the adjoint production radix-8 FFT execution leaf to each cotangent",
+    "autodiff": "contract each cotangent with 16 Enzyme forward-mode basis products of the production execution leaf"
+  },
+  "rejected_candidates": {
+    "reverse_autodiff": "Enzyme 22 reverse mode through the in-place complex radix-8 leaf produced NaNs and failed the direct-adjoint oracle"
+  },
+  "sampling": {
+    "samples": 15,
+    "warmup_samples": 3,
+    "calls_per_sample": 20000,
+    "cotangent_counts": [1, 4, 16]
+  },
+  "validation": {
+    "oracles": [
+      "independent O(n^2) direct adjoint DFT",
+      "real interleaved dot-product adjoint identity"
+    ],
+    "relative_tolerance": 4e-13,
+    "nan_check": "explicit"
+  },
+  "median_ns": {
+    "analytical": [271.93765, 690.64470, 2420.35625],
+    "autodiff": [858.68965, 2919.59295, 11864.52850]
+  },
+  "mad_ns": {
+    "analytical": [2.13155, 10.74275, 62.64695],
+    "autodiff": [26.86810, 53.61695, 92.13205]
+  },
+  "peak_rss_bytes_at_16_cotangents": {
+    "analytical": 2813952,
+    "autodiff": 2904064
+  },
+  "native_symbol_bytes": {
+    "analytical_fft_c2c8": 615,
+    "generated_autodiff_wrapper_and_jvp": 931
+  },
+  "perf_stat_single_run_50000_workloads": {
+    "counter_order": ["cycles", "instructions", "cache_references", "cache_misses"],
+    "c1": {
+      "analytical": [1111227639, 3439596094, 1131727, 187514],
+      "autodiff": [3440085120, 12391896025, 1384078, 189344]
+    },
+    "c16": {
+      "analytical": [10045615644, 31960598847, 1637784, 221956],
+      "autodiff": [48366852386, 175197409868, 3771174, 334388]
+    }
+  },
+  "selection": {
+    "mechanism": "analytical",
+    "reason": "the analytical adjoint is valid, 3.16 to 4.90 times faster, uses less peak RSS, and executes fewer instructions; direct reverse Enzyme is invalid for this complex kernel",
+    "autodiff_over_analytical_time_ratio": [3.1577, 4.2273, 4.9020]
+  }
+}

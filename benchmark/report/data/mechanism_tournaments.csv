@@ -50,3 +50,4 @@ hyperg_series_vjp,autodiff,autodiff,6652.7408,14508.0048,ryzen9_5950x_hyperg_tou
 hyperg_asymptotic_jvp,analytical,analytical,62.2413,232.1273,ryzen9_5950x_hyperg_region_codegen.json
 hyperg_asymptotic_vjp,analytical,analytical,58.7647,431.1664,ryzen9_5950x_hyperg_region_codegen.json
 fft8_jvp,analytical,autodiff,2360.4381,2463.8690,ryzen9_5950x_fft8_jvp_tournament.json
+fft8_vjp,analytical,analytical,2420.35625,11864.52850,ryzen9_5950x_fft8_vjp_tournament.json
