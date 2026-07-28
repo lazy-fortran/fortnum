@@ -618,6 +618,11 @@ target_link_libraries(bench_root_objective PRIVATE bench_core)
 add_test(NAME root_objective_validation
     COMMAND bench_root_objective analytical --validation-error)
 
+add_executable(bench_integral_objective bench_integral_objective.f90)
+target_link_libraries(bench_integral_objective PRIVATE bench_core)
+add_test(NAME integral_objective_validation
+    COMMAND bench_integral_objective analytical --validation-error)
+
 add_executable(bench_static_registry bench_static_registry.f90)
 target_link_libraries(bench_static_registry PRIVATE bench_core)
 

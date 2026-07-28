@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "operator": "parameterized_integral_objective",
+  "product": "value_and_gradient",
+  "workload": "I(p)=integral_0^(0.5+0.1p) exp(p*x) dx and F(p)=0.5*I(p)^2",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran 16.1.1 20260625",
+    "fortnum_commit": "e7942e5",
+    "fortsym_commit": "724baf5b22894bc3e018b0653fac81bbf2f815eb"
+  },
+  "sampling": {
+    "warmup_rounds": 3,
+    "samples": 15,
+    "calls_per_sample": {
+      "analytical_leibniz": 20000,
+      "finite_difference_diagnostic": 12000
+    },
+    "memory_processes_per_candidate": 5,
+    "memory_aggregation": "maximum"
+  },
+  "validation": {
+    "oracle": "closed-form moving-bound integral and derivative",
+    "maximum_absolute_error": 4.4408920985006262e-16,
+    "absolute_tolerance": 2e-10
+  },
+  "memory_method": "getrusage(RUSAGE_SELF) inside each separately launched candidate",
+  "counters": {
+    "method": "perf stat on the complete benchmark process, normalized by 15.3 timed-sample equivalents",
+    "analytical_leibniz": {
+      "cycles_per_call": 3934.56,
+      "instructions_per_call": 12146.9,
+      "cache_references_per_call": 26.2214,
+      "cache_misses_per_call": 0.167448
+    },
+    "finite_difference_diagnostic": {
+      "cycles_per_call": 5222.95,
+      "instructions_per_call": 17565.3,
+      "cache_references_per_call": 7.73121,
+      "cache_misses_per_call": 0.221198
+    }
+  },
+  "candidates": [
+    {
+      "id": "analytical_leibniz",
+      "mechanism": "analytical",
+      "complete_integrations_per_call": 2,
+      "median_ns_per_call": 938.1317,
+      "mad_ns_per_call": 3.0037,
+      "peak_rss_bytes": 2875392
+    },
+    {
+      "id": "finite_difference_diagnostic",
+      "mechanism": "diagnostic",
+      "complete_integrations_per_call": 3,
+      "median_ns_per_call": 1152.0477,
+      "mad_ns_per_call": 5.598,
+      "peak_rss_bytes": 2859008
+    }
+  ],
+  "selection": {
+    "selected": "analytical_leibniz",
+    "runtime_speedup": 1.228,
+    "reason": "both satisfy the independent closed-form application oracle; analytical is 1.228x faster, executes 1.45x fewer instructions, and incurs 1.32x fewer cache misses per value-and-gradient call; the 16384-byte RSS difference is process noise"
+  }
+}

@@ -269,6 +269,16 @@ value-and-gradient call. Both agree with an independent bisection-based
 oracle within \(3.70\times10^{-12}\). Their maximum process RSS differs by
 only 49,152 bytes, which is treated as measurement noise.
 
+The parameterized-integral application evaluates
+\(I(p)=\int_0^{0.5+0.1p}\exp(px)\,dx\) and returns the value and gradient of
+\(F(p)=0.5I(p)^2\). The analytical Leibniz path performs separate primal and
+tangent integrations in 938.13 ns. The finite-difference diagnostic performs
+one baseline and two perturbed integrations in 1,152.05 ns. Analytical is
+1.228 times faster, executes 1.45 times fewer instructions, and incurs 1.32
+times fewer cache misses. Both agree with the independent closed form within
+\(4.44\times10^{-16}\); their 16,384-byte maximum-RSS difference is process
+noise.
+
 ## Current normalized set
 
 `benchmark/report/data/mechanism_tournaments.csv` includes only tournaments
