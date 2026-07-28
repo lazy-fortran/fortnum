@@ -53,6 +53,8 @@ program enzyme_bessel_tournament
     use fortnum_generated_enzyme_bessel_outer_autodiff, only: &
         fortnum_enzyme_bessel_outer_autodiff_jvp, &
         fortnum_enzyme_bessel_outer_autodiff_vjp_scalar
+    use fortnum_generated_bessel_outer_jvp, only: &
+        fortnum_bessel_outer_jvp_kernel
     use bessel_outer_kernel, only: outer
     use fortnum_special_bessel, only: bessel_in
     implicit none
@@ -137,7 +139,8 @@ contains
 
         inner = bessel_in(0, x)
         inner_derivative = bessel_in(1, x)
-        derivative = (cos(inner) + 2.0_c_double*inner)*inner_derivative*direction
+        call fortnum_bessel_outer_jvp_kernel( &
+            inner, inner_derivative, direction, derivative)
     end function analytical_jvp
 
     function autodiff_jvp(x, direction) result(derivative)

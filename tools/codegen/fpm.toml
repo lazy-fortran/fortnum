@@ -13,9 +13,9 @@ implicit-typing = false
 source-form = "free"
 
 [[executable]]
-name = "gen_dawson_outer"
+name = "gen_special_outer"
 source-dir = "app"
-main = "gen_dawson_outer.f90"
+main = "gen_special_outer.f90"
 
 [[executable]]
 name = "gen_determinant_products"

@@ -351,7 +351,7 @@ support.
   Jacobian.
 - [x] Generate fused and separate value/product variants from one symbolic
   definition.
-- [ ] Generate special-function outer kernels while retaining stable primal
+- [x] Generate special-function outer kernels while retaining stable primal
   algorithms and recurrences at operator boundaries.
 - [ ] Generate explicit local residual products while retaining hand-written
   implicit tangent and adjoint solves.

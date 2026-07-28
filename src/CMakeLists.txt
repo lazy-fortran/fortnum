@@ -16,6 +16,7 @@ target_sources(fortnum PRIVATE
     fortnum_kinds.f90
     fortnum_status.f90
     fortnum_version.f90
+    generated/fortnum_bessel_outer_jvp_kernel.f90
     generated/fortnum_dawson_outer_kernel.f90
     generated/fortnum_dawson_outer_jvp_kernel.f90
     generated/fortnum_dawson_outer_value_kernel.f90
