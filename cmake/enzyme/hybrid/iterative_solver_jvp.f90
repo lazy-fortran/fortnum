@@ -1,22 +1,13 @@
 module iterative_solver_jvp_kernel
-    use, intrinsic :: iso_c_binding, only: c_double, c_funloc, c_funptr, c_int
+    use, intrinsic :: iso_c_binding, only: c_double, c_int
+    use fortnum_generated_enzyme_iterative_solver_component, only: &
+        fortnum_enzyme_iterative_solver_component_jvp
     implicit none
     private
 
     integer, parameter, public :: solver_size = 4
     real(c_double), parameter :: relaxation = 0.1_c_double
     public :: analytical_jvp, autodiff_jvp, diagnostic_jvp
-
-    interface
-        function enzyme_fwddiff(f, a, da, b, db, iterations, component) &
-                result(dx) bind(c, name="__enzyme_fwddiff")
-            import :: c_double, c_funptr, c_int
-            type(c_funptr), value :: f
-            real(c_double), intent(in) :: a(*), da(*), b(*), db(*)
-            integer(c_int), value :: iterations, component
-            real(c_double) :: dx
-        end function enzyme_fwddiff
-    end interface
 
 contains
 
@@ -89,7 +80,7 @@ contains
 
         call iterate(a, b, iterations, x)
         do component = 1, solver_size
-            dx(component) = enzyme_fwddiff(c_funloc(iteration_component), &
+            dx(component) = fortnum_enzyme_iterative_solver_component_jvp( &
                 a, da, b, db, iterations, int(component, c_int))
         end do
     end subroutine autodiff_jvp
@@ -119,41 +110,27 @@ contains
 end module iterative_solver_jvp_kernel
 
 program enzyme_iterative_solver_jvp
-    use, intrinsic :: iso_c_binding, only: c_double, c_int, c_int64_t
-    use, intrinsic :: iso_fortran_env, only: int64
+    use, intrinsic :: iso_c_binding, only: c_double, c_int
     use iterative_solver_jvp_kernel, only: analytical_jvp, autodiff_jvp, &
         diagnostic_jvp, solver_size
+    use fortnum_enzyme_fixture_support, only: collect_fixture_samples, &
+        fixture_peak_rss_bytes, fixture_sample_count, fixture_timer_t, &
+        median_mad, read_fixture_environment, read_fixture_integer, &
+        write_fixture_result
     implicit none
-
-    interface
-        function peak_rss_bytes() bind(c, name="fortnum_peak_rss_bytes") &
-                result(bytes)
-            import :: c_int64_t
-            integer(c_int64_t) :: bytes
-        end function peak_rss_bytes
-    end interface
 
     real(c_double) :: a(solver_size, solver_size), b(solver_size)
     real(c_double) :: da(solver_size, solver_size, 16), db(solver_size, 16)
     real(c_double) :: x(solver_size), dx(solver_size), reference(solver_size)
-    integer :: direction, direction_count, trace_iterations
-    integer(int64) :: workloads
+    real(c_double) :: samples(fixture_sample_count), sink
+    integer :: candidate_kind, direction, direction_count, trace_iterations
+    integer :: workloads
     character(32) :: action, candidate
+    logical :: valid
 
     call initialize_inputs()
-    call get_environment_variable("FORTNUM_ITERATIVE_ACTION", action)
-    call get_environment_variable("FORTNUM_ITERATIVE_CANDIDATE", candidate)
-    call read_integer_env("FORTNUM_ITERATIVE_DIRECTIONS", direction_count, 16)
-    call read_integer_env("FORTNUM_ITERATIVE_STEPS", trace_iterations, 32)
-    call read_int64_env("FORTNUM_ITERATIVE_WORKLOADS", workloads, 5000_int64)
-    if (trim(action) == "--benchmark") then
-        call benchmark_candidate(trim(candidate), direction_count, &
-            trace_iterations, workloads)
-    else if (trim(action) == "--peak-rss") then
-        call benchmark_candidate(trim(candidate), direction_count, &
-            trace_iterations, workloads)
-        write (*, "(a,i0)") "peak_rss_bytes=", peak_rss_bytes()
-    else
+    call read_fixture_environment("FORTNUM_ITERATIVE_ACTION", "validate", action)
+    if (trim(action) == "validate") then
         do trace_iterations = 4, 64, 4
             do direction = 1, 16
                 call analytical_jvp(a, da(:, :, direction), b, db(:, direction), &
@@ -171,7 +148,31 @@ program enzyme_iterative_solver_jvp
             end do
         end do
         write (*, "(a)") "PASS"
+        stop
     end if
+
+    call read_fixture_environment("FORTNUM_ITERATIVE_CANDIDATE", &
+        "analytical", candidate)
+    call read_fixture_integer("FORTNUM_ITERATIVE_DIRECTIONS", 16, &
+        direction_count, valid)
+    if (.not. valid) error stop "invalid iterative-solver direction count"
+    call read_fixture_integer("FORTNUM_ITERATIVE_STEPS", 32, &
+        trace_iterations, valid)
+    if (.not. valid) error stop "invalid iterative-solver step count"
+    call read_fixture_integer("FORTNUM_ITERATIVE_WORKLOADS", 5000, &
+        workloads, valid)
+    if (.not. valid) error stop "invalid iterative-solver workload count"
+    call parse_configuration()
+
+    if (trim(action) == "benchmark" .or. trim(action) == "--benchmark") then
+        call benchmark_candidate()
+    else if (trim(action) == "peak-rss" .or. trim(action) == "--peak-rss") then
+        sink = measure_candidate()
+        write (*, "(i0)") fixture_peak_rss_bytes()
+    else
+        error stop "action must be validate, benchmark, or peak-rss"
+    end if
+    if (sink /= sink) error stop "iterative-solver benchmark produced NaN"
 
 contains
 
@@ -198,75 +199,63 @@ contains
         end do
     end subroutine initialize_inputs
 
-    subroutine benchmark_candidate(name, directions, steps, count)
-        character(*), intent(in) :: name
-        integer, intent(in) :: directions, steps
-        integer(int64), intent(in) :: count
-        integer :: active_direction
-        integer(int64) :: workload, start, finish, rate
-        real(c_double) :: elapsed_ns, sink
-
-        if (directions < 1 .or. directions > 16) error stop "directions must be 1..16"
-        if (steps < 1) error stop "steps must be positive"
-        if (name /= "analytical" .and. name /= "autodiff" .and. &
-            name /= "diagnostic") then
-            error stop "candidate must be analytical, autodiff, or diagnostic"
+    subroutine parse_configuration()
+        if (direction_count < 1 .or. direction_count > 16) then
+            error stop "directions must be 1..16"
         end if
-        sink = 0.0_c_double
-        call system_clock(start, rate)
-        do workload = 1, count
-            b(1) = 0.5_c_double + 1.0e-12_c_double*real( &
-                mod(workload, 1024_int64), c_double)
-            do active_direction = 1, directions
-                select case (name)
-                case ("analytical")
-                    call analytical_jvp(a, da(:, :, active_direction), b, &
-                        db(:, active_direction), int(steps, c_int), x, dx)
-                case ("autodiff")
-                    call autodiff_jvp(a, da(:, :, active_direction), b, &
-                        db(:, active_direction), int(steps, c_int), x, dx)
-                case default
-                    call diagnostic_jvp(a, da(:, :, active_direction), b, &
-                        db(:, active_direction), int(steps, c_int), x, dx)
-                end select
-                sink = sink + x(1) + dx(1)
-            end do
-        end do
-        call system_clock(finish)
-        if (sink /= sink) error stop "benchmark produced NaN"
-        elapsed_ns = real(finish - start, c_double)*1.0e9_c_double / &
-            (real(rate, c_double)*real(count, c_double))
-        write (*, "(a,a,a,i0,a,i0,a,i0,a,f0.6,a,es12.4)") "candidate=", name, &
-            " directions=", directions, " steps=", steps, " workloads=", count, &
-            " ns_per_workload=", elapsed_ns, " sink=", sink
+        if (trace_iterations < 1) error stop "steps must be positive"
+        if (workloads < 1) error stop "workloads must be positive"
+        select case (trim(candidate))
+        case ("analytical")
+            candidate_kind = 1
+        case ("autodiff")
+            candidate_kind = 2
+        case ("diagnostic")
+            candidate_kind = 3
+        case default
+            error stop "candidate must be analytical, autodiff, or diagnostic"
+        end select
+    end subroutine parse_configuration
+
+    subroutine benchmark_candidate()
+        real(c_double) :: median, mad
+        character(96) :: name
+
+        call collect_fixture_samples(measure_candidate, samples)
+        call median_mad(samples, median, mad)
+        write (name, "(a,'_jvp_d',i0,'_s',i0)") trim(candidate), &
+            direction_count, trace_iterations
+        call write_fixture_result(trim(name), workloads, median, mad)
     end subroutine benchmark_candidate
 
-    subroutine read_integer_env(name, value, default_value)
-        character(*), intent(in) :: name
-        integer, intent(out) :: value
-        integer, intent(in) :: default_value
-        character(32) :: text
-        integer :: status, ios
+    function measure_candidate() result(elapsed_ns)
+        type(fixture_timer_t) :: timer
+        integer :: active_direction
+        integer :: workload
+        real(c_double) :: elapsed_ns, local_sink
 
-        value = default_value
-        call get_environment_variable(name, text, status=status)
-        if (status /= 0 .or. len_trim(text) == 0) return
-        read (text, *, iostat=ios) value
-        if (ios /= 0) error stop "invalid integer environment value"
-    end subroutine read_integer_env
-
-    subroutine read_int64_env(name, value, default_value)
-        character(*), intent(in) :: name
-        integer(int64), intent(out) :: value
-        integer(int64), intent(in) :: default_value
-        character(32) :: text
-        integer :: status, ios
-
-        value = default_value
-        call get_environment_variable(name, text, status=status)
-        if (status /= 0 .or. len_trim(text) == 0) return
-        read (text, *, iostat=ios) value
-        if (ios /= 0) error stop "invalid int64 environment value"
-    end subroutine read_int64_env
+        local_sink = 0.0_c_double
+        call timer%start()
+        do workload = 1, workloads
+            b(1) = 0.5_c_double + 1.0e-12_c_double*real( &
+                mod(workload, 1024), c_double)
+            do active_direction = 1, direction_count
+                select case (candidate_kind)
+                case (1)
+                    call analytical_jvp(a, da(:, :, active_direction), b, &
+                        db(:, active_direction), int(trace_iterations, c_int), x, dx)
+                case (2)
+                    call autodiff_jvp(a, da(:, :, active_direction), b, &
+                        db(:, active_direction), int(trace_iterations, c_int), x, dx)
+                case default
+                    call diagnostic_jvp(a, da(:, :, active_direction), b, &
+                        db(:, active_direction), int(trace_iterations, c_int), x, dx)
+                end select
+                local_sink = local_sink + x(1) + dx(1)
+            end do
+        end do
+        elapsed_ns = timer%elapsed_ns()/real(workloads, c_double)
+        sink = local_sink
+    end function measure_candidate
 
 end program enzyme_iterative_solver_jvp

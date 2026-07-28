@@ -12,7 +12,7 @@ vector_root_jvp,hybrid,hybrid,80.4377,80.7424,ryzen9_5950x_vector_root_tournamen
 vector_root_vjp,hybrid,hybrid,82.5682,83.3377,ryzen9_5950x_vector_root_tournament_vjp.json
 direct_solver_jvp,analytical,analytical,642.54235,816.41840,ryzen9_5950x_direct_solver_fixture_migration.json
 direct_solver_vjp,analytical,analytical,637.16250,974.32350,ryzen9_5950x_direct_solver_fixture_migration.json
-iterative_solver_jvp,analytical,analytical,5226.1534,8143.1408,ryzen9_5950x_iterative_solver_jvp_enzyme.json
+iterative_solver_jvp,analytical,analytical,4846.4234,7628.4264,ryzen9_5950x_iterative_solver_fixture_migration.json
 determinant_jvp,analytical,analytical,1198.33911,2208.37176,ryzen9_5950x_determinant_jvp.json
 determinant_vjp,analytical,analytical,29.013223,159.540497,ryzen9_5950x_determinant_vjp.json
 inverse_jvp,analytical,analytical,125.082176,160.003325,ryzen9_5950x_inverse_jvp.json

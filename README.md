@@ -310,8 +310,8 @@ value-plus-reverse wrapper takes 0.974 µs for 16 cotangents versus 0.637 µs
 analytically and 14.037 µs by componentwise finite differences.
 A fixed-trace iterative-solver comparator distinguishes the executed iteration
 map from the converged solve. At 32 iterations and 16 directions, the analytical
-tangent recurrence takes 5.226 µs, finite differences 8.143 µs, and forward
-`autodiff` 19.764 µs.
+tangent recurrence takes 4.846 µs, finite differences 7.628 µs, and forward
+`autodiff` 18.092 µs after generated-wrapper migration.
 No hybrid BLAS/LAPACK custom rule is selected yet: the measured analytical
 direct-solver JVP and VJP already beat Enzyme by 3.81× and 1.53× respectively,
 so an extra external-rule boundary is not currently justified.
