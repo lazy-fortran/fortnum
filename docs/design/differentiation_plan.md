@@ -97,9 +97,12 @@ The first implementation slice now also contains:
   and fixed-Newton JVP/VJP candidates; the coupled implicit solves,
   analytical residual products, and complete-root finite-difference oracles
   remain hand-written
+- generated five-input integrand and four-input whole-operator Enzyme wrappers
+  for fixed quadrature; the analytical quadrature contractions and closed-form
+  integral oracle remain hand-written
 
 Remaining work is tracked item by item in `ROADMAP.md`; the next CPU Enzyme
-step migrates fixed-quadrature JVP and VJP fixtures.
+step migrates adaptive-integration Enzyme fixtures.
 
 ## 3. Terminology
 

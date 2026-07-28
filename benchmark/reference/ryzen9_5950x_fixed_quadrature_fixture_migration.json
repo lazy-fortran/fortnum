@@ -1,0 +1,186 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "operator": "fixed_gauss_legendre_integral",
+  "purpose": "generated-wrapper and shared-fixture migration",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": 4
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "autodiff": "Enzyme 22",
+    "optimization": "O2",
+    "fortsym_revision": "6b6df9adf6e6dbe3e1482bb051c6ce2af46e8f89"
+  },
+  "workload": {
+    "rule_points": 32,
+    "active_inputs": 4,
+    "outputs": 1,
+    "product_counts": [1, 2, 4],
+    "calls_per_sample": 10000
+  },
+  "migration": {
+    "temporary_generated_wrappers": [
+      "five-input integrand JVP/VJP",
+      "four-input complete-quadrature JVP/VJP"
+    ],
+    "deleted_handwritten_wrapper_modules": [
+      "fixed_quadrature_full_jvp.f90",
+      "fixed_quadrature_full_vjp.f90"
+    ],
+    "removed_handwritten_mechanics": [
+      "raw Enzyme intrinsic interfaces",
+      "reverse gradient result structs",
+      "peak-RSS interfaces",
+      "timers",
+      "median/MAD sorting"
+    ],
+    "hot_loop_dispatch": "candidate name resolved before measurement",
+    "generator_output": "silent by default; FORTNUM_CODEGEN_VERBOSE=1 opts in"
+  },
+  "validation": {
+    "oracle": "closed-form derivative of the exactly integrated test integrand",
+    "directions_checked": 4,
+    "cotangents_checked": 4,
+    "analytical_autodiff_hybrid_absolute_tolerance": 2E-14,
+    "diagnostic_absolute_tolerance": 2E-10,
+    "batch_sizes_checked": [1, 4, 16]
+  },
+  "sampling": {
+    "warmups": 3,
+    "samples": 15,
+    "runtime_aggregation": "median",
+    "dispersion": "median absolute deviation",
+    "memory_processes_per_candidate_and_product_count": 5,
+    "perf_repetitions": 3
+  },
+  "jvp": {
+    "measurements": [
+      {
+        "mechanism": "analytical",
+        "counts": [
+          {"products": 1, "median_ns": 308.4890, "mad_ns": 1.0910, "peak_rss_bytes": 3244032},
+          {"products": 2, "median_ns": 614.4644, "mad_ns": 1.1882, "peak_rss_bytes": 3125248},
+          {"products": 4, "median_ns": 1223.4034, "mad_ns": 3.5366, "peak_rss_bytes": 3244032}
+        ]
+      },
+      {
+        "mechanism": "autodiff",
+        "counts": [
+          {"products": 1, "median_ns": 426.1717, "mad_ns": 0.8266, "peak_rss_bytes": 3186688},
+          {"products": 2, "median_ns": 851.7804, "mad_ns": 3.0818, "peak_rss_bytes": 3063808},
+          {"products": 4, "median_ns": 1701.5230, "mad_ns": 2.6109, "peak_rss_bytes": 3174400}
+        ]
+      },
+      {
+        "mechanism": "hybrid",
+        "counts": [
+          {"products": 1, "median_ns": 309.6503, "mad_ns": 0.5941, "peak_rss_bytes": 3248128},
+          {"products": 2, "median_ns": 614.1378, "mad_ns": 1.5289, "peak_rss_bytes": 3235840},
+          {"products": 4, "median_ns": 1225.1036, "mad_ns": 1.3215, "peak_rss_bytes": 3248128}
+        ]
+      },
+      {
+        "mechanism": "diagnostic",
+        "counts": [
+          {"products": 1, "median_ns": 552.5608, "mad_ns": 1.1842, "peak_rss_bytes": 3072000},
+          {"products": 2, "median_ns": 1107.2717, "mad_ns": 1.1772, "peak_rss_bytes": 3198976},
+          {"products": 4, "median_ns": 2212.0026, "mad_ns": 2.4908, "peak_rss_bytes": 3198976}
+        ]
+      }
+    ],
+    "perf_at_four_products": {
+      "analytical": {"cycles": 113030305, "instructions": 392115178, "cache_references": 110718, "cache_misses": 16105},
+      "autodiff": {"cycles": 159131909, "instructions": 551635802, "cache_references": 124355, "cache_misses": 26716},
+      "hybrid": {"cycles": 115434071, "instructions": 393555136, "cache_references": 99531, "cache_misses": 20557},
+      "diagnostic": {"cycles": 202648661, "instructions": 702516019, "cache_references": 59181, "cache_misses": 15999}
+    },
+    "selection": {
+      "selected": "analytical",
+      "criterion": "four-direction complete-workload wall clock",
+      "speedup_over_autodiff": 1.3908,
+      "speedup_over_diagnostic": 1.8081,
+      "selected_wall_clock_improvement_percent": 1.9486
+    }
+  },
+  "vjp": {
+    "measurements": [
+      {
+        "mechanism": "analytical",
+        "counts": [
+          {"products": 1, "median_ns": 300.8006, "mad_ns": 1.5379, "peak_rss_bytes": 3141632},
+          {"products": 2, "median_ns": 600.6143, "mad_ns": 2.7702, "peak_rss_bytes": 3125248},
+          {"products": 4, "median_ns": 1191.8691, "mad_ns": 2.3666, "peak_rss_bytes": 3051520}
+        ]
+      },
+      {
+        "mechanism": "autodiff",
+        "counts": [
+          {"products": 1, "median_ns": 439.7283, "mad_ns": 1.0309, "peak_rss_bytes": 3125248},
+          {"products": 2, "median_ns": 880.3522, "mad_ns": 2.1720, "peak_rss_bytes": 2949120},
+          {"products": 4, "median_ns": 1783.7159, "mad_ns": 18.2333, "peak_rss_bytes": 3133440}
+        ]
+      },
+      {
+        "mechanism": "hybrid",
+        "counts": [
+          {"products": 1, "median_ns": 309.1954, "mad_ns": 1.6201, "peak_rss_bytes": 2961408},
+          {"products": 2, "median_ns": 616.6546, "mad_ns": 1.4937, "peak_rss_bytes": 3153920},
+          {"products": 4, "median_ns": 1236.2336, "mad_ns": 4.0176, "peak_rss_bytes": 3125248}
+        ]
+      },
+      {
+        "mechanism": "diagnostic",
+        "counts": [
+          {"products": 1, "median_ns": 2252.1852, "mad_ns": 7.7847, "peak_rss_bytes": 2887680},
+          {"products": 2, "median_ns": 4449.8227, "mad_ns": 4.0265, "peak_rss_bytes": 3158016},
+          {"products": 4, "median_ns": 8877.6300, "mad_ns": 24.5462, "peak_rss_bytes": 3002368}
+        ]
+      }
+    ],
+    "perf_at_one_product": {
+      "analytical": {"cycles": 28044710, "instructions": 99255280, "cache_references": 51486, "cache_misses": 15259},
+      "autodiff": {"cycles": 40885900, "instructions": 144875753, "cache_references": 51611, "cache_misses": 15111},
+      "hybrid": {"cycles": 28869643, "instructions": 100415285, "cache_references": 51371, "cache_misses": 15293},
+      "diagnostic": {"cycles": 203812841, "instructions": 700955722, "cache_references": 58046, "cache_misses": 15420}
+    },
+    "selection": {
+      "selected": "analytical",
+      "criterion": "one-cotangent complete-workload wall clock",
+      "speedup_over_autodiff": 1.4619,
+      "speedup_over_hybrid": 1.0279,
+      "speedup_over_diagnostic": 7.4873,
+      "selected_wall_clock_change_percent": 0.4532
+    }
+  },
+  "forward_reverse_comparison": {
+    "full_gradient_forward_jvps": 4,
+    "full_gradient_reverse_vjps": 1,
+    "analytical_forward_over_reverse_wall_clock": 4.0672,
+    "autodiff_forward_over_reverse_wall_clock": 3.8695,
+    "hybrid_forward_over_reverse_wall_clock": 3.9622
+  },
+  "batch_16": {
+    "jvp_four_directions_median_ns": {
+      "analytical": 19619.4265,
+      "autodiff": 27182.9085,
+      "hybrid": 19713.6540,
+      "diagnostic": 35386.5265
+    },
+    "vjp_one_cotangent_median_ns": {
+      "analytical": 4744.3970,
+      "autodiff": 6975.1690,
+      "hybrid": 4904.9090,
+      "diagnostic": 35647.2975
+    }
+  },
+  "build_and_size": {
+    "incremental_two_fixture_build_wall_s": 1.06,
+    "incremental_two_fixture_build_peak_rss_kib": 127276,
+    "jvp_executable_bytes": 2196624,
+    "jvp_executable_change_bytes": 2056,
+    "vjp_executable_bytes": 2196520,
+    "vjp_executable_change_bytes": 2056
+  }
+}

@@ -1,6 +1,9 @@
 module fixed_quadrature_vjp_hybrid_kernel
-    use, intrinsic :: iso_c_binding, only: c_double, c_funloc, c_funptr
-    use fixed_quadrature_full_vjp_autodiff, only: full_quadrature_vjp
+    use, intrinsic :: iso_c_binding, only: c_double
+    use fortnum_generated_enzyme_fixed_quadrature_integrand, only: &
+        fortnum_enzyme_fixed_quadrature_integrand_vjp
+    use fortnum_generated_enzyme_fixed_quadrature_kernel, only: &
+        fortnum_enzyme_fixed_quadrature_kernel_vjp
     use fortnum_kinds, only: dp
     use fortnum_quadrature, only: gauss_legendre_vjp
     implicit none
@@ -10,28 +13,14 @@ module fixed_quadrature_vjp_hybrid_kernel
     real(dp), save :: kernel_nodes(kernel_rule_size)
     real(dp), save :: kernel_weights(kernel_rule_size)
 
-    type, bind(c) :: integrand_gradient_t
-        real(c_double) :: values(5)
-    end type integrand_gradient_t
-
     public :: analytical_integral_vjp, autodiff_integral_vjp, hybrid_integral_vjp
     public :: diagnostic_integral_vjp, exact_integral_vjp
     public :: configure_quadrature_kernel
 
-    interface
-        function enzyme_autodiff(f, x, p1, p2, p3, p4) result(gradient) &
-                bind(c, name="__enzyme_autodiff")
-            import :: c_double, c_funptr, integrand_gradient_t
-            type(c_funptr), value :: f
-            real(c_double), value :: x, p1, p2, p3, p4
-            type(integrand_gradient_t) :: gradient
-        end function enzyme_autodiff
-    end interface
-
 contains
 
     pure function integrand(x, p1, p2, p3, p4) result(value) &
-            bind(c, name="fortnum_fixed_quadrature_vjp_integrand")
+            bind(c, name="fortnum_fixed_quadrature_integrand")
         real(c_double), value :: x, p1, p2, p3, p4
         real(c_double) :: value
 
@@ -46,7 +35,7 @@ contains
     end subroutine configure_quadrature_kernel
 
     function quadrature_kernel(p1, p2, p3, p4) result(value) &
-            bind(c, name="fortnum_fixed_quadrature_vjp_kernel")
+            bind(c, name="fortnum_fixed_quadrature_kernel")
         real(c_double), value :: p1, p2, p3, p4
         real(c_double) :: value
         integer :: i
@@ -81,26 +70,28 @@ contains
         real(dp), intent(in) :: parameters(4), cotangent
         real(dp) :: vjp(4)
 
-        vjp = full_quadrature_vjp(parameters, cotangent)
+        call fortnum_enzyme_fixed_quadrature_kernel_vjp( &
+            parameters(1), parameters(2), parameters(3), parameters(4), &
+            cotangent, vjp(1), vjp(2), vjp(3), vjp(4))
     end function autodiff_integral_vjp
 
     function hybrid_integral_vjp(nodes, weights, parameters, cotangent) &
             result(vjp)
         real(dp), intent(in) :: nodes(:), weights(:), parameters(4), cotangent
         real(dp) :: vjp(4), node_cotangents(size(nodes)), output_cotangent(1)
-        type(integrand_gradient_t) :: gradient
-        integer :: i, parameter
+        real(dp) :: ignored_xbar, parameter_bars(4)
+        integer :: i
 
         output_cotangent(1) = cotangent
         call gauss_legendre_vjp(weights, output_cotangent, node_cotangents)
         vjp = 0.0_dp
         do i = 1, size(nodes)
-            gradient = enzyme_autodiff(c_funloc(integrand), nodes(i), &
-                parameters(1), parameters(2), parameters(3), parameters(4))
-            do parameter = 1, 4
-                vjp(parameter) = vjp(parameter) + &
-                    node_cotangents(i)*gradient%values(parameter + 1)
-            end do
+            call fortnum_enzyme_fixed_quadrature_integrand_vjp( &
+                nodes(i), parameters(1), parameters(2), parameters(3), &
+                parameters(4), node_cotangents(i), ignored_xbar, &
+                parameter_bars(1), parameter_bars(2), parameter_bars(3), &
+                parameter_bars(4))
+            vjp = vjp + parameter_bars
         end do
     end function hybrid_integral_vjp
 
@@ -149,11 +140,13 @@ contains
 end module fixed_quadrature_vjp_hybrid_kernel
 
 program enzyme_fixed_quadrature_vjp_hybrid
-    use, intrinsic :: iso_c_binding, only: c_int64_t
-    use, intrinsic :: iso_fortran_env, only: dp => real64, int64
+    use, intrinsic :: iso_fortran_env, only: dp => real64
     use fixed_quadrature_vjp_hybrid_kernel, only: analytical_integral_vjp, &
         autodiff_integral_vjp, hybrid_integral_vjp, diagnostic_integral_vjp, &
         exact_integral_vjp, configure_quadrature_kernel
+    use fortnum_enzyme_fixture_support, only: collect_fixture_samples, &
+        fixture_peak_rss_bytes, fixture_sample_count, fixture_timer_t, &
+        median_mad, write_fixture_scaling_result
     use fortnum_quadrature, only: gauss_legendre_ab
     implicit none
 
@@ -161,16 +154,10 @@ program enzyme_fixed_quadrature_vjp_hybrid
     integer, parameter :: max_cotangents = 4
     real(dp) :: nodes(rule_size), weights(rule_size), parameters(4)
     real(dp) :: cotangents(max_cotangents)
+    real(dp) :: samples(fixture_sample_count), sink
     character(32) :: argument, candidate, count_argument
-    integer :: cotangent_count
-
-    interface
-        function peak_rss_bytes() bind(c, name="fortnum_peak_rss_bytes") &
-                result(bytes)
-            import :: c_int64_t
-            integer(c_int64_t) :: bytes
-        end function peak_rss_bytes
-    end interface
+    integer :: cotangent_count, candidate_kind, measurement_count
+    integer :: repetitions
 
     call initialize_workload()
     call get_command_argument(1, argument)
@@ -282,59 +269,55 @@ contains
     subroutine run_single_benchmark(name, count)
         character(*), intent(in) :: name
         integer, intent(in) :: count
-        integer, parameter :: samples = 31
-        integer(int64), parameter :: reps = 10000_int64
-        real(dp) :: elapsed(samples), sink
-        integer :: sample
+        real(dp) :: median, mad
 
         call validate_request(name, count)
-        do sample = 1, 3
-            call time_candidate(name, count, reps/100_int64, sink)
-        end do
-        do sample = 1, samples
-            call time_candidate(name, count, reps, elapsed(sample))
-        end do
-        call report(name, count, elapsed, reps)
+        call select_candidate(name)
+        measurement_count = count
+        repetitions = 10000
+        call collect_fixture_samples(measure_candidate, samples)
+        call median_mad(samples, median, mad)
+        call write_fixture_scaling_result( &
+            name, count, repetitions, median, mad)
     end subroutine run_single_benchmark
 
     subroutine run_peak_rss(name, count)
         character(*), intent(in) :: name
         integer, intent(in) :: count
-        integer(int64), parameter :: reps = 20000_int64
-        real(dp) :: elapsed
 
         call validate_request(name, count)
-        call time_candidate(name, count, reps, elapsed)
-        write (*, "(i0)") peak_rss_bytes()
+        call select_candidate(name)
+        measurement_count = count
+        repetitions = 20000
+        sink = measure_candidate()
+        write (*, "(i0)") fixture_peak_rss_bytes()
     end subroutine run_peak_rss
 
     subroutine run_batch_benchmark(name, batch_size)
         character(*), intent(in) :: name
         integer, intent(in) :: batch_size
-        integer, parameter :: samples = 31
-        integer(int64), parameter :: reps = 2000_int64
-        real(dp) :: elapsed(samples), sink
-        integer :: sample
+        real(dp) :: median, mad
 
         call validate_batch_request(name, batch_size)
-        do sample = 1, 3
-            call time_batch_candidate(name, batch_size, reps/20_int64, sink)
-        end do
-        do sample = 1, samples
-            call time_batch_candidate(name, batch_size, reps, elapsed(sample))
-        end do
-        call report(name, batch_size, elapsed, reps)
+        call select_candidate(name)
+        measurement_count = batch_size
+        repetitions = 2000
+        call collect_fixture_samples(measure_batch_candidate, samples)
+        call median_mad(samples, median, mad)
+        call write_fixture_scaling_result( &
+            name, batch_size, repetitions, median, mad)
     end subroutine run_batch_benchmark
 
     subroutine run_batch_peak_rss(name, batch_size)
         character(*), intent(in) :: name
         integer, intent(in) :: batch_size
-        integer(int64), parameter :: reps = 5000_int64
-        real(dp) :: elapsed
 
         call validate_batch_request(name, batch_size)
-        call time_batch_candidate(name, batch_size, reps, elapsed)
-        write (*, "(i0)") peak_rss_bytes()
+        call select_candidate(name)
+        measurement_count = batch_size
+        repetitions = 5000
+        sink = measure_batch_candidate()
+        write (*, "(i0)") fixture_peak_rss_bytes()
     end subroutine run_batch_peak_rss
 
     subroutine validate_batch_request(name, batch_size)
@@ -348,45 +331,44 @@ contains
         end if
     end subroutine validate_batch_request
 
-    subroutine time_batch_candidate(name, batch_size, reps, elapsed_ns)
-        character(*), intent(in) :: name
-        integer, intent(in) :: batch_size
-        integer(int64), intent(in) :: reps
-        real(dp), intent(out) :: elapsed_ns
-        integer(int64) :: iteration, start, finish, rate
+    function measure_batch_candidate() result(elapsed_ns)
+        type(fixture_timer_t) :: timer
+        real(dp) :: elapsed_ns
+        integer :: iteration
         integer :: batch
-        real(dp) :: varied_parameters(4), result(4), sink
+        real(dp) :: varied_parameters(4), result(4), local_sink
 
-        sink = 0.0_dp
-        call system_clock(start, rate)
-        do iteration = 1, reps
-            do batch = 1, batch_size
+        local_sink = 0.0_dp
+        call timer%start()
+        do iteration = 1, repetitions
+            do batch = 1, measurement_count
                 varied_parameters = parameters
                 varied_parameters(1) = varied_parameters(1) + &
-                    1.0e-6_dp*real(mod(iteration, 101_int64), dp) + &
+                    1.0e-6_dp*real(mod(iteration, 101), dp) + &
                     1.0e-3_dp*real(batch - 1, dp)
-                select case (name)
-                case ("analytical")
+                select case (candidate_kind)
+                case (1)
                     result = analytical_integral_vjp(nodes, weights, &
                         varied_parameters, cotangents(1))
-                case ("autodiff")
+                case (2)
                     result = autodiff_integral_vjp(varied_parameters, &
                         cotangents(1))
-                case ("hybrid")
+                case (3)
                     result = hybrid_integral_vjp(nodes, weights, &
                         varied_parameters, cotangents(1))
-                case ("diagnostic")
+                case default
                     result = diagnostic_integral_vjp(nodes, weights, &
                         varied_parameters, cotangents(1))
                 end select
-                sink = sink + sum(result)
+                local_sink = local_sink + sum(result)
             end do
         end do
-        call system_clock(finish)
-        elapsed_ns = 1.0e9_dp*real(finish - start, dp)/ &
-            (real(rate, dp)*real(reps, dp))
-        if (sink == huge(sink)) print *, sink
-    end subroutine time_batch_candidate
+        elapsed_ns = timer%elapsed_ns()/real(repetitions, dp)
+        if (local_sink /= local_sink) then
+            error stop "fixed-quadrature VJP batch benchmark failed"
+        end if
+        sink = local_sink
+    end function measure_batch_candidate
 
     subroutine validate_request(name, count)
         character(*), intent(in) :: name
@@ -401,77 +383,57 @@ contains
         end if
     end subroutine validate_request
 
-    subroutine time_candidate(name, count, reps, elapsed_ns)
+    subroutine select_candidate(name)
         character(*), intent(in) :: name
-        integer, intent(in) :: count
-        integer(int64), intent(in) :: reps
-        real(dp), intent(out) :: elapsed_ns
-        integer(int64) :: iteration, start, finish, rate
-        integer :: cotangent
-        real(dp) :: varied_parameters(4), result(4), sink
 
-        sink = 0.0_dp
-        call system_clock(start, rate)
-        do iteration = 1, reps
+        select case (name)
+        case ("analytical")
+            candidate_kind = 1
+        case ("autodiff")
+            candidate_kind = 2
+        case ("hybrid")
+            candidate_kind = 3
+        case default
+            candidate_kind = 4
+        end select
+    end subroutine select_candidate
+
+    function measure_candidate() result(elapsed_ns)
+        type(fixture_timer_t) :: timer
+        real(dp) :: elapsed_ns
+        integer :: iteration
+        integer :: cotangent
+        real(dp) :: varied_parameters(4), result(4), local_sink
+
+        local_sink = 0.0_dp
+        call timer%start()
+        do iteration = 1, repetitions
             varied_parameters = parameters
             varied_parameters(1) = varied_parameters(1) + &
-                1.0e-6_dp*real(mod(iteration, 101_int64), dp)
-            do cotangent = 1, count
-                select case (name)
-                case ("analytical")
+                1.0e-6_dp*real(mod(iteration, 101), dp)
+            do cotangent = 1, measurement_count
+                select case (candidate_kind)
+                case (1)
                     result = analytical_integral_vjp(nodes, weights, &
                         varied_parameters, cotangents(cotangent))
-                case ("autodiff")
+                case (2)
                     result = autodiff_integral_vjp(varied_parameters, &
                         cotangents(cotangent))
-                case ("hybrid")
+                case (3)
                     result = hybrid_integral_vjp(nodes, weights, &
                         varied_parameters, cotangents(cotangent))
-                case ("diagnostic")
+                case default
                     result = diagnostic_integral_vjp(nodes, weights, &
                         varied_parameters, cotangents(cotangent))
                 end select
-                sink = sink + sum(result)
+                local_sink = local_sink + sum(result)
             end do
         end do
-        call system_clock(finish)
-        elapsed_ns = 1.0e9_dp*real(finish - start, dp)/ &
-            (real(rate, dp)*real(reps, dp))
-        if (sink == huge(sink)) print *, sink
-    end subroutine time_candidate
-
-    subroutine report(name, count, values, reps)
-        character(*), intent(in) :: name
-        integer, intent(in) :: count
-        real(dp), intent(in) :: values(:)
-        integer(int64), intent(in) :: reps
-        real(dp) :: ordered(size(values)), deviations(size(values))
-        real(dp) :: median, mad
-
-        ordered = values
-        call sort_values(ordered)
-        median = ordered((size(ordered) + 1)/2)
-        deviations = abs(values - median)
-        call sort_values(deviations)
-        mad = deviations((size(deviations) + 1)/2)
-        write (*, "(a,',',i0,',',i0,',',f12.4,',',f12.4)") &
-            name, count, reps, median, mad
-    end subroutine report
-
-    subroutine sort_values(values)
-        real(dp), intent(inout) :: values(:)
-        real(dp) :: temporary
-        integer :: i, j
-
-        do i = 1, size(values) - 1
-            do j = i + 1, size(values)
-                if (values(j) < values(i)) then
-                    temporary = values(i)
-                    values(i) = values(j)
-                    values(j) = temporary
-                end if
-            end do
-        end do
-    end subroutine sort_values
+        elapsed_ns = timer%elapsed_ns()/real(repetitions, dp)
+        if (local_sink /= local_sink) then
+            error stop "fixed-quadrature VJP benchmark failed"
+        end if
+        sink = local_sink
+    end function measure_candidate
 
 end program enzyme_fixed_quadrature_vjp_hybrid

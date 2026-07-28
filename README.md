@@ -230,6 +230,11 @@ has the lowest median wall clock, but is within measurement noise of compact
 `analytical`; both clearly beat the generic callback paths. Candidate selection
 prioritizes complete-workload wall clock and records peak memory, input/output
 scaling, and cache behavior where supported.
+The fixed-quadrature Enzyme mechanics are generated from one five-input
+integrand profile and one four-input whole-operator profile; the old hand-written
+forward and reverse wrapper modules are gone. For a full four-input gradient,
+four analytical JVPs take 1.223 µs while one analytical VJP takes 0.301 µs.
+Whole-operator autodiff takes 1.702 µs and 0.440 µs, respectively.
 
 For batches of independent fixed integrals with four active inputs per scalar
 output, the full-Jacobian tournament selects reverse `analytical`. At batch 16
