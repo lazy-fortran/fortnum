@@ -625,6 +625,13 @@ target_link_libraries(bench_integral_objective PRIVATE bench_core)
 add_test(NAME integral_objective_validation
     COMMAND bench_integral_objective analytical --validation-error)
 
+add_executable(bench_nonlinear_least_squares
+    bench_nonlinear_least_squares.f90)
+target_link_libraries(bench_nonlinear_least_squares PRIVATE bench_core)
+add_test(NAME nonlinear_least_squares_validation
+    COMMAND bench_nonlinear_least_squares analytical_reverse
+        --validation-error)
+
 add_executable(bench_static_registry bench_static_registry.f90)
 target_link_libraries(bench_static_registry PRIVATE bench_core)
 
