@@ -44,11 +44,26 @@ end module bessel_outer_kernel
 
 program enzyme_bessel_tournament
     use, intrinsic :: iso_c_binding, only: c_double, c_funloc, c_funptr, &
-        c_int, c_int64_t
-    use, intrinsic :: iso_fortran_env, only: int64
+        c_int64_t
+    use fortnum_enzyme_fixture_support, only: collect_fixture_samples, &
+        fixture_peak_rss_bytes, fixture_sample_count, fixture_timer_t, &
+        median_mad, read_fixture_environment, read_fixture_integer, &
+        write_fixture_result
+    use fortnum_generated_enzyme_bessel_outer, only: &
+        fortnum_enzyme_bessel_outer_jvp
     use bessel_outer_kernel, only: outer, outer_autodiff
     use fortnum_special_bessel, only: bessel_in
     implicit none
+
+    integer, parameter :: region_count = 3
+    real(c_double), parameter :: region_centers(region_count) = [ &
+        1.0_c_double, 4.0_c_double, 24.0_c_double]
+    character(16), parameter :: region_names(region_count) = [ &
+        character(16) :: "series", "recurrence", "asymptotic"]
+    real(c_double) :: samples(fixture_sample_count), sink
+    character(32) :: action, candidate, product, region_text
+    integer :: region, directions, iterations, candidate_kind, product_kind
+    logical :: valid
 
     interface
         function enzyme_fwddiff(f, x, dx) result(derivative) &
@@ -67,57 +82,66 @@ program enzyme_bessel_tournament
             real(c_double) :: derivative
         end function enzyme_autodiff
 
-        subroutine rule_reset() bind(c, name="fortnum_bessel_rule_reset")
-        end subroutine rule_reset
+        subroutine rule_counter_reset() &
+                bind(c, name="fortnum_enzyme_rule_counter_reset")
+        end subroutine rule_counter_reset
 
-        function rule_calls() result(count) &
-                bind(c, name="fortnum_bessel_rule_calls")
-            import :: c_int
-            integer(c_int) :: count
-        end function rule_calls
+        function rule_counter_calls() result(count) &
+                bind(c, name="fortnum_enzyme_rule_counter_calls")
+            import c_int64_t
+            integer(c_int64_t) :: count
+        end function rule_counter_calls
 
-        subroutine rule_disable_count() &
-                bind(c, name="fortnum_bessel_rule_disable_count")
-        end subroutine rule_disable_count
-
-        function peak_rss_bytes() bind(c, name="fortnum_peak_rss_bytes") &
-                result(bytes)
-            import :: c_int64_t
-            integer(c_int64_t) :: bytes
-        end function peak_rss_bytes
+        subroutine rule_counter_disable() &
+                bind(c, name="fortnum_enzyme_rule_counter_disable")
+        end subroutine rule_counter_disable
     end interface
 
-    integer, parameter :: region_count = 3
-    real(c_double), parameter :: region_centers(region_count) = [ &
-        1.0_c_double, 4.0_c_double, 24.0_c_double]
-    character(16), parameter :: region_names(region_count) = [ &
-        character(16) :: "series", "recurrence", "asymptotic"]
-    character(32) :: action, candidate, product, region_text, direction_text
-    integer :: region, directions
-    integer(int64) :: iterations
-
-    call get_environment_variable("FORTNUM_BESSEL_ACTION", action)
-    call get_environment_variable("FORTNUM_BESSEL_CANDIDATE", candidate)
-    call get_environment_variable("FORTNUM_BESSEL_PRODUCT", product)
-    call get_environment_variable("FORTNUM_BESSEL_REGION", region_text)
-    call get_environment_variable("FORTNUM_BESSEL_DIRECTIONS", direction_text)
-    call read_int64_env("FORTNUM_BESSEL_ITERATIONS", iterations, 200000_int64)
-    region = parse_region(trim(region_text))
-    directions = parse_integer(direction_text, 16)
-
-    if (trim(action) == "--benchmark") then
-        call rule_disable_count()
-        call benchmark_candidate(trim(candidate), trim(product), region, &
-            directions, iterations)
-    else if (trim(action) == "--peak-rss") then
-        call rule_disable_count()
-        call benchmark_candidate(trim(candidate), trim(product), region, &
-            directions, iterations)
-        write (*, "(a,i0)") "peak_rss_bytes=", peak_rss_bytes()
-    else
+    call read_fixture_environment("FORTNUM_BESSEL_ACTION", "validate", action)
+    if (trim(action) == "validate") then
         call validate_candidates()
         write (*, "(a)") "PASS"
+        stop
     end if
+
+    call rule_counter_disable()
+    call read_fixture_environment("FORTNUM_BESSEL_CANDIDATE", &
+        "analytical", candidate)
+    call read_fixture_environment("FORTNUM_BESSEL_PRODUCT", "jvp", product)
+    call read_fixture_environment("FORTNUM_BESSEL_REGION", "series", &
+        region_text)
+    call read_fixture_integer("FORTNUM_BESSEL_DIRECTIONS", 16, directions, &
+        valid)
+    if (.not. valid) error stop "invalid direction count"
+    call read_fixture_integer("FORTNUM_BESSEL_ITERATIONS", 200000, iterations, &
+        valid)
+    if (.not. valid) error stop "invalid iteration count"
+    region = parse_region(trim(region_text))
+    call validate_benchmark_configuration()
+    select case (trim(candidate))
+    case ("analytical")
+        candidate_kind = 1
+    case ("autodiff")
+        candidate_kind = 2
+    case default
+        candidate_kind = 3
+    end select
+    if (trim(product) == "jvp") then
+        product_kind = 1
+    else
+        product_kind = 2
+    end if
+
+    if (trim(action) == "--benchmark" .or. trim(action) == "benchmark") then
+        call collect_fixture_samples(measure_candidate, samples)
+        call report_samples()
+    else if (trim(action) == "--peak-rss" .or. trim(action) == "peak-rss") then
+        sink = measure_candidate()
+        write (*, "(i0)") fixture_peak_rss_bytes()
+    else
+        error stop "action must be validate, benchmark, or peak-rss"
+    end if
+    if (sink /= sink) error stop "Bessel benchmark produced NaN"
 
 contains
 
@@ -141,7 +165,7 @@ contains
         real(c_double), intent(in) :: x, direction
         real(c_double) :: derivative
 
-        derivative = enzyme_fwddiff(c_funloc(outer), x, direction)
+        derivative = fortnum_enzyme_bessel_outer_jvp(x, direction)
     end function hybrid_jvp
 
     function autodiff_vjp(x, cotangent) result(derivative)
@@ -170,12 +194,12 @@ contains
                 > 2.0e-8_c_double) then
                 error stop "autodiff Bessel JVP mismatch"
             end if
-            call rule_reset()
+            call rule_counter_reset()
             if (abs(hybrid_jvp(x, direction) - reference)/scale &
                 > 2.0e-8_c_double) then
                 error stop "hybrid Bessel JVP mismatch"
             end if
-            if (rule_calls() /= 1_c_int) then
+            if (rule_counter_calls() /= 1_c_int64_t) then
                 error stop "analytical Bessel rule was not selected"
             end if
             if (abs(autodiff_vjp(x, direction) - reference)/scale &
@@ -183,67 +207,72 @@ contains
                 error stop "autodiff Bessel VJP mismatch"
             end if
         end do
+        call rule_counter_disable()
     end subroutine validate_candidates
 
-    subroutine benchmark_candidate(name, derivative_product, region_index, &
-            direction_count, count)
-        character(*), intent(in) :: name, derivative_product
-        integer, intent(in) :: region_index, direction_count
-        integer(int64), intent(in) :: count
-        integer :: direction_index
-        integer(int64) :: iteration, start, finish, rate
-        real(c_double) :: direction, elapsed_ns, sink, x
+    function measure_candidate() result(elapsed_ns)
+        type(fixture_timer_t) :: timer
+        real(c_double) :: direction, elapsed_ns, local_sink, x
+        integer :: direction_index, iteration
 
-        if (name /= "analytical" .and. name /= "autodiff" .and. &
-            name /= "hybrid") then
-            error stop "candidate must be analytical, autodiff, or hybrid"
-        end if
-        if (derivative_product /= "jvp" .and. derivative_product /= "vjp") then
-            error stop "product must be jvp or vjp"
-        end if
-        if (derivative_product == "vjp" .and. name == "hybrid") then
-            error stop "hybrid reverse custom rule is not implemented"
-        end if
-        if (direction_count < 1 .or. direction_count > 16) then
-            error stop "directions must be 1..16"
-        end if
-        sink = 0.0_c_double
-        call system_clock(start, rate)
-        do iteration = 1, count
-            x = region_centers(region_index) + 1.0e-6_c_double*real( &
-                mod(iteration, 101_int64) - 50_int64, c_double)
-            do direction_index = 1, direction_count
+        local_sink = 0.0_c_double
+        call timer%start()
+        do iteration = 1, iterations
+            x = region_centers(region) + 1.0e-6_c_double*real( &
+                mod(iteration, 101) - 50, c_double)
+            do direction_index = 1, directions
                 direction = 0.03_c_double*real( &
                     mod(5*direction_index, 11) - 5, c_double)
-                if (derivative_product == "jvp") then
-                    select case (name)
-                    case ("analytical")
-                        sink = sink + analytical_jvp(x, direction)
-                    case ("autodiff")
-                        sink = sink + autodiff_jvp(x, direction)
-                    case ("hybrid")
-                        sink = sink + hybrid_jvp(x, direction)
+                if (product_kind == 1) then
+                    select case (candidate_kind)
+                    case (1)
+                        local_sink = local_sink + analytical_jvp(x, direction)
+                    case (2)
+                        local_sink = local_sink + autodiff_jvp(x, direction)
+                    case default
+                        local_sink = local_sink + hybrid_jvp(x, direction)
                     end select
                 else
-                    select case (name)
-                    case ("analytical")
-                        sink = sink + analytical_jvp(x, direction)
-                    case ("autodiff")
-                        sink = sink + autodiff_vjp(x, direction)
+                    select case (candidate_kind)
+                    case (1)
+                        local_sink = local_sink + analytical_jvp(x, direction)
+                    case default
+                        local_sink = local_sink + autodiff_vjp(x, direction)
                     end select
                 end if
             end do
         end do
-        call system_clock(finish)
-        if (sink /= sink) error stop "benchmark produced NaN"
-        elapsed_ns = real(finish - start, c_double)*1.0e9_c_double &
-            /(real(rate, c_double)*real(count, c_double))
-        write (*, "(a,a,a,a,a,a,a,i0,a,i0,a,f0.6,a,es12.4)") "candidate=", &
-            name, " product=", derivative_product, " region=", &
-            trim(region_names(region_index)), &
-            " directions=", direction_count, " iterations=", count, &
-            " ns_per_workload=", elapsed_ns, " sink=", sink
-    end subroutine benchmark_candidate
+        elapsed_ns = timer%elapsed_ns()/real(iterations, c_double)
+        sink = local_sink
+    end function measure_candidate
+
+    subroutine report_samples()
+        real(c_double) :: median, mad
+        character(128) :: name
+
+        call median_mad(samples, median, mad)
+        write (name, "(a,'_',a,'_',a,'_d',i0)") trim(candidate), &
+            trim(product), trim(region_names(region)), directions
+        call write_fixture_result(trim(name), iterations, median, mad)
+    end subroutine report_samples
+
+    subroutine validate_benchmark_configuration()
+        if (trim(candidate) /= "analytical" .and. &
+            trim(candidate) /= "autodiff" .and. &
+            trim(candidate) /= "hybrid") then
+            error stop "candidate must be analytical, autodiff, or hybrid"
+        end if
+        if (trim(product) /= "jvp" .and. trim(product) /= "vjp") then
+            error stop "product must be jvp or vjp"
+        end if
+        if (trim(product) == "vjp" .and. trim(candidate) == "hybrid") then
+            error stop "hybrid reverse custom rule is not implemented"
+        end if
+        if (directions < 1 .or. directions > 16) then
+            error stop "directions must be 1..16"
+        end if
+        if (iterations < 1) error stop "iterations must be positive"
+    end subroutine validate_benchmark_configuration
 
     function parse_region(name) result(index)
         character(*), intent(in) :: name
@@ -260,30 +289,5 @@ contains
             error stop "region must be series, recurrence, or asymptotic"
         end select
     end function parse_region
-
-    function parse_integer(text, default_value) result(value)
-        character(*), intent(in) :: text
-        integer, intent(in) :: default_value
-        integer :: value, ios
-
-        value = default_value
-        if (len_trim(text) == 0) return
-        read (text, *, iostat=ios) value
-        if (ios /= 0) error stop "invalid integer environment value"
-    end function parse_integer
-
-    subroutine read_int64_env(name, value, default_value)
-        character(*), intent(in) :: name
-        integer(int64), intent(out) :: value
-        integer(int64), intent(in) :: default_value
-        character(32) :: text
-        integer :: status, ios
-
-        value = default_value
-        call get_environment_variable(name, text, status=status)
-        if (status /= 0 .or. len_trim(text) == 0) return
-        read (text, *, iostat=ios) value
-        if (ios /= 0) error stop "invalid int64 environment value"
-    end subroutine read_int64_env
 
 end program enzyme_bessel_tournament

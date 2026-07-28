@@ -206,6 +206,13 @@ if(FORTNUM_ENABLE_ENZYME)
                 fortnum_scalar_primal_p1=fortnum_scalar_custom_p1_forward
             MODE forward
             OPT_LEVEL O2)
+        set(_fortnum_bessel_wrapper_sources
+            "${FORTNUM_ENZYME_WRAPPER_DIR}/fortnum_enzyme_bessel_outer.f90")
+        foreach(_wrapper IN LISTS _fortnum_bessel_wrapper_sources)
+            if(NOT EXISTS "${_wrapper}")
+                message(FATAL_ERROR "Missing generated Enzyme wrapper: ${_wrapper}")
+            endif()
+        endforeach()
     endif()
     fortnum_add_enzyme_test(
         NAME enzyme_square
@@ -379,7 +386,10 @@ if(FORTNUM_ENABLE_ENZYME)
             ${CMAKE_SOURCE_DIR}/src/special/fortnum_special_bessel.f90
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/bessel_kernel.f90
             ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_rule_counter.c
+            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/bessel_rule.c
+            ${_fortnum_bessel_wrapper_sources}
             ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/bessel_outer.f90
         FORWARD_RULES
             fortnum_bessel_i0_kernel=fortnum_bessel_i0_kernel_derivative
