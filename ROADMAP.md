@@ -349,7 +349,7 @@ support.
   Jacobian.
 - [x] Generate contracted VJP expressions directly without materializing a
   Jacobian.
-- [ ] Generate fused and separate value/product variants from one symbolic
+- [x] Generate fused and separate value/product variants from one symbolic
   definition.
 - [ ] Generate special-function outer kernels while retaining stable primal
   algorithms and recurrences at operator boundaries.
