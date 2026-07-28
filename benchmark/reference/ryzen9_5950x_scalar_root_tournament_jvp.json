@@ -28,6 +28,13 @@
     "selected_for_fixed_iteration_autodiff": "forward",
     "forward_speedup": 1.3711
   },
+  "selected_perf_per_call": {
+    "candidate": "hybrid",
+    "cycles": 11.3807,
+    "instructions": 40.3231,
+    "cache_references": 0.2037,
+    "cache_misses": 0.0706
+  },
   "sampling": {
     "warmup_rounds": 3,
     "samples": 31,

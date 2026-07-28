@@ -29,6 +29,26 @@
     "reverse_speedup": 2.5139,
     "qualification": "JVP returns 16 directional products; VJP returns 16 scalar-objective cotangent products"
   },
+  "representative_perf_per_workload": {
+    "direct_solve_jvp_analytical": {
+      "cycles": 3032.7611,
+      "instructions": 4355.4765,
+      "cache_references": 0.2168,
+      "cache_misses": 0.0544
+    },
+    "direct_solve_jvp_autodiff": {
+      "cycles": 11346.0397,
+      "instructions": 27795.4820,
+      "cache_references": 0.6440,
+      "cache_misses": 0.0766
+    },
+    "lu_object_selected": {
+      "cycles": 5062.945,
+      "instructions": 16964.058,
+      "cache_references": 1.955,
+      "cache_misses": 0.062
+    }
+  },
   "evidence_contract": {
     "runtime": "median complete-workload wall clock with MAD in each referenced record",
     "memory": "candidate-specific peak RSS in separate processes",

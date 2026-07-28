@@ -28,6 +28,26 @@
     "sixteen_parameters": "analytical reverse, 8.5060 times faster than forward",
     "observed_crossover": "between one and four active parameters for the measured scalar objective"
   },
+  "representative_perf_per_workload": {
+    "long_full_trace_reverse": {
+      "cycles": 1202298.286,
+      "instructions": 3843838.340,
+      "cache_references": 19728.041,
+      "cache_misses": 2591.374
+    },
+    "long_forward_reconstruction": {
+      "cycles": 1800684.717,
+      "instructions": 5760263.111,
+      "cache_references": 18693.364,
+      "cache_misses": 2490.648
+    },
+    "long_checkpoint_stride_16": {
+      "cycles": 1484998.832,
+      "instructions": 4710810.074,
+      "cache_references": 22544.238,
+      "cache_misses": 2835.676
+    }
+  },
   "evidence_contract": {
     "runtime": "median complete primal-plus-product wall clock with MAD in each referenced record",
     "memory": "candidate-specific peak RSS in separate processes and retained trace bytes where applicable",

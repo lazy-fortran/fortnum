@@ -28,6 +28,13 @@
     "selected_for_fixed_iteration_autodiff": "forward",
     "forward_speedup": 1.3711
   },
+  "selected_perf_per_call": {
+    "candidate": "analytical",
+    "cycles": 67.2849,
+    "instructions": 218.3234,
+    "cache_references": 0.2147,
+    "cache_misses": 0.0735
+  },
   "sampling": {
     "warmup_rounds": 3,
     "samples": 31,

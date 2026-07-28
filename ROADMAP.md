@@ -407,7 +407,7 @@ Every tournament record must include:
 - [x] The selected candidate and deterministic selection rationale.
 - [x] Scaling over representative active-input and output counts.
 - [x] Forward-mode versus reverse-mode crossover evidence.
-- [ ] CPU work and cache counters where supported.
+- [x] CPU work and cache counters where supported.
 
 ## Application-level benchmarks
 
