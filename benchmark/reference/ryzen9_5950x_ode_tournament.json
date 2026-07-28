@@ -15,6 +15,13 @@
     "reusable_primal_state": "frozen-schedule comparisons share the accepted schedule; complete reverse timings include primal trace construction, while retained trace bytes are reported separately",
     "implicit_and_event_state": "implicit-stage factorizations and located event crossings are reused only in candidates whose names and child records declare that reuse"
   },
+  "scaling_coverage": {
+    "state_counts": [1, 2, 4, 16],
+    "active_parameter_counts": [1, 4, 16],
+    "direction_counts": [1, 4, 16],
+    "cotangent_or_objective_counts": [1, 4, 16],
+    "accepted_step_counts": [2, 400]
+  },
   "evidence_contract": {
     "runtime": "median complete primal-plus-product wall clock with MAD in each referenced record",
     "memory": "candidate-specific peak RSS in separate processes and retained trace bytes where applicable",

@@ -3,6 +3,9 @@
   "date": "2026-07-28",
   "operator": "vector_root",
   "product": "vjp",
+  "active_inputs": 2,
+  "outputs": 2,
+  "cotangent_counts": [1],
   "workload": "coupled 2-state residual, 2 parameters, fixed 12-step Newton trace, 100000 varying cotangents per sample",
   "hardware": {
     "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
