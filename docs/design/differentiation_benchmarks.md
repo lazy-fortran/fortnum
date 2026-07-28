@@ -108,6 +108,14 @@ the portable normal-build selection. The cache counters track the same
 wall-clock verdicts: the clear winners execute fewer instructions and incur
 fewer misses.
 
+Tail and asymptotic measurements reach the same conclusion. Bessel selects a
+2,212 ns autodiff JVP and a 2,798 ns analytical VJP; gamma selects a 2,820 ns
+autodiff JVP and a 5,710 ns analytical VJP. Erf remains a practical tie.
+Hypergeometric is the important exception enabled by code generation: its
+fortsym-generated asymptotic products take 59 ns for JVP and 67 ns for VJP,
+3.94× and 6.42× faster than Enzyme. The selected generated kernels also use
+slightly less process RSS and fewer measured instructions.
+
 The hypergeometric tournament activates real `z` at fixed real parameters.
 Because Enzyme 22 cannot differentiate Flang's complex `cexp`, its candidate
 uses a real specialization of the same Kummer, Taylor, and asymptotic
