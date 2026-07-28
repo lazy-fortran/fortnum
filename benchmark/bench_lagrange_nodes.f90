@@ -14,7 +14,7 @@ program bench_lagrange_nodes
     real(dp) :: xp(max_n), f(max_n), vxp(max_n), xpbar(max_n), warmup
     integer :: n, sample
     integer(int64) :: reps
-    character(16) :: candidate, product, size_arg, mode
+    character(32) :: candidate, product, size_arg, mode
     logical :: memory_only
 
     call get_command_argument(1, candidate)
@@ -33,6 +33,10 @@ program bench_lagrange_nodes
     if ((n < 2) .or. (n > max_n)) error stop "n must be in [2, 16]"
 
     call initialize_inputs()
+    if (trim(mode) == "--validation-error") then
+        call report_validation_error()
+        stop
+    end if
     if (trim(candidate) == "analytical") then
         reps = analytical_reps
     else if (trim(product) == "jvp") then
@@ -54,6 +58,30 @@ program bench_lagrange_nodes
     end do
 
 contains
+
+    subroutine report_validation_error()
+        real(dp) :: analytical_jv, diagnostic_jv, error, scale
+        real(dp) :: analytical_bar(max_n), diagnostic_bar(max_n)
+
+        if (trim(product) == "jvp") then
+            candidate = "analytical"
+            call run_jvp(analytical_jv)
+            candidate = "diagnostic"
+            call run_jvp(diagnostic_jv)
+            scale = max(1.0_dp, abs(diagnostic_jv))
+            error = abs(analytical_jv - diagnostic_jv)/scale
+            if (error > 2.0e-7_dp) error stop "Lagrange node JVP validation failed"
+        else
+            candidate = "analytical"
+            call run_vjp(analytical_bar)
+            candidate = "diagnostic"
+            call run_vjp(diagnostic_bar)
+            scale = max(1.0_dp, maxval(abs(diagnostic_bar(:n))))
+            error = maxval(abs(analytical_bar(:n) - diagnostic_bar(:n)))/scale
+            if (error > 2.0e-8_dp) error stop "Lagrange node VJP validation failed"
+        end if
+        write (*, "(es24.16)") error
+    end subroutine report_validation_error
 
     subroutine initialize_inputs()
         integer :: i

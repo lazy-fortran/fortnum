@@ -17,7 +17,7 @@ program bench_bspline_fit
     integer, allocatable :: pivots(:), transpose_pivots(:)
     integer :: n, info, sample
     integer(int64) :: reps
-    character(16) :: candidate, product, size_arg, mode
+    character(32) :: candidate, product, size_arg, mode
     logical :: memory_only
     real(dp) :: warmup
 
@@ -34,6 +34,10 @@ program bench_bspline_fit
     if ((n /= 4) .and. (n /= 8) .and. (n /= 16)) error stop "n must be 4, 8, or 16"
 
     call initialize_inputs()
+    if (trim(mode) == "--validation-error") then
+        call report_validation_error()
+        stop
+    end if
     if (trim(candidate) == "analytical") then
         reps = merge(200000_int64, 100000_int64, trim(product) == "jvp")
     else
@@ -52,6 +56,37 @@ program bench_bspline_fit
     end do
 
 contains
+
+    subroutine report_validation_error()
+        real(dp) :: error, scale
+        real(dp) :: analytical_coef(n)
+        real(dp) :: analytical_basis_bar(n, n), analytical_values_bar(n)
+
+        if (trim(product) == "jvp") then
+            candidate = "analytical"
+            call run_jvp()
+            analytical_coef = dcoef
+            candidate = "diagnostic"
+            call run_jvp()
+            scale = max(1.0_dp, maxval(abs(dcoef)))
+            error = maxval(abs(analytical_coef - dcoef))/scale
+            if (error > 3.0e-9_dp) error stop "B-spline fit JVP validation failed"
+        else
+            candidate = "analytical"
+            call run_vjp()
+            analytical_basis_bar = basis_bar
+            analytical_values_bar = values_bar
+            candidate = "diagnostic"
+            call run_vjp()
+            scale = max(1.0_dp, maxval(abs(basis_bar)), &
+                maxval(abs(values_bar)))
+            error = max( &
+                maxval(abs(analytical_basis_bar - basis_bar)), &
+                maxval(abs(analytical_values_bar - values_bar)))/scale
+            if (error > 3.0e-9_dp) error stop "B-spline fit VJP validation failed"
+        end if
+        write (*, "(es24.16)") error
+    end subroutine report_validation_error
 
     subroutine initialize_inputs()
         type(bspline_workspace_t) :: ws

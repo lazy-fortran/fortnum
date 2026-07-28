@@ -131,6 +131,18 @@ relative errors are \(2.90\times10^{-10}\) for Bessel,
 \(4.19\times10^{-10}\) for hypergeometric. Median candidate RSS at 16 products
 ranges from 2.72 to 3.37 MB across these fixtures.
 
+The completed interpolation tournament covers active Lagrange nodes, active
+B-spline knots, implicit spline fitting, and fixed-span analytical versus
+autodiff products. At the largest measured sizes, analytical JVP/VJP speedups
+over the finite-difference diagnostics are 2.31×/16.61× for Lagrange nodes,
+2.04×/2.09× for active knots, and 4.90×/1,224.35× for spline fitting.
+Generated-wrapper fixed-span analytical products take 47.46 ns per 16 JVPs and
+52.36 ns per 16 VJPs, versus 59.40 and 58.31 ns for Enzyme. Independent
+finite-difference errors at the largest sizes range from
+\(8.71\times10^{-12}\) to \(7.20\times10^{-9}\). Each record identifies
+reused spline or factorization state, native code size, candidate memory,
+direction scaling, and cache counters.
+
 For the length-eight complex FFT JVP, analytical and Enzyme candidates share
 the same production radix execution leaf. Analytical takes 251, 655, and
 2,464 ns for 1, 4, and 16 directions; Enzyme takes 274, 696, and 2,360 ns.

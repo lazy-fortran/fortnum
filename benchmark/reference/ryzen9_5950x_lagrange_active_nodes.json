@@ -1,6 +1,8 @@
 {
   "schema_version": 1,
   "date": "2026-07-27",
+  "source_revision": "747d09256864049894693886032108b580b50e58",
+  "evidence_refresh_source_revision": "d0140f4e3f7b3adb5aace29ac1c27b34d846b064",
   "product": "Lagrange interpolation with active support-node locations",
   "selection_criterion": "complete product wall clock",
   "hardware": "AMD Ryzen 9 5950X, CPU 4 pinned",
@@ -8,8 +10,10 @@
   "validation": {
     "jvp_oracle": "central finite difference of the primal interpolation weights",
     "jvp_relative_error_limit": 2e-7,
+    "jvp_observed_relative_error_at_16_nodes": 8.7055918029932400e-12,
     "vjp_oracle": "adjoint dot-product identity",
-    "vjp_relative_error_limit": 2e-13
+    "vjp_relative_error_limit": 2e-13,
+    "vjp_finite_difference_observed_relative_error_at_16_nodes": 7.2027031006172137e-9
   },
   "timings": [
     {"product": "jvp", "nodes": 4, "candidate": "analytical", "median_ns": 32.3739, "mad_ns": 0.7776},
@@ -37,9 +41,19 @@
     "analytical_vjp": {"cycles": 3267.471, "instructions": 10300.146, "cache_references": 0.22935, "cache_misses": 0.01376},
     "diagnostic_vjp": {"cycles": 53591.978, "instructions": 102080.925, "cache_references": 1.65608, "cache_misses": 0.14521}
   },
+  "native_code": {
+    "executable_bytes": 26608,
+    "analytical_jvp_symbol_bytes": 238,
+    "analytical_vjp_symbol_bytes": 466
+  },
   "selection": {
     "jvp": "analytical",
     "vjp": "analytical",
     "reason": "lowest complete-product wall clock at every measured node count"
+  },
+  "workload_contract": {
+    "reusable_primal_state": "support nodes and values are reused; each product recomputes interpolation weights",
+    "active_input_output_scaling": "active support-node counts 4, 8, and 16 map to one scalar output",
+    "forward_reverse_crossover": "JVP and VJP timings are recorded separately at every active-node count"
   }
 }

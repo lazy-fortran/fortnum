@@ -1,6 +1,8 @@
 {
   "schema_version": 1,
   "date": "2026-07-27",
+  "source_revision": "8374dc033428c1c7cd1cfc910cb446616216fbe0",
+  "evidence_refresh_source_revision": "d0140f4e3f7b3adb5aace29ac1c27b34d846b064",
   "product": "implicit derivatives of fitted B-spline coefficients B*c=y",
   "selection_criterion": "complete product wall clock",
   "hardware": "AMD Ryzen 9 5950X, CPU 4 pinned",
@@ -8,8 +10,10 @@
   "validation": {
     "jvp_oracle": "central finite difference of two independently refactored collocation solves",
     "jvp_max_absolute_error": 3e-9,
+    "jvp_observed_relative_error_at_16_coefficients": 1.9849699661733666e-10,
     "vjp_oracle": "adjoint identity against the independently validated JVP",
-    "vjp_relative_error_limit": 3e-13
+    "vjp_relative_error_limit": 3e-13,
+    "vjp_finite_difference_observed_relative_error_at_16_coefficients": 2.0554824986857982e-9
   },
   "timings": [
     {"product": "jvp", "coefficients": 4, "candidate": "analytical", "median_ns": 107.9471, "mad_ns": 5.1256},
@@ -37,9 +41,19 @@
     "analytical_vjp": {"cycles": 1908.043, "instructions": 4811.506, "cache_references": 1.38475, "cache_misses": 0.07037},
     "diagnostic_vjp": {"cycles": 2354219.920, "instructions": 10577327.617, "cache_references": 504.88268, "cache_misses": 34.38627}
   },
+  "native_code": {
+    "executable_bytes": 84528,
+    "analytical_jvp_symbol_bytes": 815,
+    "analytical_vjp_symbol_bytes": 1155
+  },
   "selection": {
     "jvp": "analytical",
     "vjp": "analytical",
     "reason": "factorization reuse minimizes complete-product wall clock at every measured fit size"
+  },
+  "workload_contract": {
+    "reusable_primal_state": "primal and transposed LU factorizations are reused by analytical products; diagnostics refactor every perturbed solve",
+    "active_input_output_scaling": "collocation systems and coefficient outputs scale together over sizes 4, 8, and 16",
+    "forward_reverse_crossover": "JVP and VJP timings are recorded separately at every fit size"
   }
 }
