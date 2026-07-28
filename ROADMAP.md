@@ -374,7 +374,7 @@ support.
 - [x] Benchmark fused and separate value/JVP special-function candidates.
 - [x] Benchmark representative small-argument regions.
 - [x] Benchmark representative transition regions.
-- [ ] Benchmark representative asymptotic regions.
+- [x] Benchmark representative asymptotic regions.
 
 ## FFT and transforms
 

@@ -1,0 +1,159 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "source_revision": "afc994f39fb44c43f7250f59b8f80c0d69bc3efb",
+  "workload": "16 JVP directions or 16 VJP cotangents in representative asymptotic and tail special-function regions",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor"
+  },
+  "toolchain": {
+    "compiler": "Flang/LLVM 22.1.8",
+    "autodiff": "Enzyme 22",
+    "optimization": "O2"
+  },
+  "sampling": {
+    "samples": 15,
+    "warmup_samples": 3
+  },
+  "validation": {
+    "oracle": "central difference of each complete bounded objective plus adjoint identities",
+    "source_records": [
+      "ryzen9_5950x_bessel_tournament.json",
+      "ryzen9_5950x_gamma_tournament.json",
+      "ryzen9_5950x_erf_tournament.json",
+      "ryzen9_5950x_hyperg_region_codegen.json"
+    ]
+  },
+  "regions": [
+    {
+      "kernel": "modified Bessel I0 outer objective",
+      "region": "asymptotic",
+      "x": 24.0,
+      "jvp_median_ns": {
+        "analytical": 2642.954415,
+        "autodiff": 2212.292955,
+        "hybrid": 2702.827375
+      },
+      "vjp_median_ns": {
+        "analytical": 2798.25166,
+        "autodiff": 5837.55933
+      },
+      "peak_rss_bytes": {
+        "jvp_autodiff": 3100672,
+        "jvp_analytical": 3145728,
+        "vjp_analytical": 3063808,
+        "vjp_autodiff": 2940928
+      },
+      "selection": {
+        "jvp": "autodiff",
+        "vjp": "analytical",
+        "reason": "autodiff JVP is 1.19x faster; analytical VJP is 2.09x faster"
+      }
+    },
+    {
+      "kernel": "regularized incomplete gamma P(2.5,x) outer objective",
+      "region": "tail",
+      "x": 8.0,
+      "jvp_median_ns": {
+        "analytical": 5726.27407,
+        "autodiff": 2820.26766,
+        "hybrid": 5786.36203
+      },
+      "vjp_median_ns": {
+        "analytical": 5709.89666,
+        "autodiff": 9219.08959
+      },
+      "peak_rss_bytes": {
+        "jvp_autodiff": 3022848,
+        "jvp_analytical": 3158016,
+        "vjp_analytical": 3198976,
+        "vjp_autodiff": 3231744
+      },
+      "selection": {
+        "jvp": "autodiff",
+        "vjp": "analytical",
+        "reason": "autodiff JVP is 2.03x faster; analytical VJP is 1.61x faster"
+      }
+    },
+    {
+      "kernel": "erf outer objective",
+      "region": "tail",
+      "x": 4.0,
+      "jvp_median_ns": {
+        "analytical": 325.4483,
+        "autodiff": 319.08029,
+        "hybrid": 330.21388
+      },
+      "vjp_median_ns": {
+        "analytical": 334.7409,
+        "autodiff": 334.80403
+      },
+      "peak_rss_bytes": {
+        "jvp_autodiff": 2920448,
+        "jvp_analytical": 3117056,
+        "vjp_analytical": 2990080,
+        "vjp_autodiff": 3080192
+      },
+      "selection": {
+        "jvp": "analytical",
+        "vjp": "analytical",
+        "raw_fastest_jvp": "autodiff",
+        "reason": "JVP differs by 2.00% and VJP by 0.02%; analytical is the portable normal-build practical-tie winner"
+      }
+    },
+    {
+      "kernel": "hypergeometric M(1,2.5,x) outer objective",
+      "region": "asymptotic",
+      "x": 80.0,
+      "jvp_median_ns": {
+        "analytical_region": 59.1094,
+        "autodiff": 232.7757,
+        "analytical_general": 6363.4386,
+        "hybrid": 3340.1104
+      },
+      "vjp_median_ns": {
+        "analytical_region": 66.7899,
+        "autodiff": 428.9585,
+        "analytical_general": 5888.3091
+      },
+      "peak_rss_bytes": {
+        "jvp_analytical_region": 2732032,
+        "jvp_autodiff": 2809856,
+        "vjp_analytical_region": 2584576,
+        "vjp_autodiff": 2842624
+      },
+      "selection": {
+        "jvp": "analytical",
+        "vjp": "analytical",
+        "reason": "fortsym-generated region products are 3.94x and 6.42x faster than autodiff"
+      }
+    }
+  ],
+  "perf_stat_five_run_aggregate": {
+    "counter_order": ["cycles", "instructions", "cache_references", "cache_misses"],
+    "bessel": {
+      "jvp_autodiff": [1982918761, 3384559683, 117522, 18653],
+      "jvp_analytical": [2432154485, 4530159769, 140408, 19845],
+      "vjp_analytical": [2433123937, 4523759745, 1442570, 19914],
+      "vjp_autodiff": [5362758470, 16034159680, 630206, 64653]
+    },
+    "gamma": {
+      "jvp_autodiff": [1265121220, 2150903832, 53233, 11365],
+      "jvp_analytical": [2662905770, 4159430067, 164923, 23255],
+      "vjp_analytical": [2621613317, 4145030041, 132820, 19591],
+      "vjp_autodiff": [4219141739, 13663491018, 1080807, 35781]
+    },
+    "erf": {
+      "jvp_autodiff": [149850416, 395348247, 25917, 9057],
+      "jvp_analytical": [163203080, 404948174, 720262, 9287],
+      "vjp_analytical": [151601435, 395348172, 26040, 9090],
+      "vjp_autodiff": [151450292, 396948243, 25813, 9028]
+    },
+    "hyperg": {
+      "jvp_analytical_region": [2905723, 8979484, 22140, 7711],
+      "jvp_autodiff": [10827642, 30099761, 22737, 8054],
+      "vjp_analytical_region": [2896407, 9779481, 22665, 7911],
+      "vjp_autodiff": [19395736, 52979762, 23517, 8665]
+    }
+  }
+}
