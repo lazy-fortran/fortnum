@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "source_revision": "83649cb44df83023351ce48b5ddaa0b966353cb7",
+  "operation": "Dawson outer generated value/JVP/VJP family",
+  "workload": "one value and one contracted product per scalar call",
+  "hardware": {
+    "cpu": "AMD EPYC 9V74 80-Core Processor",
+    "logical_cpus_available": 4,
+    "l1d_cache": "64 KiB (2 instances)",
+    "l2_cache": "2 MiB (2 instances)",
+    "l3_cache": "32 MiB (1 instance)",
+    "runner": "GitHub Actions 1000034392"
+  },
+  "toolchain": {
+    "compiler": "GNU Fortran (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+    "compiler_flags": "-O3"
+  },
+  "sampling": {
+    "warmup_rounds": 3,
+    "samples": 31,
+    "calls_per_sample": 10000000
+  },
+  "validation": {
+    "status": "passed",
+    "jvp_oracle": "central difference of sin(dawson(x)) + dawson(x)^2",
+    "vjp_oracle": "independent scalar adjoint identity"
+  },
+  "candidates": [
+    {
+      "product": "jvp",
+      "candidate": "fused",
+      "median_ns_per_workload": 14.7948,
+      "mad_ns_per_workload": 0.0194,
+      "peak_rss_bytes": 17100800
+    },
+    {
+      "product": "jvp",
+      "candidate": "separate",
+      "median_ns_per_workload": 23.8550,
+      "mad_ns_per_workload": 0.0188,
+      "peak_rss_bytes": 17100800
+    },
+    {
+      "product": "vjp",
+      "candidate": "fused",
+      "median_ns_per_workload": 14.7906,
+      "mad_ns_per_workload": 0.0094,
+      "peak_rss_bytes": 17100800
+    },
+    {
+      "product": "vjp",
+      "candidate": "separate",
+      "median_ns_per_workload": 23.8285,
+      "mad_ns_per_workload": 0.0210,
+      "peak_rss_bytes": 17100800
+    }
+  ],
+  "perf_stat": {
+    "available": false,
+    "reason": "GitHub-hosted runner denied hardware performance-counter access"
+  },
+  "selection": {
+    "jvp": {
+      "selected": "fused",
+      "speedup_over_separate": 1.6124,
+      "selection_basis": "minimum measured median wall-clock time"
+    },
+    "vjp": {
+      "selected": "fused",
+      "speedup_over_separate": 1.6111,
+      "selection_basis": "minimum measured median wall-clock time"
+    }
+  },
+  "provenance": {
+    "workflow_run": "https://github.com/lazy-fortran/fortnum/actions/runs/30356369625",
+    "artifact_id": 8686976479,
+    "raw_samples_retained_days": 30
+  }
+}

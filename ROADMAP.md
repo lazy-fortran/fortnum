@@ -446,4 +446,4 @@ Every tournament record must include:
 - [x] Re-run candidate selection after material Enzyme changes.
 - [x] Re-run candidate selection after material `fortsym` changes.
 - [x] Re-run candidate selection after material primal-code changes.
-- [ ] Re-run candidate selection on new target hardware.
+- [x] Re-run candidate selection on new target hardware.
