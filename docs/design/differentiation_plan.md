@@ -1,283 +1,120 @@
 # Differentiation implementation plan
 
-Status: implementation in progress. Normative downstream of
-`docs/design/ad.md` and motivated by
-`docs/performance_optimal_differentiation.md`.
+Status: active. [ROADMAP.md](../../ROADMAP.md) is the authoritative checklist.
 
-## 1. Goal
+## Objective
 
-`fortnum` will be primal-first, derivative-plural, and benchmark-selected.
-Every important derivative product can have `autodiff`, `analytical`, and
-`hybrid` candidates. Independent validation establishes correctness. Measured
-application runtime and peak memory select production implementations.
+`fortnum` is primal-first, derivative-plural, and benchmark-selected.
+
+For each important mathematical operator and derivative product:
+
+1. enumerate admissible `autodiff`, `analytical`, and `hybrid` candidates
+2. generate mechanical local algebra and wrappers
+3. validate each candidate independently
+4. measure realistic complete workloads
+5. select by wall clock and peak memory
 
 The stable public surface remains:
 
 ```text
-foo(...)
-foo_jvp(...)
-foo_vjp(...)
-foo_grad(...)
-foo_hvp(...)
+foo
+foo_jvp
+foo_vjp
+foo_grad
+foo_hvp
 ```
 
-Candidate generation, registration, selection, and generated symbols remain
-internal.
+Candidate symbols, generated wrappers, and selection metadata remain internal.
 
-## 2. Current baseline
+## Implemented foundation
 
-The library already contains:
+| Area | Current capability |
+| --- | --- |
+| contract | product-specific candidate sets and standard terminology |
+| status | merged provenance, quality, and reliability |
+| selection | deterministic workload metadata and pre-loop dispatch |
+| generation | one-DAG values, contracted JVP/VJP, fused products, variants, provenance, device annotations |
+| CPU autodiff | tested Flang/Enzyme scalar, fixed-vector, and fixed-array wrapper profiles |
+| hybrid boundaries | special functions, roots, integration, direct solves, and ODE RHS products |
+| implicit products | scalar/vector roots, fixed points, linear solves, spline fits, ODE stages, and events |
+| traces | adaptive integration and ODE tangent/adjoint replay |
+| GPU | generated analytical leaves for selected fixed kernels and one application |
+| evidence | machine-readable CPU/GPU records and reproducible `fortplot` reports |
 
-- backend-independent value, JVP, VJP, gradient, and HVP interfaces
-- a flat active-vector layout for optimizer-facing kernels
-- approximately 45 first-order derivative procedures
-- analytical special-function identities and recurrences
-- analytical FFT and fixed-quadrature linear products
-- analytical frozen-trace products for adaptive integration and ODE integration
-- analytical implicit products for scalar and vector roots
-- generic analytical root tangent and adjoint callback boundaries
-- analytical implicit fixed-point tangent and adjoint products
-- analytical interpolation and B-spline products
-- finite-difference, complex-step, smoothness, and adjoint-identity test helpers
-- an optional Flang and Enzyme test pipeline with three isolated smoke kernels
+The ownership inventory at
+[derivative_kernel_inventory.csv](derivative_kernel_inventory.csv) distinguishes
+generated explicit algebra, hand-written algorithms, stable recurrences,
+implicit solves, frozen traces, and generated Enzyme boundaries.
 
-The first implementation slice now also contains:
+## Generation policy
 
-- a real Flang 22 and Enzyme pipeline, including C analytical custom rules
-- a generated, public fused Dawson outer-expression value/JVP kernel
-- a real `hybrid` Dawson boundary whose test proves the custom rule was called
-- deterministic candidate metadata and a pre-loop selector
-- combined-active Lagrange and B-spline product rules
-- analytical implicit linear-solve JVP and VJP products
-- reusable linear-solve JVP and transposed-VJP factorizations
-- generic scalar-root and vector-root tangent and adjoint boundaries
-- analytical fixed-point JVP and VJP products
-- hybrid scalar-root JVP and VJP candidates using Enzyme forward and reverse
-  residual products
-- hybrid vector-root JVP and VJP candidates using Enzyme forward and reverse
-  residual products
-- optional reuse of the converged analytical vector-root Jacobian and its LU
-  or transposed-LU factorization across JVP directions or VJP cotangents
-- reciprocal-condition reporting and threshold rejection on the vector-root
-  implicit JVP boundary
-- committed runtime, dispersion, memory, validation, hardware, and toolchain
-  evidence for the first tournament
-- a machine-readable pre-refactor baseline for all 17 CPU Enzyme fixtures,
-  including duplicated scaffold counts, clean build time, complete-suite wall
-  clock, peak RSS, and native code size
-- one independently tested internal CPU Enzyme fixture-support module for
-  environment parsing, warmups and sampling, timing, median/MAD, standardized
-  output, and peak-RSS access
-- `fortsym`-generated forward-JVP and reverse-VJP wrappers for the proven
-  one-to-four-active-scalar ABI, including an optional analytical forward-rule
-  hook and no committed generated-wrapper copies
-- one shared generated-rule counter with reset, exact-call query, disable, and
-  record operations; production timing disables it
-- a migrated Bessel pilot using shared fixture support, a generated `hybrid`
-  outer wrapper, and the shared rule counter; all selected width-16 workloads
-  are 0.7% to 9.2% faster than the controlled pre-migration build
-- migrated Dawson and one-active-scalar square fixtures with temporary
-  `fortsym` wrappers; Dawson shares benchmark/counter support, while the square
-  smoke binary deliberately excludes benchmark support to avoid 0.54 MB of
-  measured test-only binary bloat
-- a `fortsym` scalar-plus-fixed-vector wrapper profile consumed by the
-  fixed-span B-spline JVP/VJP fixture, with generated wrappers remaining
-  temporary and only one hand-written numerical basis implementation
-- a `fortsym` fixed-array wrapper profile consumed by direct-solver JVP/VJP
-  fixtures, including an inactive integer selector and fused primal-plus-VJP
-  return; solver mathematics and validation oracles remain hand-written
-- the same fixed-array profile extended to two inactive integer controls for
-  the fixed-trace iterative-solver fixture, while preserving its explicit
-  analytical tangent recurrence and finite-difference trace oracle
-- generated three-active-scalar wrappers for scalar-root residual and
-  fixed-Newton JVP/VJP candidates; implicit differentiation, analytical
-  residual products, and complete-root finite-difference oracles remain
-  hand-written
-- generated four-active-scalar wrappers for vector-root residual components
-  and fixed-Newton JVP/VJP candidates; the coupled implicit solves,
-  analytical residual products, and complete-root finite-difference oracles
-  remain hand-written
-- generated five-input integrand and four-input whole-operator Enzyme wrappers
-  for fixed quadrature; the analytical quadrature contractions and closed-form
-  integral oracle remain hand-written
-- generated smooth/singular integrand and complete frozen-trace Enzyme wrappers
-  for adaptive integration; trace construction, identity guards, analytical
-  trace products, and finite-difference oracles remain hand-written
-- a generated three-input RHS JVP wrapper for ODE forward sensitivity; the
-  adaptive primal trajectory, frozen accepted-step sensitivity solve,
-  analytical variational equation, and complete-solve oracle remain hand-written
-- generated raw-autodiff scalar comparators for Dawson and Bessel, plus a
-  repository guard that rejects raw Enzyme interfaces and duplicated
-  timer/statistics/peak-memory helpers in hybrid fixtures
-- a machine-checked inventory of every production derivative kernel and every
-  generated Enzyme-wrapper artifact, classified by mathematical source
-  ownership in `docs/design/derivative_kernel_inventory.csv`
+Use one mathematical source for a local explicit operator. `fortsym` may emit:
 
-Remaining work is tracked item by item in `ROADMAP.md`. The CPU Enzyme
-infrastructure and derivative-kernel inventory sections are complete. The next
-section migrates admissible explicit chain rules to generated products.
+- value-only kernels
+- contracted JVP and VJP kernels
+- fused value/JVP and value/VJP kernels
+- raw, simplified, and factored variants
+- CPU and annotation-only device leaves
+- temporary Enzyme wrappers
 
-## 3. Terminology
+Generate a full Jacobian only when a caller reuses it enough to justify
+materialization.
 
-- `autodiff`: compiler or source-transformation differentiation of smooth code.
-- `analytical`: explicit expressions, recurrences, implicit solves, tangent or
-  adjoint models, linear operators, and frozen-trace rules.
-- `hybrid`: autodiff composition with analytical rules at mathematical operator
-  interfaces.
+Keep the following hand-written:
 
-Use these terms in new code, documentation, issues, and pull requests. Legacy
-terms such as `transparent`, `analytic_rule`, `implicit_rule`, and `trace_rule`
-may describe existing implementations during migration. They no longer imply
-exclusive ownership of a procedure.
+- special-function regime selection and stable recurrences
+- adaptive trace construction
+- root, equilibrium, and factorization orchestration
+- implicit tangent and adjoint solves
+- checkpoint and recomputation schedules
+- GPU scheduling and data residency
+- independent validation oracles
 
-## 4. Symbolic algebra dependency
+Generated code must pass symbolic equivalence where available, numerical
+boundary tests, byte-stable regeneration, native compilation, and complete
+workload benchmarks.
 
-`fortnum` uses `fortsym` for build-time symbolic algebra and code generation.
-The development dependency is `../lazy-fortran/fortsym`. The first generator
-fixes the currently exercised contract: expression DAGs, differentiation,
-SymEngine-backed simplification, fused kernel emission, operation counting, and
-exact regeneration banners.
+## Candidate tournament
 
-`fortsym` is still evolving. Extend and test it there when a planned candidate
-needs more capability. Do not invent an API in this repository, and do not add a
-runtime dependency on it.
+Every tournament records:
 
-## 4.1 CPU and GPU scope
+| Dimension | Required evidence |
+| --- | --- |
+| operator | mathematical definition and primal contract |
+| product | JVP, VJP, gradient, HVP, or matrix |
+| activity | active and inactive arguments |
+| validation | independent error, adjoint identity, or residual equation |
+| workload | inputs, outputs, directions, cotangents, batch, reusable state |
+| runtime | median complete-workload wall clock and dispersion |
+| memory | candidate-specific peak memory |
+| scaling | forward/reverse crossover dimensions |
+| hardware | compiler, flags, CPU/GPU, affinity, and revisions |
+| counters | cache, work, code size, transfer, or device counters when useful |
+| selection | winner and deterministic rationale |
 
-The normative support matrix, minimal device-leaf ABI, device-execution proof,
-and measurement gates are in [gpu.md](gpu.md). CPU supports selective
-`autodiff`, `analytical`, and `hybrid` candidates. GPU paths initially admit
-only individually validated generated `analytical` leaves; GPU `autodiff` and
-`hybrid` are not supported. A requested unavailable backend must fail rather
-than silently run on the host.
+Value-plus-product and derivative-only workloads are different contracts. A
+comparison must return the same values before it can support “faster”.
 
-## 4.2 Implementation status
+## CPU and GPU roles
 
-| Plan area | Status | Evidence |
-|---|---|---|
-| terminology and candidate contract | complete | `docs/design/ad.md`, `AGENTS.md` |
-| status/provenance composition | complete | `ad_status_merge` behavioral tests |
-| generated analytical JVP | complete for first slice | `dawson_outer_jvp`, generated source and finite-difference oracle |
-| real `hybrid` boundary | complete for first slice | Enzyme Dawson custom-rule call assertion |
-| candidate registry | complete for static selection | deterministic validation, timing, memory, code-size and ID ordering tests |
-| symbolic generation | one-DAG value, linear-scaling contracted JVP/VJP, fused/separate and proved-equivalent raw/simplified/factored Dawson families, selected-only production emission, multi-input GPU family, and annotation-only device-leaf emission complete | one committed simplified Dawson identity leaf, temporary raw/factored losers, symbolic zero proofs, post-CSE ranking, independent formula and adjoint oracles, byte-stable regeneration gate, real-device tests, scaling benchmarks |
-| FFT rules | CPU analytical transform/adjoint rules and a shared fixed-length radix-2 analytical GPU JVP/VJP pilot complete | direct DFT, complex-adjoint, real-device, CPU/GPU wall-clock, and memory evidence |
-| interpolation interface rules | combined evaluation/value, active support nodes and breakpoints, implicit fitted coefficients, cell/span status, Lagrange/B-spline interface tournaments, and a generated fixed-cell analytical GPU pilot complete | finite-difference directional, independent cubic, adjoint, fixed-grid, CPU/GPU wall-clock, memory, and scaling evidence |
-| linear algebra | determinant JVP/VJP, fused inverse JVP/VJP, reusable LU object, multiple-RHS tangent/adjoint products, forward/reverse Enzyme direct-solver comparators, a fixed-trace iterative-solver comparator, an evidence-based no-add BLAS/LAPACK custom-rule decision, implicit solve JVP/VJP with factorization reuse, and generated 3x3 determinant/inverse analytical GPU pilots complete | finite-difference, independent matrix-product, adjoint, residual, CPU/GPU wall-clock, scaling, cache, memory, and reuse benchmarks |
-| roots and fixed points | scalar/vector CPU tournaments, analytical boundaries, hybrid JVP/VJP, Jacobian/factor reuse, implicit JVP/VJP reliability, and one generated-residual analytical GPU JVP pilot complete | complete-solve finite-difference, exact-condition, Jacobian, scalar-objective, closed-form GPU, and real-device oracles |
-| integration | fixed/moving-bound analytical JVPs, complete fixed-quadrature JVP/VJP tournament, analytical/autodiff/hybrid frozen-trace candidates, smooth, singular, and batched tournaments, and an arbitrary-order analytical fixed-quadrature GPU pilot complete | closed-form integral and Leibniz derivatives, exact-polynomial and adjoint GPU oracles, CPU/GPU wall-clock and memory, frozen-trace finite differences, and trace-change checks |
-| ODE hybridization | complete for the planned slice: forward sensitivity with Enzyme RHS JVP, analytical Cash-Karp tangent and adjoint products, parameter VJPs, checkpoint/recompute candidates, implicit-stage products, transversal event-time and event-state JVPs, continuous and discrete contracts, short, long, stiff, many-parameter, and event-driven tournaments, and a fixed-trace two-state analytical GPU pilot | closed-form continuous trajectory/event-time/event-state sensitivity with refinement, closed-form scaled-rotation GPU trace, frozen-map finite-difference JVP/VJP, exact matrix-exponential VJP, exact implicit-stage tangent/adjoint, parameter/objective/direction/checkpoint scaling, CPU/GPU wall-clock, cache, memory, adjoint identity, and complete-solve finite difference |
-| cumulative evidence report | current for 32 mechanism tournaments | normalized source data and pinned `fortplot` generators in `benchmark/report/` |
-| module/application tournaments | module slices complete for integration, roots, linear algebra, and ODE; first persistent GPU terminal-objective application complete | committed records in `benchmark/reference/`, including complete value-plus-gradient wall clock and memory |
-| second order | pending | implement only for demonstrated consumers |
+CPU remains the complete feature path. Enzyme supplies CPU `autodiff`
+candidates and CPU `hybrid` composition.
 
-## 5. Work plan
+GPU uses explicit generated `analytical` leaves. OpenACC and OpenMP target
+share the same mathematical body. Direct GPU autodiff is outside the supported
+path.
 
-Difficulty is relative to this repository:
+## Remaining sequence
 
-- S: one focused change
-- M: several coordinated modules or tests
-- L: substantial build, compiler, or numerical work
-- XL: compiler-sensitive work with research risk
+The current ROADMAP sequence is:
 
-| Order | Terminology | Location | Deliverable | Difficulty | Completion gate |
-|---:|---|---|---|---|---|
-| 1 | all | `docs/`, contributor templates, repository instructions | Candidate-set contract, standard terminology, `fortsym` ownership rule | S | No instruction still requires exactly one derivative policy. |
-| 2 | `analytical` | `src/ad/fortnum_ad_interfaces.f90` | Hybrid provenance and deterministic quality/status merging | S | Unit tests cover mixed backend and worst-quality propagation. |
-| 3 | `autodiff` | `cmake/`, `src/ad/`, `src/CMakeLists.txt` | One generated JVP linked into the production library | L | Public product uses a real generated symbol and passes an independent directional oracle. |
-| 4 | `hybrid` | `src/ad/`, special-function wrappers | Autodiff outer expression with an analytical Dawson or Bessel rule at the call boundary | M to L | Pure autodiff, analytical, and hybrid candidates agree with finite difference, and the test proves the analytical rule was selected. |
-| 5 | `analytical` and `hybrid` | `src/roots/fortnum_roots.f90`, `src/roots/fortnum_multiroot.f90` | Generic implicit tangent and adjoint boundary with autodiff residual products as candidates | M to L | Residual linearization and adjoint identities pass, including ill-conditioning status. |
-| 6 | `analytical` and `hybrid` | `src/quadrature/fortnum_integrate.f90` | Autodiff integrand products composed with analytical differentiation under the integral or frozen trace | M to L | Moving-boundary and fixed-boundary contracts are distinguished and independently validated. |
-| 7 | `analytical` | `src/linalg/fortnum_linalg.f90` | JVP/VJP rules for determinant, inverse, and solve with factorization-reuse hooks | M | Products pass finite-difference and adjoint tests without forming explicit inverses in solve rules. |
-| 8 | `analytical` | interpolation and B-spline modules | Combined-active JVP/VJP for evaluation point and coefficients or nodal values | S to M | Product-rule results pass directional and adjoint tests across fixed cells and spans. |
-| 9 | `analytical` and `hybrid` | `src/ode/fortnum_ode.f90`, ODE method modules | Autodiff RHS products inside analytical forward sensitivity and discrete adjoint traces, including parameter VJP accumulation | L to XL | Discrete derivative contract passes frozen-trace finite difference and adjoint tests. |
-| 10 | all | new internal registry and `benchmark/` | Candidate metadata, workload classes, benchmark evidence, and pre-loop selector | L | Registry reproduces selected winners and records runtime, peak memory, and validation error. |
-| 11 | all | module tournaments | Special, interpolation, FFT, quadrature, roots, linear algebra, and ODE candidate tournaments | L | Each selected winner has committed validation and representative benchmark evidence. |
-| 12 | all | downstream mini-applications | Root-constrained objective, parameterized integral, spline fit, FFT objective, and ODE sensitivity benchmarks | L | Selection minimizes complete workload cost, not only isolated derivative latency. |
-| 13 | all | second-order modules | HVP candidates where consumers justify them | L to XL | Independent second-directional or high-precision oracle and memory evidence exist. |
-| 14 | `analytical` and `hybrid` | `fortsym` build-time integration | Symbolic DAG, simplification variants, contracted-product generation, operation counts, and code generation | M to L | Every committed generated kernel records an exact regeneration command and has an independent behavioral oracle. |
+1. migrate admissible hand-written explicit chain rules to generated products
+2. finish special-function and FFT tournaments
+3. consolidate module-level tournament evidence
+4. run complete downstream applications
+5. add second-order products only for demonstrated consumers
+6. keep CI, benchmark selection, and documentation synchronized with compiler,
+   Enzyme, `fortsym`, primal, and hardware changes
 
-## 6. First vertical slice
-
-The first implementation milestone is intentionally small:
-
-1. choose a scalar special function with an existing analytical JVP
-2. expose a compiler-stable primal and analytical rule boundary
-3. generate an autodiff derivative of an outer nonlinear expression
-4. make the generated derivative use the analytical rule at the inner call
-5. compare the `autodiff`, `analytical`, and `hybrid` candidates against an
-   independent finite-difference or complex-step oracle
-6. benchmark runtime and peak memory
-
-Dawson or a real modified Bessel function is the preferred target. This proves
-the hybrid mechanism before adding solver traces, tapes, or polymorphic
-contexts.
-
-## 7. Candidate tournament
-
-Every performance-relevant product follows the same sequence:
-
-1. state the mathematical operator and active arguments
-2. state the requested product
-3. enumerate admissible `autodiff`, `analytical`, and `hybrid` candidates
-4. implement an independent behavioral oracle
-5. validate directional, adjoint, implicit-residual, branch, and regime behavior
-6. benchmark realistic workload classes
-7. record runtime, peak memory, accuracy, and reusable primal state
-8. select the winner outside hot loops
-9. repeat after material changes to primal code, compiler, hardware, or workload
-
-Finite differences are reference candidates by default. They become production
-fallbacks only when their validation and performance justify that role.
-
-## 8. Interface rules
-
-- Custom-rule boundaries follow mathematical operators.
-- Autodiff may run outside a boundary, inside its local residual or physics
-  kernel, or both.
-- Implicit candidates differentiate defining equations.
-- Adaptive candidates state whether they differentiate a frozen discrete trace
-  or a continuous mathematical problem.
-- Contracted JVPs and VJPs are preferred to full matrices unless reuse justifies
-  matrix construction.
-- Candidate selection is per product. A Jacobian winner does not select the JVP
-  or VJP winner.
-- Dispatch resolves before hot loops.
-- Simple interoperable scalar and explicit-array boundaries come first.
-  Optional active arguments, descriptors, allocatables, and polymorphism require
-  dedicated compiler tests.
-
-## 9. Validation rules
-
-Repository-state checks are not tests. Each derivative candidate needs an
-independent behavioral oracle appropriate to the product:
-
-- central finite difference with a step-size convergence check
-- complex step where the primal is analytic and complex-safe
-- high-precision reference
-- adjoint identity $u^T(Jv)=v^T(J^Tu)$
-- implicit residual identity $R_y\,dy+R_p\,dp=0$
-- an independently derived analytical result
-
-A comparison between two implementations generated from the same expression is
-corroboration, not an independent oracle.
-
-## 10. Performance evidence
-
-Record at least:
-
-- value time
-- derivative time
-- fused value-and-derivative time
-- peak memory
-- validation error
-- workload dimensions and direction count
-- reusable traces, factorizations, or preconditioners
-- compiler and hardware identity
-
-Application-level evidence has priority over isolated kernel latency when the
-application changes optimizer iterations, cache behavior, batching, or memory
-pressure.
-
-The first measured table and its machine-readable record are in
-`docs/design/differentiation_benchmarks.md` and `benchmark/reference/`.
+Each ROADMAP checkbox is implemented, tested, measured, committed, pushed, and
+installed before the next begins.
