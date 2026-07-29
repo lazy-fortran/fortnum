@@ -6,7 +6,7 @@ program test_fortnum_special_complex_bessel
     use fortnum_status, only: fortnum_status_t, status_ok
     use fortnum_special_complex_bessel, only: bessel_j_complex, &
         bessel_i_complex, bessel_i_complex_array, bessel_k_complex, &
-        bessel_k_complex_array
+        bessel_k_complex_array, hankel_h1_real
 
     implicit none
 
@@ -23,6 +23,7 @@ program test_fortnum_special_complex_bessel
     call test_negative_order(nfail)
     call test_high_phase_crossover(nfail)
     call test_k_domain_guard(nfail)
+    call test_real_hankel(nfail)
 
     if (nfail > 0) then
         write (error_unit, "(i0,a)") nfail, " test(s) failed"
@@ -185,5 +186,26 @@ contains
             nfail = nfail + 1
         end if
     end subroutine test_k_domain_guard
+
+    subroutine test_real_hankel(nfail)
+        integer, intent(inout) :: nfail
+        complex(dp) :: hm, hp
+        type(fortnum_status_t) :: s
+
+        ! SciPy 1.14 hankel1 references.
+        call hankel_h1_real(0, 1.0_dp, hp, s)
+        call check("H1_0(1)", hp, &
+            (0.7651976865579666_dp, 0.08825696421567697_dp), nfail)
+        call hankel_h1_real(1, 1.0_dp, hp, s)
+        call check("H1_1(1)", hp, &
+            (0.4400505857449335_dp, -0.7812128213002887_dp), nfail)
+        call hankel_h1_real(-1, 1.0_dp, hm, s)
+        call check("H1_-1(1)", hm, -hp, nfail)
+        call hankel_h1_real(0, 0.0_dp, hp, s)
+        if (status_ok(s)) then
+            write (error_unit, "(a)") "FAIL Hankel domain guard not raised"
+            nfail = nfail + 1
+        end if
+    end subroutine test_real_hankel
 
 end program test_fortnum_special_complex_bessel
