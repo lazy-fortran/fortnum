@@ -113,6 +113,10 @@ add_executable(test_fortnum_special_gamma special/test_fortnum_special_gamma.f90
 target_link_libraries(test_fortnum_special_gamma PRIVATE fortnum)
 add_test(NAME fortnum_special_gamma COMMAND test_fortnum_special_gamma)
 
+add_executable(test_fortnum_special_legendre special/test_fortnum_special_legendre.f90)
+target_link_libraries(test_fortnum_special_legendre PRIVATE fortnum)
+add_test(NAME fortnum_special_legendre COMMAND test_fortnum_special_legendre)
+
 add_executable(test_fortnum_special_gamma_oracle oracle/test_fortnum_special_gamma_oracle.f90)
 target_link_libraries(test_fortnum_special_gamma_oracle PRIVATE fortnum)
 add_test(NAME fortnum_special_gamma_oracle
