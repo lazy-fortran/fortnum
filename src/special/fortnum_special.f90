@@ -31,6 +31,9 @@ module fortnum_special
         hyperg_1f1_a1, &
         hyperg_1f1_a1_jvp, &
         hyperg_1f1_a1_vjp
+    use fortnum_special_legendre, only: &
+        legendre_p, &
+        legendre_p_derivative
 
     implicit none
     private
@@ -61,5 +64,9 @@ module fortnum_special
     ! Active argument: z.  Inactive: a, b.  hyperg_1f1_a1 fixes a = 1.
     public :: hyperg_1f1, hyperg_1f1_a1
     public :: hyperg_1f1_a1_jvp, hyperg_1f1_a1_vjp
+
+    ! Ferrers associated Legendre P_l^m(x), including Condon-Shortley phase.
+    ! Derivative policy: analytic_rule. Active argument: x.
+    public :: legendre_p, legendre_p_derivative
 
 end module fortnum_special

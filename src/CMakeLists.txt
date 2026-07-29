@@ -38,6 +38,7 @@ target_sources(fortnum PRIVATE
     generated/fortnum_inv3_jvp_kernel.f90
     generated/fortnum_inv3_vjp_kernel.f90
     generated/fortnum_implicit_root_residual_kernel.f90
+    generated/fortnum_legendre_recurrence_kernel.f90
     generated/fortnum_scalar_root_residual_jvp_kernel.f90
     generated/fortnum_scalar_root_residual_vjp_kernel.f90
     generated/fortnum_sqrt1pm1_raw_kernel.f90
@@ -75,6 +76,7 @@ target_sources(fortnum PRIVATE
     special/fortnum_special_erf_cbind.f90
     special/fortnum_special_gamma.f90
     special/fortnum_special_hypergeometric_1f1.f90
+    special/fortnum_special_legendre.f90
     testing/fortnum_oracle.f90
 )
 
