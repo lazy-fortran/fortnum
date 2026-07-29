@@ -45,6 +45,8 @@ contract. They do not use mutable global error state.
 | Dawson | `dawson` | `dawson_jvp`, `dawson_grad` |
 | incomplete gamma | `gamma_lower`, `gamma_reg_p` | `gamma_lower_jvp` |
 | confluent hypergeometric | `hyperg_1f1`, `hyperg_1f1_a1` | `hyperg_1f1_a1_jvp`, `hyperg_1f1_a1_vjp` |
+| Ferrers associated Legendre | `legendre_p` | `legendre_p_derivative` |
+| toroidal associated Legendre | `toroidal_p`, `toroidal_q` | `toroidal_p_derivative`, `toroidal_q_derivative` |
 
 Domain modules expose additional products:
 
@@ -55,6 +57,11 @@ Domain modules expose additional products:
 - `fortnum_special_gamma`: argument and parameter JVPs plus gradients
 - `fortnum_special_hypergeometric_1f1`: `1F1`, specialized `a=1`, and
   `1F1M`
+- `fortnum_special_legendre`: Ferrers \(P_\ell^m(x)\) for integer degree and
+  order on \([-1,1]\), with the Condon-Shortley phase
+- `fortnum_special_toroidal`: Hobson \(P_{n-1/2}^m(x)\) and
+  \(Q_{n-1/2}^m(x)\), plus \(x\)-derivatives, for nonnegative integer
+  \(n,m\) and \(x>1\)
 - `fortnum_special_erf_cbind`: C-interoperable `erf`, `erfc`, JVPs, and
   gradients
 
@@ -67,6 +74,38 @@ real(dp) :: value, tangent
 value = bessel_in(2, 0.75_dp)
 call bessel_in_jvp(2, 0.75_dp, 1.0_dp, tangent)
 ```
+
+### Legendre and toroidal normalization
+
+`legendre_p(l,m,x)` is the Ferrers function on the cut. Negative orders use
+\[
+P_l^{-m}(x)=(-1)^m\frac{(l-m)!}{(l+m)!}P_l^m(x).
+\]
+Values outside \([-1,1]\) are NaN. The derivative entry point is defined on
+the open interval because endpoint derivatives may be singular.
+
+`toroidal_p(n,m,x)` and `toroidal_q(n,m,x)` use degree \(n-\tfrac12\), not
+\(n+\tfrac12\), and return Hobson-normalized functions. They are therefore
+directly compatible with the conventional toroidal harmonics used after
+separating Laplace's equation in toroidal coordinates. Invalid degree, order,
+or \(x\) is reported as NaN.
+
+The implementation follows
+[DLMF 14.3](https://dlmf.nist.gov/14.3) for the hypergeometric definitions,
+[DLMF 14.10](https://dlmf.nist.gov/14.10) for recurrence and derivative
+relations, and [DLMF 14.19](https://dlmf.nist.gov/14.19) for the toroidal
+specialization. In particular, DLMF's Olver-normalized
+\(\boldsymbol{Q}_\nu^\mu\) is converted to Hobson \(Q_\nu^\mu\); the two must
+not be interchanged.
+
+The present Gauss-series implementation targets moderate nonnegative degree
+and order at ordinary torus aspect ratios. It does not claim the near-\(x=1\),
+large-order envelope of the continued-fraction and uniform-asymptotic
+algorithm in
+[Gil, Segura, and Temme (2000)](https://ir.cwi.nl/pub/1181/1181D.pdf).
+The recurrence coefficients and series-term update are emitted by fortsym;
+the exact generator revisions and regeneration commands are recorded in the
+generated source banners.
 
 ## Quadrature and integration
 
