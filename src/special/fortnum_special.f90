@@ -34,6 +34,11 @@ module fortnum_special
     use fortnum_special_legendre, only: &
         legendre_p, &
         legendre_p_derivative
+    use fortnum_special_toroidal, only: &
+        toroidal_p, &
+        toroidal_q, &
+        toroidal_p_derivative, &
+        toroidal_q_derivative
 
     implicit none
     private
@@ -68,5 +73,9 @@ module fortnum_special
     ! Ferrers associated Legendre P_l^m(x), including Condon-Shortley phase.
     ! Derivative policy: analytic_rule. Active argument: x.
     public :: legendre_p, legendre_p_derivative
+
+    ! Hobson-normalized half-integer Legendre functions for toroidal harmonics.
+    public :: toroidal_p, toroidal_q
+    public :: toroidal_p_derivative, toroidal_q_derivative
 
 end module fortnum_special
