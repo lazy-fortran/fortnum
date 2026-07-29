@@ -33,6 +33,7 @@ target_sources(fortnum PRIVATE
     generated/fortnum_erfc_vjp_kernel.f90
     generated/fortnum_hyperg_asymptotic_outer_jvp_kernel.f90
     generated/fortnum_hyperg_asymptotic_outer_vjp_kernel.f90
+    generated/fortnum_hypergeom_2f1_term_kernel.f90
     generated/fortnum_inv2_jvp_kernel.f90
     generated/fortnum_inv2_vjp_kernel.f90
     generated/fortnum_inv3_jvp_kernel.f90
@@ -43,6 +44,7 @@ target_sources(fortnum PRIVATE
     generated/fortnum_scalar_root_residual_vjp_kernel.f90
     generated/fortnum_sqrt1pm1_raw_kernel.f90
     generated/fortnum_sqrt1pm1_stable_kernel.f90
+    generated/fortnum_toroidal_order_kernel.f90
     generated/fortnum_vector_root_residual_jacobian_kernel.f90
     generated/fortnum_vector_root_residual_jvp_kernel.f90
     generated/fortnum_vector_root_residual_vjp_kernel.f90
@@ -77,6 +79,7 @@ target_sources(fortnum PRIVATE
     special/fortnum_special_gamma.f90
     special/fortnum_special_hypergeometric_1f1.f90
     special/fortnum_special_legendre.f90
+    special/fortnum_special_toroidal.f90
     testing/fortnum_oracle.f90
 )
 
