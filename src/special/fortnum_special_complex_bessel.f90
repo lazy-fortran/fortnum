@@ -49,6 +49,7 @@ module fortnum_special_complex_bessel
     public :: bessel_j_complex_jvp
     public :: bessel_i_complex_jvp
     public :: bessel_k_complex_jvp
+    public :: hankel_h1_real
 
     real(dp), parameter :: pi      = 3.14159265358979323846_dp
     real(dp), parameter :: two_pi  = 6.28318530717958647692_dp
@@ -80,6 +81,27 @@ module fortnum_special_complex_bessel
     real(dp), parameter :: k_decay    = 40.0_dp
 
 contains
+
+    ! Outgoing Hankel H_n^(1)(x) = J_n(x) + i Y_n(x), for real x > 0.
+    subroutine hankel_h1_real(order, x, result, status)
+        integer, intent(in) :: order
+        real(dp), intent(in) :: x
+        complex(dp), intent(out) :: result
+        type(fortnum_status_t), intent(out) :: status
+
+        integer :: n
+
+        if (x <= 0.0_dp) then
+            result = (0.0_dp, 0.0_dp)
+            call status_set( &
+                status, FORTNUM_DOMAIN_ERROR, "Hankel needs x > 0")
+            return
+        end if
+        n = abs(order)
+        result = cmplx(bessel_jn(n, x), bessel_yn(n, x), dp)
+        if (order < 0 .and. mod(n, 2) == 1) result = -result
+        call status_set(status, FORTNUM_OK, "")
+    end subroutine hankel_h1_real
 
     ! ------------------------------------------------------------------ J_n(z)
 
