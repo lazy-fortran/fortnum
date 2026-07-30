@@ -7,11 +7,14 @@ module fortnum_special_jacobi
     use, intrinsic :: ieee_arithmetic, only: ieee_quiet_nan, ieee_value
     use fortnum_generated_jacobi_recurrence, only: &
         jacobi_recurrence_kernel
+    use fortnum_generated_scaled_jacobi_recurrence, only: &
+        scaled_jacobi_recurrence_kernel
     use fortnum_kinds, only: dp
     implicit none
     private
 
-    public :: jacobi_p, jacobi_p_derivative
+    public :: jacobi_p, jacobi_p_derivative, scaled_jacobi_p
+    public :: tetrahedron_koornwinder, triangle_dubiner
 
 contains
 
@@ -63,5 +66,83 @@ contains
         value = 0.5_dp*real(degree, dp) + 0.5_dp*(alpha + beta + 1.0_dp)
         value = value*jacobi_p(degree - 1, alpha + 1.0_dp, beta + 1.0_dp, x)
     end function jacobi_p_derivative
+
+    elemental function scaled_jacobi_p( &
+            degree, alpha, beta, numerator, scale) result(value)
+        integer, intent(in) :: degree
+        real(dp), intent(in) :: alpha, beta, numerator, scale
+        real(dp) :: value
+
+        integer :: current_degree
+        real(dp) :: current, next, previous
+
+        if (degree < 0) then
+            value = 0.0_dp
+            return
+        end if
+        if (alpha <= -1.0_dp .or. beta <= -1.0_dp) then
+            value = ieee_value(numerator, ieee_quiet_nan)
+            return
+        end if
+        if (degree == 0) then
+            value = 1.0_dp
+            return
+        end if
+
+        previous = 1.0_dp
+        current = 0.5_dp*((alpha - beta)*scale + &
+            (alpha + beta + 2.0_dp)*numerator)
+        current_degree = 1
+        do while (current_degree < degree)
+            call scaled_jacobi_recurrence_kernel( &
+                real(current_degree + 1, dp), alpha, beta, numerator, &
+                scale, previous, current, next)
+            previous = current
+            current = next
+            current_degree = current_degree + 1
+        end do
+        value = current
+    end function scaled_jacobi_p
+
+    elemental function triangle_dubiner( &
+            first_degree, second_degree, x, y) result(value)
+        integer, intent(in) :: first_degree, second_degree
+        real(dp), intent(in) :: x, y
+        real(dp) :: value
+
+        if (first_degree < 0 .or. second_degree < 0) then
+            value = 0.0_dp
+            return
+        end if
+        value = scaled_jacobi_p( &
+            first_degree, 0.0_dp, 0.0_dp, 2.0_dp*x + y - 1.0_dp, &
+            1.0_dp - y)
+        value = value*jacobi_p( &
+            second_degree, real(2*first_degree + 1, dp), 0.0_dp, &
+            2.0_dp*y - 1.0_dp)
+    end function triangle_dubiner
+
+    elemental function tetrahedron_koornwinder( &
+            first_degree, second_degree, third_degree, x, y, z) &
+            result(value)
+        integer, intent(in) :: first_degree, second_degree, third_degree
+        real(dp), intent(in) :: x, y, z
+        real(dp) :: value
+
+        if (first_degree < 0 .or. second_degree < 0 .or. &
+            third_degree < 0) then
+            value = 0.0_dp
+            return
+        end if
+        value = scaled_jacobi_p( &
+            first_degree, 0.0_dp, 0.0_dp, &
+            2.0_dp*x + y + z - 1.0_dp, 1.0_dp - y - z)
+        value = value*scaled_jacobi_p( &
+            second_degree, real(2*first_degree + 1, dp), 0.0_dp, &
+            2.0_dp*y + z - 1.0_dp, 1.0_dp - z)
+        value = value*jacobi_p( &
+            third_degree, real(2*(first_degree + second_degree) + 2, dp), &
+            0.0_dp, 2.0_dp*z - 1.0_dp)
+    end function tetrahedron_koornwinder
 
 end module fortnum_special_jacobi
