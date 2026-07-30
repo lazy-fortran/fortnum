@@ -35,8 +35,11 @@ module fortnum_special
         jacobi_p, &
         jacobi_p_derivative, &
         scaled_jacobi_p, &
+        scaled_jacobi_p_gradient, &
         tetrahedron_koornwinder, &
-        triangle_dubiner
+        tetrahedron_koornwinder_gradient, &
+        triangle_dubiner, &
+        triangle_dubiner_gradient
     use fortnum_special_legendre, only: &
         legendre_p, &
         legendre_p_derivative
@@ -78,7 +81,9 @@ module fortnum_special
 
     ! Classical Jacobi polynomials for alpha,beta > -1.
     public :: jacobi_p, jacobi_p_derivative, scaled_jacobi_p
+    public :: scaled_jacobi_p_gradient
     public :: tetrahedron_koornwinder, triangle_dubiner
+    public :: tetrahedron_koornwinder_gradient, triangle_dubiner_gradient
 
     ! Ferrers associated Legendre P_l^m(x), including Condon-Shortley phase.
     ! Derivative policy: analytic_rule. Active argument: x.

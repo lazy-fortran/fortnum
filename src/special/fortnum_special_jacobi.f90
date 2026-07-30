@@ -9,12 +9,16 @@ module fortnum_special_jacobi
         jacobi_recurrence_kernel
     use fortnum_generated_scaled_jacobi_recurrence, only: &
         scaled_jacobi_recurrence_kernel
+    use fortnum_generated_scaled_jacobi_gradient_recurrence, only: &
+        scaled_jacobi_gradient_recurrence_kernel
     use fortnum_kinds, only: dp
     implicit none
     private
 
     public :: jacobi_p, jacobi_p_derivative, scaled_jacobi_p
+    public :: scaled_jacobi_p_gradient
     public :: tetrahedron_koornwinder, triangle_dubiner
+    public :: tetrahedron_koornwinder_gradient, triangle_dubiner_gradient
 
 contains
 
@@ -104,6 +108,40 @@ contains
         value = current
     end function scaled_jacobi_p
 
+    pure subroutine scaled_jacobi_p_gradient( &
+            degree, alpha, beta, numerator, scale, gradient)
+        integer, intent(in) :: degree
+        real(dp), intent(in) :: alpha, beta, numerator, scale
+        real(dp), intent(out) :: gradient(2)
+
+        integer :: current_degree
+        real(dp) :: current, current_gradient(2), next, next_gradient(2)
+        real(dp) :: previous, previous_gradient(2)
+
+        gradient = 0.0_dp
+        if (degree <= 0 .or. alpha <= -1.0_dp .or. beta <= -1.0_dp) return
+        previous = 1.0_dp
+        previous_gradient = 0.0_dp
+        current = 0.5_dp*((alpha - beta)*scale + &
+            (alpha + beta + 2.0_dp)*numerator)
+        current_gradient = 0.5_dp*[alpha + beta + 2.0_dp, alpha - beta]
+        current_degree = 1
+        do while (current_degree < degree)
+            call scaled_jacobi_gradient_recurrence_kernel( &
+                real(current_degree + 1, dp), alpha, beta, numerator, &
+                scale, previous, current, previous_gradient(1), &
+                current_gradient(1), previous_gradient(2), &
+                current_gradient(2), next, next_gradient(1), &
+                next_gradient(2))
+            previous = current
+            previous_gradient = current_gradient
+            current = next
+            current_gradient = next_gradient
+            current_degree = current_degree + 1
+        end do
+        gradient = current_gradient
+    end subroutine scaled_jacobi_p_gradient
+
     elemental function triangle_dubiner( &
             first_degree, second_degree, x, y) result(value)
         integer, intent(in) :: first_degree, second_degree
@@ -121,6 +159,33 @@ contains
             second_degree, real(2*first_degree + 1, dp), 0.0_dp, &
             2.0_dp*y - 1.0_dp)
     end function triangle_dubiner
+
+    pure subroutine triangle_dubiner_gradient( &
+            first_degree, second_degree, x, y, gradient)
+        integer, intent(in) :: first_degree, second_degree
+        real(dp), intent(in) :: x, y
+        real(dp), intent(out) :: gradient(2)
+
+        real(dp) :: first, first_gradient(2), second, second_derivative
+
+        gradient = 0.0_dp
+        if (first_degree < 0 .or. second_degree < 0) return
+        first = scaled_jacobi_p( &
+            first_degree, 0.0_dp, 0.0_dp, 2.0_dp*x + y - 1.0_dp, &
+            1.0_dp - y)
+        call scaled_jacobi_p_gradient( &
+            first_degree, 0.0_dp, 0.0_dp, 2.0_dp*x + y - 1.0_dp, &
+            1.0_dp - y, first_gradient)
+        second = jacobi_p( &
+            second_degree, real(2*first_degree + 1, dp), 0.0_dp, &
+            2.0_dp*y - 1.0_dp)
+        second_derivative = 2.0_dp*jacobi_p_derivative( &
+            second_degree, real(2*first_degree + 1, dp), 0.0_dp, &
+            2.0_dp*y - 1.0_dp)
+        gradient(1) = 2.0_dp*first_gradient(1)*second
+        gradient(2) = (first_gradient(1) - first_gradient(2))*second + &
+            first*second_derivative
+    end subroutine triangle_dubiner_gradient
 
     elemental function tetrahedron_koornwinder( &
             first_degree, second_degree, third_degree, x, y, z) &
@@ -144,5 +209,43 @@ contains
             third_degree, real(2*(first_degree + second_degree) + 2, dp), &
             0.0_dp, 2.0_dp*z - 1.0_dp)
     end function tetrahedron_koornwinder
+
+    pure subroutine tetrahedron_koornwinder_gradient( &
+            first_degree, second_degree, third_degree, x, y, z, gradient)
+        integer, intent(in) :: first_degree, second_degree, third_degree
+        real(dp), intent(in) :: x, y, z
+        real(dp), intent(out) :: gradient(3)
+
+        real(dp) :: first, first_gradient(2), second, second_gradient(2)
+        real(dp) :: third, third_derivative
+
+        gradient = 0.0_dp
+        if (first_degree < 0 .or. second_degree < 0 .or. &
+            third_degree < 0) return
+        first = scaled_jacobi_p( &
+            first_degree, 0.0_dp, 0.0_dp, &
+            2.0_dp*x + y + z - 1.0_dp, 1.0_dp - y - z)
+        call scaled_jacobi_p_gradient( &
+            first_degree, 0.0_dp, 0.0_dp, &
+            2.0_dp*x + y + z - 1.0_dp, 1.0_dp - y - z, first_gradient)
+        second = scaled_jacobi_p( &
+            second_degree, real(2*first_degree + 1, dp), 0.0_dp, &
+            2.0_dp*y + z - 1.0_dp, 1.0_dp - z)
+        call scaled_jacobi_p_gradient( &
+            second_degree, real(2*first_degree + 1, dp), 0.0_dp, &
+            2.0_dp*y + z - 1.0_dp, 1.0_dp - z, second_gradient)
+        third = jacobi_p( &
+            third_degree, real(2*(first_degree + second_degree) + 2, dp), &
+            0.0_dp, 2.0_dp*z - 1.0_dp)
+        third_derivative = 2.0_dp*jacobi_p_derivative( &
+            third_degree, real(2*(first_degree + second_degree) + 2, dp), &
+            0.0_dp, 2.0_dp*z - 1.0_dp)
+        gradient(1) = 2.0_dp*first_gradient(1)*second*third
+        gradient(2) = (first_gradient(1) - first_gradient(2))*second*third + &
+            2.0_dp*first*second_gradient(1)*third
+        gradient(3) = (first_gradient(1) - first_gradient(2))*second*third + &
+            first*(second_gradient(1) - second_gradient(2))*third + &
+            first*second*third_derivative
+    end subroutine tetrahedron_koornwinder_gradient
 
 end module fortnum_special_jacobi
