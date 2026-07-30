@@ -2,12 +2,15 @@ program test_fortnum_special_jacobi
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
     use fortnum_quadrature, only: gauss_legendre
     use fortnum_special_jacobi, only: jacobi_p, jacobi_p_derivative, &
-        scaled_jacobi_p, tetrahedron_koornwinder, triangle_dubiner
+        scaled_jacobi_p, scaled_jacobi_p_gradient, &
+        tetrahedron_koornwinder, tetrahedron_koornwinder_gradient, &
+        triangle_dubiner, triangle_dubiner_gradient
     implicit none
 
     integer :: nfail
     real(dp), parameter :: tolerance = 3.0e-13_dp
     real(dp), parameter :: x = 0.37_dp
+    real(dp) :: gradient2(2), gradient3(3), scaled_gradient(2)
 
     nfail = 0
     call check("P0", jacobi_p(0, 2.0_dp, 1.0_dp, x), 1.0_dp)
@@ -30,6 +33,12 @@ program test_fortnum_special_jacobi
     call check("scaled removable limit", &
         scaled_jacobi_p(3, 0.0_dp, 0.0_dp, 0.31_dp, 0.0_dp), &
         2.5_dp*0.31_dp**3)
+    call scaled_jacobi_p_gradient( &
+        3, 0.0_dp, 0.0_dp, 0.31_dp, 0.73_dp, scaled_gradient)
+    call check("scaled numerator derivative", scaled_gradient(1), &
+        (15.0_dp*0.31_dp**2 - 3.0_dp*0.73_dp**2)/2.0_dp)
+    call check("scaled scale derivative", scaled_gradient(2), &
+        -3.0_dp*0.31_dp*0.73_dp)
     call check("scaled zero degree", &
         scaled_jacobi_p(0, 2.0_dp, 1.0_dp, 0.0_dp, 0.0_dp), 1.0_dp)
     call check("triangle constant", &
@@ -38,6 +47,9 @@ program test_fortnum_special_jacobi
         triangle_dubiner(1, 0, 0.2_dp, 0.3_dp), -0.3_dp)
     call check("triangle first y mode", &
         triangle_dubiner(0, 1, 0.2_dp, 0.3_dp), -0.1_dp)
+    call triangle_dubiner_gradient(1, 0, 0.2_dp, 0.3_dp, gradient2)
+    call check("triangle first x gradient", gradient2(1), 2.0_dp)
+    call check("triangle first y gradient", gradient2(2), 1.0_dp)
     call check("tetrahedron constant", &
         tetrahedron_koornwinder(0, 0, 0, 0.1_dp, 0.2_dp, 0.3_dp), &
         1.0_dp)
@@ -50,6 +62,12 @@ program test_fortnum_special_jacobi
     call check("tetrahedron first z mode", &
         tetrahedron_koornwinder(0, 0, 1, 0.1_dp, 0.2_dp, 0.3_dp), &
         0.2_dp)
+    call tetrahedron_koornwinder_gradient( &
+        0, 1, 0, 0.1_dp, 0.2_dp, 0.3_dp, gradient3)
+    call check("tetrahedron second-mode x gradient", gradient3(1), 0.0_dp)
+    call check("tetrahedron second-mode y gradient", gradient3(2), 3.0_dp)
+    call check("tetrahedron second-mode z gradient", gradient3(3), 1.0_dp)
+    call check_modal_gradients()
     call check_true("negative degree rejected", &
         jacobi_p(-1, 0.0_dp, 0.0_dp, x) == 0.0_dp)
     call check_weighted_orthogonality()
@@ -156,6 +174,47 @@ contains
         call check_orthogonal_gram("tetrahedron modal orthogonality", &
             tetrahedron_gram)
     end subroutine check_simplex_orthogonality
+
+    subroutine check_modal_gradients()
+        real(dp), parameter :: step = 2.0e-6_dp
+        real(dp) :: finite_difference, point2(2), point3(3)
+        real(dp) :: shifted_minus3(3), shifted_plus3(3)
+        real(dp) :: shifted_minus2(2), shifted_plus2(2)
+        integer :: direction
+
+        point2 = [0.23_dp, 0.31_dp]
+        call triangle_dubiner_gradient(3, 2, &
+            point2(1), point2(2), gradient2)
+        do direction = 1, 2
+            shifted_minus2 = point2
+            shifted_plus2 = point2
+            shifted_minus2(direction) = shifted_minus2(direction) - step
+            shifted_plus2(direction) = shifted_plus2(direction) + step
+            finite_difference = (triangle_dubiner( &
+                3, 2, shifted_plus2(1), shifted_plus2(2)) - &
+                triangle_dubiner( &
+                3, 2, shifted_minus2(1), shifted_minus2(2)))/(2*step)
+            call check_true("triangle modal analytic gradient", &
+                abs(gradient2(direction) - finite_difference) < 2.0e-9_dp)
+        end do
+
+        point3 = [0.17_dp, 0.19_dp, 0.23_dp]
+        call tetrahedron_koornwinder_gradient( &
+            2, 1, 2, point3(1), point3(2), point3(3), gradient3)
+        do direction = 1, 3
+            shifted_minus3 = point3
+            shifted_plus3 = point3
+            shifted_minus3(direction) = shifted_minus3(direction) - step
+            shifted_plus3(direction) = shifted_plus3(direction) + step
+            finite_difference = (tetrahedron_koornwinder( &
+                2, 1, 2, shifted_plus3(1), shifted_plus3(2), &
+                shifted_plus3(3)) - tetrahedron_koornwinder( &
+                2, 1, 2, shifted_minus3(1), shifted_minus3(2), &
+                shifted_minus3(3)))/(2*step)
+            call check_true("tetrahedron modal analytic gradient", &
+                abs(gradient3(direction) - finite_difference) < 2.0e-9_dp)
+        end do
+    end subroutine check_modal_gradients
 
     subroutine check_orthogonal_gram(label, gram)
         character(*), intent(in) :: label

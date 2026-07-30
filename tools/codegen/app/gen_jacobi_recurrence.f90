@@ -9,10 +9,12 @@ program gen_jacobi_recurrence
     implicit none
 
     type(arena_t), target :: arena
-    type(expr_t) :: alpha, beta, current, degree, denominator
-    type(expr_t) :: numerator, previous, roots(1), scale, x
+    type(expr_t) :: alpha, beta, current, current_scale, current_x
+    type(expr_t) :: degree, denominator, factor, linear_scale, linear_x
+    type(expr_t) :: numerator, previous, previous_factor
+    type(expr_t) :: previous_scale, previous_x, roots(3), scale, x
     type(kernel_spec_t) :: spec
-    type(str_t) :: arguments(7), outputs(1)
+    type(str_t) :: arguments(11), outputs(3)
     character(:), allocatable :: code, filename
     integer :: ios, unit
 
@@ -24,6 +26,10 @@ program gen_jacobi_recurrence
     scale = sym(arena, "scale")
     previous = sym(arena, "previous")
     current = sym(arena, "current")
+    previous_x = sym(arena, "previous_x")
+    current_x = sym(arena, "current_x")
+    previous_scale = sym(arena, "previous_scale")
+    current_scale = sym(arena, "current_scale")
 
     denominator = 2*degree*(degree + alpha + beta)* &
         (2*degree + alpha + beta - 2)
@@ -51,13 +57,13 @@ program gen_jacobi_recurrence
         str("previous"), str("current")]
     outputs(1) = str("next")
     spec%args = arguments(:6)
-    spec%outputs = outputs
+    spec%outputs = outputs(:1)
 
     filename = generated_path("fortnum_jacobi_recurrence_kernel.f90")
     open (newunit=unit, file=filename, status="replace", action="write", &
         iostat=ios)
     if (ios /= 0) error stop "cannot write "//filename
-    code = chars(emit_kernel(roots, spec))
+    code = chars(emit_kernel(roots(:1), spec))
     write (unit, "(a)") code(:len(code) - 1)
     close (unit)
     call codegen_log("wrote "//filename)
@@ -70,12 +76,46 @@ program gen_jacobi_recurrence
     roots(1) = numerator/denominator
     spec%name = str("scaled_jacobi_recurrence_kernel")
     spec%module_name = str("fortnum_generated_scaled_jacobi_recurrence")
-    arguments = [ &
+    arguments(:7) = [ &
         str("degree"), str("alpha"), str("beta"), str("x"), &
         str("scale"), str("previous"), str("current")]
-    spec%args = arguments
+    spec%args = arguments(:7)
     filename = generated_path( &
         "fortnum_scaled_jacobi_recurrence_kernel.f90")
+    open (newunit=unit, file=filename, status="replace", action="write", &
+        iostat=ios)
+    if (ios /= 0) error stop "cannot write "//filename
+    code = chars(emit_kernel(roots(:1), spec))
+    write (unit, "(a)") code(:len(code) - 1)
+    close (unit)
+    call codegen_log("wrote "//filename)
+
+    factor = 2*degree + alpha + beta - 1
+    linear_x = (2*degree + alpha + beta)* &
+        (2*degree + alpha + beta - 2)
+    linear_scale = alpha*alpha - beta*beta
+    previous_factor = 2*(degree + alpha - 1)*(degree + beta - 1)* &
+        (2*degree + alpha + beta)
+    roots(2) = (factor*(linear_x*current + &
+        (linear_x*x + linear_scale*scale)*current_x) - &
+        previous_factor*scale*scale*previous_x)/denominator
+    roots(3) = (factor*(linear_scale*current + &
+        (linear_x*x + linear_scale*scale)*current_scale) - &
+        previous_factor*(2*scale*previous + &
+        scale*scale*previous_scale))/denominator
+    spec%name = str("scaled_jacobi_gradient_recurrence_kernel")
+    spec%module_name = str( &
+        "fortnum_generated_scaled_jacobi_gradient_recurrence")
+    arguments = [ &
+        str("degree"), str("alpha"), str("beta"), str("x"), &
+        str("scale"), str("previous"), str("current"), &
+        str("previous_x"), str("current_x"), str("previous_scale"), &
+        str("current_scale")]
+    outputs = [str("next"), str("next_x"), str("next_scale")]
+    spec%args = arguments
+    spec%outputs = outputs
+    filename = generated_path( &
+        "fortnum_scaled_jacobi_gradient_recurrence_kernel.f90")
     open (newunit=unit, file=filename, status="replace", action="write", &
         iostat=ios)
     if (ios /= 0) error stop "cannot write "//filename
