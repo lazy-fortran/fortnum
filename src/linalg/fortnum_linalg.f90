@@ -60,6 +60,28 @@ module fortnum_linalg
         procedure :: solve => lu_object_solve
     end type lu_factorization_t
 
+    interface dense_solve
+        module procedure dense_solve_real
+        module procedure dense_solve_complex
+    end interface dense_solve
+
+    interface
+        subroutine dgesv(n, nrhs, a, lda, ipiv, b, ldb, info)
+            import :: dp
+            integer, intent(in) :: n, nrhs, lda, ldb
+            real(dp), intent(inout) :: a(lda, *), b(ldb, *)
+            integer, intent(out) :: ipiv(*), info
+        end subroutine dgesv
+
+        subroutine zgesv(n, nrhs, a, lda, ipiv, b, ldb, info)
+            import :: dp
+            integer, intent(in) :: n, nrhs, lda, ldb
+            complex(dp), intent(inout) :: a(lda, *), b(ldb, *)
+            integer, intent(out) :: ipiv(*), info
+        end subroutine zgesv
+    end interface
+
+    public :: dense_solve
     public :: det2, det3, det2_jvp, det3_jvp, det2_vjp, det3_vjp
     public :: inv2, inv3, inv2_jvp, inv3_jvp, inv2_vjp, inv3_vjp, jacobian_ok3
     public :: lu_factor, lu_solve_factored, lu_solve
@@ -69,6 +91,48 @@ module fortnum_linalg
     public :: linear_solve_vjp_factored_many
 
 contains
+
+    subroutine dense_solve_real(a, b, x, info)
+        real(dp), intent(in) :: a(:, :), b(:)
+        real(dp), intent(out) :: x(:)
+        integer, intent(out) :: info
+
+        integer, allocatable :: pivots(:)
+        real(dp), allocatable :: factors(:, :), right_hand_side(:, :)
+        integer :: n
+
+        info = -1
+        n = size(a, 1)
+        if (n < 1 .or. size(a, 2) /= n) return
+        if (size(b) /= n .or. size(x) /= n) return
+        allocate(factors(n, n), right_hand_side(n, 1), pivots(n))
+        factors = a
+        right_hand_side(:, 1) = b
+        call dgesv( &
+            n, 1, factors, n, pivots, right_hand_side, n, info)
+        if (info == LINALG_OK) x = right_hand_side(:, 1)
+    end subroutine dense_solve_real
+
+    subroutine dense_solve_complex(a, b, x, info)
+        complex(dp), intent(in) :: a(:, :), b(:)
+        complex(dp), intent(out) :: x(:)
+        integer, intent(out) :: info
+
+        complex(dp), allocatable :: factors(:, :), right_hand_side(:, :)
+        integer, allocatable :: pivots(:)
+        integer :: n
+
+        info = -1
+        n = size(a, 1)
+        if (n < 1 .or. size(a, 2) /= n) return
+        if (size(b) /= n .or. size(x) /= n) return
+        allocate(factors(n, n), right_hand_side(n, 1), pivots(n))
+        factors = a
+        right_hand_side(:, 1) = b
+        call zgesv( &
+            n, 1, factors, n, pivots, right_hand_side, n, info)
+        if (info == LINALG_OK) x = right_hand_side(:, 1)
+    end subroutine dense_solve_complex
 
     ! Determinant of a 2x2 matrix.
     pure function det2(a) result(d)

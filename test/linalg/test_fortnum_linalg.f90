@@ -5,7 +5,8 @@ program test_fortnum_linalg
     ! systems at several sizes including a pivot-required case, an inv3 cross
     ! check, and the singular-status contract for inv2/inv3/lu_solve.
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
-    use fortnum_linalg, only: det2, det3, det2_jvp, det3_jvp, inv2, inv3, &
+    use fortnum_linalg, only: dense_solve, det2, det3, det2_jvp, det3_jvp, &
+        inv2, inv3, &
         jacobian_ok3, lu_factor, lu_solve, linear_solve_jvp, &
         linear_solve_jvp_factored, linear_solve_vjp, &
         linear_solve_vjp_factored, lu_factorization_t, LINALG_OK, &
@@ -26,6 +27,7 @@ program test_fortnum_linalg
     call test_lu_object(nfail)
     call test_singular(nfail)
     call test_linear_solve_products(nfail)
+    call test_host_dense_solve(nfail)
 
     if (nfail > 0) then
         write (error_unit, "(i0,a)") nfail, " test(s) failed"
@@ -35,6 +37,47 @@ program test_fortnum_linalg
     stop 0
 
 contains
+
+    subroutine test_host_dense_solve(nfail)
+        integer, intent(inout) :: nfail
+
+        integer, parameter :: n = LINALG_MAX_N + 3
+        complex(dp) :: complex_a(n, n), complex_b(n), complex_x(n)
+        complex(dp) :: complex_exact(n)
+        real(dp) :: real_a(n, n), real_b(n), real_exact(n), real_x(n)
+        integer :: column, info, row
+
+        real_a = 0.0_dp
+        complex_a = cmplx(0.0_dp, 0.0_dp, dp)
+        do column = 1, n
+            real_exact(column) = real(column, dp)/real(n, dp) - 0.5_dp
+            complex_exact(column) = cmplx( &
+                real_exact(column), (-1.0_dp)**column/real(column, dp), dp)
+            do row = 1, n
+                real_a(row, column) = 1.0_dp/real(row + column, dp)
+                complex_a(row, column) = cmplx( &
+                    real_a(row, column), &
+                    0.03_dp*real(row - column, dp), dp)
+            end do
+            real_a(column, column) = real_a(column, column) + 2.0_dp
+            complex_a(column, column) = complex_a(column, column) + 2.0_dp
+        end do
+        real_b = matmul(real_a, real_exact)
+        complex_b = matmul(complex_a, complex_exact)
+
+        call dense_solve(real_a, real_b, real_x, info)
+        call check_int("host_dense_real_status", info, LINALG_OK, nfail)
+        call check("host_dense_real_solution", &
+            maxval(abs(real_x - real_exact)), 0.0_dp, 2.0e-14_dp, nfail)
+        call dense_solve(complex_a, complex_b, complex_x, info)
+        call check_int("host_dense_complex_status", info, LINALG_OK, nfail)
+        call check("host_dense_complex_solution", &
+            maxval(abs(complex_x - complex_exact)), 0.0_dp, 3.0e-14_dp, nfail)
+
+        real_a = 0.0_dp
+        call dense_solve(real_a, real_b, real_x, info)
+        call check_true("host_dense_singular_status", info > LINALG_OK, nfail)
+    end subroutine test_host_dense_solve
 
     subroutine check(label, got, expected, atol, nfail)
         character(*), intent(in) :: label
