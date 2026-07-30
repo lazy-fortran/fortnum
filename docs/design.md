@@ -14,7 +14,7 @@ fft           real and complex transforms
 ode           ODE methods, traces, events, and sensitivities
 roots         scalar, vector, reverse-communication, and complex roots
 interp        polynomial interpolation and B-splines
-linalg        fixed-size primitives and small LU solves
+linalg        fixed-size primitives, dense LU, and matrix-free Krylov solves
 rng           explicit-state random generation
 ad            derivative interfaces, active-vector layout, and selection
 bindings      C ABI adapters

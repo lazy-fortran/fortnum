@@ -280,6 +280,11 @@ A^T\lambda=u.
 
 They never form an inverse for the derivative of a solve.
 
+`fortnum_krylov` provides restarted matrix-free complex GMRES through
+`complex_gmres_operator`. The caller supplies a stateless matrix-vector
+procedure; the solver uses reorthogonalized modified Gram--Schmidt, complex
+Givens rotations, and reports iterations plus the true final residual.
+
 ## Interpolation and splines
 
 `fortnum_interp` exports grid search and a directional status check for cell

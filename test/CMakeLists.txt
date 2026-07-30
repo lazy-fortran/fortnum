@@ -268,6 +268,10 @@ add_executable(test_fortnum_linalg linalg/test_fortnum_linalg.f90)
 target_link_libraries(test_fortnum_linalg PRIVATE fortnum)
 add_test(NAME fortnum_linalg COMMAND test_fortnum_linalg)
 
+add_executable(test_fortnum_krylov linalg/test_fortnum_krylov.f90)
+target_link_libraries(test_fortnum_krylov PRIVATE fortnum)
+add_test(NAME fortnum_krylov COMMAND test_fortnum_krylov)
+
 # --- M3 interp ---
 add_executable(test_fortnum_polynomial interp/test_fortnum_polynomial.f90)
 target_link_libraries(test_fortnum_polynomial PRIVATE fortnum)
