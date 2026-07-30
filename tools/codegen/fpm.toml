@@ -3,7 +3,7 @@ version = "0.1.0"
 license = "MIT"
 
 [dependencies]
-fortsym = { path = "../../../lazy-fortran/fortsym" }
+fortsym = { path = "../../../fortsym" }
 
 [build]
 auto-executables = true
