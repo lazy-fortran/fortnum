@@ -31,6 +31,9 @@ module fortnum_special
         hyperg_1f1_a1, &
         hyperg_1f1_a1_jvp, &
         hyperg_1f1_a1_vjp
+    use fortnum_special_jacobi, only: &
+        jacobi_p, &
+        jacobi_p_derivative
     use fortnum_special_legendre, only: &
         legendre_p, &
         legendre_p_derivative
@@ -69,6 +72,9 @@ module fortnum_special
     ! Active argument: z.  Inactive: a, b.  hyperg_1f1_a1 fixes a = 1.
     public :: hyperg_1f1, hyperg_1f1_a1
     public :: hyperg_1f1_a1_jvp, hyperg_1f1_a1_vjp
+
+    ! Classical Jacobi polynomials for alpha,beta > -1.
+    public :: jacobi_p, jacobi_p_derivative
 
     ! Ferrers associated Legendre P_l^m(x), including Condon-Shortley phase.
     ! Derivative policy: analytic_rule. Active argument: x.
