@@ -44,7 +44,11 @@ contains
         integer, parameter :: n = LINALG_MAX_N + 3
         complex(dp) :: complex_a(n, n), complex_b(n), complex_x(n)
         complex(dp) :: complex_exact(n)
+        complex(dp) :: complex_many_b(n, 2), complex_many_exact(n, 2)
+        complex(dp) :: complex_many_x(n, 2)
         real(dp) :: real_a(n, n), real_b(n), real_exact(n), real_x(n)
+        real(dp) :: real_many_b(n, 2), real_many_exact(n, 2)
+        real(dp) :: real_many_x(n, 2)
         integer :: column, info, row
 
         real_a = 0.0_dp
@@ -73,6 +77,23 @@ contains
         call check_int("host_dense_complex_status", info, LINALG_OK, nfail)
         call check("host_dense_complex_solution", &
             maxval(abs(complex_x - complex_exact)), 0.0_dp, 3.0e-14_dp, nfail)
+
+        real_many_exact(:, 1) = real_exact
+        real_many_exact(:, 2) = 1.0_dp - 0.25_dp*real_exact
+        complex_many_exact(:, 1) = complex_exact
+        complex_many_exact(:, 2) = cmplx(0.5_dp, -0.25_dp, dp)*complex_exact
+        real_many_b = matmul(real_a, real_many_exact)
+        complex_many_b = matmul(complex_a, complex_many_exact)
+        call dense_solve(real_a, real_many_b, real_many_x, info)
+        call check_int("host_dense_real_many_status", info, LINALG_OK, nfail)
+        call check("host_dense_real_many_solution", &
+            maxval(abs(real_many_x - real_many_exact)), &
+            0.0_dp, 2.0e-14_dp, nfail)
+        call dense_solve(complex_a, complex_many_b, complex_many_x, info)
+        call check_int("host_dense_complex_many_status", info, LINALG_OK, nfail)
+        call check("host_dense_complex_many_solution", &
+            maxval(abs(complex_many_x - complex_many_exact)), &
+            0.0_dp, 3.0e-14_dp, nfail)
 
         real_a = 0.0_dp
         call dense_solve(real_a, real_b, real_x, info)

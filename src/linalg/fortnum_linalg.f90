@@ -63,6 +63,8 @@ module fortnum_linalg
     interface dense_solve
         module procedure dense_solve_real
         module procedure dense_solve_complex
+        module procedure dense_solve_real_many
+        module procedure dense_solve_complex_many
     end interface dense_solve
 
     interface
@@ -133,6 +135,56 @@ contains
             n, 1, factors, n, pivots, right_hand_side, n, info)
         if (info == LINALG_OK) x = right_hand_side(:, 1)
     end subroutine dense_solve_complex
+
+    subroutine dense_solve_real_many(a, b, x, info)
+        real(dp), intent(in) :: a(:, :), b(:, :)
+        real(dp), intent(out) :: x(:, :)
+        integer, intent(out) :: info
+
+        integer, allocatable :: pivots(:)
+        real(dp), allocatable :: factors(:, :), right_hand_side(:, :)
+        integer :: n, right_hand_side_count
+
+        info = -1
+        n = size(a, 1)
+        right_hand_side_count = size(b, 2)
+        if (n < 1 .or. size(a, 2) /= n .or. right_hand_side_count < 1) return
+        if (size(b, 1) /= n .or. &
+            any(shape(x) /= [n, right_hand_side_count])) return
+        allocate(factors(n, n), right_hand_side(n, right_hand_side_count))
+        allocate(pivots(n))
+        factors = a
+        right_hand_side = b
+        call dgesv( &
+            n, right_hand_side_count, factors, n, pivots, &
+            right_hand_side, n, info)
+        if (info == LINALG_OK) x = right_hand_side
+    end subroutine dense_solve_real_many
+
+    subroutine dense_solve_complex_many(a, b, x, info)
+        complex(dp), intent(in) :: a(:, :), b(:, :)
+        complex(dp), intent(out) :: x(:, :)
+        integer, intent(out) :: info
+
+        complex(dp), allocatable :: factors(:, :), right_hand_side(:, :)
+        integer, allocatable :: pivots(:)
+        integer :: n, right_hand_side_count
+
+        info = -1
+        n = size(a, 1)
+        right_hand_side_count = size(b, 2)
+        if (n < 1 .or. size(a, 2) /= n .or. right_hand_side_count < 1) return
+        if (size(b, 1) /= n .or. &
+            any(shape(x) /= [n, right_hand_side_count])) return
+        allocate(factors(n, n), right_hand_side(n, right_hand_side_count))
+        allocate(pivots(n))
+        factors = a
+        right_hand_side = b
+        call zgesv( &
+            n, right_hand_side_count, factors, n, pivots, &
+            right_hand_side, n, info)
+        if (info == LINALG_OK) x = right_hand_side
+    end subroutine dense_solve_complex_many
 
     ! Determinant of a 2x2 matrix.
     pure function det2(a) result(d)
