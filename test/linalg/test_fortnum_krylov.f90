@@ -1,12 +1,15 @@
 program test_fortnum_krylov
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
-    use fortnum_krylov, only: complex_gmres_operator, KRYLOV_OK, &
+    use fortnum_krylov, only: complex_gmres_operator, real_gmres_operator, &
+        KRYLOV_OK, &
         KRYLOV_INVALID_ARGUMENT
     use fortnum_linalg, only: dense_solve, LINALG_OK
     implicit none
 
     complex(dp) :: matrix(5, 5), right_hand_side(5), solution(5)
     complex(dp) :: dense_solution(5), zero_solution(5)
+    real(dp) :: real_matrix(5, 5), real_rhs(5), real_solution(5)
+    real(dp) :: real_dense_solution(5)
     real(dp) :: residual_norm
     integer :: column, info, iterations, row
 
@@ -51,6 +54,20 @@ program test_fortnum_krylov
     call require(info == KRYLOV_INVALID_ARGUMENT, &
         "negative tolerance is rejected")
 
+    real_matrix = real(matrix, dp)
+    real_rhs = real(right_hand_side, dp)
+    call dense_solve(real_matrix, real_rhs, real_dense_solution, info)
+    call require(info == LINALG_OK, "dense real oracle solves the test system")
+    real_solution = 0.0_dp
+    call real_gmres_operator( &
+        apply_real_matrix, real_rhs, real_solution, 1.0e-12_dp, 30, 3, &
+        info, iterations, residual_norm)
+    call require(info == KRYLOV_OK, "restarted real GMRES converges")
+    call require(maxval(abs(real_solution - real_dense_solution)) < &
+        2.0e-11_dp, "real GMRES matches the independent dense LU oracle")
+    call require(residual_norm < 1.0e-11_dp, &
+        "real GMRES reports the true small residual")
+
 contains
 
     subroutine apply_matrix(input, output)
@@ -59,6 +76,13 @@ contains
 
         output = matmul(matrix, input)
     end subroutine apply_matrix
+
+    subroutine apply_real_matrix(input, output)
+        real(dp), intent(in) :: input(:)
+        real(dp), intent(out) :: output(:)
+
+        output = matmul(real_matrix, input)
+    end subroutine apply_real_matrix
 
     subroutine require(condition, description)
         logical, intent(in) :: condition
