@@ -45,6 +45,7 @@ contract. They do not use mutable global error state.
 | Dawson | `dawson` | `dawson_jvp`, `dawson_grad` |
 | incomplete gamma | `gamma_lower`, `gamma_reg_p` | `gamma_lower_jvp` |
 | confluent hypergeometric | `hyperg_1f1`, `hyperg_1f1_a1` | `hyperg_1f1_a1_jvp`, `hyperg_1f1_a1_vjp` |
+| Jacobi polynomials | `jacobi_p` | `jacobi_p_derivative` |
 | Ferrers associated Legendre | `legendre_p` | `legendre_p_derivative` |
 | toroidal associated Legendre | `toroidal_p`, `toroidal_q` | `toroidal_p_derivative`, `toroidal_q_derivative` |
 
@@ -57,6 +58,8 @@ Domain modules expose additional products:
 - `fortnum_special_gamma`: argument and parameter JVPs plus gradients
 - `fortnum_special_hypergeometric_1f1`: `1F1`, specialized `a=1`, and
   `1F1M`
+- `fortnum_special_jacobi`: Jacobi \(P_n^{(\alpha,\beta)}(x)\) and its
+  derivative for \(\alpha,\beta>-1\)
 - `fortnum_special_legendre`: Ferrers \(P_\ell^m(x)\) for integer degree and
   order on \([-1,1]\), with the Condon-Shortley phase
 - `fortnum_special_toroidal`: Hobson \(P_{n-1/2}^m(x)\) and
