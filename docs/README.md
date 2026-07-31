@@ -26,6 +26,7 @@ measured evidence.
 | [CPU/GPU contract](design/gpu.md) | Device leaves, supported mechanisms, and offload gates |
 | [Adaptive integration](design/integrate.md) | Integration state, status, traces, and derivative semantics |
 | [ODE](design/ode.md) | Solver state, events, traces, and sensitivity semantics |
+| [Geometric time](design/geometric_time.md) | Structure-preserving geometric time integration and products |
 | [RNG](design/rng.md) | Explicit state, stream splitting, and reproducibility |
 
 ## Plans and evidence
