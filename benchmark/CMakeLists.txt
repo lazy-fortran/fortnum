@@ -16,6 +16,11 @@ project(fortnum_benchmark LANGUAGES Fortran C)
 
 enable_testing()
 
+# The standalone benchmark compiles fortnum_linalg directly into bench_core.
+# Keep its link contract identical to the production fortnum target: the
+# dense real and complex solve products call LAPACK (and its BLAS dependency).
+find_package(LAPACK REQUIRED)
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../cmake")
 include(FortnumGpuBackend)
 
@@ -102,7 +107,7 @@ add_library(bench_core STATIC
     fortnum_benchmark_memory.f90
     peak_rss.c
 )
-target_link_libraries(bench_core PUBLIC fortnum_gpu_backend)
+target_link_libraries(bench_core PUBLIC fortnum_gpu_backend LAPACK::LAPACK)
 
 if(FORTNUM_DAWSON_VARIANT_DIR)
     set(FORTNUM_DAWSON_VARIANT_SOURCES
