@@ -196,6 +196,10 @@ add_executable(test_fortnum_ode_dop853 ode/test_fortnum_ode_dop853.f90)
 target_link_libraries(test_fortnum_ode_dop853 PRIVATE fortnum)
 add_test(NAME fortnum_ode_dop853 COMMAND test_fortnum_ode_dop853)
 
+add_executable(test_fortnum_ode_extrapolation ode/test_fortnum_ode_extrapolation.f90)
+target_link_libraries(test_fortnum_ode_extrapolation PRIVATE fortnum)
+add_test(NAME fortnum_ode_extrapolation COMMAND test_fortnum_ode_extrapolation)
+
 add_executable(test_fortnum_ode_gauss_radau ode/test_fortnum_ode_gauss_radau.f90)
 target_link_libraries(test_fortnum_ode_gauss_radau PRIVATE fortnum)
 add_test(NAME fortnum_ode_gauss_radau COMMAND test_fortnum_ode_gauss_radau)
