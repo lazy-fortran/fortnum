@@ -211,6 +211,10 @@ pointers. `ode_solution_t` owns the accepted trace and optional terminal event.
 `ode_solve` is the allocating convenience wrapper. `fortnum_ode_wrapper`
 provides `ode_at` for requested output times.
 
+`fortnum_ode_geometric` provides structure-preserving geometric time
+integrators and their analytical products for caller-supplied Hamiltonian
+systems.
+
 Method modules expose:
 
 | Module | Surface |

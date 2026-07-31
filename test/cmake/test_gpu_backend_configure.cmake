@@ -47,6 +47,6 @@ check_configure(
     -DFORTNUM_OPENMP_TARGET_FLAGS=)
 check_configure(
     unvalidated_openmp_compiler_rejected failure
-    "supports only the validated NVHPC nvfortran compiler"
+    "requires NVHPC or LLVM Flang 23+"
     -DFORTNUM_GPU_BACKEND=OPENMP
     -DFORTNUM_OPENMP_TARGET_FLAGS=-fopenmp)
