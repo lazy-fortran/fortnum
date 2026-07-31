@@ -47,6 +47,7 @@ contract. They do not use mutable global error state.
 | confluent hypergeometric | `hyperg_1f1`, `hyperg_1f1_a1` | `hyperg_1f1_a1_jvp`, `hyperg_1f1_a1_vjp` |
 | Jacobi/simplex polynomials | `jacobi_p`, `scaled_jacobi_p`, `triangle_dubiner`, `tetrahedron_koornwinder` | `jacobi_p_derivative` |
 | Ferrers associated Legendre | `legendre_p` | `legendre_p_derivative` |
+| ordinary Legendre second kind | `legendre_q` | `legendre_q_derivative` |
 | toroidal associated Legendre | `toroidal_p`, `toroidal_q` | `toroidal_p_derivative`, `toroidal_q_derivative` |
 
 Domain modules expose additional products:
@@ -62,7 +63,8 @@ Domain modules expose additional products:
   derivative, a homogeneous scaled form with removable collapsed-coordinate
   limits, and orthogonal Dubiner/Koornwinder modes on reference simplices
 - `fortnum_special_legendre`: Ferrers \(P_\ell^m(x)\) for integer degree and
-  order on \([-1,1]\), with the Condon-Shortley phase
+  order on \([-1,1]\), with the Condon-Shortley phase, and real ordinary
+  \(Q_\ell(x)\) on the \(x>1\) branch
 - `fortnum_special_toroidal`: Hobson \(P_{n-1/2}^m(x)\) and
   \(Q_{n-1/2}^m(x)\), plus \(x\)-derivatives, for nonnegative integer
   \(n,m\) and \(x>1\)
@@ -87,6 +89,17 @@ P_l^{-m}(x)=(-1)^m\frac{(l-m)!}{(l+m)!}P_l^m(x).
 \]
 Values outside \([-1,1]\) are NaN. The derivative entry point is defined on
 the open interval because endpoint derivatives may be singular.
+
+`legendre_q(l,x)` is the real ordinary Legendre function of the second kind
+on \(x>1\), with
+\[
+Q_0(x)=\tfrac12\log\frac{x+1}{x-1},\qquad
+(l+1)Q_{l+1}(x)=(2l+1)xQ_l(x)-lQ_{l-1}(x).
+\]
+`legendre_q_derivative` uses the corresponding DLMF derivative recurrence.
+Invalid degrees or \(x\le1\) return NaN. The present upward recurrence is
+intended for moderate degrees; a uniform large-degree continuation remains a
+separate roadmap item.
 
 `toroidal_p(n,m,x)` and `toroidal_q(n,m,x)` use degree \(n-\tfrac12\), not
 \(n+\tfrac12\), and return Hobson-normalized functions. They are therefore

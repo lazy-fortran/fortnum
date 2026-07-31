@@ -42,7 +42,9 @@ module fortnum_special
         triangle_dubiner_gradient
     use fortnum_special_legendre, only: &
         legendre_p, &
-        legendre_p_derivative
+        legendre_p_derivative, &
+        legendre_q, &
+        legendre_q_derivative
     use fortnum_special_toroidal, only: &
         toroidal_p, &
         toroidal_q, &
@@ -88,6 +90,10 @@ module fortnum_special
     ! Ferrers associated Legendre P_l^m(x), including Condon-Shortley phase.
     ! Derivative policy: analytic_rule. Active argument: x.
     public :: legendre_p, legendre_p_derivative
+
+    ! Real ordinary Legendre Q_l(x) on the x > 1 branch.
+    ! Derivative policy: analytic_rule. Active argument: x.
+    public :: legendre_q, legendre_q_derivative
 
     ! Hobson-normalized half-integer Legendre functions for toroidal harmonics.
     public :: toroidal_p, toroidal_q
