@@ -319,7 +319,7 @@ contains
         real(dp), allocatable :: ytmp(:), ynew(:), yv(:)
         real(dp), allocatable :: t_rec(:), y_rec(:, :), h_rec(:), e_rec(:)
         real(dp) :: t, h, h_prev, hdir, err, fac, span, i_last
-        integer  :: neq, nsteps, nrej, nfev, niter, cap, k
+        integer  :: neq, nsteps, nrej, nfev, niter, cap, k, rec_cap
 
         call status_set(status, FORTNUM_OK, "")
 
@@ -362,8 +362,14 @@ contains
         g = 0.0_dp
         h_prev = 0.0_dp
 
+        ! Trace capacity grows by doubling rather than being allocated at
+        ! max_steps up front. Callers that drive this one macro-step at a time
+        ! (SIMPLE's orbit loop does) would otherwise pay a max_steps-sized
+        ! allocation per call, which would dominate the very wall-clock the
+        ! integrator benchmark is trying to measure.
         cap = max(problem%max_steps, 1)
-        allocate (t_rec(cap + 1), y_rec(neq, cap + 1), h_rec(cap + 1), e_rec(cap + 1))
+        rec_cap = min(cap + 1, 256)
+        allocate (t_rec(rec_cap), y_rec(neq, rec_cap), h_rec(rec_cap), e_rec(rec_cap))
 
         t = problem%t0
         yv = problem%y0
@@ -396,6 +402,9 @@ contains
                 t = t + h
                 yv = ynew
                 nsteps = nsteps + 1
+                if (nsteps + 1 > rec_cap) then
+                    call grow_trace(t_rec, y_rec, h_rec, e_rec, rec_cap, cap + 1)
+                end if
                 t_rec(nsteps + 1) = t
                 y_rec(:, nsteps + 1) = yv
                 h_rec(nsteps + 1) = h
@@ -474,5 +483,32 @@ contains
             y_out(:, 1) = y0
         end if
     end subroutine ode_solve_radau
+
+
+    ! Double the recorded-trace capacity, never exceeding hard_cap.
+    subroutine grow_trace(t_rec, y_rec, h_rec, e_rec, rec_cap, hard_cap)
+        real(dp), allocatable, intent(inout) :: t_rec(:), y_rec(:, :)
+        real(dp), allocatable, intent(inout) :: h_rec(:), e_rec(:)
+        integer, intent(inout) :: rec_cap
+        integer, intent(in) :: hard_cap
+
+        real(dp), allocatable :: tt(:), yy(:, :), hh(:), ee(:)
+        integer :: newcap, neq
+
+        newcap = min(max(2*rec_cap, rec_cap + 1), hard_cap)
+        if (newcap <= rec_cap) return
+        neq = size(y_rec, 1)
+
+        allocate (tt(newcap), yy(neq, newcap), hh(newcap), ee(newcap))
+        tt(1:rec_cap) = t_rec(1:rec_cap)
+        yy(:, 1:rec_cap) = y_rec(:, 1:rec_cap)
+        hh(1:rec_cap) = h_rec(1:rec_cap)
+        ee(1:rec_cap) = e_rec(1:rec_cap)
+        call move_alloc(tt, t_rec)
+        call move_alloc(yy, y_rec)
+        call move_alloc(hh, h_rec)
+        call move_alloc(ee, e_rec)
+        rec_cap = newcap
+    end subroutine grow_trace
 
 end module fortnum_ode_gauss_radau
