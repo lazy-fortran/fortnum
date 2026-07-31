@@ -39,7 +39,7 @@ program test_fortnum_special_spherical
 
     call check_true("negative-order conjugacy", &
         abs(spherical_harmonic(1, -1, theta, phi) - &
-        -conjg(spherical_harmonic(1, 1, theta, phi))) <= tol)
+        (-conjg(spherical_harmonic(1, 1, theta, phi)))) <= tol)
     call check_complex("north-pole Y_2^2", spherical_harmonic(2, 2, 0.0_dp, phi), &
         cmplx(0.0_dp, 0.0_dp, dp))
 
