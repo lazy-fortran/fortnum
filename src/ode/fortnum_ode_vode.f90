@@ -239,6 +239,9 @@ contains
 
         ! tout already reached: interpolate and return (DVODE returns state).
         if (tout == state%tn) then
+            ! Explicit allocation: see the note in fortnum_ode.f90 about
+            ! -fno-realloc-lhs in consuming builds.
+            if (.not. allocated(y_out)) allocate (y_out(size(state%yh, 1)))
             y_out = state%yh(:, 1)
             return
         end if
