@@ -365,6 +365,11 @@ contains
         problem%rhs => rhs
         problem%t0 = t0
         problem%t1 = t1
+        ! Explicit allocation, not allocation-on-assignment: consumers that
+        ! compile with -fno-realloc-lhs (libneo does, and SIMPLE inherits it)
+        ! turn "lhs = rhs" on an unallocated allocatable into a write through a
+        ! null descriptor rather than an allocation, which segfaults.
+        allocate (problem%y0(size(y0)))
         problem%y0 = y0
         if (present(rtol)) problem%rtol = rtol
         if (present(atol)) problem%atol = atol
@@ -373,6 +378,8 @@ contains
 
         npts = solution%nsteps + 1
         if (allocated(solution%t)) then
+            allocate (t_out(npts))
+            allocate (y_out(size(solution%y, 1), npts))
             t_out = solution%t(1:npts)
             y_out = solution%y(:, 1:npts)
         else

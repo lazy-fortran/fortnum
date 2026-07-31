@@ -95,45 +95,46 @@ contains
         end do
     end function legendre
 
-    ! Radau defining function, with the known root at x = -1 divided out.
-    pure function radau_poly(n, x) result(v)
-        integer, intent(in) :: n
-        real(dp), intent(in) :: x
-        real(dp) :: v
-
-        v = (legendre(n - 1, x) + legendre(n, x))/(1.0_dp + x)
-    end function radau_poly
-
-    ! Left-Radau nodes on [0,1]: c(1) = 0 fixed, the remaining n-1 computed as
-    ! roots of the Radau polynomial and mapped from [-1,1].
-    subroutine radau_nodes(n, c)
+    ! Left-Radau nodes on [0,1]: c(1) = 0 fixed, the remaining n-1 obtained as
+    ! roots of P_{n-1}(x) + P_n(x) in (-1, 1) and mapped from [-1,1].
+    !
+    ! The polynomial is evaluated WITHOUT dividing out the known root at x = -1.
+    ! Dividing by (1 + x) and scanning from -1 + 1e-10 makes the function huge
+    ! and sign-unstable next to the endpoint, which manufactures spurious sign
+    ! changes; the root at -1 is simple, so starting the scan a little way in
+    ! excludes it just as effectively and stays well conditioned.
+    !
+    ! nfound is returned so the caller can reject a bad node set rather than
+    ! integrate with one. Every write to c is bounds-guarded: an earlier version
+    ! was not, and a spurious root silently wrote past the end of the array and
+    ! corrupted the heap.
+    subroutine radau_nodes(n, c, nfound)
         integer, intent(in) :: n
         real(dp), intent(out) :: c(:)
+        integer, intent(out), optional :: nfound
 
         integer, parameter :: NSCAN = 20000
-        real(dp) :: xa, xb, fa, fb, xm, fm
+        real(dp), parameter :: EDGE = 1.0e-6_dp
+        real(dp) :: xa, xb, fa, fb, xm, fm, lo, hi
         integer :: i, iroot, it
-        real(dp) :: lo, hi
 
         c = 0.0_dp
         c(1) = 0.0_dp
-
         iroot = 1
-        lo = -1.0_dp + 1.0e-10_dp
-        hi = 1.0_dp
+
+        lo = -1.0_dp + EDGE
+        hi = 1.0_dp - EDGE
         xa = lo
-        fa = radau_poly(n, xa)
+        fa = legendre(n - 1, xa) + legendre(n, xa)
+
         do i = 1, NSCAN
             xb = lo + (hi - lo)*real(i, dp)/real(NSCAN, dp)
-            fb = radau_poly(n, xb)
-            if (fa == 0.0_dp) then
-                iroot = iroot + 1
-                c(iroot) = 0.5_dp*(xa + 1.0_dp)
-            else if (fa*fb < 0.0_dp) then
-                ! Bisection: robust, and the polynomial is cheap.
+            fb = legendre(n - 1, xb) + legendre(n, xb)
+
+            if (fa*fb < 0.0_dp) then
                 do it = 1, 200
                     xm = 0.5_dp*(xa + xb)
-                    fm = radau_poly(n, xm)
+                    fm = legendre(n - 1, xm) + legendre(n, xm)
                     if (fm == 0.0_dp) exit
                     if (fa*fm < 0.0_dp) then
                         xb = xm
@@ -145,14 +146,16 @@ contains
                 end do
                 xm = 0.5_dp*(xa + xb)
                 iroot = iroot + 1
-                if (iroot <= n) c(iroot) = 0.5_dp*(xm + 1.0_dp)
-                xa = lo + (hi - lo)*real(i, dp)/real(NSCAN, dp)
-                fa = radau_poly(n, xa)
-                cycle
+                if (iroot <= min(n, size(c))) c(iroot) = 0.5_dp*(xm + 1.0_dp)
+                xb = lo + (hi - lo)*real(i, dp)/real(NSCAN, dp)
+                fb = legendre(n - 1, xb) + legendre(n, xb)
             end if
+
             xa = xb
             fa = fb
         end do
+
+        if (present(nfound)) nfound = iroot
     end subroutine radau_nodes
 
     ! Power-basis coefficients of the Newton basis polynomials
@@ -319,7 +322,7 @@ contains
         real(dp), allocatable :: ytmp(:), ynew(:), yv(:)
         real(dp), allocatable :: t_rec(:), y_rec(:, :), h_rec(:), e_rec(:)
         real(dp) :: t, h, h_prev, hdir, err, fac, span, i_last
-        integer  :: neq, nsteps, nrej, nfev, niter, cap, k, rec_cap
+        integer  :: neq, nsteps, nrej, nfev, niter, cap, k, rec_cap, nfound
 
         call status_set(status, FORTNUM_OK, "")
 
@@ -349,7 +352,12 @@ contains
         hdir = sign(1.0_dp, span)
 
         allocate (c(RADAU_STAGES), a(0:RADAU_NB, 0:RADAU_NB))
-        call radau_nodes(RADAU_STAGES, c)
+        call radau_nodes(RADAU_STAGES, c, nfound)
+        if (nfound /= RADAU_STAGES) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                            "ode_integrate_radau: Radau node search failed")
+            return
+        end if
         call radau_newton_basis(c, a)
 
         i_last = 0.0_dp
@@ -462,9 +470,11 @@ contains
         problem%rhs => rhs
         problem%t0 = t0
         problem%t1 = t1
-        ! Keep the allocating wrapper valid for consumers that compile with
-        ! -fno-realloc-lhs: allocatable assignment is not a portable substitute
-        ! for allocating the left-hand side explicitly.
+        ! Explicit allocation, not allocation-on-assignment: libneo (and hence
+        ! any build that consumes fortnum through it) compiles with
+        ! -fno-realloc-lhs, which turns "lhs = rhs" on an unallocated allocatable
+        ! into a write through a null descriptor rather than an allocation. That
+        ! segfaults instead of failing loudly, so nothing here may rely on it.
         allocate (problem%y0(size(y0)))
         problem%y0 = y0
         if (present(rtol)) problem%rtol = rtol

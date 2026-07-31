@@ -302,6 +302,12 @@ contains
         problem%rhs => rhs
         problem%t0 = t0
         problem%t1 = t1
+        ! Explicit allocation, not allocation-on-assignment: libneo (and hence
+        ! any build that consumes fortnum through it) compiles with
+        ! -fno-realloc-lhs, which turns "lhs = rhs" on an unallocated allocatable
+        ! into a write through a null descriptor rather than an allocation. That
+        ! segfaults instead of failing loudly, so nothing here may rely on it.
+        allocate (problem%y0(size(y0)))
         problem%y0 = y0
         if (present(rtol)) problem%rtol = rtol
         if (present(atol)) problem%atol = atol
@@ -309,6 +315,8 @@ contains
         call ode_integrate_gbs(problem, solution, status)
 
         if (allocated(solution%t)) then
+            allocate (t_out(size(solution%t)))
+            allocate (y_out(size(solution%y, 1), size(solution%y, 2)))
             t_out = solution%t
             y_out = solution%y
         else
