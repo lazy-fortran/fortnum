@@ -61,6 +61,7 @@ target_sources(fortnum PRIVATE
     ode/fortnum_ode_cash_karp.f90
     ode/fortnum_ode_ddeabm.f90
     ode/fortnum_ode_dop853.f90
+    ode/fortnum_ode_tdrk.f90
     ode/fortnum_ode_extrapolation.f90
     ode/fortnum_ode_gauss_radau.f90
     ode/fortnum_ode_events.f90
