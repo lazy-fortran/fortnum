@@ -45,6 +45,10 @@ module fortnum_special
         legendre_p_derivative, &
         legendre_q, &
         legendre_q_derivative
+    use fortnum_special_spherical, only: &
+        spherical_harmonic, &
+        spherical_harmonic_theta_derivative, &
+        spherical_harmonic_phi_derivative
     use fortnum_special_toroidal, only: &
         toroidal_p, &
         toroidal_q, &
@@ -94,6 +98,12 @@ module fortnum_special
     ! Real ordinary Legendre Q_l(x) on the x > 1 branch.
     ! Derivative policy: analytic_rule. Active argument: x.
     public :: legendre_q, legendre_q_derivative
+
+    ! Standard orthonormal complex spherical harmonics on 0 <= theta <= pi.
+    ! Angular derivatives are analytical products away from the poles.
+    public :: spherical_harmonic
+    public :: spherical_harmonic_theta_derivative
+    public :: spherical_harmonic_phi_derivative
 
     ! Hobson-normalized half-integer Legendre functions for toroidal harmonics.
     public :: toroidal_p, toroidal_q

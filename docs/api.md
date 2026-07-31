@@ -37,7 +37,7 @@ contract. They do not use mutable global error state.
 
 ## Special functions
 
-`fortnum_special` re-exports the common real-valued surface:
+`fortnum_special` re-exports the common special-function surface:
 
 | Family | Primal | Products |
 | --- | --- | --- |
@@ -48,6 +48,7 @@ contract. They do not use mutable global error state.
 | Jacobi/simplex polynomials | `jacobi_p`, `scaled_jacobi_p`, `triangle_dubiner`, `tetrahedron_koornwinder` | `jacobi_p_derivative` |
 | Ferrers associated Legendre | `legendre_p` | `legendre_p_derivative` |
 | ordinary Legendre second kind | `legendre_q` | `legendre_q_derivative` |
+| complex spherical harmonics | `spherical_harmonic` | angular derivatives |
 | toroidal associated Legendre | `toroidal_p`, `toroidal_q` | `toroidal_p_derivative`, `toroidal_q_derivative` |
 
 Domain modules expose additional products:
@@ -65,6 +66,8 @@ Domain modules expose additional products:
 - `fortnum_special_legendre`: Ferrers \(P_\ell^m(x)\) for integer degree and
   order on \([-1,1]\), with the Condon-Shortley phase, and real ordinary
   \(Q_\ell(x)\) on the \(x>1\) branch
+- `fortnum_special_spherical`: standard orthonormal complex \(Y_\ell^m\) on
+  \(0\le\theta\le\pi\), with analytical theta and phi derivatives
 - `fortnum_special_toroidal`: Hobson \(P_{n-1/2}^m(x)\) and
   \(Q_{n-1/2}^m(x)\), plus \(x\)-derivatives, for nonnegative integer
   \(n,m\) and \(x>1\)
@@ -100,6 +103,11 @@ Q_0(x)=\tfrac12\log\frac{x+1}{x-1},\qquad
 Invalid degrees or \(x\le1\) return NaN. The present upward recurrence is
 intended for moderate degrees; a uniform large-degree continuation remains a
 separate roadmap item.
+
+`spherical_harmonic(l,m,theta,phi)` uses the Condon-Shortley phase and the
+orthonormal convention of DLMF 14.30. The azimuth is periodic; the polar
+angle must satisfy \(0\le\theta\le\pi\). The angular derivative entry points
+are analytical and are intended away from the coordinate poles.
 
 `toroidal_p(n,m,x)` and `toroidal_q(n,m,x)` use degree \(n-\tfrac12\), not
 \(n+\tfrac12\), and return Hobson-normalized functions. They are therefore
