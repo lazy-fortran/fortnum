@@ -108,9 +108,10 @@ enable_testing()
 
 if(FORTNUM_CHECK_GENERATED)
     find_program(FORTNUM_FO_EXECUTABLE fo REQUIRED)
-    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../lazy-fortran/fortsym/fpm.toml")
+    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../fortsym/fpm.toml" AND
+       NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../lazy-fortran/fortsym/fpm.toml")
         message(FATAL_ERROR
-            "FORTNUM_CHECK_GENERATED requires ../lazy-fortran/fortsym")
+            "FORTNUM_CHECK_GENERATED requires a sibling FortSym checkout")
     endif()
     add_test(
         NAME generated_sources_current

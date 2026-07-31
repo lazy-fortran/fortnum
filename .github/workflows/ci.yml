@@ -55,10 +55,9 @@ jobs:
       - name: Checkout locked fortsym revision
         run: |
           set -euo pipefail
-          mkdir -p ../lazy-fortran
           git clone https://github.com/lazy-fortran/fortsym.git \
-            ../lazy-fortran/fortsym
-          git -C ../lazy-fortran/fortsym checkout \
+            ../fortsym
+          git -C ../fortsym checkout \
             "$(cat tools/codegen/fortsym.lock)"
 
       - name: Register and run CTest drift check
@@ -286,10 +285,10 @@ jobs:
       - name: Generate Enzyme wrappers with locked fortsym
         run: |
           set -euo pipefail
-          mkdir -p ../lazy-fortran "$RUNNER_TEMP/enzyme-wrappers"
+          mkdir -p "$RUNNER_TEMP/enzyme-wrappers"
           git clone https://github.com/lazy-fortran/fortsym.git \
-            ../lazy-fortran/fortsym
-          git -C ../lazy-fortran/fortsym checkout \
+            ../fortsym
+          git -C ../fortsym checkout \
             "$(cat tools/codegen/fortsym.lock)"
           (
             cd tools/codegen
