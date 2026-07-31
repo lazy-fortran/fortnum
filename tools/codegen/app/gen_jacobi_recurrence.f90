@@ -10,11 +10,13 @@ program gen_jacobi_recurrence
 
     type(arena_t), target :: arena
     type(expr_t) :: alpha, beta, current, current_scale, current_x
+    type(expr_t) :: current_scale_scale, current_x_scale, current_x_x
     type(expr_t) :: degree, denominator, factor, linear_scale, linear_x
     type(expr_t) :: numerator, previous, previous_factor
-    type(expr_t) :: previous_scale, previous_x, roots(3), scale, x
+    type(expr_t) :: previous_scale, previous_x, roots(6), scale, x
+    type(expr_t) :: previous_scale_scale, previous_x_scale, previous_x_x
     type(kernel_spec_t) :: spec
-    type(str_t) :: arguments(11), outputs(3)
+    type(str_t) :: arguments(17), outputs(6)
     character(:), allocatable :: code, filename
     integer :: ios, unit
 
@@ -30,6 +32,12 @@ program gen_jacobi_recurrence
     current_x = sym(arena, "current_x")
     previous_scale = sym(arena, "previous_scale")
     current_scale = sym(arena, "current_scale")
+    previous_x_x = sym(arena, "previous_x_x")
+    current_x_x = sym(arena, "current_x_x")
+    previous_x_scale = sym(arena, "previous_x_scale")
+    current_x_scale = sym(arena, "current_x_scale")
+    previous_scale_scale = sym(arena, "previous_scale_scale")
+    current_scale_scale = sym(arena, "current_scale_scale")
 
     denominator = 2*degree*(degree + alpha + beta)* &
         (2*degree + alpha + beta - 2)
@@ -106,16 +114,52 @@ program gen_jacobi_recurrence
     spec%name = str("scaled_jacobi_gradient_recurrence_kernel")
     spec%module_name = str( &
         "fortnum_generated_scaled_jacobi_gradient_recurrence")
-    arguments = [ &
+    arguments(:11) = [ &
         str("degree"), str("alpha"), str("beta"), str("x"), &
         str("scale"), str("previous"), str("current"), &
         str("previous_x"), str("current_x"), str("previous_scale"), &
         str("current_scale")]
-    outputs = [str("next"), str("next_x"), str("next_scale")]
+    outputs(:3) = [str("next"), str("next_x"), str("next_scale")]
+    spec%args = arguments(:11)
+    spec%outputs = outputs(:3)
+    filename = generated_path( &
+        "fortnum_scaled_jacobi_gradient_recurrence_kernel.f90")
+    open (newunit=unit, file=filename, status="replace", action="write", &
+        iostat=ios)
+    if (ios /= 0) error stop "cannot write "//filename
+    code = chars(emit_kernel(roots(:3), spec))
+    write (unit, "(a)") code(:len(code) - 1)
+    close (unit)
+    call codegen_log("wrote "//filename)
+
+    roots(4) = (factor*(2*linear_x*current_x + &
+        (linear_x*x + linear_scale*scale)*current_x_x) - &
+        previous_factor*scale*scale*previous_x_x)/denominator
+    roots(5) = (factor*(linear_x*current_scale + &
+        linear_scale*current_x + &
+        (linear_x*x + linear_scale*scale)*current_x_scale) - &
+        previous_factor*(2*scale*previous_x + &
+        scale*scale*previous_x_scale))/denominator
+    roots(6) = (factor*(2*linear_scale*current_scale + &
+        (linear_x*x + linear_scale*scale)*current_scale_scale) - &
+        previous_factor*(2*previous + 4*scale*previous_scale + &
+        scale*scale*previous_scale_scale))/denominator
+    spec%name = str("scaled_jacobi_hessian_recurrence_kernel")
+    spec%module_name = str( &
+        "fortnum_generated_scaled_jacobi_hessian_recurrence")
+    arguments = [ &
+        str("degree"), str("alpha"), str("beta"), str("x"), &
+        str("scale"), str("previous"), str("current"), &
+        str("previous_x"), str("current_x"), str("previous_scale"), &
+        str("current_scale"), str("previous_x_x"), str("current_x_x"), &
+        str("previous_x_scale"), str("current_x_scale"), &
+        str("previous_scale_scale"), str("current_scale_scale")]
+    outputs = [str("next"), str("next_x"), str("next_scale"), &
+        str("next_x_x"), str("next_x_scale"), str("next_scale_scale")]
     spec%args = arguments
     spec%outputs = outputs
     filename = generated_path( &
-        "fortnum_scaled_jacobi_gradient_recurrence_kernel.f90")
+        "fortnum_scaled_jacobi_hessian_recurrence_kernel.f90")
     open (newunit=unit, file=filename, status="replace", action="write", &
         iostat=ios)
     if (ios /= 0) error stop "cannot write "//filename

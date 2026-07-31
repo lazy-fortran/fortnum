@@ -4,13 +4,15 @@ program test_fortnum_special_jacobi
     use fortnum_special_jacobi, only: jacobi_p, jacobi_p_derivative, &
         scaled_jacobi_p, scaled_jacobi_p_gradient, &
         tetrahedron_koornwinder, tetrahedron_koornwinder_gradient, &
+        tetrahedron_koornwinder_hessian, &
         triangle_dubiner, triangle_dubiner_gradient
     implicit none
 
     integer :: nfail
     real(dp), parameter :: tolerance = 3.0e-13_dp
     real(dp), parameter :: x = 0.37_dp
-    real(dp) :: gradient2(2), gradient3(3), scaled_gradient(2)
+    real(dp) :: gradient2(2), gradient3(3), hessian3(3, 3)
+    real(dp) :: scaled_gradient(2)
 
     nfail = 0
     call check("P0", jacobi_p(0, 2.0_dp, 1.0_dp, x), 1.0_dp)
@@ -68,6 +70,7 @@ program test_fortnum_special_jacobi
     call check("tetrahedron second-mode y gradient", gradient3(2), 3.0_dp)
     call check("tetrahedron second-mode z gradient", gradient3(3), 1.0_dp)
     call check_modal_gradients()
+    call check_modal_hessian()
     call check_true("negative degree rejected", &
         jacobi_p(-1, 0.0_dp, 0.0_dp, x) == 0.0_dp)
     call check_weighted_orthogonality()
@@ -215,6 +218,34 @@ contains
                 abs(gradient3(direction) - finite_difference) < 2.0e-9_dp)
         end do
     end subroutine check_modal_gradients
+
+    subroutine check_modal_hessian()
+        real(dp), parameter :: step = 2.0e-6_dp
+        real(dp) :: gradient_minus(3), gradient_plus(3), point(3)
+        real(dp) :: shifted_minus(3), shifted_plus(3)
+        integer :: direction
+
+        point = [0.17_dp, 0.19_dp, 0.23_dp]
+        call tetrahedron_koornwinder_hessian( &
+            4, 3, 2, point(1), point(2), point(3), hessian3)
+        do direction = 1, 3
+            shifted_minus = point
+            shifted_plus = point
+            shifted_minus(direction) = shifted_minus(direction) - step
+            shifted_plus(direction) = shifted_plus(direction) + step
+            call tetrahedron_koornwinder_gradient( &
+                4, 3, 2, shifted_minus(1), shifted_minus(2), &
+                shifted_minus(3), gradient_minus)
+            call tetrahedron_koornwinder_gradient( &
+                4, 3, 2, shifted_plus(1), shifted_plus(2), &
+                shifted_plus(3), gradient_plus)
+            call check_true("tetrahedron modal analytic Hessian", &
+                maxval(abs(hessian3(:, direction) - &
+                (gradient_plus - gradient_minus)/(2*step))) < 2.0e-8_dp)
+        end do
+        call check_true("tetrahedron modal Hessian symmetry", &
+            maxval(abs(hessian3 - transpose(hessian3))) < 5.0e-13_dp)
+    end subroutine check_modal_hessian
 
     subroutine check_orthogonal_gram(label, gram)
         character(*), intent(in) :: label
