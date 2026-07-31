@@ -11,14 +11,17 @@ module fortnum_special_jacobi
         scaled_jacobi_recurrence_kernel
     use fortnum_generated_scaled_jacobi_gradient_recurrence, only: &
         scaled_jacobi_gradient_recurrence_kernel
+    use fortnum_generated_scaled_jacobi_hessian_recurrence, only: &
+        scaled_jacobi_hessian_recurrence_kernel
     use fortnum_kinds, only: dp
     implicit none
     private
 
     public :: jacobi_p, jacobi_p_derivative, scaled_jacobi_p
-    public :: scaled_jacobi_p_gradient
+    public :: scaled_jacobi_p_gradient, scaled_jacobi_p_hessian
     public :: tetrahedron_koornwinder, triangle_dubiner
     public :: tetrahedron_koornwinder_gradient, triangle_dubiner_gradient
+    public :: tetrahedron_koornwinder_hessian
 
 contains
 
@@ -142,6 +145,50 @@ contains
         gradient = current_gradient
     end subroutine scaled_jacobi_p_gradient
 
+    pure subroutine scaled_jacobi_p_hessian( &
+            degree, alpha, beta, numerator, scale, hessian)
+        integer, intent(in) :: degree
+        real(dp), intent(in) :: alpha, beta, numerator, scale
+        real(dp), intent(out) :: hessian(2, 2)
+
+        integer :: current_degree
+        real(dp) :: current, current_gradient(2), current_hessian(2, 2)
+        real(dp) :: next, next_gradient(2), next_hessian(2, 2)
+        real(dp) :: previous, previous_gradient(2), previous_hessian(2, 2)
+
+        hessian = 0.0_dp
+        if (degree <= 1 .or. alpha <= -1.0_dp .or. beta <= -1.0_dp) return
+        previous = 1.0_dp
+        previous_gradient = 0.0_dp
+        previous_hessian = 0.0_dp
+        current = 0.5_dp*((alpha - beta)*scale + &
+            (alpha + beta + 2.0_dp)*numerator)
+        current_gradient = 0.5_dp*[alpha + beta + 2.0_dp, alpha - beta]
+        current_hessian = 0.0_dp
+        current_degree = 1
+        do while (current_degree < degree)
+            call scaled_jacobi_hessian_recurrence_kernel( &
+                real(current_degree + 1, dp), alpha, beta, numerator, &
+                scale, previous, current, previous_gradient(1), &
+                current_gradient(1), previous_gradient(2), &
+                current_gradient(2), previous_hessian(1, 1), &
+                current_hessian(1, 1), previous_hessian(1, 2), &
+                current_hessian(1, 2), previous_hessian(2, 2), &
+                current_hessian(2, 2), next, next_gradient(1), &
+                next_gradient(2), next_hessian(1, 1), &
+                next_hessian(1, 2), next_hessian(2, 2))
+            next_hessian(2, 1) = next_hessian(1, 2)
+            previous = current
+            previous_gradient = current_gradient
+            previous_hessian = current_hessian
+            current = next
+            current_gradient = next_gradient
+            current_hessian = next_hessian
+            current_degree = current_degree + 1
+        end do
+        hessian = current_hessian
+    end subroutine scaled_jacobi_p_hessian
+
     elemental function triangle_dubiner( &
             first_degree, second_degree, x, y) result(value)
         integer, intent(in) :: first_degree, second_degree
@@ -247,5 +294,107 @@ contains
             first*(second_gradient(1) - second_gradient(2))*third + &
             first*second*third_derivative
     end subroutine tetrahedron_koornwinder_gradient
+
+    pure subroutine tetrahedron_koornwinder_hessian( &
+            first_degree, second_degree, third_degree, x, y, z, hessian)
+        integer, intent(in) :: first_degree, second_degree, third_degree
+        real(dp), intent(in) :: x, y, z
+        real(dp), intent(out) :: hessian(3, 3)
+
+        real(dp) :: factor(3), factor_gradient(3, 3)
+        real(dp) :: factor_hessian(3, 3, 3), local_gradient(2)
+        real(dp) :: local_hessian(2, 2), map_numerator(3), map_scale(3)
+        real(dp) :: alpha, third_first, third_second
+        integer :: column, row
+
+        hessian = 0.0_dp
+        if (first_degree < 0 .or. second_degree < 0 .or. &
+            third_degree < 0) return
+        factor_hessian = 0.0_dp
+
+        factor(1) = scaled_jacobi_p(first_degree, 0.0_dp, 0.0_dp, &
+            2.0_dp*x + y + z - 1.0_dp, 1.0_dp - y - z)
+        call scaled_jacobi_p_gradient(first_degree, 0.0_dp, 0.0_dp, &
+            2.0_dp*x + y + z - 1.0_dp, 1.0_dp - y - z, local_gradient)
+        call scaled_jacobi_p_hessian(first_degree, 0.0_dp, 0.0_dp, &
+            2.0_dp*x + y + z - 1.0_dp, 1.0_dp - y - z, local_hessian)
+        map_numerator = [2.0_dp, 1.0_dp, 1.0_dp]
+        map_scale = [0.0_dp, -1.0_dp, -1.0_dp]
+        call map_scaled_derivatives(local_gradient, local_hessian, &
+            map_numerator, map_scale, factor_gradient(:, 1), &
+            factor_hessian(:, :, 1))
+
+        alpha = real(2*first_degree + 1, dp)
+        factor(2) = scaled_jacobi_p(second_degree, alpha, 0.0_dp, &
+            2.0_dp*y + z - 1.0_dp, 1.0_dp - z)
+        call scaled_jacobi_p_gradient(second_degree, alpha, 0.0_dp, &
+            2.0_dp*y + z - 1.0_dp, 1.0_dp - z, local_gradient)
+        call scaled_jacobi_p_hessian(second_degree, alpha, 0.0_dp, &
+            2.0_dp*y + z - 1.0_dp, 1.0_dp - z, local_hessian)
+        map_numerator = [0.0_dp, 2.0_dp, 1.0_dp]
+        map_scale = [0.0_dp, 0.0_dp, -1.0_dp]
+        call map_scaled_derivatives(local_gradient, local_hessian, &
+            map_numerator, map_scale, factor_gradient(:, 2), &
+            factor_hessian(:, :, 2))
+
+        alpha = real(2*(first_degree + second_degree) + 2, dp)
+        factor(3) = jacobi_p(third_degree, alpha, 0.0_dp, 2.0_dp*z - 1.0_dp)
+        factor_gradient(:, 3) = 0.0_dp
+        factor_gradient(3, 3) = 2.0_dp*jacobi_p_derivative( &
+            third_degree, alpha, 0.0_dp, 2.0_dp*z - 1.0_dp)
+        third_first = 0.5_dp*real(third_degree, dp) + &
+            0.5_dp*(alpha + 1.0_dp)
+        third_second = 0.5_dp*real(third_degree - 1, dp) + &
+            0.5_dp*(alpha + 3.0_dp)
+        if (third_degree <= 1) then
+            factor_hessian(3, 3, 3) = 0.0_dp
+        else
+            factor_hessian(3, 3, 3) = 4.0_dp*third_first*third_second* &
+                jacobi_p(third_degree - 2, alpha + 2.0_dp, 2.0_dp, &
+                2.0_dp*z - 1.0_dp)
+        end if
+
+        do column = 1, 3
+            do row = 1, 3
+                hessian(row, column) = &
+                    factor_hessian(row, column, 1)*factor(2)*factor(3) + &
+                    factor_hessian(row, column, 2)*factor(1)*factor(3) + &
+                    factor_hessian(row, column, 3)*factor(1)*factor(2) + &
+                    (factor_gradient(row, 1)*factor_gradient(column, 2) + &
+                    factor_gradient(row, 2)*factor_gradient(column, 1))* &
+                    factor(3) + &
+                    (factor_gradient(row, 1)*factor_gradient(column, 3) + &
+                    factor_gradient(row, 3)*factor_gradient(column, 1))* &
+                    factor(2) + &
+                    (factor_gradient(row, 2)*factor_gradient(column, 3) + &
+                    factor_gradient(row, 3)*factor_gradient(column, 2))* &
+                    factor(1)
+            end do
+        end do
+    end subroutine tetrahedron_koornwinder_hessian
+
+    pure subroutine map_scaled_derivatives( &
+            local_gradient, local_hessian, map_numerator, map_scale, &
+            gradient, hessian)
+        real(dp), intent(in) :: local_gradient(2), local_hessian(2, 2)
+        real(dp), intent(in) :: map_numerator(3), map_scale(3)
+        real(dp), intent(out) :: gradient(3), hessian(3, 3)
+
+        integer :: column, row
+
+        gradient = map_numerator*local_gradient(1) + &
+            map_scale*local_gradient(2)
+        do column = 1, 3
+            do row = 1, 3
+                hessian(row, column) = &
+                    map_numerator(row)*map_numerator(column)* &
+                    local_hessian(1, 1) + &
+                    (map_numerator(row)*map_scale(column) + &
+                    map_scale(row)*map_numerator(column))* &
+                    local_hessian(1, 2) + &
+                    map_scale(row)*map_scale(column)*local_hessian(2, 2)
+            end do
+        end do
+    end subroutine map_scaled_derivatives
 
 end module fortnum_special_jacobi

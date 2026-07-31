@@ -43,6 +43,7 @@ target_sources(fortnum PRIVATE
     generated/fortnum_jacobi_recurrence_kernel.f90
     generated/fortnum_scaled_jacobi_recurrence_kernel.f90
     generated/fortnum_scaled_jacobi_gradient_recurrence_kernel.f90
+    generated/fortnum_scaled_jacobi_hessian_recurrence_kernel.f90
     generated/fortnum_scalar_root_residual_jvp_kernel.f90
     generated/fortnum_scalar_root_residual_vjp_kernel.f90
     generated/fortnum_sqrt1pm1_raw_kernel.f90
