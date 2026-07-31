@@ -15,11 +15,10 @@ module fortnum_linalg
     !
     ! DERIVATIVE POLICY (ad.md S1): det2/det3 have fortsym-generated analytical
     !   JVP and VJP candidates. inv2/inv3 have fused analytical JVP and VJP
-    !   candidates; jacobian_ok3 remains primal-only. lu_solve realises
-    !   A^{-1} b; the
-    !   implicit/linear-solve rule (d x = A^{-1}(d b - dA x)) belongs to the
-    !   consumer that owns A and b, not to the in-place factorisation here.
-    !   Do not differentiate through the elimination.
+    !   candidates; jacobian_ok3 remains primal-only. Real and host-complex
+    !   linear systems expose analytical implicit JVP/VJP boundaries. They
+    !   solve d x = A^{-1}(d b - dA x) or A^H lambda = x_bar and never
+    !   differentiate through the elimination.
     !
     ! The pivot/singularity logic mirrors solve_linear in fortnum_multiroot
     ! (sing_tol = eps*maxval(|A|)*n); the closed-form guard mirrors the FO Boris
@@ -91,6 +90,7 @@ module fortnum_linalg
     public :: linear_solve_jvp_factored_many
     public :: linear_solve_vjp, linear_solve_vjp_factored
     public :: linear_solve_vjp_factored_many
+    public :: linear_solve_complex_jvp, linear_solve_complex_vjp
 
 contains
 
@@ -683,5 +683,46 @@ contains
             end do
         end do
     end subroutine linear_solve_vjp_factored_many
+
+    ! Host analytical implicit JVP for a complex A x = b system. This uses the
+    ! LAPACK-backed dense solve and does not differentiate the factorization.
+    subroutine linear_solve_complex_jvp(n, a, x, da, db, dx, info)
+        integer, intent(in) :: n
+        complex(dp), intent(in) :: a(n, n), x(n), da(n, n), db(n)
+        complex(dp), intent(out) :: dx(n)
+        integer, intent(out) :: info
+
+        complex(dp) :: tangent_rhs(n)
+
+        tangent_rhs = db - matmul(da, x)
+        call dense_solve_complex(a, tangent_rhs, dx, info)
+        if (info /= LINALG_OK) dx = cmplx(0.0_dp, 0.0_dp, dp)
+    end subroutine linear_solve_complex_jvp
+
+    ! Host analytical implicit VJP under
+    ! Re(conjg(y_bar)^T dy). Solving A^H lambda = x_bar gives
+    ! b_bar=lambda and A_bar=-lambda*conjg(x)^T.
+    subroutine linear_solve_complex_vjp(n, a, x, x_bar, a_bar, b_bar, info)
+        integer, intent(in) :: n
+        complex(dp), intent(in) :: a(n, n), x(n), x_bar(n)
+        complex(dp), intent(out) :: a_bar(n, n), b_bar(n)
+        integer, intent(out) :: info
+
+        complex(dp) :: adjoint_matrix(n, n)
+        integer :: row, column
+
+        adjoint_matrix = conjg(transpose(a))
+        call dense_solve_complex(adjoint_matrix, x_bar, b_bar, info)
+        if (info /= LINALG_OK) then
+            a_bar = cmplx(0.0_dp, 0.0_dp, dp)
+            b_bar = cmplx(0.0_dp, 0.0_dp, dp)
+            return
+        end if
+        do column = 1, n
+            do row = 1, n
+                a_bar(row, column) = -b_bar(row)*conjg(x(column))
+            end do
+        end do
+    end subroutine linear_solve_complex_vjp
 
 end module fortnum_linalg
