@@ -85,6 +85,7 @@ target_sources(fortnum PRIVATE
     special/fortnum_special_hypergeometric_1f1.f90
     special/fortnum_special_legendre.f90
     special/fortnum_special_jacobi.f90
+    special/fortnum_special_spherical.f90
     special/fortnum_special_toroidal.f90
     testing/fortnum_oracle.f90
 )

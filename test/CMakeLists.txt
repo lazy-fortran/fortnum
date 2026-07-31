@@ -121,6 +121,10 @@ add_executable(test_fortnum_special_jacobi special/test_fortnum_special_jacobi.f
 target_link_libraries(test_fortnum_special_jacobi PRIVATE fortnum)
 add_test(NAME fortnum_special_jacobi COMMAND test_fortnum_special_jacobi)
 
+add_executable(test_fortnum_special_spherical special/test_fortnum_special_spherical.f90)
+target_link_libraries(test_fortnum_special_spherical PRIVATE fortnum)
+add_test(NAME fortnum_special_spherical COMMAND test_fortnum_special_spherical)
+
 add_executable(test_fortnum_special_toroidal special/test_fortnum_special_toroidal.f90)
 target_link_libraries(test_fortnum_special_toroidal PRIVATE fortnum)
 add_test(NAME fortnum_special_toroidal COMMAND test_fortnum_special_toroidal)
