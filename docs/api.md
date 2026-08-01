@@ -126,10 +126,14 @@ not be interchanged.
 The zero-order \(Q\) branch uses the DLMF zero-balanced continuation in
 \(1-x^{-2}\) near \(x=1\), and associated orders are generated from its
 analytical derivative and the generated order recurrence. This avoids the raw
-hypergeometric series' near-cut nonconvergence. The present implementation
-still targets moderate nonnegative degree and order; it does not claim the
-large-order envelope of a continued-fraction and uniform-asymptotic algorithm
-in
+hypergeometric series' near-cut nonconvergence. For half-integer degrees at
+ordinary torus aspect ratios, (P) is continued upward in degree and the
+recessive (Q) branch is continued with a scaled Miller backward recurrence;
+the degree-80/order-4 values are checked against an independent 50-digit
+reference and the three-term recurrence. Very close to the cut, the
+zero-balanced direct branch remains the preferred path; a uniform asymptotic
+envelope for arbitrarily large degree is still outside this API. The
+continued-fraction and uniform-asymptotic literature is
 [Gil, Segura, and Temme (2000)](https://ir.cwi.nl/pub/1181/1181D.pdf).
 The recurrence coefficients and series-term update are emitted by fortsym;
 the exact generator revisions and regeneration commands are recorded in the

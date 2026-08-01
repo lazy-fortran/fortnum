@@ -47,6 +47,17 @@ program test_fortnum_special_toroidal
     call check_ode("P toroidal ODE", .true., 3, 2, 2.0_dp)
     call check_ode("Q toroidal ODE", .false., 2, 1, 2.5_dp)
 
+    call check_finite("large-degree P", toroidal_p(80, 4, 1.2_dp))
+    call check_finite("large-degree Q", toroidal_q(80, 4, 1.2_dp))
+    call check_scaled("large-degree P reference", &
+        toroidal_p(80, 4, 1.2_dp), 7.8574629022740074243e27_dp, 5.0e-12_dp)
+    call check_scaled("large-degree Q reference", &
+        toroidal_q(80, 4, 1.2_dp), 1.9996464751570121823e-15_dp, 5.0e-10_dp)
+    call check_degree_recurrence("large-degree P recurrence", .true., &
+        80, 4, 1.2_dp)
+    call check_degree_recurrence("large-degree Q recurrence", .false., &
+        80, 4, 1.2_dp)
+
     if (nfail /= 0) then
         write (error_unit, "(i0,a)") nfail, " test(s) FAILED"
         error stop 1
@@ -117,5 +128,33 @@ contains
                 "FAIL: ", label//" residual=", residual
         end if
     end subroutine check_ode
+
+    subroutine check_degree_recurrence(label, first_kind, degree_index, &
+            order, x)
+        character(*), intent(in) :: label
+        logical, intent(in) :: first_kind
+        integer, intent(in) :: degree_index, order
+        real(dp), intent(in) :: x
+        real(dp) :: previous, current, following, degree, residual
+
+        if (first_kind) then
+            previous = toroidal_p(degree_index - 1, order, x)
+            current = toroidal_p(degree_index, order, x)
+            following = toroidal_p(degree_index + 1, order, x)
+        else
+            previous = toroidal_q(degree_index - 1, order, x)
+            current = toroidal_q(degree_index, order, x)
+            following = toroidal_q(degree_index + 1, order, x)
+        end if
+        degree = real(degree_index, dp) - 0.5_dp
+        residual = (degree - real(order, dp) + 1.0_dp)*following - &
+            (2.0_dp*degree + 1.0_dp)*x*current + &
+            (degree + real(order, dp))*previous
+        if (abs(residual) > 2.0e-12_dp*(1.0_dp + abs(current))) then
+            nfail = nfail + 1
+            write (error_unit, "(a,a,es22.14)") &
+                "FAIL: ", label//" residual=", residual
+        end if
+    end subroutine check_degree_recurrence
 
 end program test_fortnum_special_toroidal
