@@ -531,7 +531,10 @@ contains
             else
                 nreject = nreject + 1
             end if
-            hlast = h
+            ! Only an ACCEPTED step is worth carrying to the next call.
+            ! Recording a rejected one hands the caller a step size the
+            ! controller has already judged too large.
+            if (accepted) hlast = h
             h = h*step_factor(e, 3, accepted)
 
             if (abs(h) < 16.0_dp*spacing(abs(t))) then
@@ -667,7 +670,7 @@ contains
             else
                 nreject = nreject + 1
             end if
-            hlast = h
+            if (accepted) hlast = h
             h = h*step_factor(e, 2, accepted)
 
             if (abs(h) < 16.0_dp*spacing(abs(t))) then
