@@ -48,7 +48,7 @@ contract. They do not use mutable global error state.
 | Jacobi/simplex polynomials | `jacobi_p`, `scaled_jacobi_p`, `triangle_dubiner`, `tetrahedron_koornwinder` | `jacobi_p_derivative` |
 | Ferrers associated Legendre | `legendre_p` | `legendre_p_derivative` |
 | ordinary Legendre second kind | `legendre_q` | `legendre_q_derivative` |
-| complex spherical harmonics | `spherical_harmonic` | angular derivatives |
+| complex spherical harmonics | `spherical_harmonic` | angular derivatives, `spherical_harmonic_product_coefficient` |
 | toroidal associated Legendre | `toroidal_p`, `toroidal_q` | `toroidal_p_derivative`, `toroidal_q_derivative` |
 
 Domain modules expose additional products:
@@ -108,6 +108,21 @@ separate roadmap item.
 orthonormal convention of DLMF 14.30. The azimuth is periodic; the polar
 angle must satisfy \(0\le\theta\le\pi\). The angular derivative entry points
 are analytical and are intended away from the coordinate poles.
+
+`spherical_harmonic_product_coefficient(l1,m1,l2,m2,L,M)` returns the real
+Gaunt coefficient (G_{l_1m_1,l_2m_2}^{LM}) in
+
+\[
+Y_{l_1}^{m_1}Y_{l_2}^{m_2}
+ = \sum_{L,M}G_{l_1m_1,l_2m_2}^{LM}Y_L^M.
+\]
+
+The implementation uses the two Wigner-3j symbols and the finite Racah sum
+from [DLMF 34.3](https://dlmf.nist.gov/34.3). Triangle, parity, and azimuthal
+selection rules return an exact zero; invalid degree/order indices return NaN.
+Logarithmic factorial scaling is intended for moderate degrees and avoids the
+pointwise Legendre evaluator, so products can be checked against an
+independent angular-quadrature oracle.
 
 `toroidal_p(n,m,x)` and `toroidal_q(n,m,x)` use degree \(n-\tfrac12\), not
 \(n+\tfrac12\), and return Hobson-normalized functions. They are therefore

@@ -6,6 +6,7 @@ program test_fortnum_special_spherical
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
     use fortnum_special, only: &
         spherical_harmonic, spherical_harmonic_phi_derivative, &
+        spherical_harmonic_product_coefficient, &
         spherical_harmonic_theta_derivative
     implicit none
 
@@ -16,6 +17,7 @@ program test_fortnum_special_spherical
     real(dp), parameter :: phi = 0.4_dp
     real(dp) :: amplitude
     complex(dp) :: expected
+    real(dp) :: coefficient
 
     nfail = 0
     call check_complex("Y_0^0", spherical_harmonic(0, 0, theta, phi), &
@@ -51,6 +53,19 @@ program test_fortnum_special_spherical
         complex_is_nan(spherical_harmonic(1, 0, -1.0e-6_dp, phi)))
     call check_true("theta above domain", &
         complex_is_nan(spherical_harmonic(1, 0, pi + 1.0e-6_dp, phi)))
+
+    coefficient = spherical_harmonic_product_coefficient(0, 0, 0, 0, 0, 0)
+    call check_real("Y00*Y00 -> Y00", coefficient, 1.0_dp/sqrt(4.0_dp*pi))
+    coefficient = spherical_harmonic_product_coefficient(1, 0, 1, 0, 0, 0)
+    call check_real("Y10*Y10 -> Y00", coefficient, 1.0_dp/sqrt(4.0_dp*pi))
+    call check_true("product m selection rule", &
+        spherical_harmonic_product_coefficient(2, 1, 1, -1, 3, 1) == 0.0_dp)
+    call check_true("product parity selection rule", &
+        spherical_harmonic_product_coefficient(1, 0, 1, 0, 1, 0) == 0.0_dp)
+    call check_true("product rejects invalid indices", &
+        ieee_is_nan(spherical_harmonic_product_coefficient(1, 2, 1, 0, 1, 0)))
+    call check_quadrature(2, 1, 1, -1, 3, 0)
+    call check_product_reconstruction(1, 1, 1, -1, 0.73_dp, 0.41_dp)
 
     if (nfail /= 0) then
         write (error_unit, "(i0,a)") nfail, " test(s) FAILED"
@@ -91,5 +106,74 @@ contains
             write (error_unit, "(a)") "FAIL: "//label
         end if
     end subroutine check_true
+
+    subroutine check_real(label, got, expected)
+        character(*), intent(in) :: label
+        real(dp), intent(in) :: got, expected
+
+        if (abs(got - expected) > 3.0e-12_dp*(1.0_dp + abs(expected))) then
+            nfail = nfail + 1
+            write (error_unit, "(a,2(a,es22.14))") &
+                "FAIL: "//label, " got=", got, " expected=", expected
+        end if
+    end subroutine check_real
+
+    subroutine check_quadrature(degree_1, order_1, degree_2, order_2, &
+            degree_out, order_out)
+        integer, intent(in) :: degree_1, order_1, degree_2, order_2
+        integer, intent(in) :: degree_out, order_out
+        real(dp), parameter :: nodes(8) = [ &
+            -0.9602898564975363_dp, -0.7966664774136267_dp, &
+            -0.5255324099163290_dp, -0.1834346424956498_dp, &
+            0.1834346424956498_dp,  0.5255324099163290_dp, &
+            0.7966664774136267_dp,  0.9602898564975363_dp]
+        real(dp), parameter :: weights(8) = [ &
+            0.1012285362903763_dp, 0.2223810344533745_dp, &
+            0.3137066458778873_dp, 0.3626837833783620_dp, &
+            0.3626837833783620_dp, 0.3137066458778873_dp, &
+            0.2223810344533745_dp, 0.1012285362903763_dp]
+        integer, parameter :: phi_count = 32
+        real(dp), parameter :: two_pi = 2.0_dp*pi
+        real(dp) :: quadrature, theta, azimuth, dphi
+        complex(dp) :: integrand
+        integer :: node, angle
+
+        quadrature = 0.0_dp
+        dphi = two_pi/real(phi_count, dp)
+        do node = 1, size(nodes)
+            theta = acos(nodes(node))
+            do angle = 0, phi_count - 1
+                azimuth = dphi*real(angle, dp)
+                integrand = spherical_harmonic(degree_1, order_1, theta, azimuth)* &
+                    spherical_harmonic(degree_2, order_2, theta, azimuth)* &
+                    conjg(spherical_harmonic(degree_out, order_out, theta, azimuth))
+                quadrature = quadrature + weights(node)*dphi*real(integrand, dp)
+            end do
+        end do
+        call check_real("Gaunt tensor-product quadrature", quadrature, &
+            spherical_harmonic_product_coefficient( &
+            degree_1, order_1, degree_2, order_2, degree_out, order_out))
+    end subroutine check_quadrature
+
+    subroutine check_product_reconstruction( &
+            degree_1, order_1, degree_2, order_2, theta, azimuth)
+        integer, intent(in) :: degree_1, order_1, degree_2, order_2
+        real(dp), intent(in) :: theta, azimuth
+        complex(dp) :: reconstructed, direct
+        integer :: degree_out, order_out
+
+        order_out = order_1 + order_2
+        reconstructed = cmplx(0.0_dp, 0.0_dp, dp)
+        do degree_out = abs(degree_1 - degree_2), degree_1 + degree_2
+            reconstructed = reconstructed + &
+                spherical_harmonic_product_coefficient( &
+                degree_1, order_1, degree_2, order_2, degree_out, order_out)* &
+                spherical_harmonic(degree_out, order_out, theta, azimuth)
+        end do
+        direct = spherical_harmonic(degree_1, order_1, theta, azimuth)* &
+            spherical_harmonic(degree_2, order_2, theta, azimuth)
+        call check_true("spherical product reconstruction", &
+            abs(reconstructed - direct) < 2.0e-12_dp)
+    end subroutine check_product_reconstruction
 
 end program test_fortnum_special_spherical
