@@ -69,7 +69,7 @@ module fortnum_ode_tdrk
 
     use, intrinsic :: iso_fortran_env, only: dp => real64
     use fortnum_status, only: fortnum_status_t, status_set, FORTNUM_OK, &
-                              FORTNUM_DOMAIN_ERROR
+                              FORTNUM_DOMAIN_ERROR, FORTNUM_CONVERGENCE_ERROR
     use fortnum_ode, only: ode_rhs_t
 
     implicit none
@@ -77,10 +77,19 @@ module fortnum_ode_tdrk
 
     public :: tdrk_tableau, tdrk_step, tdrk_integrate_fixed
     public :: rkng_step, rkng_integrate_fixed
+    public :: tdrk_integrate_adaptive, rkng_integrate_adaptive
     public :: ode_rhs2_t, ode_rhs_rkng_t
     public :: TDRK_MAX_STAGES
 
     integer, parameter :: TDRK_MAX_STAGES = 4
+
+    ! Step-size controller (Hairer, Norsett, Wanner, "Solving ODEs I", II.4).
+    ! The exponent is set per driver from the order of the EMBEDDED solution,
+    ! not the propagated one, so it is passed in rather than fixed here.
+    real(dp), parameter :: SAFETY  = 0.9_dp
+    real(dp), parameter :: FAC_MIN = 0.2_dp
+    real(dp), parameter :: FAC_MAX = 5.0_dp
+    integer,  parameter :: MAX_STEPS = 10000000
 
     ! Second derivative of the state along the flow, G = F'(z) F(z), for the
     ! first-order system zdot = F(z). Same shape as ode_rhs_t.
@@ -201,9 +210,10 @@ contains
         end do
     end subroutine tdrk_step
 
-    ! Fixed-step TDRK driver. Fixed step keeps the order measurable; adaptive
-    ! control is deliberately left out until the cost model says the method is
-    ! worth carrying into production.
+    ! Fixed-step TDRK driver. Fixed step is what makes the order measurable, so
+    ! this stays even though tdrk_integrate_adaptive exists: the order test
+    ! needs a known step sequence, and a caller comparing against fixed-step
+    ! symplectic schemes wants resolution, not tolerance, as the knob.
     subroutine tdrk_integrate_fixed(rhs, rhs2, t0, t1, y0, nsteps, order, &
                                     three_stage, yend, nfev_f, nfev_g, status, ctx)
         procedure(ode_rhs_t)  :: rhs
@@ -387,5 +397,294 @@ contains
         yend(1:neq) = y
         ypend(1:neq) = yp
     end subroutine rkng_integrate_fixed
+
+    ! ------------------------------------------------------------------ error
+    ! control
+    !
+    ! Both adaptive drivers below use the three-stage order-4 tableau, because
+    ! the two-stage one cannot carry an embedded estimate: with c = (0, 1/2) the
+    ! order-3 conditions (sum b = 1/2, sum b c = 1/6) already force
+    ! b = (1/6, 1/3), which is the order-4 solution itself, so the difference of
+    ! the two is identically zero. Three stages leave one free parameter.
+
+    ! Weighted RMS norm of an error vector against the mixed tolerance, the
+    ! standard criterion: accepted when the result is <= 1.
+    pure function error_norm(err, y, ynew, rtol, atol) result(e)
+        real(dp), intent(in) :: err(:), y(:), ynew(:), rtol, atol
+        real(dp) :: e, sc
+        integer  :: k
+
+        e = 0.0_dp
+        do k = 1, size(err)
+            sc = atol + rtol*max(abs(y(k)), abs(ynew(k)))
+            if (sc <= 0.0_dp) cycle
+            e = e + (err(k)/sc)**2
+        end do
+        e = sqrt(e/real(max(size(err), 1), dp))
+    end function error_norm
+
+    ! Elementary step-size controller. phat is the order of the EMBEDDED
+    ! solution, so the local error it measures is O(h^(phat+1)).
+    pure function step_factor(e, phat, accepted) result(fac)
+        real(dp), intent(in) :: e
+        integer,  intent(in) :: phat
+        logical,  intent(in) :: accepted
+        real(dp) :: fac
+
+        if (e <= tiny(1.0_dp)) then
+            fac = FAC_MAX
+        else
+            fac = SAFETY*e**(-1.0_dp/real(phat + 1, dp))
+        end if
+        fac = min(FAC_MAX, max(FAC_MIN, fac))
+        if (.not. accepted) fac = min(fac, 1.0_dp)
+    end function step_factor
+
+    ! Adaptive TDRK for zdot = F(z) with G = F'F.
+    !
+    ! Propagated solution: three-stage order 4, bbar = (1/8, 1/4, 1/8).
+    ! Embedded solution:   order 3, bhat = (0, 1/2, 0) -- it satisfies
+    ! sum bhat = 1/2 and sum bhat c = 1/6 but gives sum bhat c^2 = 1/18 rather
+    ! than the 1/12 order 4 needs, so it is genuinely one order lower and the
+    ! difference is a real error estimate rather than round-off.
+    !
+    ! h0 <= 0 requests a default first step of (t1 - t0)/100; the controller
+    ! recovers from a bad guess within a few steps either way.
+    subroutine tdrk_integrate_adaptive(rhs, rhs2, t0, t1, y0, rtol, atol, h0, &
+                                       yend, hlast, nfev_f, nfev_g, naccept, &
+                                       nreject, status, ctx)
+        procedure(ode_rhs_t)  :: rhs
+        procedure(ode_rhs2_t) :: rhs2
+        real(dp), intent(in) :: t0, t1
+        real(dp), intent(in) :: y0(:)
+        real(dp), intent(in) :: rtol, atol, h0
+        real(dp), intent(out) :: yend(:)
+        real(dp), intent(out) :: hlast
+        integer,  intent(out) :: nfev_f, nfev_g, naccept, nreject
+        type(fortnum_status_t), intent(out) :: status
+        class(*), intent(in), optional :: ctx
+
+        real(dp) :: c(TDRK_MAX_STAGES), abar(TDRK_MAX_STAGES, TDRK_MAX_STAGES)
+        real(dp) :: bbar(TDRK_MAX_STAGES), bhat(TDRK_MAX_STAGES)
+        real(dp), allocatable :: gs(:, :), ytmp(:), y(:), ynew(:), err(:)
+        real(dp) :: h, t, span, e
+        integer  :: s, k, i, neq, nstep
+        logical  :: ok, accepted
+
+        call status_set(status, FORTNUM_OK, "")
+        nfev_f = 0
+        nfev_g = 0
+        naccept = 0
+        nreject = 0
+        neq = size(y0)
+        yend(1:neq) = y0
+        span = t1 - t0
+        hlast = h0
+        if (span == 0.0_dp) return
+
+        if (rtol <= 0.0_dp .and. atol <= 0.0_dp) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                            "tdrk_integrate_adaptive: rtol and atol both non-positive")
+            return
+        end if
+
+        call tdrk_tableau(4, .true., s, c, abar, bbar, ok)
+        if (.not. ok) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                            "tdrk_integrate_adaptive: tableau construction failed")
+            return
+        end if
+        bhat = 0.0_dp
+        bhat(2) = 0.5_dp
+
+        allocate (gs(TDRK_MAX_STAGES, neq), ytmp(neq), y(neq), ynew(neq), err(neq))
+        gs = 0.0_dp
+        y = y0
+        t = t0
+
+        if (h0 > 0.0_dp) then
+            h = sign(min(h0, abs(span)), span)
+        else
+            h = span/100.0_dp
+        end if
+
+        do nstep = 1, MAX_STEPS
+            if (abs(t - t0) >= abs(span)) exit
+            if (abs(h) > abs(t1 - t)) h = t1 - t
+
+            call tdrk_step(rhs, rhs2, t, y, h, s, c, abar, bbar, gs, ytmp, ynew, &
+                           nfev_f, nfev_g, ctx)
+            do k = 1, neq
+                err(k) = 0.0_dp
+                do i = 1, s
+                    err(k) = err(k) + (bbar(i) - bhat(i))*gs(i, k)
+                end do
+                err(k) = h*h*err(k)
+            end do
+
+            e = error_norm(err, y, ynew, rtol, atol)
+            accepted = e <= 1.0_dp
+            if (accepted) then
+                t = t + h
+                y = ynew
+                naccept = naccept + 1
+            else
+                nreject = nreject + 1
+            end if
+            hlast = h
+            h = h*step_factor(e, 3, accepted)
+
+            if (abs(h) < 16.0_dp*spacing(abs(t))) then
+                call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
+                                "tdrk_integrate_adaptive: step size underflow")
+                yend(1:neq) = y
+                return
+            end if
+        end do
+
+        if (abs(t - t0) < abs(span)) then
+            call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
+                            "tdrk_integrate_adaptive: step limit reached")
+        end if
+        yend(1:neq) = y
+    end subroutine tdrk_integrate_adaptive
+
+    ! Adaptive RKNG for y'' = f(t, y, y').
+    !
+    ! Unlike TDRK the velocity is an independent state variable here, so the
+    ! error estimate covers both: the position embedded weights satisfy only
+    ! sum bhat = 1/2 and the velocity ones only sum bhat_v = 1 and
+    ! sum bhat_v c = 1/2, one order below the propagated pair in each case. The
+    ! two contributions go into one norm, so neither can be met at the other's
+    ! expense.
+    !
+    ! The propagated method's order on a general (velocity-dependent) f is
+    ! measured rather than claimed -- the tableau was built for the special
+    ! Nystrom conditions -- so the controller exponent is set from the embedded
+    ! order 2, which is safe regardless of which order the propagated pair
+    ! actually reaches.
+    subroutine rkng_integrate_adaptive(f2, t0, t1, y0, yp0, rtol, atol, h0, &
+                                       yend, ypend, hlast, nfev, naccept, &
+                                       nreject, status, ctx)
+        procedure(ode_rhs_rkng_t) :: f2
+        real(dp), intent(in) :: t0, t1
+        real(dp), intent(in) :: y0(:), yp0(:)
+        real(dp), intent(in) :: rtol, atol, h0
+        real(dp), intent(out) :: yend(:), ypend(:)
+        real(dp), intent(out) :: hlast
+        integer,  intent(out) :: nfev, naccept, nreject
+        type(fortnum_status_t), intent(out) :: status
+        class(*), intent(in), optional :: ctx
+
+        real(dp) :: c(TDRK_MAX_STAGES), abar(TDRK_MAX_STAGES, TDRK_MAX_STAGES)
+        real(dp) :: avel(TDRK_MAX_STAGES, TDRK_MAX_STAGES)
+        real(dp) :: bbar(TDRK_MAX_STAGES), bvel(TDRK_MAX_STAGES)
+        real(dp) :: bhat(TDRK_MAX_STAGES), bhat_vel(TDRK_MAX_STAGES)
+        real(dp), allocatable :: ks(:, :), ytmp(:), yptmp(:)
+        real(dp), allocatable :: y(:), yp(:), ynew(:), ypnew(:)
+        real(dp), allocatable :: err(:), errv(:)
+        real(dp) :: h, t, span, e
+        integer  :: s, k, i, neq, nstep
+        logical  :: ok, accepted
+
+        call status_set(status, FORTNUM_OK, "")
+        nfev = 0
+        naccept = 0
+        nreject = 0
+        neq = size(y0)
+        yend(1:neq) = y0
+        ypend(1:neq) = yp0
+        span = t1 - t0
+        hlast = h0
+        if (span == 0.0_dp) return
+
+        if (rtol <= 0.0_dp .and. atol <= 0.0_dp) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                            "rkng_integrate_adaptive: rtol and atol both non-positive")
+            return
+        end if
+
+        call tdrk_tableau(4, .true., s, c, abar, bbar, ok)
+        if (.not. ok) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                            "rkng_integrate_adaptive: tableau construction failed")
+            return
+        end if
+
+        bvel = 0.0_dp
+        bvel(1) = 0.25_dp
+        bvel(3) = 0.75_dp
+        avel = 0.0_dp
+        avel(2, 1) = c(2)
+        avel(3, 2) = c(3)
+
+        ! Embedded position: sum bhat = 1/2 only.
+        bhat = 0.0_dp
+        bhat(1) = 0.5_dp
+        ! Embedded velocity: sum = 1, sum c = 1/2, but sum c^2 = 1/6 /= 1/3.
+        bhat_vel = 0.0_dp
+        bhat_vel(1) = -0.5_dp
+        bhat_vel(2) = 1.5_dp
+
+        allocate (ks(TDRK_MAX_STAGES, neq), ytmp(neq), yptmp(neq))
+        allocate (y(neq), yp(neq), ynew(neq), ypnew(neq), err(neq), errv(neq))
+        ks = 0.0_dp
+        y = y0
+        yp = yp0
+        t = t0
+
+        if (h0 > 0.0_dp) then
+            h = sign(min(h0, abs(span)), span)
+        else
+            h = span/100.0_dp
+        end if
+
+        do nstep = 1, MAX_STEPS
+            if (abs(t - t0) >= abs(span)) exit
+            if (abs(h) > abs(t1 - t)) h = t1 - t
+
+            call rkng_step(f2, t, y, yp, h, s, c, abar, avel, bbar, bvel, ks, &
+                           ytmp, yptmp, ynew, ypnew, nfev, ctx)
+            do k = 1, neq
+                err(k) = 0.0_dp
+                errv(k) = 0.0_dp
+                do i = 1, s
+                    err(k) = err(k) + (bbar(i) - bhat(i))*ks(i, k)
+                    errv(k) = errv(k) + (bvel(i) - bhat_vel(i))*ks(i, k)
+                end do
+                err(k) = h*h*err(k)
+                errv(k) = h*errv(k)
+            end do
+
+            e = max(error_norm(err, y, ynew, rtol, atol), &
+                    error_norm(errv, yp, ypnew, rtol, atol))
+            accepted = e <= 1.0_dp
+            if (accepted) then
+                t = t + h
+                y = ynew
+                yp = ypnew
+                naccept = naccept + 1
+            else
+                nreject = nreject + 1
+            end if
+            hlast = h
+            h = h*step_factor(e, 2, accepted)
+
+            if (abs(h) < 16.0_dp*spacing(abs(t))) then
+                call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
+                                "rkng_integrate_adaptive: step size underflow")
+                yend(1:neq) = y
+                ypend(1:neq) = yp
+                return
+            end if
+        end do
+
+        if (abs(t - t0) < abs(span)) then
+            call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
+                            "rkng_integrate_adaptive: step limit reached")
+        end if
+        yend(1:neq) = y
+        ypend(1:neq) = yp
+    end subroutine rkng_integrate_adaptive
 
 end module fortnum_ode_tdrk

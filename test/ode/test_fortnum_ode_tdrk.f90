@@ -24,7 +24,8 @@ program test_fortnum_ode_tdrk
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
     use fortnum_status, only: fortnum_status_t, FORTNUM_OK
     use fortnum_ode_tdrk, only: tdrk_tableau, tdrk_integrate_fixed, &
-                                rkng_integrate_fixed, TDRK_MAX_STAGES
+                                rkng_integrate_fixed, tdrk_integrate_adaptive, &
+                                rkng_integrate_adaptive, TDRK_MAX_STAGES
     implicit none
 
     integer :: nfail
@@ -34,6 +35,8 @@ program test_fortnum_ode_tdrk
     call check_transplanted_order(nfail)
     call check_lorentz_energy(nfail)
     call check_rkng_lorentz(nfail)
+    call check_tdrk_adaptive(nfail)
+    call check_rkng_adaptive(nfail)
     call report_cost_model()
 
     if (nfail > 0) then
@@ -429,6 +432,138 @@ contains
             nfail = nfail + 1
         end if
     end subroutine check_rkng_lorentz
+
+    ! ------------------------------------------------------------- error control
+    !
+    ! What error control has to deliver is not "the error is small" -- a fixed
+    ! step can do that -- but that the achieved error TRACKS the requested
+    ! tolerance. So the test measures the log-log slope of global error against
+    ! rtol over four decades and requires it near 1. A stepper whose embedded
+    ! estimate is broken (say, identically zero, or one order too high) still
+    ! produces small errors at small rtol; it fails this.
+    !
+    ! Oracles: the closed form 1/(1+t) for the scalar problem, and a
+    ! high-resolution classical RK4 -- a different method -- for Kepler.
+    subroutine check_tdrk_adaptive(nfail)
+        integer, intent(inout) :: nfail
+
+        real(dp) :: y0(4), yend(4), yref(4), hlast
+        real(dp) :: tols(4), errs(4), slope, ecc
+        integer  :: nff, nfg, nacc(4), nrej, i
+        type(fortnum_status_t) :: status
+
+        tols = [1.0e-4_dp, 1.0e-6_dp, 1.0e-8_dp, 1.0e-10_dp]
+
+        ! --- nonlinear scalar against its closed form
+        do i = 1, 4
+            y0 = 0.0_dp
+            y0(1) = 1.0_dp
+            call tdrk_integrate_adaptive(f_scalar, g_scalar, 0.0_dp, 2.0_dp, &
+                                         y0(1:1), tols(i), tols(i)*1.0e-3_dp, &
+                                         0.0_dp, yend(1:1), hlast, nff, nfg, &
+                                         nacc(i), nrej, status)
+            if (status%code /= FORTNUM_OK) then
+                write (error_unit, "(a)") "  adaptive TDRK failed on scalar problem"
+                nfail = nfail + 1
+                return
+            end if
+            errs(i) = abs(yend(1) - 1.0_dp/3.0_dp)
+        end do
+        slope = log10(errs(1)/errs(4))/log10(tols(1)/tols(4))
+        write (*, "(a,f6.2,a,es10.3,a,i0)") &
+            "  adaptive TDRK  scalar: err/tol slope ", slope, "   err ", errs(4), &
+            "   steps ", nacc(4)
+        if (.not. (slope > 0.6_dp .and. slope < 1.4_dp)) then
+            write (error_unit, "(a,f6.2)") &
+                "  achieved error does not track tolerance, slope ", slope
+            nfail = nfail + 1
+        end if
+        if (.not. (nacc(4) > nacc(1))) then
+            write (error_unit, "(a)") &
+                "  tightening the tolerance did not cost more steps"
+            nfail = nfail + 1
+        end if
+
+        ! --- Kepler against a high-resolution RK4 run
+        ecc = 0.5_dp
+        y0 = 0.0_dp
+        y0(1) = 1.0_dp - ecc
+        y0(4) = sqrt((1.0_dp + ecc)/(1.0_dp - ecc))
+        call rk4(2, 4, y0, 0.0_dp, 3.0_dp, 2000000, yref)
+        do i = 1, 4
+            call tdrk_integrate_adaptive(f_kepler, g_kepler, 0.0_dp, 3.0_dp, y0, &
+                                         tols(i), tols(i)*1.0e-3_dp, 0.0_dp, &
+                                         yend, hlast, nff, nfg, nacc(i), nrej, &
+                                         status)
+            if (status%code /= FORTNUM_OK) then
+                write (error_unit, "(a)") "  adaptive TDRK failed on Kepler"
+                nfail = nfail + 1
+                return
+            end if
+            errs(i) = maxval(abs(yend - yref))
+        end do
+        slope = log10(errs(1)/errs(4))/log10(tols(1)/tols(4))
+        write (*, "(a,f6.2,a,es10.3,a,i0)") &
+            "  adaptive TDRK  Kepler: err/tol slope ", slope, "   err ", errs(4), &
+            "   steps ", nacc(4)
+        if (.not. (slope > 0.6_dp .and. slope < 1.4_dp)) then
+            write (error_unit, "(a,f6.2)") &
+                "  Kepler error does not track tolerance, slope ", slope
+            nfail = nfail + 1
+        end if
+    end subroutine check_tdrk_adaptive
+
+    ! Same claim for RKNG, with |v|^2 conservation as the second, exact oracle:
+    ! a static magnetic force does no work, so the drift is pure truncation
+    ! error and must shrink with the requested tolerance.
+    subroutine check_rkng_adaptive(nfail)
+        integer, intent(inout) :: nfail
+
+        real(dp) :: y0(3), yp0(3), yend(3), ypend(3), yref(6), z0(6), hlast
+        real(dp) :: tols(4), errs(4), drift(4), slope, e0
+        integer  :: nfev, nacc(4), nrej, i
+        type(fortnum_status_t) :: status
+
+        z0 = [0.3_dp, -0.2_dp, 0.1_dp, 0.4_dp, 0.9_dp, 0.35_dp]
+        y0 = z0(1:3)
+        yp0 = z0(4:6)
+        e0 = sum(yp0**2)
+        call rk4(3, 6, z0, 0.0_dp, 2.0_dp, 2000000, yref)
+
+        tols = [1.0e-4_dp, 1.0e-6_dp, 1.0e-8_dp, 1.0e-10_dp]
+        do i = 1, 4
+            call rkng_integrate_adaptive(f2_lorentz, 0.0_dp, 2.0_dp, y0, yp0, &
+                                         tols(i), tols(i)*1.0e-3_dp, 0.0_dp, &
+                                         yend, ypend, hlast, nfev, nacc(i), nrej, &
+                                         status)
+            if (status%code /= FORTNUM_OK) then
+                write (error_unit, "(a)") "  adaptive RKNG failed"
+                nfail = nfail + 1
+                return
+            end if
+            errs(i) = maxval(abs(yend - yref(1:3)))
+            drift(i) = abs(sum(ypend**2) - e0)/e0
+        end do
+        slope = log10(errs(1)/errs(4))/log10(tols(1)/tols(4))
+        write (*, "(a,f6.2,a,es10.3,a,es10.3,a,i0)") &
+            "  adaptive RKNG  Lorentz: err/tol slope ", slope, "   err ", errs(4), &
+            "   |v|^2 drift ", drift(4), "   steps ", nacc(4)
+        if (.not. (slope > 0.6_dp .and. slope < 1.4_dp)) then
+            write (error_unit, "(a,f6.2)") &
+                "  RKNG error does not track tolerance, slope ", slope
+            nfail = nfail + 1
+        end if
+        if (.not. (drift(4) < drift(1))) then
+            write (error_unit, "(a)") &
+                "  |v|^2 drift did not improve with a tighter tolerance"
+            nfail = nfail + 1
+        end if
+        if (.not. (nacc(4) > nacc(1))) then
+            write (error_unit, "(a)") &
+                "  RKNG: tightening the tolerance did not cost more steps"
+            nfail = nfail + 1
+        end if
+    end subroutine check_rkng_adaptive
 
     ! The number the SIMPLE side needs: TDRK beats classical RK of equal order
     ! iff cost(G)/cost(F) is below the break-even printed here.
