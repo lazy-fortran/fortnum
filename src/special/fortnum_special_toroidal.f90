@@ -95,6 +95,33 @@ contains
         real(dp), intent(in) :: degree, x
         integer, intent(in) :: order
         real(dp) :: value
+        real(dp) :: current, following, previous, unused_derivative
+        integer :: degree_index, current_degree
+
+        degree_index = nint(degree + 0.5_dp)
+        if (degree_index < 2 .or. abs( &
+            degree - (real(degree_index, dp) - 0.5_dp)) > 1.0e-12_dp) then
+            value = associated_p_direct(degree, order, x)
+            return
+        end if
+
+        previous = associated_p_direct(-0.5_dp, order, x)
+        current = associated_p_direct(0.5_dp, order, x)
+        do current_degree = 1, degree_index - 1
+            call legendre_recurrence_kernel( &
+                real(current_degree, dp) - 0.5_dp, real(order, dp), x, &
+                previous, current, following, unused_derivative)
+            previous = current
+            current = following
+        end do
+        value = current
+    end function associated_p
+
+    pure elemental function associated_p_direct( &
+            degree, order, x) result(value)
+        real(dp), intent(in) :: degree, x
+        integer, intent(in) :: order
+        real(dp) :: value
         real(dp) :: p_zero, p_one, following, previous_degree
         real(dp) :: unused_next, derivative
         integer :: current_order
@@ -123,7 +150,7 @@ contains
             p_one = following
         end do
         value = p_one
-    end function associated_p
+    end function associated_p_direct
 
     pure elemental function unassociated_p(degree, x) result(value)
         real(dp), intent(in) :: degree, x
@@ -136,6 +163,22 @@ contains
     end function unassociated_p
 
     pure elemental function associated_q(degree, order, x) result(value)
+        real(dp), intent(in) :: degree, x
+        integer, intent(in) :: order
+        real(dp) :: value
+        integer :: degree_index
+
+        degree_index = nint(degree + 0.5_dp)
+        if (degree_index < 2 .or. x < 1.01_dp .or. abs( &
+            degree - (real(degree_index, dp) - 0.5_dp)) > 1.0e-12_dp) then
+            value = associated_q_direct(degree, order, x)
+            return
+        end if
+        value = associated_q_miller(degree_index, order, x)
+    end function associated_q
+
+    pure elemental function associated_q_direct( &
+            degree, order, x) result(value)
         real(dp), intent(in) :: degree, x
         integer, intent(in) :: order
         real(dp) :: value
@@ -165,7 +208,46 @@ contains
             q_one = following
         end do
         value = q_one
-    end function associated_q
+    end function associated_q_direct
+
+    pure elemental function associated_q_miller( &
+            degree_index, order, x) result(value)
+        integer, intent(in) :: degree_index, order
+        real(dp), intent(in) :: x
+        real(dp) :: value
+        real(dp) :: current, following, previous, normalization
+        real(dp) :: scale, target_sequence, seed_sequence
+        integer :: current_degree, top_degree
+
+        ! Q is the recessive solution of the degree recurrence.  Forward
+        ! recurrence therefore becomes unstable at larger toroidal degree;
+        ! Miller's backward recurrence keeps the recessive branch and uses
+        ! the independently evaluated degree -1/2 value for normalization.
+        top_degree = degree_index + max(128, 4*order + 32)
+        following = 0.0_dp
+        current = 1.0_dp
+        target_sequence = 0.0_dp
+        seed_sequence = 0.0_dp
+        do current_degree = top_degree, 1, -1
+            previous = ((2.0_dp*(real(current_degree, dp) - 0.5_dp) + 1.0_dp)* &
+                x*current - (real(current_degree, dp) - 0.5_dp - &
+                real(order, dp) + 1.0_dp)*following)/ &
+                (real(current_degree, dp) - 0.5_dp + real(order, dp))
+            scale = max(abs(previous), abs(current), abs(following))
+            if (scale > 1.0e100_dp) then
+                previous = previous*1.0e-100_dp
+                current = current*1.0e-100_dp
+                following = following*1.0e-100_dp
+            end if
+            following = current
+            current = previous
+            if (current_degree - 1 == degree_index) &
+                target_sequence = current
+            if (current_degree - 1 == 0) seed_sequence = current
+        end do
+        normalization = associated_q_direct(-0.5_dp, order, x)/seed_sequence
+        value = target_sequence*normalization
+    end function associated_q_miller
 
     pure elemental function unassociated_q(degree, x) result(value)
         real(dp), intent(in) :: degree, x
