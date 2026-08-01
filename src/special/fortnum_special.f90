@@ -48,7 +48,8 @@ module fortnum_special
     use fortnum_special_spherical, only: &
         spherical_harmonic, &
         spherical_harmonic_theta_derivative, &
-        spherical_harmonic_phi_derivative
+        spherical_harmonic_phi_derivative, &
+        spherical_harmonic_product_coefficient
     use fortnum_special_toroidal, only: &
         toroidal_p, &
         toroidal_q, &
@@ -104,6 +105,7 @@ module fortnum_special
     public :: spherical_harmonic
     public :: spherical_harmonic_theta_derivative
     public :: spherical_harmonic_phi_derivative
+    public :: spherical_harmonic_product_coefficient
 
     ! Hobson-normalized half-integer Legendre functions for toroidal harmonics.
     public :: toroidal_p, toroidal_q
