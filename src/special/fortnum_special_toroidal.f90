@@ -139,19 +139,130 @@ contains
         real(dp), intent(in) :: degree, x
         integer, intent(in) :: order
         real(dp) :: value
-        real(dp) :: a, b, c, pi, phase
+        real(dp) :: q_zero, q_one, following, derivative
+        integer :: current_order
 
-        a = 0.5_dp*(degree + real(order, dp)) + 1.0_dp
+        q_zero = unassociated_q(degree, x)
+        if (order == 0) then
+            value = q_zero
+            return
+        end if
+
+        ! Generate the associated order from the analytical derivative of the
+        ! zero-order branch.  This avoids cancellation between Q_nu and
+        ! Q_(nu+1) in the near-cut region and uses the same DLMF 14.10.6
+        ! recurrence as the generated P branch for the remaining orders.
+        call unassociated_q_with_derivative(degree, x, q_zero, derivative)
+        q_one = sqrt(x*x - 1.0_dp)*derivative
+        if (order == 1) then
+            value = q_one
+            return
+        end if
+        do current_order = 0, order - 2
+            call toroidal_order_kernel( &
+                degree, real(current_order, dp), x, q_zero, q_one, following)
+            q_zero = q_one
+            q_one = following
+        end do
+        value = q_one
+    end function associated_q
+
+    pure elemental function unassociated_q(degree, x) result(value)
+        real(dp), intent(in) :: degree, x
+        real(dp) :: value
+        real(dp) :: unused_derivative
+
+        call unassociated_q_with_derivative( &
+            degree, x, value, unused_derivative)
+    end function unassociated_q
+
+    pure elemental subroutine unassociated_q_with_derivative( &
+            degree, x, value, derivative)
+        real(dp), intent(in) :: degree, x
+        real(dp), intent(out) :: value, derivative
+        real(dp) :: a, b, c, z, gap, pi, prefactor
+        real(dp) :: hyper_value, hyper_derivative
+
+        a = 0.5_dp*degree + 1.0_dp
         b = a - 0.5_dp
         c = degree + 1.5_dp
+        ! Factor x^2-1 before subtracting one; this retains relative
+        ! precision when x is only a few ulps above the torus cut.
+        gap = ((x - 1.0_dp)*(x + 1.0_dp))/(x*x)
+        z = 1.0_dp - gap
+        if (z > 0.5_dp) then
+            call zero_balanced_2f1_values( &
+                a, b, z, gap, hyper_value, hyper_derivative)
+        else
+            hyper_value = hypergeom_2f1(a, b, c, z)
+            hyper_derivative = a*b/c*hypergeom_2f1( &
+                a + 1.0_dp, b + 1.0_dp, c + 1.0_dp, z)
+        end if
         pi = acos(-1.0_dp)
-        phase = merge(-1.0_dp, 1.0_dp, mod(order, 2) == 1)
-        value = phase*sqrt(pi)*gamma(degree + real(order, dp) + 1.0_dp)* &
-            (x*x - 1.0_dp)**(0.5_dp*real(order, dp))* &
-            hypergeom_2f1(a, b, c, 1.0_dp/(x*x))/ &
-            (2.0_dp**(degree + 1.0_dp)* &
-            x**(degree + real(order, dp) + 1.0_dp)*gamma(c))
-    end function associated_q
+        prefactor = sqrt(pi)*exp(log_gamma(degree + 1.0_dp) - &
+            (degree + 1.0_dp)*log(2.0_dp) - &
+            log_gamma(c))
+        value = prefactor*exp(-(degree + 1.0_dp)*log(x))*hyper_value
+        derivative = prefactor*exp(-(degree + 1.0_dp)*log(x))* &
+            (-(degree + 1.0_dp)*hyper_value/x - &
+            2.0_dp*hyper_derivative/(x*x*x))
+    end subroutine unassociated_q_with_derivative
+
+    pure elemental subroutine zero_balanced_2f1_values( &
+            a, b, z, gap, value, derivative)
+        ! DLMF 15.8.10, specialized to c=a+b.  Expanding in 1-z keeps the
+        ! logarithmic Q branch convergent when x is close to the torus cut.
+        real(dp), intent(in) :: a, b, z, gap
+        real(dp), intent(out) :: value, derivative
+        real(dp) :: coefficient, power, total, derivative_total
+        real(dp) :: term, derivative_term, kappa, log_gap
+        integer :: n
+
+        coefficient = 1.0_dp
+        power = 1.0_dp
+        total = 0.0_dp
+        derivative_total = 0.0_dp
+        log_gap = log(gap)
+        do n = 0, max_series_terms - 1
+            kappa = 2.0_dp*digamma_positive(real(n + 1, dp)) - &
+                digamma_positive(a + real(n, dp)) - &
+                digamma_positive(b + real(n, dp))
+            term = coefficient*power*(kappa - log_gap)
+            derivative_term = coefficient*power*( &
+                (1.0_dp - real(n, dp)*(kappa - log_gap))/ &
+                gap)
+            total = total + term
+            derivative_total = derivative_total + derivative_term
+            if (n > 2 .and. abs(term) <= epsilon(1.0_dp)*abs(total) .and. &
+                abs(derivative_term) <= epsilon(1.0_dp)* &
+                abs(derivative_total)) exit
+            coefficient = coefficient*(a + real(n, dp))* &
+                (b + real(n, dp))/real((n + 1)*(n + 1), dp)
+            power = power*gap
+        end do
+        coefficient = exp(log_gamma(a + b) - log_gamma(a) - log_gamma(b))
+        value = coefficient*total
+        derivative = coefficient*derivative_total
+    end subroutine zero_balanced_2f1_values
+
+    pure function digamma_positive(argument) result(value)
+        real(dp), intent(in) :: argument
+        real(dp) :: value
+        real(dp) :: x, inverse, inverse_squared
+
+        value = 0.0_dp
+        x = argument
+        do while (x < 10.0_dp)
+            value = value - 1.0_dp/x
+            x = x + 1.0_dp
+        end do
+        inverse = 1.0_dp/x
+        inverse_squared = inverse*inverse
+        value = value + log(x) - 0.5_dp*inverse - inverse_squared*( &
+            1.0_dp/12.0_dp - inverse_squared*(1.0_dp/120.0_dp - &
+            inverse_squared*(1.0_dp/252.0_dp - inverse_squared*( &
+            1.0_dp/240.0_dp - inverse_squared/132.0_dp))))
+    end function digamma_positive
 
     pure elemental function hypergeom_2f1(a, b, c, z) result(value)
         real(dp), intent(in) :: a, b, c, z

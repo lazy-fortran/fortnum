@@ -123,10 +123,13 @@ specialization. In particular, DLMF's Olver-normalized
 \(\boldsymbol{Q}_\nu^\mu\) is converted to Hobson \(Q_\nu^\mu\); the two must
 not be interchanged.
 
-The present Gauss-series implementation targets moderate nonnegative degree
-and order at ordinary torus aspect ratios. It does not claim the near-\(x=1\),
-large-order envelope of the continued-fraction and uniform-asymptotic
-algorithm in
+The zero-order \(Q\) branch uses the DLMF zero-balanced continuation in
+\(1-x^{-2}\) near \(x=1\), and associated orders are generated from its
+analytical derivative and the generated order recurrence. This avoids the raw
+hypergeometric series' near-cut nonconvergence. The present implementation
+still targets moderate nonnegative degree and order; it does not claim the
+large-order envelope of a continued-fraction and uniform-asymptotic algorithm
+in
 [Gil, Segura, and Temme (2000)](https://ir.cwi.nl/pub/1181/1181D.pdf).
 The recurrence coefficients and series-term update are emitted by fortsym;
 the exact generator revisions and regeneration commands are recorded in the
