@@ -1,6 +1,7 @@
 program test_fortnum_special_toroidal
     ! High-precision oracle values use mpmath legenp/legenq(type=3), 50 digits.
     ! The ODE residual is an independent centered-difference behavioral check.
+    use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
     use fortnum_special_toroidal, only: &
         toroidal_p, toroidal_q, &
@@ -33,6 +34,16 @@ program test_fortnum_special_toroidal
         toroidal_q_derivative(2, 1, 2.5_dp), &
         0.067949860642696846331_dp)
 
+    call check_finite("near-cut Q_-1/2^0", toroidal_q(0, 0, 1.000001_dp))
+    call check("near-cut Q_-1/2^0", toroidal_q(0, 0, 1.000001_dp), &
+        8.6406222753454926764_dp)
+    call check_finite("near-cut Q_-1/2^1", toroidal_q(0, 1, 1.000001_dp))
+    call check_scaled("near-cut Q_-1/2^1", &
+        toroidal_q(0, 1, 1.000001_dp), -707.10822028768059246_dp, 5.0e-11_dp)
+    call check_finite("near-cut Q_5/2^2", toroidal_q(3, 2, 1.0001_dp))
+    call check_scaled("near-cut Q_5/2^2", &
+        toroidal_q(3, 2, 1.0001_dp), 9996.1311322726379956_dp, 5.0e-11_dp)
+
     call check_ode("P toroidal ODE", .true., 3, 2, 2.0_dp)
     call check_ode("Q toroidal ODE", .false., 2, 1, 2.5_dp)
 
@@ -55,6 +66,27 @@ contains
                 "FAIL: "//label, " got=", got, " expected=", expected
         end if
     end subroutine check
+
+    subroutine check_scaled(label, got, expected, relative_tolerance)
+        character(*), intent(in) :: label
+        real(dp), intent(in) :: got, expected, relative_tolerance
+
+        if (abs(got - expected) > relative_tolerance*(1.0_dp + abs(expected))) then
+            nfail = nfail + 1
+            write (error_unit, "(a,2(a,es22.14))") &
+                "FAIL: "//label, " got=", got, " expected=", expected
+        end if
+    end subroutine check_scaled
+
+    subroutine check_finite(label, got)
+        character(*), intent(in) :: label
+        real(dp), intent(in) :: got
+
+        if (.not. ieee_is_finite(got)) then
+            nfail = nfail + 1
+            write (error_unit, "(a,a)") "FAIL: ", label//" is not finite"
+        end if
+    end subroutine check_finite
 
     subroutine check_ode(label, first_kind, degree_index, order, x)
         character(*), intent(in) :: label
