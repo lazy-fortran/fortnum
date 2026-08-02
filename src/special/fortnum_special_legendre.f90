@@ -16,7 +16,9 @@ module fortnum_special_legendre
     private
 
     public :: legendre_p, legendre_p_derivative
+    public :: legendre_p_second_derivative
     public :: legendre_q, legendre_q_derivative
+    public :: legendre_q_second_derivative
 
 contains
 
@@ -38,6 +40,26 @@ contains
         call evaluate_legendre(degree, order, x, function_value, value)
     end function legendre_p_derivative
 
+    elemental function legendre_p_second_derivative( &
+            degree, order, x) result(value)
+        !! Second x derivative from the associated Legendre ODE.
+        integer, intent(in) :: degree, order
+        real(dp), intent(in) :: x
+        real(dp) :: value, function_value, first_derivative
+        real(dp) :: denominator, order_squared
+
+        if (degree < 0 .or. abs(order) > degree .or. abs(x) >= 1.0_dp) then
+            value = ieee_value(x, ieee_quiet_nan)
+            return
+        end if
+        call evaluate_legendre(degree, order, x, function_value, first_derivative)
+        denominator = 1.0_dp - x*x
+        order_squared = real(order*order, dp)
+        value = (2.0_dp*x*first_derivative - &
+            (real(degree*(degree + 1), dp) - order_squared/denominator)* &
+            function_value)/denominator
+    end function legendre_p_second_derivative
+
     elemental function legendre_q(degree, x) result(value)
         integer, intent(in) :: degree
         real(dp), intent(in) :: x
@@ -55,6 +77,21 @@ contains
 
         call evaluate_legendre_q(degree, x, function_value, value)
     end function legendre_q_derivative
+
+    elemental function legendre_q_second_derivative(degree, x) result(value)
+        !! Second x derivative from the ordinary Legendre Q ODE.
+        integer, intent(in) :: degree
+        real(dp), intent(in) :: x
+        real(dp) :: value, function_value, first_derivative
+
+        if (degree < 0 .or. x <= 1.0_dp) then
+            value = ieee_value(x, ieee_quiet_nan)
+            return
+        end if
+        call evaluate_legendre_q(degree, x, function_value, first_derivative)
+        value = (2.0_dp*x*first_derivative - &
+            real(degree*(degree + 1), dp)*function_value)/(1.0_dp - x*x)
+    end function legendre_q_second_derivative
 
     pure elemental subroutine evaluate_legendre( &
             degree, order, x, value, derivative)

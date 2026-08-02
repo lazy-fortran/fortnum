@@ -17,6 +17,7 @@ module fortnum_special_toroidal
 
     public :: toroidal_p, toroidal_q
     public :: toroidal_p_derivative, toroidal_q_derivative
+    public :: toroidal_p_second_derivative, toroidal_q_second_derivative
 
     integer, parameter :: max_series_terms = 100000
 
@@ -65,6 +66,52 @@ contains
         value = associated_derivative( &
             degree_index, order, x, .false.)
     end function toroidal_q_derivative
+
+    elemental function toroidal_p_second_derivative( &
+            degree_index, order, x) result(value)
+        !! Second x derivative from the associated Legendre ODE.
+        integer, intent(in) :: degree_index, order
+        real(dp), intent(in) :: x
+        real(dp) :: value, function_value, first_derivative
+        real(dp) :: degree, denominator, order_squared
+
+        if (.not. valid_arguments(degree_index, order, x)) then
+            value = ieee_value(x, ieee_quiet_nan)
+            return
+        end if
+        degree = real(degree_index, dp) - 0.5_dp
+        function_value = associated_p(degree, order, x)
+        first_derivative = associated_derivative( &
+            degree_index, order, x, .true.)
+        denominator = 1.0_dp - x*x
+        order_squared = real(order*order, dp)
+        value = (2.0_dp*x*first_derivative - &
+            (degree*(degree + 1.0_dp) - order_squared/denominator)* &
+            function_value)/denominator
+    end function toroidal_p_second_derivative
+
+    elemental function toroidal_q_second_derivative( &
+            degree_index, order, x) result(value)
+        !! Second x derivative from the associated Legendre ODE.
+        integer, intent(in) :: degree_index, order
+        real(dp), intent(in) :: x
+        real(dp) :: value, function_value, first_derivative
+        real(dp) :: degree, denominator, order_squared
+
+        if (.not. valid_arguments(degree_index, order, x)) then
+            value = ieee_value(x, ieee_quiet_nan)
+            return
+        end if
+        degree = real(degree_index, dp) - 0.5_dp
+        function_value = associated_q(degree, order, x)
+        first_derivative = associated_derivative( &
+            degree_index, order, x, .false.)
+        denominator = 1.0_dp - x*x
+        order_squared = real(order*order, dp)
+        value = (2.0_dp*x*first_derivative - &
+            (degree*(degree + 1.0_dp) - order_squared/denominator)* &
+            function_value)/denominator
+    end function toroidal_q_second_derivative
 
     pure elemental function associated_derivative( &
             degree_index, order, x, first_kind) result(value)
