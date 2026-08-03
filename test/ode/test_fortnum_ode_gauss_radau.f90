@@ -86,10 +86,16 @@ contains
         integer, parameter :: n = RADAU_STAGES
         real(dp) :: c(n), w(n), a(n, n), rhs(n)
         real(dp) :: quad, exact, worst
-        integer :: i, j, d, ok_deg
+        integer :: i, j, d, ok_deg, nfound
         logical :: ok
 
-        call radau_nodes(n, c)
+        call radau_nodes(n, c, nfound)
+        if (nfound /= n) then
+            write (error_unit, "(a,i0,a,i0)") &
+                "  Radau node search found ", nfound, " roots; expected ", n
+            nfail = nfail + 1
+            return
+        end if
 
         ! Nodes must be distinct, increasing, inside [0,1], starting at 0.
         ok = .true.
