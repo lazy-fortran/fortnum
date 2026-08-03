@@ -453,6 +453,10 @@ contains
         problem%rhs => rhs
         problem%t0 = t0
         problem%t1 = t1
+        ! Keep the allocating wrapper valid for consumers that compile with
+        ! -fno-realloc-lhs: allocatable assignment is not a portable substitute
+        ! for allocating the left-hand side explicitly.
+        allocate (problem%y0(size(y0)))
         problem%y0 = y0
         if (present(rtol)) problem%rtol = rtol
         if (present(atol)) problem%atol = atol
@@ -460,6 +464,8 @@ contains
         call ode_integrate_radau(problem, solution, status)
 
         if (allocated(solution%t)) then
+            allocate (t_out(size(solution%t)))
+            allocate (y_out(size(solution%y, 1), size(solution%y, 2)))
             t_out = solution%t
             y_out = solution%y
         else
