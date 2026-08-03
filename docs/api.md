@@ -264,7 +264,9 @@ Method modules expose:
 | --- | --- |
 | `fortnum_ode_cash_karp` | one Cash-Karp step |
 | `fortnum_ode_dop853` | DOP853 step and drivers |
+| `fortnum_ode_extrapolation` | adaptive Gragg-Bulirsch-Stoer extrapolation integration |
 | `fortnum_ode_gauss_radau` | adaptive 15th-order Gauss-Radau integration and drivers |
+| `fortnum_ode_tdrk` | two-derivative Runge-Kutta and general Runge-Kutta-Nystrom integration |
 | `fortnum_ode_rk8pd` | stateful RK8PD evolution |
 | `fortnum_ode_ddeabm` | stateful Adams method |
 | `fortnum_ode_vode` | stateful VODE-style integration |
