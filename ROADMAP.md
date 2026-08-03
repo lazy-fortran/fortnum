@@ -447,3 +447,16 @@ Every tournament record must include:
 - [x] Re-run candidate selection after material `fortsym` changes.
 - [x] Re-run candidate selection after material primal-code changes.
 - [x] Re-run candidate selection on new target hardware.
+## Cross-repository handoff (2026-08-03)
+
+The ODE integrator work remains a stacked, unstable train:
+
+- [#59](https://github.com/lazy-fortran/fortnum/pull/59) is the base
+  Gauss--Radau implementation.
+- [#60](https://github.com/lazy-fortran/fortnum/pull/60) depends on #59.
+- [#61](https://github.com/lazy-fortran/fortnum/pull/61) depends on #60.
+
+Do not squash-merge the train while its external generator/toolchain failures
+remain unresolved. Each layer needs an independent numerical oracle, focused
+tests, bounded memory evidence, and a green repository gate before the next
+stacked layer is rebased.
