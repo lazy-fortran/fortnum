@@ -23,5 +23,7 @@ mkdir -p "$out"
     -o "$out/fortnum_dot_sin_jvp.f90" "$here/dot_sin_kernel.f90"
 "$fortad_bin" --indep a,b --name fortnum_dot_sin_jvp_v -d n_dir \
     -o "$out/fortnum_dot_sin_jvp_v.f90" "$here/dot_sin_kernel.f90"
+"$fortad_bin" --mode reverse --indep a,b --name fortnum_dot_sin_vjp \
+    -o "$out/fortnum_dot_sin_vjp.f90" "$here/dot_sin_kernel.f90"
 
 echo "regenerated fortad kernels in src/generated"

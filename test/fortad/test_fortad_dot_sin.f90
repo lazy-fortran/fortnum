@@ -27,6 +27,15 @@ program test_fortad_dot_sin
             real(dp), intent(out) :: s, s_d
         end subroutine fortnum_dot_sin_jvp
 
+        pure subroutine fortnum_dot_sin_vjp(n, a, b, s, s_b, a_b, b_b)
+            import :: dp
+            integer, intent(in) :: n
+            real(dp), intent(in) :: a(n), b(n)
+            real(dp), intent(out) :: s
+            real(dp), intent(in) :: s_b
+            real(dp), intent(out) :: a_b(n), b_b(n)
+        end subroutine fortnum_dot_sin_vjp
+
         pure subroutine fortnum_dot_sin_jvp_v(n_dir, n, a, a_d, b, b_d, s, s_d)
             import :: dp
             integer, intent(in) :: n_dir, n
@@ -97,6 +106,33 @@ program test_fortad_dot_sin
             bad = .true.
         end if
     end do
+
+    ! Reverse mode: one sweep gives the gradient with respect to all 2n
+    ! inputs. Checked against the analytical gradient, which for this kernel is
+    ! d/da_i = sin(b_i) and d/db_i = a_i cos(b_i), and against the adjoint
+    ! identity with the tangent already verified above.
+    block
+        real(dp) :: a_b(n), b_b(n), s_b, lhs, rhs
+        s_b = 1.0_dp
+        call fortnum_dot_sin_vjp(n, a, b, s, s_b, a_b, b_b)
+        if (maxval(abs(a_b - sin(b))) > 1.0e-13_dp) then
+            print *, "reverse d/da mismatch:", maxval(abs(a_b - sin(b)))
+            bad = .true.
+        end if
+        if (maxval(abs(b_b - a*cos(b))) > 1.0e-13_dp) then
+            print *, "reverse d/db mismatch:", maxval(abs(b_b - a*cos(b)))
+            bad = .true.
+        end if
+        call fortnum_dot_sin_jvp(n, a, a_d, b, b_d, s, s_d)
+        lhs = 0.83_dp*s_d
+        s_b = 0.83_dp
+        call fortnum_dot_sin_vjp(n, a, b, s, s_b, a_b, b_b)
+        rhs = sum(a_b*a_d) + sum(b_b*b_d)
+        if (abs(lhs - rhs) > 1.0e-12_dp*max(1.0_dp, abs(lhs))) then
+            print *, "adjoint identity violated:", lhs, rhs
+            bad = .true.
+        end if
+    end block
 
     if (bad) then
         print *, "test_fortad_dot_sin: FAILED"

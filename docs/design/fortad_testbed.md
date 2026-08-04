@@ -22,6 +22,7 @@ LFortran plus a `ClangEnzyme-NN.so` matched to an exact LLVM.
 | `tools/fortad/generate.sh` | regenerates the derivative kernels |
 | `src/generated/fortnum_dot_sin_jvp.f90` | scalar JVP, generated |
 | `src/generated/fortnum_dot_sin_jvp_v.f90` | vector JVP, generated |
+| `src/generated/fortnum_dot_sin_vjp.f90` | VJP (gradient), generated |
 | `test/fortad/test_fortad_dot_sin.f90` | acceptance test |
 
 Regenerate with:
@@ -38,7 +39,9 @@ clears the same bar as any other:
 1. **Independent oracle first.** `test/fortad/test_fortad_dot_sin.f90` checks
    the tangent against central finite differences with a step-size convergence
    requirement, and checks that vector mode reproduces the scalar tangent
-   direction by direction. Neither compares fortad against another AD tool;
+   direction by direction. The gradient is checked against the analytical
+   gradient of this kernel and against the adjoint identity with the already
+   verified tangent. Nothing here compares fortad against another AD tool;
    agreement with Enzyme would be corroboration, never the oracle.
 2. **Then a measurement.** Complete-workload wall clock decides. The
    cross-engine timings live in
@@ -67,5 +70,11 @@ machine, recorded in fortad-bench, not a promise about another.
 ## Current limits
 
 fortad refuses what it cannot do correctly, by name. For reverse mode today
-that means nonlinear loop-carried recurrences, nested loops, branches inside
-loops, and array-element assignment targets. Forward mode handles all of those.
+that means nonlinear loop-carried recurrences, nested loops, and branches
+inside loops. Forward mode handles all of those.
+
+Measured against Enzyme on the equivalent benchmark kernel, one machine:
+forward mode about 8% faster at one direction and roughly 10x per direction at
+sixteen; reverse mode 1.7-1.8x faster; build time 2.7x faster. Raw data in
+fortad-bench. Selection still follows fortnum's rules - measured
+complete-workload wall clock on the real workload, not these microbenchmarks.
