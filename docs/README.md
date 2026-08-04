@@ -22,7 +22,7 @@ measured evidence.
 | [Optimizer API](design/optimizer_api.md) | Flat active vectors and backend-independent callbacks |
 | [Array temporaries](design/array_temporaries.md) | Compiler-warning baseline and drift check |
 | [Downstream active kernels](design/downstream_ad.md) | Packing and composing downstream differentiable kernels |
-| [Enzyme toolchain](design/enzyme_toolchain.md) | Supported CPU Flang/Enzyme boundary |
+| [Enzyme toolchain](design/enzyme_toolchain.md) | Enzyme as a correctness oracle for testing, not a user backend |
 | [CPU/GPU contract](design/gpu.md) | Device leaves, supported mechanisms, and offload gates |
 | [Adaptive integration](design/integrate.md) | Integration state, status, traces, and derivative semantics |
 | [ODE](design/ode.md) | Solver state, events, traces, and sensitivity semantics |

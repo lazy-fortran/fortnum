@@ -418,8 +418,13 @@ fortnum carries two sets of generated derivatives for the same operators.
 can beat anything a differentiator produces, because it simplifies the
 expression rather than the program. `FORTNUM_AD_FORTAD` is the
 source-transformation set, which scales to operators with loops and branches
-where a symbolic form would blow up, and covers every operator Enzyme covers
-without needing an external toolchain.
+where a symbolic form would blow up, and covers every operator the Enzyme
+oracle covers without needing an external toolchain.
+
+Enzyme is not one of the choices. It is the independent second answer the
+fixtures compare against, and it never appears in a library build - see
+`design/enzyme_toolchain.md`. An operator the oracle cannot differentiate is a
+limit on what can be cross-checked, not on what fortnum computes.
 
 `FORTNUM_AD_ENGINE` names the one in use and defaults to `FORTNUM_AD_FORTAD`.
 It is a named constant, so the compiler folds the branch and the unused call
