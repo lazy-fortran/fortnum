@@ -14,9 +14,69 @@ target_sources(fortnum PRIVATE
     bindings/fortnum_capi_rk8pd.f90
     fft/fortnum_fft.f90
     fft/fortnum_fft8_kernel.f90
+    fortnum_ad_backend.f90
     fortnum_kinds.f90
     fortnum_status.f90
     fortnum_version.f90
+    generated/fortad/dawson_outer_value.f90
+    generated/fortad/det2.f90
+    generated/fortad/det3.f90
+    generated/fortad/erf.f90
+    generated/fortad/erfc.f90
+    generated/fortad/fortnum_dawson_outer_value_jvp_fortad.f90
+    generated/fortad/fortnum_dawson_outer_value_vjp_fortad.f90
+    generated/fortad/fortnum_det2_jvp_fortad.f90
+    generated/fortad/fortnum_det2_vjp_fortad.f90
+    generated/fortad/fortnum_det3_jvp_fortad.f90
+    generated/fortad/fortnum_det3_vjp_fortad.f90
+    generated/fortad/fortnum_dot_sin_primal.f90
+    generated/fortad/fortnum_erf_jvp_fortad.f90
+    generated/fortad/fortnum_erf_vjp_fortad.f90
+    generated/fortad/fortnum_erfc_jvp_fortad.f90
+    generated/fortad/fortnum_erfc_vjp_fortad.f90
+    generated/fortad/fortnum_hypergeom_2f1_term_jvp_fortad.f90
+    generated/fortad/fortnum_hypergeom_2f1_term_vjp_fortad.f90
+    generated/fortad/fortnum_implicit_root_residual_jvp_fortad.f90
+    generated/fortad/fortnum_implicit_root_residual_vjp_fortad.f90
+    generated/fortad/fortnum_inv2_jvp_fortad.f90
+    generated/fortad/fortnum_lagrange4_jvp_fortad.f90
+    generated/fortad/fortnum_lagrange4_vjp_fortad.f90
+    generated/fortad/fortnum_legendre_recurrence_derivative_jvp_fortad.f90
+    generated/fortad/fortnum_legendre_recurrence_derivative_vjp_fortad.f90
+    generated/fortad/fortnum_legendre_recurrence_jvp_fortad.f90
+    generated/fortad/fortnum_legendre_recurrence_vjp_fortad.f90
+    generated/fortad/fortnum_multi_input_p16_jvp_fortad.f90
+    generated/fortad/fortnum_multi_input_p16_vjp_fortad.f90
+    generated/fortad/fortnum_multi_input_p2_jvp_fortad.f90
+    generated/fortad/fortnum_multi_input_p2_vjp_fortad.f90
+    generated/fortad/fortnum_multi_input_p4_jvp_fortad.f90
+    generated/fortad/fortnum_multi_input_p4_vjp_fortad.f90
+    generated/fortad/fortnum_multi_input_p8_jvp_fortad.f90
+    generated/fortad/fortnum_multi_input_p8_vjp_fortad.f90
+    generated/fortad/fortnum_scalar_root_residual_jvp_fortad.f90
+    generated/fortad/fortnum_scalar_root_residual_vjp_fortad.f90
+    generated/fortad/fortnum_scaled_jacobi_recurrence_jvp_fortad.f90
+    generated/fortad/fortnum_scaled_jacobi_recurrence_vjp_fortad.f90
+    generated/fortad/fortnum_sqrt1pm1_raw_jvp_fortad.f90
+    generated/fortad/fortnum_sqrt1pm1_raw_vjp_fortad.f90
+    generated/fortad/fortnum_sqrt1pm1_stable_jvp_fortad.f90
+    generated/fortad/fortnum_sqrt1pm1_stable_vjp_fortad.f90
+    generated/fortad/fortnum_toroidal_order_jvp_fortad.f90
+    generated/fortad/fortnum_toroidal_order_vjp_fortad.f90
+    generated/fortad/hypergeom_2f1_term.f90
+    generated/fortad/implicit_root_residual.f90
+    generated/fortad/inv2.f90
+    generated/fortad/lagrange4.f90
+    generated/fortad/legendre_recurrence.f90
+    generated/fortad/multi_input_p16.f90
+    generated/fortad/multi_input_p2.f90
+    generated/fortad/multi_input_p4.f90
+    generated/fortad/multi_input_p8.f90
+    generated/fortad/scalar_root_residual.f90
+    generated/fortad/scaled_jacobi_recurrence.f90
+    generated/fortad/sqrt1pm1_raw.f90
+    generated/fortad/sqrt1pm1_stable.f90
+    generated/fortad/toroidal_order.f90
     generated/fortnum_bessel_outer_jvp_kernel.f90
     generated/fortnum_dawson_outer_kernel.f90
     generated/fortnum_dawson_outer_jvp_kernel.f90

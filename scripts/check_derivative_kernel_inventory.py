@@ -12,6 +12,7 @@ from pathlib import Path
 
 CLASSES = {
     "fortsym-generated",
+    "fortad-generated",
     "hand-written algorithmic",
     "hand-written stable recurrence",
     "implicit solve",

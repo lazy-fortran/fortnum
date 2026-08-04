@@ -22,7 +22,7 @@ measured evidence.
 | [Optimizer API](design/optimizer_api.md) | Flat active vectors and backend-independent callbacks |
 | [Array temporaries](design/array_temporaries.md) | Compiler-warning baseline and drift check |
 | [Downstream active kernels](design/downstream_ad.md) | Packing and composing downstream differentiable kernels |
-| [Enzyme toolchain](design/enzyme_toolchain.md) | Supported CPU Flang/Enzyme boundary |
+| [Enzyme toolchain](design/enzyme_toolchain.md) | Enzyme as a correctness oracle for testing, not a user backend |
 | [CPU/GPU contract](design/gpu.md) | Device leaves, supported mechanisms, and offload gates |
 | [Adaptive integration](design/integrate.md) | Integration state, status, traces, and derivative semantics |
 | [ODE](design/ode.md) | Solver state, events, traces, and sensitivity semantics |
@@ -36,6 +36,7 @@ measured evidence.
 | [ROADMAP](../ROADMAP.md) | Authoritative checklist and execution rules |
 | [Differentiation plan](design/differentiation_plan.md) | Current differentiation architecture and implementation sequence |
 | [Kernel inventory](design/derivative_kernel_inventory.csv) | Machine-checked derivative source ownership |
+| [fortad testbed](design/fortad_testbed.md) | The fortad derivative path and how to switch to it |
 | [Evidence catalog](design/differentiation_benchmarks.md) | Benchmark records and validation coverage |
 | [Evidence report](design/differentiation_report.md) | Aggregate mechanism statistics and generated figures |
 | [Strategy paper](performance_optimal_differentiation.md) | Rationale for benchmark-selected differentiation |

@@ -222,6 +222,11 @@ contains
             iostat=ios)
         if (ios /= 0) error stop "cannot write "//path
         code = chars(emit_enzyme_scalar_wrapper(spec))
+        ! The emitted text ends in a newline that `write` adds back, so the
+        ! last character is dropped. An empty result would make that
+        ! `code(:-1)`, which is not a substring and segfaults rather than
+        ! failing - and a generator that crashes tells you nothing about why.
+        if (len(code) == 0) error stop "emitted no wrapper for "//path
         write (unit, "(a)") code(:len(code) - 1)
         close (unit)
         call codegen_log("wrote "//path)
