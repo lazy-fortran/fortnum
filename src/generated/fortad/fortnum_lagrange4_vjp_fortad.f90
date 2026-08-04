@@ -65,13 +65,10 @@ contains
         real(dp) :: fad_t27
         real(dp) :: fad_t28
 
-        b1_v1 = (x - 0.0_dp) * (x - 1.0_dp) * (x - 2.0_dp) / ((0 - 1.0_dp) * (0 - &
-            2.0_dp) * (0 - 3.0_dp))
-        b2_v1 = (x + 1.0_dp) * (x - 1.0_dp) * (x - 2.0_dp) / (1.0_dp * (0 - 1.0_dp) * &
-            (0 - 2.0_dp))
-        b3_v1 = (x + 1.0_dp) * (x - 0.0_dp) * (x - 2.0_dp) / (2.0_dp * 1.0_dp * (0 - &
-            1.0_dp))
-        b4_v1 = (x + 1.0_dp) * (x - 0.0_dp) * (x - 1.0_dp) / (3.0_dp * 2.0_dp * 1.0_dp)
+        b1_v1 = x * (x - 1.0_dp) * (x - 2.0_dp) / ((-1.0_dp) * (-2.0_dp) * (-3.0_dp))
+        b2_v1 = (x + 1.0_dp) * (x - 1.0_dp) * (x - 2.0_dp) / ((-1.0_dp) * (-2.0_dp))
+        b3_v1 = (x + 1.0_dp) * x * (x - 2.0_dp) / (2.0_dp * (-1.0_dp))
+        b4_v1 = (x + 1.0_dp) * x * (x - 1.0_dp) / (3.0_dp * 2.0_dp)
         value = y1 * b1_v1 + y2 * b2_v1 + y3 * b3_v1 + y4 * b4_v1
         b1_v1_b = 0.0_dp
         b2_v1_b = 0.0_dp
@@ -90,26 +87,26 @@ contains
         b3_v1_b = b3_v1_b + value_b * y3
         y4_b = y4_b + value_b * b4_v1
         b4_v1_b = b4_v1_b + value_b * y4
-        fad_t9 = b4_v1_b * (1.0_dp / (3.0_dp * 2.0_dp * 1.0_dp))
+        fad_t9 = b4_v1_b * (1.0_dp / (3.0_dp * 2.0_dp))
         fad_t10 = fad_t9 * (x - 1.0_dp)
-        x_b = x_b + fad_t10 * (x - 0.0_dp)
+        x_b = x_b + fad_t10 * x
         x_b = x_b + fad_t10 * (x + 1.0_dp)
-        x_b = x_b + fad_t9 * ((x + 1.0_dp) * (x - 0.0_dp))
-        fad_t14 = b3_v1_b * (1.0_dp / (2.0_dp * 1.0_dp * (0 - 1.0_dp)))
+        x_b = x_b + fad_t9 * ((x + 1.0_dp) * x)
+        fad_t14 = b3_v1_b * (1.0_dp / (2.0_dp * (-1.0_dp)))
         fad_t15 = fad_t14 * (x - 2.0_dp)
-        x_b = x_b + fad_t15 * (x - 0.0_dp)
+        x_b = x_b + fad_t15 * x
         x_b = x_b + fad_t15 * (x + 1.0_dp)
-        x_b = x_b + fad_t14 * ((x + 1.0_dp) * (x - 0.0_dp))
-        fad_t19 = b2_v1_b * (1.0_dp / (1.0_dp * (0 - 1.0_dp) * (0 - 2.0_dp)))
+        x_b = x_b + fad_t14 * ((x + 1.0_dp) * x)
+        fad_t19 = b2_v1_b * (1.0_dp / ((-1.0_dp) * (-2.0_dp)))
         fad_t20 = fad_t19 * (x - 2.0_dp)
         x_b = x_b + fad_t20 * (x - 1.0_dp)
         x_b = x_b + fad_t20 * (x + 1.0_dp)
         x_b = x_b + fad_t19 * ((x + 1.0_dp) * (x - 1.0_dp))
-        fad_t24 = b1_v1_b * (1.0_dp / ((0 - 1.0_dp) * (0 - 2.0_dp) * (0 - 3.0_dp)))
+        fad_t24 = b1_v1_b * (1.0_dp / ((-1.0_dp) * (-2.0_dp) * (-3.0_dp)))
         fad_t25 = fad_t24 * (x - 2.0_dp)
         x_b = x_b + fad_t25 * (x - 1.0_dp)
-        x_b = x_b + fad_t25 * (x - 0.0_dp)
-        x_b = x_b + fad_t24 * ((x - 0.0_dp) * (x - 1.0_dp))
+        x_b = x_b + fad_t25 * x
+        x_b = x_b + fad_t24 * (x * (x - 1.0_dp))
     end subroutine fortnum_lagrange4_vjp_fortad
 
 end module fortnum_fortad_lagrange4_vjp

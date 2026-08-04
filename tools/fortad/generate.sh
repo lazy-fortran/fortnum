@@ -46,6 +46,7 @@ specs=(
     "dawson_outer_value:f:no:no"
     "toroidal_order:x,current,next_order:no:no"
     "scaled_jacobi_recurrence:x,scale,previous,current:no:no"
+    "inv2:a,b,c,d:no:skip"
 )
 
 # Operators with more than one intent(out): the dependent has to be named.
@@ -53,6 +54,9 @@ specs=(
 multi_output=(
     "legendre_recurrence:x,previous,current:next"
     "legendre_recurrence_derivative:x,previous,current:derivative"
+    "scalar_root_residual:x,p1,p2:residual"
+    "implicit_root_residual:x,p:residual"
+    "hypergeom_2f1_term:z,term:next_term"
 )
 
 for spec in "${specs[@]}"; do
@@ -60,14 +64,18 @@ for spec in "${specs[@]}"; do
     src="$kernels/$op.f90"
     jvp_flags=(--indep "$indep" --name "fortnum_${op}_jvp_fortad")
     [ "$jvp_value" = "no" ] && jvp_flags+=(--no-primal)
-    vjp_flags=(--mode reverse --indep "$indep" --name "fortnum_${op}_vjp_fortad")
-    [ "$vjp_value" = "no" ] && vjp_flags+=(--no-primal)
     "$fortad_bin" "${jvp_flags[@]}" \
         --module "fortnum_fortad_${op}_jvp" \
         -o "$out/fortnum_${op}_jvp_fortad.f90" "$src"
-    "$fortad_bin" "${vjp_flags[@]}" \
-        --module "fortnum_fortad_${op}_vjp" \
-        -o "$out/fortnum_${op}_vjp_fortad.f90" "$src"
+    # A reverse product needs one scalar dependent. An operator with several
+    # outputs and no natural single one - the matrix inverse - is forward only.
+    if [ "$vjp_value" != "skip" ]; then
+        vjp_flags=(--mode reverse --indep "$indep" --name "fortnum_${op}_vjp_fortad")
+        [ "$vjp_value" = "no" ] && vjp_flags+=(--no-primal)
+        "$fortad_bin" "${vjp_flags[@]}" \
+            --module "fortnum_fortad_${op}_vjp" \
+            -o "$out/fortnum_${op}_vjp_fortad.f90" "$src"
+    fi
 done
 
 for spec in "${multi_output[@]}"; do
