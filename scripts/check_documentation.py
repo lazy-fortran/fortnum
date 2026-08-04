@@ -220,7 +220,20 @@ def check_generated_revision(root: Path) -> list[str]:
     if re.fullmatch(r"[0-9a-f]{40}", revision) is None:
         return ["tools/codegen/fortsym.lock is not one full hexadecimal revision"]
     expected = f"Generator revision: fortsym@{revision}"
+    # Only fortsym's own output carries a fortsym revision. src/generated also
+    # holds kernels fortad produced, and the inventory is what says which is
+    # which, so the classification there is the authority rather than the
+    # directory a file happens to sit in.
+    fortad = set()
+    inventory = root / "docs/design/derivative_kernel_inventory.csv"
+    if inventory.exists():
+        with inventory.open(newline="", encoding="utf-8") as stream:
+            for row in csv.DictReader(stream):
+                if row["classification"].strip() == "fortad-generated":
+                    fortad.add(row["path"].strip())
     for path in sorted((root / "src/generated").glob("*.f90")):
+        if str(path.relative_to(root)) in fortad:
+            continue
         if expected not in path.read_text(encoding="utf-8"):
             errors.append(
                 f"{path.relative_to(root)} does not match tools/codegen/fortsym.lock"

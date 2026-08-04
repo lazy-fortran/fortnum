@@ -1,8 +1,19 @@
 # CPU Flang and Enzyme toolchain
 
-Status: supported for tested CPU candidate shapes.
+Status: **test oracle only, not a user-facing backend.**
 
-Enzyme is optional. Normal library builds contain no runtime Enzyme dependency.
+Enzyme is how fortnum checks that its own derivatives are right. It is not
+something a caller selects, and nothing in the library links against it: the
+Flang and Enzyme pipeline below exists to build an independent second answer
+that the fixtures compare against. A normal library build never invokes it.
+
+The derivatives users get come from `fortnum_ad_backend`, which chooses
+between the fortad and fortsym kernels. Operators Enzyme cannot differentiate
+are therefore not a gap in what fortnum offers - they are a gap in what the
+oracle can check, and are marked as such where they arise.
+
+Keeping Enzyme in this role rather than exposing it means a caller never needs
+Flang, an LLVM plugin, or a pinned toolchain to get a derivative.
 
 ## Pipeline
 

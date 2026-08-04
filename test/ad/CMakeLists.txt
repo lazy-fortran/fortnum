@@ -423,6 +423,12 @@ if(FORTNUM_ENABLE_ENZYME)
             ${CMAKE_SOURCE_DIR}/src/generated/fortnum_inv3_jvp_kernel.f90
             ${CMAKE_SOURCE_DIR}/src/generated/fortnum_inv3_vjp_kernel.f90
             ${CMAKE_SOURCE_DIR}/src/generated/fortnum_vector_root_residual_jvp_kernel.f90
+            ${CMAKE_SOURCE_DIR}/src/fortnum_ad_backend.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_det2_jvp_fortad.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_det2_vjp_fortad.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_det3_jvp_fortad.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_det3_vjp_fortad.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_inv2_jvp_fortad.f90
             ${CMAKE_SOURCE_DIR}/src/linalg/fortnum_linalg.f90
             ${CMAKE_SOURCE_DIR}/src/roots/fortnum_multiroot.f90
             ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
@@ -446,6 +452,12 @@ if(FORTNUM_ENABLE_ENZYME)
             ${CMAKE_SOURCE_DIR}/src/generated/fortnum_inv3_vjp_kernel.f90
             ${CMAKE_SOURCE_DIR}/src/generated/fortnum_vector_root_residual_jacobian_kernel.f90
             ${CMAKE_SOURCE_DIR}/src/generated/fortnum_vector_root_residual_vjp_kernel.f90
+            ${CMAKE_SOURCE_DIR}/src/fortnum_ad_backend.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_det2_jvp_fortad.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_det2_vjp_fortad.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_det3_jvp_fortad.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_det3_vjp_fortad.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_inv2_jvp_fortad.f90
             ${CMAKE_SOURCE_DIR}/src/linalg/fortnum_linalg.f90
             ${CMAKE_SOURCE_DIR}/src/roots/fortnum_multiroot.f90
             ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
@@ -503,6 +515,12 @@ if(FORTNUM_ENABLE_ENZYME)
             ${CMAKE_SOURCE_DIR}/src/generated/fortnum_inv2_vjp_kernel.f90
             ${CMAKE_SOURCE_DIR}/src/generated/fortnum_inv3_jvp_kernel.f90
             ${CMAKE_SOURCE_DIR}/src/generated/fortnum_inv3_vjp_kernel.f90
+            ${CMAKE_SOURCE_DIR}/src/fortnum_ad_backend.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_det2_jvp_fortad.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_det2_vjp_fortad.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_det3_jvp_fortad.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_det3_vjp_fortad.f90
+            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_inv2_jvp_fortad.f90
             ${CMAKE_SOURCE_DIR}/src/linalg/fortnum_linalg.f90
             ${CMAKE_SOURCE_DIR}/src/ode/fortnum_ode_cash_karp.f90
             ${CMAKE_SOURCE_DIR}/src/ode/fortnum_ode.f90
