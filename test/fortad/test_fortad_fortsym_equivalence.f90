@@ -32,6 +32,18 @@ program test_fortad_fortsym_equivalence
     use fortnum_generated_multi_input_p8_vjp, only: fortnum_multi_input_p8_vjp_kernel
     use fortnum_fortad_multi_input_p8_jvp, only: fortnum_multi_input_p8_jvp_fortad
     use fortnum_fortad_multi_input_p8_vjp, only: fortnum_multi_input_p8_vjp_fortad
+    use fortnum_generated_lagrange4_jvp, only: fortnum_lagrange4_jvp_kernel
+    use fortnum_generated_lagrange4_vjp, only: fortnum_lagrange4_vjp_kernel
+    use fortnum_fortad_lagrange4_jvp, only: fortnum_lagrange4_jvp_fortad
+    use fortnum_fortad_lagrange4_vjp, only: fortnum_lagrange4_vjp_fortad
+    use fortnum_generated_erf_jvp, only: fortnum_erf_jvp
+    use fortnum_generated_erf_vjp, only: fortnum_erf_vjp
+    use fortnum_generated_erfc_jvp, only: fortnum_erfc_jvp
+    use fortnum_generated_erfc_vjp, only: fortnum_erfc_vjp
+    use fortnum_fortad_erf_jvp, only: fortnum_erf_jvp_fortad
+    use fortnum_fortad_erf_vjp, only: fortnum_erf_vjp_fortad
+    use fortnum_fortad_erfc_jvp, only: fortnum_erfc_jvp_fortad
+    use fortnum_fortad_erfc_vjp, only: fortnum_erfc_vjp_fortad
     use fortnum_generated_multi_input_p16_jvp, only: fortnum_multi_input_p16_jvp_kernel
     use fortnum_generated_multi_input_p16_vjp, only: fortnum_multi_input_p16_vjp_kernel
     use fortnum_fortad_multi_input_p16_jvp, only: fortnum_multi_input_p16_jvp_fortad
@@ -178,7 +190,83 @@ contains
         ! The two products must also agree with each other.
         call same("multi_input_p16 adjoint identity", &
                   dot_product(g_new(1:16), v(1:16)), jvp_new*u, failures)
+
+        ! lagrange4: the evaluation point and the four samples are active, the
+        ! nodes are not.
+        call fill(x, v, 5)
+        call fortnum_lagrange4_jvp_kernel(x(1), x(2), x(3), x(4), x(5), &
+                                          v(1), v(2), v(3), v(4), v(5), &
+                                          value_ref, jvp_ref)
+        call fortnum_lagrange4_jvp_fortad(x(1), v(1), x(2), v(2), x(3), v(3), &
+                                          x(4), v(4), x(5), v(5), &
+                                          value_new, jvp_new)
+        call same("lagrange4 jvp", jvp_ref, jvp_new, failures)
+        call same("lagrange4 jvp value", value_ref, value_new, failures)
+        call fortnum_lagrange4_vjp_kernel(x(1), x(2), x(3), x(4), x(5), u, &
+                                          value_ref, g_ref(1), g_ref(2), &
+                                          g_ref(3), g_ref(4), g_ref(5))
+        call fortnum_lagrange4_vjp_fortad(x(1), x(2), x(3), x(4), x(5), &
+                                          value_new, u, g_new(1), g_new(2), &
+                                          g_new(3), g_new(4), g_new(5))
+        call same_vector("lagrange4 vjp", g_ref(1:5), g_new(1:5), failures)
+        call same("lagrange4 adjoint identity", &
+                  dot_product(g_new(1:5), v(1:5)), jvp_new*u, failures)
+
+        ! erf and erfc take assumed-shape arrays, but the fortsym kernels
+        ! assign only element one - the generator emits a scalar expression
+        ! into an array-shaped signature - so only element one is compared.
+        ! fortad's kernels are elementwise, which is what the declared
+        ! interface promises; the extra elements are checked separately below
+        ! rather than against a reference that never wrote them.
+        call fill(x, v, 8)
+        call fortnum_erf_jvp(x(1:1), v(1:1), g_ref(1:1))
+        call fortnum_erf_jvp_fortad(x(1:8), v(1:8), g_new(1:8))
+        call same("erf jvp", g_ref(1), g_new(1), failures)
+        call fortnum_erf_vjp(x(1:1), v(1:1), g_ref(1:1))
+        call fortnum_erf_vjp_fortad(x(1:8), v(1:8), g_new(1:8))
+        call same("erf vjp", g_ref(1), g_new(1), failures)
+        call elementwise("erf", x(1:8), v(1:8), g_new(1:8), .true., failures)
+
+        call fortnum_erfc_jvp(x(1:1), v(1:1), g_ref(1:1))
+        call fortnum_erfc_jvp_fortad(x(1:8), v(1:8), g_new(1:8))
+        call same("erfc jvp", g_ref(1), g_new(1), failures)
+        call fortnum_erfc_vjp(x(1:1), v(1:1), g_ref(1:1))
+        call fortnum_erfc_vjp_fortad(x(1:8), v(1:8), g_new(1:8))
+        call same("erfc vjp", g_ref(1), g_new(1), failures)
+        call elementwise("erfc", x(1:8), v(1:8), g_new(1:8), .false., failures)
     end subroutine check
+
+    subroutine elementwise(label, x, v, produced, is_erf, failures)
+        !! Every element against the closed-form derivative.
+        !!
+        !! The fortsym kernel writes only the first element, so it cannot serve
+        !! as the reference for the rest. `d/dx erf(x) = 2/sqrt(pi) exp(-x^2)`
+        !! is exact and owes nothing to either generator.
+        character(*), intent(in) :: label
+        real(dp), intent(in) :: x(:), v(:), produced(:)
+        logical, intent(in) :: is_erf
+        integer, intent(inout) :: failures
+        real(dp), parameter :: two_over_root_pi = 2.0_dp/sqrt(4.0_dp*atan(1.0_dp))
+        real(dp) :: want
+        integer :: i
+        logical :: bad
+
+        bad = .false.
+        do i = 1, size(x)
+            want = two_over_root_pi*exp(-x(i)*x(i))*v(i)
+            if (.not. is_erf) want = -want
+            if (abs(produced(i) - want) > 1.0e-14_dp*max(1.0_dp, abs(want))) then
+                print *, "FAIL ", label, " elementwise entry ", i, ": ", want, &
+                    " vs ", produced(i)
+                bad = .true.
+            end if
+        end do
+        if (bad) then
+            failures = failures + 1
+        else
+            print *, "pass ", label, " elementwise against the closed form"
+        end if
+    end subroutine elementwise
 
     subroutine fill(x, v, n)
         !! A fixed, spread-out point. Deterministic on purpose: a failure has to

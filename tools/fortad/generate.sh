@@ -38,6 +38,9 @@ specs=(
     "multi_input_p4:x1,x2,x3,x4:yes:yes"
     "multi_input_p8:x1,x2,x3,x4,x5,x6,x7,x8:yes:yes"
     "multi_input_p16:x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16:yes:yes"
+    "lagrange4:x,y1,y2,y3,y4:yes:yes"
+    "erf:x:no:no"
+    "erfc:x:no:no"
 )
 
 for spec in "${specs[@]}"; do
