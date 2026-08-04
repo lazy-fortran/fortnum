@@ -10,7 +10,8 @@ module fortnum_fortad_lagrange4_vjp
 
 contains
 
-    pure subroutine fortnum_lagrange4_vjp_fortad(x, y1, y2, y3, y4, value, value_b, x_b, y1_b, y2_b, y3_b, y4_b)
+    pure subroutine fortnum_lagrange4_vjp_fortad(x, y1, y2, y3, y4, value, value_b, &
+        x_b, y1_b, y2_b, y3_b, y4_b)
         use, intrinsic :: iso_fortran_env, only: dp => real64
         implicit none
         real(dp), intent(in) :: x
@@ -64,10 +65,10 @@ contains
         real(dp) :: fad_t27
         real(dp) :: fad_t28
 
-        b1_v1 = (x - 0.0_dp) * (x - 1.0_dp) * (x - 2.0_dp) / ((0 - 1.0_dp) * (0 - 2.0_dp) &
-            * (0 - 3.0_dp))
-        b2_v1 = (x + 1.0_dp) * (x - 1.0_dp) * (x - 2.0_dp) / (1.0_dp * (0 - 1.0_dp) * (0 &
-            - 2.0_dp))
+        b1_v1 = (x - 0.0_dp) * (x - 1.0_dp) * (x - 2.0_dp) / ((0 - 1.0_dp) * (0 - &
+            2.0_dp) * (0 - 3.0_dp))
+        b2_v1 = (x + 1.0_dp) * (x - 1.0_dp) * (x - 2.0_dp) / (1.0_dp * (0 - 1.0_dp) * &
+            (0 - 2.0_dp))
         b3_v1 = (x + 1.0_dp) * (x - 0.0_dp) * (x - 2.0_dp) / (2.0_dp * 1.0_dp * (0 - &
             1.0_dp))
         b4_v1 = (x + 1.0_dp) * (x - 0.0_dp) * (x - 1.0_dp) / (3.0_dp * 2.0_dp * 1.0_dp)

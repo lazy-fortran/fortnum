@@ -41,6 +41,18 @@ specs=(
     "lagrange4:x,y1,y2,y3,y4:yes:yes"
     "erf:x:no:no"
     "erfc:x:no:no"
+    "sqrt1pm1_stable:x:no:no"
+    "sqrt1pm1_raw:x:no:no"
+    "dawson_outer_value:f:no:no"
+    "toroidal_order:x,current,next_order:no:no"
+    "scaled_jacobi_recurrence:x,scale,previous,current:no:no"
+)
+
+# Operators with more than one intent(out): the dependent has to be named.
+# operator : independents : dependent
+multi_output=(
+    "legendre_recurrence:x,previous,current:next"
+    "legendre_recurrence_derivative:x,previous,current:derivative"
 )
 
 for spec in "${specs[@]}"; do
@@ -56,6 +68,33 @@ for spec in "${specs[@]}"; do
     "$fortad_bin" "${vjp_flags[@]}" \
         --module "fortnum_fortad_${op}_vjp" \
         -o "$out/fortnum_${op}_vjp_fortad.f90" "$src"
+done
+
+for spec in "${multi_output[@]}"; do
+    IFS=: read -r op indep dep <<< "$spec"
+    src="$kernels/${op%%_derivative}.f90"
+    "$fortad_bin" --indep "$indep" --dep "$dep" --no-primal \
+        --name "fortnum_${op}_jvp_fortad" \
+        --module "fortnum_fortad_${op}_jvp" \
+        -o "$out/fortnum_${op}_jvp_fortad.f90" "$src"
+    "$fortad_bin" --mode reverse --indep "$indep" --dep "$dep" --no-primal \
+        --name "fortnum_${op}_vjp_fortad" \
+        --module "fortnum_fortad_${op}_vjp" \
+        -o "$out/fortnum_${op}_vjp_fortad.f90" "$src"
+done
+
+# The primals themselves are compiled into the library, so the tests have
+# something to difference the generated products against. The generator reads
+# the copies under tools/; these are what link.
+for src in "$kernels"/*.f90; do
+    name=$(basename "$src")
+    {
+        echo "! Copied from tools/fortad/kernels/$name by tools/fortad/generate.sh."
+        echo "! It is compiled into the library so the derivative products have a"
+        echo "! primal to be differenced against. Edit the original, not this."
+        echo
+        cat "$src"
+    } > "$out/$name"
 done
 
 # The original dot_sin testbed kernel, kept as the vector-mode example. Its

@@ -10,7 +10,9 @@ module fortnum_fortad_multi_input_p16_vjp
 
 contains
 
-    pure subroutine fortnum_multi_input_p16_vjp_fortad(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, value, value_b, x1_b, x2_b, x3_b, x4_b, x5_b, x6_b, x7_b, x8_b, x9_b, x10_b, x11_b, x12_b, x13_b, x14_b, x15_b, x16_b)
+    pure subroutine fortnum_multi_input_p16_vjp_fortad(x1, x2, x3, x4, x5, x6, x7, &
+        x8, x9, x10, x11, x12, x13, x14, x15, x16, value, value_b, x1_b, x2_b, x3_b, &
+        x4_b, x5_b, x6_b, x7_b, x8_b, x9_b, x10_b, x11_b, x12_b, x13_b, x14_b, x15_b, x16_b)
         use, intrinsic :: iso_fortran_env, only: dp => real64
         implicit none
         real(dp), intent(in) :: x1
@@ -72,8 +74,8 @@ contains
         real(dp) :: fad_t17
         real(dp) :: fad_t18
 
-        total_v1 = x1 + x2 + x3 + x4 + x5 + x6 + x7 + x8 + x9 + x10 + x11 + x12 + x13 + &
-            x14 + x15 + x16
+        total_v1 = x1 + x2 + x3 + x4 + x5 + x6 + x7 + x8 + x9 + x10 + x11 + x12 + x13 &
+            + x14 + x15 + x16
         value = sin(x1) + sin(x2) + sin(x3) + sin(x4) + sin(x5) + sin(x6) + sin(x7) + &
             sin(x8) + sin(x9) + sin(x10) + sin(x11) + sin(x12) + sin(x13) + sin(x14) + &
             sin(x15) + sin(x16) + total_v1 * total_v1 / 2.0_dp

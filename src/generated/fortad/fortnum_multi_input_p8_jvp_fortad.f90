@@ -10,7 +10,8 @@ module fortnum_fortad_multi_input_p8_jvp
 
 contains
 
-    pure subroutine fortnum_multi_input_p8_jvp_fortad(x1, x1_d, x2, x2_d, x3, x3_d, x4, x4_d, x5, x5_d, x6, x6_d, x7, x7_d, x8, x8_d, value, value_d)
+    pure subroutine fortnum_multi_input_p8_jvp_fortad(x1, x1_d, x2, x2_d, x3, x3_d, &
+        x4, x4_d, x5, x5_d, x6, x6_d, x7, x7_d, x8, x8_d, value, value_d)
         use, intrinsic :: iso_fortran_env, only: dp => real64
         implicit none
         real(dp), intent(in) :: x1
@@ -39,8 +40,8 @@ contains
         value = sin(x1) + sin(x2) + sin(x3) + sin(x4) + sin(x5) + sin(x6) + sin(x7) + &
             sin(x8)
         total = x1 + x2 + x3 + x4 + x5 + x6 + x7 + x8
-        value_d = value_d + 2.0_dp * (total * (x1_d + x2_d + x3_d + x4_d + x5_d + x6_d + &
-            x7_d + x8_d)) / 2.0_dp
+        value_d = value_d + 2.0_dp * (total * (x1_d + x2_d + x3_d + x4_d + x5_d + &
+            x6_d + x7_d + x8_d)) / 2.0_dp
         value = value + total * total / 2.0_dp
     end subroutine fortnum_multi_input_p8_jvp_fortad
 

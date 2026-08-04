@@ -10,7 +10,9 @@ module fortnum_fortad_multi_input_p16_jvp
 
 contains
 
-    pure subroutine fortnum_multi_input_p16_jvp_fortad(x1, x1_d, x2, x2_d, x3, x3_d, x4, x4_d, x5, x5_d, x6, x6_d, x7, x7_d, x8, x8_d, x9, x9_d, x10, x10_d, x11, x11_d, x12, x12_d, x13, x13_d, x14, x14_d, x15, x15_d, x16, x16_d, value, value_d)
+    pure subroutine fortnum_multi_input_p16_jvp_fortad(x1, x1_d, x2, x2_d, x3, x3_d, &
+        x4, x4_d, x5, x5_d, x6, x6_d, x7, x7_d, x8, x8_d, x9, x9_d, x10, x10_d, x11, &
+        x11_d, x12, x12_d, x13, x13_d, x14, x14_d, x15, x15_d, x16, x16_d, value, value_d)
         use, intrinsic :: iso_fortran_env, only: dp => real64
         implicit none
         real(dp), intent(in) :: x1
@@ -52,16 +54,16 @@ contains
 
         value_d = cos(x1) * x1_d + cos(x2) * x2_d + cos(x3) * x3_d + cos(x4) * x4_d + &
             cos(x5) * x5_d + cos(x6) * x6_d + cos(x7) * x7_d + cos(x8) * x8_d + cos(x9) * &
-            x9_d + cos(x10) * x10_d + cos(x11) * x11_d + cos(x12) * x12_d + cos(x13) * x13_d &
-            + cos(x14) * x14_d + cos(x15) * x15_d + cos(x16) * x16_d
+            x9_d + cos(x10) * x10_d + cos(x11) * x11_d + cos(x12) * x12_d + cos(x13) * &
+            x13_d + cos(x14) * x14_d + cos(x15) * x15_d + cos(x16) * x16_d
         value = sin(x1) + sin(x2) + sin(x3) + sin(x4) + sin(x5) + sin(x6) + sin(x7) + &
             sin(x8) + sin(x9) + sin(x10) + sin(x11) + sin(x12) + sin(x13) + sin(x14) + &
             sin(x15) + sin(x16)
-        total = x1 + x2 + x3 + x4 + x5 + x6 + x7 + x8 + x9 + x10 + x11 + x12 + x13 + x14 &
-            + x15 + x16
-        value_d = value_d + 2.0_dp * (total * (x1_d + x2_d + x3_d + x4_d + x5_d + x6_d + &
-            x7_d + x8_d + x9_d + x10_d + x11_d + x12_d + x13_d + x14_d + x15_d + x16_d)) / &
-            2.0_dp
+        total = x1 + x2 + x3 + x4 + x5 + x6 + x7 + x8 + x9 + x10 + x11 + x12 + x13 + &
+            x14 + x15 + x16
+        value_d = value_d + 2.0_dp * (total * (x1_d + x2_d + x3_d + x4_d + x5_d + &
+            x6_d + x7_d + x8_d + x9_d + x10_d + x11_d + x12_d + x13_d + x14_d + x15_d + &
+            x16_d)) / 2.0_dp
         value = value + total * total / 2.0_dp
     end subroutine fortnum_multi_input_p16_jvp_fortad
 

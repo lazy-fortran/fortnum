@@ -10,7 +10,8 @@ module fortnum_fortad_multi_input_p4_jvp
 
 contains
 
-    pure subroutine fortnum_multi_input_p4_jvp_fortad(x1, x1_d, x2, x2_d, x3, x3_d, x4, x4_d, value, value_d)
+    pure subroutine fortnum_multi_input_p4_jvp_fortad(x1, x1_d, x2, x2_d, x3, x3_d, &
+        x4, x4_d, value, value_d)
         use, intrinsic :: iso_fortran_env, only: dp => real64
         implicit none
         real(dp), intent(in) :: x1

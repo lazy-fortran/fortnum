@@ -10,7 +10,8 @@ module fortnum_fortad_det3_vjp
 
 contains
 
-    pure subroutine fortnum_det3_vjp_fortad(a, b, c, d, f, g, h, j, k, value_b, a_b, b_b, c_b, d_b, f_b, g_b, h_b, j_b, k_b)
+    pure subroutine fortnum_det3_vjp_fortad(a, b, c, d, f, g, h, j, k, value_b, a_b, &
+        b_b, c_b, d_b, f_b, g_b, h_b, j_b, k_b)
         use, intrinsic :: iso_fortran_env, only: dp => real64
         implicit none
         real(dp), intent(in) :: a

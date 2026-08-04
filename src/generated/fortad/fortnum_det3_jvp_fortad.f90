@@ -10,7 +10,8 @@ module fortnum_fortad_det3_jvp
 
 contains
 
-    pure subroutine fortnum_det3_jvp_fortad(a, a_d, b, b_d, c, c_d, d, d_d, f, f_d, g, g_d, h, h_d, j, j_d, k, k_d, value_d)
+    pure subroutine fortnum_det3_jvp_fortad(a, a_d, b, b_d, c, c_d, d, d_d, f, f_d, &
+        g, g_d, h, h_d, j, j_d, k, k_d, value_d)
         use, intrinsic :: iso_fortran_env, only: dp => real64
         implicit none
         real(dp), intent(in) :: a
@@ -33,9 +34,9 @@ contains
         real(dp), intent(in) :: k_d
         real(dp), intent(out) :: value_d
 
-        value_d = a_d * (f * k - j * g) + a * (f_d * k + f * k_d - (j_d * g + j * g_d)) - &
-            (d_d * (b * k - j * c) + d * (b_d * k + b * k_d - (j_d * c + j * c_d))) + (h_d * &
-            (b * g - f * c) + h * (b_d * g + b * g_d - (f_d * c + f * c_d)))
+        value_d = a_d * (f * k - j * g) + a * (f_d * k + f * k_d - (j_d * g + j * &
+            g_d)) - (d_d * (b * k - j * c) + d * (b_d * k + b * k_d - (j_d * c + j * &
+            c_d))) + (h_d * (b * g - f * c) + h * (b_d * g + b * g_d - (f_d * c + f * c_d)))
     end subroutine fortnum_det3_jvp_fortad
 
 end module fortnum_fortad_det3_jvp

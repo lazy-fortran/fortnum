@@ -10,7 +10,8 @@ module fortnum_fortad_multi_input_p8_vjp
 
 contains
 
-    pure subroutine fortnum_multi_input_p8_vjp_fortad(x1, x2, x3, x4, x5, x6, x7, x8, value, value_b, x1_b, x2_b, x3_b, x4_b, x5_b, x6_b, x7_b, x8_b)
+    pure subroutine fortnum_multi_input_p8_vjp_fortad(x1, x2, x3, x4, x5, x6, x7, x8, &
+        value, value_b, x1_b, x2_b, x3_b, x4_b, x5_b, x6_b, x7_b, x8_b)
         use, intrinsic :: iso_fortran_env, only: dp => real64
         implicit none
         real(dp), intent(in) :: x1
