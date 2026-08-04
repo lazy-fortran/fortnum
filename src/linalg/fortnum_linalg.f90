@@ -26,6 +26,10 @@ module fortnum_linalg
     use fortnum_kinds, only: dp
     use fortnum_ad_backend, only: FORTNUM_AD_ENGINE, FORTNUM_AD_FORTAD
     use fortnum_fortad_det2_jvp, only: fortnum_det2_jvp_fortad
+    use fortnum_fortad_det2_vjp, only: fortnum_det2_vjp_fortad
+    use fortnum_fortad_det3_jvp, only: fortnum_det3_jvp_fortad
+    use fortnum_fortad_det3_vjp, only: fortnum_det3_vjp_fortad
+    use fortnum_fortad_inv2_jvp, only: fortnum_inv2_jvp_fortad
     use fortnum_generated_det2_jvp, only: fortnum_det2_jvp_kernel
     use fortnum_generated_det2_vjp, only: fortnum_det2_vjp_kernel
     use fortnum_generated_det3_jvp, only: fortnum_det3_jvp_kernel
@@ -221,38 +225,57 @@ contains
         end if
     end subroutine det2_jvp
 
-    ! Fortsym-generated analytical directional derivative of det3.
+    ! From the selected AD backend: directional derivative of det3.
     pure subroutine det3_jvp(a, va, jv)
         !$acc routine seq
         real(dp), intent(in) :: a(3, 3), va(3, 3)
         real(dp), intent(out) :: jv
 
-        call fortnum_det3_jvp_kernel(a(1, 1), a(2, 1), a(3, 1), &
-            a(1, 2), a(2, 2), a(3, 2), a(1, 3), a(2, 3), a(3, 3), &
-            va(1, 1), va(2, 1), va(3, 1), va(1, 2), va(2, 2), va(3, 2), &
-            va(1, 3), va(2, 3), va(3, 3), jv)
+        if (FORTNUM_AD_ENGINE == FORTNUM_AD_FORTAD) then
+            call fortnum_det3_jvp_fortad(a(1, 1), va(1, 1), a(2, 1), va(2, 1), &
+                a(3, 1), va(3, 1), a(1, 2), va(1, 2), a(2, 2), va(2, 2), &
+                a(3, 2), va(3, 2), a(1, 3), va(1, 3), a(2, 3), va(2, 3), &
+                a(3, 3), va(3, 3), jv)
+        else
+            call fortnum_det3_jvp_kernel(a(1, 1), a(2, 1), a(3, 1), &
+                a(1, 2), a(2, 2), a(3, 2), a(1, 3), a(2, 3), a(3, 3), &
+                va(1, 1), va(2, 1), va(3, 1), va(1, 2), va(2, 2), va(3, 2), &
+                va(1, 3), va(2, 3), va(3, 3), jv)
+        end if
     end subroutine det3_jvp
 
-    ! Fortsym-generated analytical transpose product for det2.
+    ! From the selected AD backend: transpose product for det2.
     pure subroutine det2_vjp(a, u, abar)
         !$acc routine seq
         real(dp), intent(in) :: a(2, 2), u
         real(dp), intent(out) :: abar(2, 2)
 
-        call fortnum_det2_vjp_kernel(a(1, 1), a(2, 1), a(1, 2), a(2, 2), u, &
-            abar(1, 1), abar(2, 1), abar(1, 2), abar(2, 2))
+        if (FORTNUM_AD_ENGINE == FORTNUM_AD_FORTAD) then
+            call fortnum_det2_vjp_fortad(a(1, 1), a(2, 1), a(1, 2), a(2, 2), u, &
+                abar(1, 1), abar(2, 1), abar(1, 2), abar(2, 2))
+        else
+            call fortnum_det2_vjp_kernel(a(1, 1), a(2, 1), a(1, 2), a(2, 2), u, &
+                abar(1, 1), abar(2, 1), abar(1, 2), abar(2, 2))
+        end if
     end subroutine det2_vjp
 
-    ! Fortsym-generated analytical transpose product for det3.
+    ! From the selected AD backend: transpose product for det3.
     pure subroutine det3_vjp(a, u, abar)
         !$acc routine seq
         real(dp), intent(in) :: a(3, 3), u
         real(dp), intent(out) :: abar(3, 3)
 
-        call fortnum_det3_vjp_kernel(a(1, 1), a(2, 1), a(3, 1), &
-            a(1, 2), a(2, 2), a(3, 2), a(1, 3), a(2, 3), a(3, 3), u, &
-            abar(1, 1), abar(2, 1), abar(3, 1), abar(1, 2), abar(2, 2), &
-            abar(3, 2), abar(1, 3), abar(2, 3), abar(3, 3))
+        if (FORTNUM_AD_ENGINE == FORTNUM_AD_FORTAD) then
+            call fortnum_det3_vjp_fortad(a(1, 1), a(2, 1), a(3, 1), &
+                a(1, 2), a(2, 2), a(3, 2), a(1, 3), a(2, 3), a(3, 3), u, &
+                abar(1, 1), abar(2, 1), abar(3, 1), abar(1, 2), abar(2, 2), &
+                abar(3, 2), abar(1, 3), abar(2, 3), abar(3, 3))
+        else
+            call fortnum_det3_vjp_kernel(a(1, 1), a(2, 1), a(3, 1), &
+                a(1, 2), a(2, 2), a(3, 2), a(1, 3), a(2, 3), a(3, 3), u, &
+                abar(1, 1), abar(2, 1), abar(3, 1), abar(1, 2), abar(2, 2), &
+                abar(3, 2), abar(1, 3), abar(2, 3), abar(3, 3))
+        end if
     end subroutine det3_vjp
 
     ! Near-singular predicate for a 3x3 Jacobian, byte-identical to the FO
@@ -327,10 +350,20 @@ contains
             vainv = 0.0_dp
             return
         end if
-        call fortnum_inv2_jvp_kernel( &
-            ainv(1, 1), ainv(2, 1), ainv(1, 2), ainv(2, 2), &
-            va(1, 1), va(2, 1), va(1, 2), va(2, 2), &
-            vainv(1, 1), vainv(2, 1), vainv(1, 2), vainv(2, 2))
+        if (FORTNUM_AD_ENGINE == FORTNUM_AD_FORTAD) then
+            ! fortad differentiates the closed-form inverse, so it takes the
+            ! entries of A. fortsym's rule is d(A^-1) = -A^-1 dA A^-1 and takes
+            ! the entries of A^-1 instead. Same map, different input.
+            call fortnum_inv2_jvp_fortad( &
+                a(1, 1), va(1, 1), a(2, 1), va(2, 1), &
+                a(1, 2), va(1, 2), a(2, 2), va(2, 2), &
+                vainv(1, 1), vainv(2, 1), vainv(1, 2), vainv(2, 2))
+        else
+            call fortnum_inv2_jvp_kernel( &
+                ainv(1, 1), ainv(2, 1), ainv(1, 2), ainv(2, 2), &
+                va(1, 1), va(2, 1), va(1, 2), va(2, 2), &
+                vainv(1, 1), vainv(2, 1), vainv(1, 2), vainv(2, 2))
+        end if
     end subroutine inv2_jvp
 
     ! Guarded inverse value and analytical JVP, sharing the primal inverse.
