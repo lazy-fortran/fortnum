@@ -408,3 +408,21 @@ codes and release every created handle.
 `fortnum_oracle` reads CSV reference tables through `oracle_read` and validates
 a callback through `oracle_check`. It is a test-support module, not a
 production reference-data dependency.
+
+## Choosing the differentiation backend
+
+`fortnum_ad_backend` selects which engine's kernels the library calls.
+
+fortnum carries two sets of generated derivatives for the same operators.
+`FORTNUM_AD_FORTSYM` is the symbolic set: for a small closed-form operator it
+can beat anything a differentiator produces, because it simplifies the
+expression rather than the program. `FORTNUM_AD_FORTAD` is the
+source-transformation set, which scales to operators with loops and branches
+where a symbolic form would blow up, and covers every operator Enzyme covers
+without needing an external toolchain.
+
+`FORTNUM_AD_ENGINE` names the one in use and defaults to `FORTNUM_AD_FORTAD`.
+It is a named constant, so the compiler folds the branch and the unused call
+costs nothing at runtime. Both sets stay compiled and both stay tested against
+each other. An operator with no fortad kernel falls back to fortsym on its own,
+so the choice is per operator rather than per library.

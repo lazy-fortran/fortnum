@@ -36,6 +36,7 @@ measured evidence.
 | [ROADMAP](../ROADMAP.md) | Authoritative checklist and execution rules |
 | [Differentiation plan](design/differentiation_plan.md) | Current differentiation architecture and implementation sequence |
 | [Kernel inventory](design/derivative_kernel_inventory.csv) | Machine-checked derivative source ownership |
+| [fortad testbed](design/fortad_testbed.md) | The fortad derivative path and how to switch to it |
 | [Evidence catalog](design/differentiation_benchmarks.md) | Benchmark records and validation coverage |
 | [Evidence report](design/differentiation_report.md) | Aggregate mechanism statistics and generated figures |
 | [Strategy paper](performance_optimal_differentiation.md) | Rationale for benchmark-selected differentiation |
