@@ -35,9 +35,9 @@ contains
         real(dp), intent(out) :: value_d
         real(dp) :: value
 
-        value_d = a_d * (f * k - j * g) + a * (f_d * k + f * k_d - (j_d * g + j * &
-            g_d)) - (d_d * (b * k - j * c) + d * (b_d * k + b * k_d - (j_d * c + j * &
-            c_d))) + (h_d * (b * g - f * c) + h * (b_d * g + b * g_d - (f_d * c + f * c_d)))
+        value_d = a_d * (f * k - j * g) + a * (f_d * k + f * k_d - j_d * g - j * g_d) &
+            - d_d * (b * k - j * c) + (h_d * (b * g - f * c) - d * (b_d * k + b * k_d - &
+            j_d * c - j * c_d) + h * (b_d * g + b * g_d - f_d * c - f * c_d))
     end subroutine fortnum_det3_jvp_fortad
 
 end module fortnum_fortad_det3_jvp

@@ -74,11 +74,11 @@ contains
         real(dp) :: fad_t17
         real(dp) :: fad_t18
 
-        total_v1 = x1 + x2 + x3 + x4 + x5 + x6 + x7 + x8 + x9 + x10 + x11 + x12 + x13 &
-            + x14 + x15 + x16
-        value = sin(x1) + sin(x2) + sin(x3) + sin(x4) + sin(x5) + sin(x6) + sin(x7) + &
-            sin(x8) + sin(x9) + sin(x10) + sin(x11) + sin(x12) + sin(x13) + sin(x14) + &
-            sin(x15) + sin(x16) + total_v1 * total_v1 / 2.0_dp
+        total_v1 = x1 + x2 + (x3 + x4) + (x5 + x6 + (x7 + x8)) + (x9 + x10 + (x11 + &
+            x12) + (x13 + x14 + (x15 + x16)))
+        value = sin(x1) + sin(x2) + sin(x3) + (sin(x4) + sin(x5)) + (sin(x6) + &
+            sin(x7) + (sin(x8) + sin(x9))) + (sin(x10) + sin(x11) + (sin(x12) + sin(x13)) &
+            + (sin(x14) + sin(x15) + (sin(x16) + total_v1 * total_v1 / 2.0_dp)))
         value_v1_b = 0.0_dp
         total_v1_b = 0.0_dp
         x1_b = 0.0_dp

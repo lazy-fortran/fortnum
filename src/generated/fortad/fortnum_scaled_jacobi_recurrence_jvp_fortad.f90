@@ -32,11 +32,11 @@ contains
         real(dp) :: upper
 
         two_degree = degree * 2
-        lower = alpha + beta + degree * 2 - 2
+        lower = alpha + beta + (degree * 2 - 2)
         upper = alpha + beta + degree * 2
-        next_d = (current_d * (alpha + beta + two_degree - 1) * (scale * (alpha * &
+        next_d = (current_d * (alpha + beta + (two_degree - 1)) * (scale * (alpha * &
             alpha - beta * beta) + x * upper * lower) + current * (alpha + beta + &
-            two_degree - 1) * (scale_d * (alpha * alpha - beta * beta) + x_d * upper * &
+            (two_degree - 1)) * (scale_d * (alpha * alpha - beta * beta) + x_d * upper * &
             lower) - ((previous_d * scale + previous * scale_d) * scale + previous * &
             scale * scale_d) * upper * (alpha + degree - 1) * (beta + degree - 1) * 2) / &
             (degree * (alpha + beta + degree) * lower * 2)

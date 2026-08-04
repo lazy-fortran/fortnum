@@ -49,9 +49,9 @@ contains
         real(dp) :: fad_t9
         real(dp) :: fad_t10
 
-        total_v1 = x1 + x2 + x3 + x4 + x5 + x6 + x7 + x8
-        value = sin(x1) + sin(x2) + sin(x3) + sin(x4) + sin(x5) + sin(x6) + sin(x7) + &
-            sin(x8) + total_v1 * total_v1 / 2.0_dp
+        total_v1 = x1 + x2 + (x3 + x4) + (x5 + x6 + (x7 + x8))
+        value = sin(x1) + sin(x2) + sin(x3) + (sin(x4) + sin(x5)) + (sin(x6) + &
+            sin(x7) + (sin(x8) + total_v1 * total_v1 / 2.0_dp))
         value_v1_b = 0.0_dp
         total_v1_b = 0.0_dp
         x1_b = 0.0_dp

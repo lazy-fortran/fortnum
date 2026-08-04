@@ -19,7 +19,7 @@ contains
         real(dp) :: fad_t1
 
         x_b = 0.0_dp
-        x_b = x_b + value_b * (-(1.1283791670955126_dp * exp(-x ** 2)))
+        x_b = x_b - value_b * (1.1283791670955126_dp * exp(-x ** 2))
     end subroutine fortnum_erfc_vjp_fortad
 
 end module fortnum_fortad_erfc_vjp

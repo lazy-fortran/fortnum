@@ -42,7 +42,7 @@ contains
         fad_t1 = derivative_b * (1.0_dp / (x * x - 1))
         current_b = current_b + fad_t1 * x * degree
         x_b = x_b + fad_t1 * (current * degree)
-        previous_b = previous_b + fad_t1 * (-1.0_dp) * (degree + order)
+        previous_b = previous_b - fad_t1 * 1.0_dp * (degree + order)
         x_b = x_b + derivative_b * ((-(current * degree * x - previous * (degree + &
             order))) / (x * x - 1) ** 2) * (2.0_dp * x)
     end subroutine fortnum_legendre_recurrence_derivative_vjp_fortad

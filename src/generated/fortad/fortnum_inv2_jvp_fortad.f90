@@ -33,11 +33,11 @@ contains
         real(dp) :: determinant
         real(dp) :: determinant_d
 
-        determinant_d = a_d * d + a * d_d - (b_d * c + b * c_d)
+        determinant_d = a_d * d + a * d_d - b_d * c - b * c_d
         determinant = a * d - b * c
         r1_d = (d_d * determinant - d * determinant_d) / determinant ** 2
-        r2_d = ((-b_d) * determinant - (-b) * determinant_d) / determinant ** 2
-        r3_d = ((-c_d) * determinant - (-c) * determinant_d) / determinant ** 2
+        r2_d = (b * determinant_d - b_d * determinant) / determinant ** 2
+        r3_d = (c * determinant_d - c_d * determinant) / determinant ** 2
         r4_d = (a_d * determinant - a * determinant_d) / determinant ** 2
     end subroutine fortnum_inv2_jvp_fortad
 

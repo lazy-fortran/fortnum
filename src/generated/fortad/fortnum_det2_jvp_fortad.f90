@@ -24,7 +24,7 @@ contains
         real(dp), intent(out) :: value_d
         real(dp) :: value
 
-        value_d = a_d * d + a * d_d - (c_d * b + c * b_d)
+        value_d = a_d * d + a * d_d - c_d * b - c * b_d
     end subroutine fortnum_det2_jvp_fortad
 
 end module fortnum_fortad_det2_jvp

@@ -69,7 +69,7 @@ contains
         b2_v1 = (x + 1.0_dp) * (x - 1.0_dp) * (x - 2.0_dp) / ((-1.0_dp) * (-2.0_dp))
         b3_v1 = (x + 1.0_dp) * x * (x - 2.0_dp) / (2.0_dp * (-1.0_dp))
         b4_v1 = (x + 1.0_dp) * x * (x - 1.0_dp) / (3.0_dp * 2.0_dp)
-        value = y1 * b1_v1 + y2 * b2_v1 + y3 * b3_v1 + y4 * b4_v1
+        value = y1 * b1_v1 + y2 * b2_v1 + (y3 * b3_v1 + y4 * b4_v1)
         b1_v1_b = 0.0_dp
         b2_v1_b = 0.0_dp
         b3_v1_b = 0.0_dp

@@ -35,13 +35,13 @@ contains
         real(dp) :: total
         real(dp) :: total_d
 
-        value_d = cos(x1) * x1_d + cos(x2) * x2_d + cos(x3) * x3_d + cos(x4) * x4_d + &
-            cos(x5) * x5_d + cos(x6) * x6_d + cos(x7) * x7_d + cos(x8) * x8_d
-        value = sin(x1) + sin(x2) + sin(x3) + sin(x4) + sin(x5) + sin(x6) + sin(x7) + &
-            sin(x8)
-        total = x1 + x2 + x3 + x4 + x5 + x6 + x7 + x8
-        value_d = value_d + 2.0_dp * (total * (x1_d + x2_d + x3_d + x4_d + x5_d + &
-            x6_d + x7_d + x8_d)) / 2.0_dp
+        value_d = cos(x1) * x1_d + cos(x2) * x2_d + (cos(x3) * x3_d + cos(x4) * x4_d) &
+            + (cos(x5) * x5_d + cos(x6) * x6_d + (cos(x7) * x7_d + cos(x8) * x8_d))
+        value = sin(x1) + sin(x2) + (sin(x3) + sin(x4)) + (sin(x5) + sin(x6) + &
+            (sin(x7) + sin(x8)))
+        total = x1 + x2 + (x3 + x4) + (x5 + x6 + (x7 + x8))
+        value_d = value_d + 2.0_dp * (total * (x1_d + x2_d + (x3_d + x4_d) + (x5_d + &
+            x6_d + (x7_d + x8_d)))) / 2.0_dp
         value = value + total * total / 2.0_dp
     end subroutine fortnum_multi_input_p8_jvp_fortad
 

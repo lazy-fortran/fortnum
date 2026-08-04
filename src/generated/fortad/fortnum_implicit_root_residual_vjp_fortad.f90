@@ -27,7 +27,7 @@ contains
         x_b = 0.0_dp
         p_b = 0.0_dp
         x_b = x_b + residual_b * (2.0_dp * x)
-        p_b = p_b + residual_b * (-1.0_dp)
+        p_b = p_b - residual_b * 1.0_dp
     end subroutine fortnum_implicit_root_residual_vjp_fortad
 
 end module fortnum_fortad_implicit_root_residual_vjp

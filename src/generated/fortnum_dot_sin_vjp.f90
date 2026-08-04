@@ -39,11 +39,11 @@ contains
         s_v2_b = s_b
         do i = 1, n
             fad_u1 = s_v2
-            s_v2 = fad_u1 + a(i) * sin(b(i))
-            fad_s2 = s_v2_b * sin(b(i))
-            a_b(i) = a_b(i) + fad_s2
-            fad_s1 = s_v2_b * a(i) * cos(b(i))
-            b_b(i) = b_b(i) + fad_s1
+            fad_s1 = sin(b(i))
+            s_v2 = fad_u1 + a(i) * fad_s1
+            a_b(i) = a_b(i) + s_v2_b * fad_s1
+            fad_s2 = s_v2_b * a(i) * cos(b(i))
+            b_b(i) = b_b(i) + fad_s2
         end do
         s = s_v2
     end subroutine fortnum_dot_sin_vjp

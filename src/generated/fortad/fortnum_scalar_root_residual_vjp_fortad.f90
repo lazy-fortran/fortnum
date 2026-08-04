@@ -34,7 +34,7 @@ contains
         x_b = x_b + residual_b * (3 * x ** 2)
         p1_b = p1_b + residual_b * x
         x_b = x_b + residual_b * p1
-        p2_b = p2_b + residual_b * (-1.0_dp)
+        p2_b = p2_b - residual_b * 1.0_dp
     end subroutine fortnum_scalar_root_residual_vjp_fortad
 
 end module fortnum_fortad_scalar_root_residual_vjp

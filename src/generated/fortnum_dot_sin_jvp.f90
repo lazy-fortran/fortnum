@@ -20,12 +20,14 @@ contains
         real(8), intent(out) :: s
         real(8), intent(out) :: s_d
         integer :: i
+        real(8) :: fad_s1
 
         s_d = 0.0d0
         s = 0.0d0
         do i = 1, n
-            s_d = s_d + (a_d(i) * sin(b(i)) + a(i) * (cos(b(i)) * b_d(i)))
-            s = s + a(i) * sin(b(i))
+            fad_s1 = sin(b(i))
+            s_d = s_d + (a_d(i) * fad_s1 + a(i) * (cos(b(i)) * b_d(i)))
+            s = s + a(i) * fad_s1
         end do
     end subroutine fortnum_dot_sin_jvp
 

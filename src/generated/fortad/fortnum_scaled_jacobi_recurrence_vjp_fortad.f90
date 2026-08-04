@@ -48,7 +48,7 @@ contains
         real(dp) :: fad_t15
         real(dp) :: fad_t16
 
-        lower_v1 = alpha + beta + degree * 2 - 2
+        lower_v1 = alpha + beta + (degree * 2 - 2)
         upper_v1 = alpha + beta + degree * 2
         x_b = 0.0_dp
         scale_b = 0.0_dp
@@ -56,8 +56,8 @@ contains
         current_b = 0.0_dp
         fad_t1 = next_b * (1.0_dp / (degree * (alpha + beta + degree) * lower_v1 * 2))
         current_b = current_b + fad_t1 * (scale * (alpha * alpha - beta * beta) + x * &
-            upper_v1 * lower_v1) * (alpha + beta + degree * 2 - 1)
-        fad_t4 = fad_t1 * (current * (alpha + beta + degree * 2 - 1))
+            upper_v1 * lower_v1) * (alpha + beta + (degree * 2 - 1))
+        fad_t4 = fad_t1 * (current * (alpha + beta + (degree * 2 - 1)))
         scale_b = scale_b + fad_t4 * (alpha * alpha - beta * beta)
         x_b = x_b + fad_t4 * lower_v1 * upper_v1
         fad_t12 = fad_t1 * (-1.0_dp) * 2 * (beta + degree - 1) * (alpha + degree - 1) &

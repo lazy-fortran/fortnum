@@ -27,10 +27,10 @@ contains
         real(dp) :: total
         real(dp) :: total_d
 
-        value_d = cos(x1) * x1_d + cos(x2) * x2_d + cos(x3) * x3_d + cos(x4) * x4_d
-        value = sin(x1) + sin(x2) + sin(x3) + sin(x4)
-        total = x1 + x2 + x3 + x4
-        value_d = value_d + 2.0_dp * (total * (x1_d + x2_d + x3_d + x4_d)) / 2.0_dp
+        value_d = cos(x1) * x1_d + cos(x2) * x2_d + (cos(x3) * x3_d + cos(x4) * x4_d)
+        value = sin(x1) + sin(x2) + (sin(x3) + sin(x4))
+        total = x1 + x2 + (x3 + x4)
+        value_d = value_d + 2.0_dp * (total * (x1_d + x2_d + (x3_d + x4_d))) / 2.0_dp
         value = value + total * total / 2.0_dp
     end subroutine fortnum_multi_input_p4_jvp_fortad
 

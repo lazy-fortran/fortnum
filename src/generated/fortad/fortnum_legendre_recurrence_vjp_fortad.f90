@@ -41,7 +41,7 @@ contains
         fad_t2 = fad_t1 * (degree * 2 + 1)
         current_b = current_b + fad_t2 * x
         x_b = x_b + fad_t2 * current
-        previous_b = previous_b + fad_t1 * (-1.0_dp) * (degree + order)
+        previous_b = previous_b - fad_t1 * 1.0_dp * (degree + order)
     end subroutine fortnum_legendre_recurrence_vjp_fortad
 
 end module fortnum_fortad_legendre_recurrence_vjp
