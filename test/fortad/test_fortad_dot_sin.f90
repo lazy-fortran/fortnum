@@ -10,6 +10,12 @@ program test_fortad_dot_sin
     !! convergence check, plus agreement between the scalar and vector forms of
     !! the same tangent. Neither compares fortad against another AD tool.
     use, intrinsic :: iso_fortran_env, only: dp => real64
+    ! The derivative kernels come as modules, so the compiler checks these
+    ! calls. Only the primal keeps an explicit interface: it is a bare
+    ! subroutine by design, being the source the generator reads.
+    use fortnum_fortad_dot_sin_jvp, only: fortnum_dot_sin_jvp
+    use fortnum_fortad_dot_sin_jvp_v, only: fortnum_dot_sin_jvp_v
+    use fortnum_fortad_dot_sin_vjp, only: fortnum_dot_sin_vjp
     implicit none
 
     interface
@@ -19,31 +25,6 @@ program test_fortad_dot_sin
             real(dp), intent(in) :: a(n), b(n)
             real(dp), intent(out) :: s
         end subroutine fortnum_dot_sin
-
-        pure subroutine fortnum_dot_sin_jvp(n, a, a_d, b, b_d, s, s_d)
-            import :: dp
-            integer, intent(in) :: n
-            real(dp), intent(in) :: a(n), a_d(n), b(n), b_d(n)
-            real(dp), intent(out) :: s, s_d
-        end subroutine fortnum_dot_sin_jvp
-
-        pure subroutine fortnum_dot_sin_vjp(n, a, b, s, s_b, a_b, b_b)
-            import :: dp
-            integer, intent(in) :: n
-            real(dp), intent(in) :: a(n), b(n)
-            real(dp), intent(out) :: s
-            real(dp), intent(in) :: s_b
-            real(dp), intent(out) :: a_b(n), b_b(n)
-        end subroutine fortnum_dot_sin_vjp
-
-        pure subroutine fortnum_dot_sin_jvp_v(n_dir, n, a, a_d, b, b_d, s, s_d)
-            import :: dp
-            integer, intent(in) :: n_dir, n
-            real(dp), intent(in) :: a(n), b(n)
-            real(dp), intent(in) :: a_d(n_dir, n), b_d(n_dir, n)
-            real(dp), intent(out) :: s
-            real(dp), intent(out) :: s_d(n_dir)
-        end subroutine fortnum_dot_sin_jvp_v
     end interface
 
     integer, parameter :: n = 64, n_dir = 4
