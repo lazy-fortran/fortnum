@@ -36,6 +36,8 @@ contains
         real(dp) :: b4_d
 
         b1 = x * (x - 1.0_dp) * (x - 2.0_dp) / ((-1.0_dp) * (-2.0_dp) * (-3.0_dp))
+        b2_d = ((x_d * (x - 1.0_dp) + (x + 1.0_dp) * x_d) * (x - 2.0_dp) + (x + &
+            1.0_dp) * (x - 1.0_dp) * x_d) / ((-1.0_dp) * (-2.0_dp))
         b2 = (x + 1.0_dp) * (x - 1.0_dp) * (x - 2.0_dp) / ((-1.0_dp) * (-2.0_dp))
         b3_d = ((x_d * x + (x + 1.0_dp) * x_d) * (x - 2.0_dp) + (x + 1.0_dp) * x * &
             x_d) / (2.0_dp * (-1.0_dp))
@@ -45,9 +47,7 @@ contains
         b4 = (x + 1.0_dp) * x * (x - 1.0_dp) / (3.0_dp * 2.0_dp)
         value_d = y1_d * b1 + y1 * (((x_d * (x - 1.0_dp) + x * x_d) * (x - 2.0_dp) + &
             x * (x - 1.0_dp) * x_d) / ((-1.0_dp) * (-2.0_dp) * (-3.0_dp))) + (y2_d * b2 + &
-            y2 * (((x_d * (x - 1.0_dp) + (x + 1.0_dp) * x_d) * (x - 2.0_dp) + (x + &
-            1.0_dp) * (x - 1.0_dp) * x_d) / ((-1.0_dp) * (-2.0_dp)))) + (y3_d * b3 + y3 * &
-            b3_d) + (y4_d * b4 + y4 * b4_d)
+            y2 * b2_d) + (y3_d * b3 + y3 * b3_d) + (y4_d * b4 + y4 * b4_d)
         value = y1 * b1 + y2 * b2 + y3 * b3 + y4 * b4
     end subroutine fortnum_lagrange4_jvp_fortad
 

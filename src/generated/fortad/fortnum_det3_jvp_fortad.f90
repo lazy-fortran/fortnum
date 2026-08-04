@@ -33,6 +33,7 @@ contains
         real(dp), intent(in) :: k
         real(dp), intent(in) :: k_d
         real(dp), intent(out) :: value_d
+        real(dp) :: value
 
         value_d = a_d * (f * k - j * g) + a * (f_d * k + f * k_d - (j_d * g + j * &
             g_d)) - (d_d * (b * k - j * c) + d * (b_d * k + b * k_d - (j_d * c + j * &

@@ -16,6 +16,7 @@ contains
         real(dp), intent(in) :: f
         real(dp), intent(in) :: f_d
         real(dp), intent(out) :: value_d
+        real(dp) :: value
 
         value_d = f_d * (cos(f) + 2 * f)
     end subroutine fortnum_dawson_outer_value_jvp_fortad

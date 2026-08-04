@@ -23,6 +23,7 @@ contains
         real(dp), intent(in) :: term
         real(dp), intent(in) :: term_d
         real(dp), intent(out) :: next_term_d
+        real(dp) :: next_term
 
         next_term_d = (term_d * z + term * z_d) * (a + k) * (b + k) / ((c + k) * (k + &
             1))

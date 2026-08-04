@@ -16,6 +16,7 @@ contains
         real(dp), intent(in) :: x
         real(dp), intent(in) :: x_d
         real(dp), intent(out) :: value_d
+        real(dp) :: value
 
         value_d = x_d / (2.0_dp * sqrt(x + 1))
     end subroutine fortnum_sqrt1pm1_raw_jvp_fortad

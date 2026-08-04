@@ -26,6 +26,7 @@ contains
         real(dp), intent(in) :: current
         real(dp), intent(in) :: current_d
         real(dp), intent(out) :: next_d
+        real(dp) :: next
         real(dp) :: two_degree
         real(dp) :: lower
         real(dp) :: upper

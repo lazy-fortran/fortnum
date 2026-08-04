@@ -23,9 +23,13 @@ contains
         real(dp), intent(in) :: d
         real(dp), intent(in) :: d_d
         real(dp), intent(out) :: r1_d
+        real(dp) :: r1
         real(dp), intent(out) :: r2_d
+        real(dp) :: r2
         real(dp), intent(out) :: r3_d
+        real(dp) :: r3
         real(dp), intent(out) :: r4_d
+        real(dp) :: r4
         real(dp) :: determinant
         real(dp) :: determinant_d
 

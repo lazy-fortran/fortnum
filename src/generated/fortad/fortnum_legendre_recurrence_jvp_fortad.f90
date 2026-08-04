@@ -23,7 +23,9 @@ contains
         real(dp), intent(in) :: current
         real(dp), intent(in) :: current_d
         real(dp), intent(out) :: next_d
+        real(dp) :: next
         real(dp), intent(out) :: derivative_d
+        real(dp) :: derivative
 
         next_d = ((current_d * x + current * x_d) * (degree * 2 + 1) - previous_d * &
             (degree + order)) / (degree - order + 1)

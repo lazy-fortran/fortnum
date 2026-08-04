@@ -23,6 +23,7 @@ contains
         real(dp), intent(in) :: next_order
         real(dp), intent(in) :: next_order_d
         real(dp), intent(out) :: following_order_d
+        real(dp) :: following_order
 
         following_order_d = current_d * (degree + order + 1) * (degree - order) - &
             ((next_order_d * x + next_order * x_d) * (order + 1) * 2 * sqrt(x * x - 1) - &

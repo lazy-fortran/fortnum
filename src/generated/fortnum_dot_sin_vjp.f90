@@ -27,6 +27,7 @@ contains
         real(8) :: fad_t1
         real(8) :: fad_t2
         real(8) :: fad_t3
+        real(8) :: fad_u1
         real(8) :: fad_s1
         real(8) :: fad_s2
 
@@ -37,7 +38,8 @@ contains
         b_b = 0.0d0
         s_v2_b = s_b
         do i = 1, n
-            s_v2 = s_v2 + a(i) * sin(b(i))
+            fad_u1 = s_v2
+            s_v2 = fad_u1 + a(i) * sin(b(i))
             fad_s2 = s_v2_b * sin(b(i))
             a_b(i) = a_b(i) + fad_s2
             fad_s1 = s_v2_b * a(i) * cos(b(i))

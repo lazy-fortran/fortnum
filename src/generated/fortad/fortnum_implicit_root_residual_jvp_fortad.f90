@@ -19,6 +19,7 @@ contains
         real(dp), intent(in) :: p
         real(dp), intent(in) :: p_d
         real(dp), intent(out) :: residual_d
+        real(dp) :: residual
 
         residual_d = 2.0_dp * (x * x_d) - p_d
     end subroutine fortnum_implicit_root_residual_jvp_fortad
