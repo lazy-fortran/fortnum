@@ -39,7 +39,7 @@ contains
         x_b = 0.0_dp
         previous_b = 0.0_dp
         current_b = 0.0_dp
-        fad_t1 = derivative_b * (1.0_dp / (x * x - 1))
+        fad_t1 = derivative_b * (-(1.0_dp / (1 - x * x)))
         current_b = current_b + fad_t1 * x * degree
         x_b = x_b + fad_t1 * (current * degree)
         previous_b = previous_b - fad_t1 * 1.0_dp * (degree + order)
