@@ -50,6 +50,12 @@ set(FORTNUM_MULTI_INPUT_SOURCES
 # ninja rejects ("multiple rules generate include/fortnum_version.mod").
 add_library(bench_core STATIC
     ${FORTNUM_CORE_DIR}/ad/fortnum_build_selection.f90
+    ${FORTNUM_CORE_DIR}/fortnum_ad_backend.f90
+    ${FORTNUM_CORE_DIR}/generated/fortad/fortnum_det2_jvp_fortad.f90
+    ${FORTNUM_CORE_DIR}/generated/fortad/fortnum_det2_vjp_fortad.f90
+    ${FORTNUM_CORE_DIR}/generated/fortad/fortnum_det3_jvp_fortad.f90
+    ${FORTNUM_CORE_DIR}/generated/fortad/fortnum_det3_vjp_fortad.f90
+    ${FORTNUM_CORE_DIR}/generated/fortad/fortnum_inv2_jvp_fortad.f90
     ${FORTNUM_CORE_DIR}/fortnum_kinds.f90
     ${FORTNUM_CORE_DIR}/fortnum_status.f90
     ${FORTNUM_CORE_DIR}/fortnum_version.f90
