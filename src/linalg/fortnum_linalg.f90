@@ -24,6 +24,8 @@ module fortnum_linalg
     ! (sing_tol = eps*maxval(|A|)*n); the closed-form guard mirrors the FO Boris
     ! jacobian_ok (|det| > 1e-8 * scale**rank, scale = sqrt(sum(A**2))).
     use fortnum_kinds, only: dp
+    use fortnum_ad_backend, only: FORTNUM_AD_ENGINE, FORTNUM_AD_FORTAD
+    use fortnum_fortad_det2_jvp, only: fortnum_det2_jvp_fortad
     use fortnum_generated_det2_jvp, only: fortnum_det2_jvp_kernel
     use fortnum_generated_det2_vjp, only: fortnum_det2_vjp_kernel
     use fortnum_generated_det3_jvp, only: fortnum_det3_jvp_kernel
@@ -204,14 +206,19 @@ contains
             + a(1, 3)*(a(2, 1)*a(3, 2) - a(2, 2)*a(3, 1))
     end function det3
 
-    ! Fortsym-generated analytical directional derivative of det2.
+    ! Directional derivative of det2, from the selected AD backend.
     pure subroutine det2_jvp(a, va, jv)
         !$acc routine seq
         real(dp), intent(in) :: a(2, 2), va(2, 2)
         real(dp), intent(out) :: jv
 
-        call fortnum_det2_jvp_kernel(a(1, 1), a(2, 1), a(1, 2), a(2, 2), &
-            va(1, 1), va(2, 1), va(1, 2), va(2, 2), jv)
+        if (FORTNUM_AD_ENGINE == FORTNUM_AD_FORTAD) then
+            call fortnum_det2_jvp_fortad(a(1, 1), va(1, 1), a(2, 1), va(2, 1), &
+                a(1, 2), va(1, 2), a(2, 2), va(2, 2), jv)
+        else
+            call fortnum_det2_jvp_kernel(a(1, 1), a(2, 1), a(1, 2), a(2, 2), &
+                va(1, 1), va(2, 1), va(1, 2), va(2, 2), jv)
+        end if
     end subroutine det2_jvp
 
     ! Fortsym-generated analytical directional derivative of det3.
