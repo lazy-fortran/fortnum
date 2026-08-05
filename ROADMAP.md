@@ -447,6 +447,45 @@ Every tournament record must include:
 - [x] Re-run candidate selection after material `fortsym` changes.
 - [x] Re-run candidate selection after material primal-code changes.
 - [x] Re-run candidate selection on new target hardware.
+## fortad as the default derivative engine (2026-08-05)
+
+PR #63 is merged with all five checks green. `src/fortnum_ad_backend.f90`
+selects the engine as a named constant, so the compiler folds the branch and
+the unused call costs nothing. `FORTNUM_AD_ENGINE` is `FORTNUM_AD_FORTAD`.
+
+Enzyme is no longer a user-facing backend. It stays compiled and tested as
+the correctness oracle for fortad, which is its only remaining role, and the
+documentation says so: `docs/design/enzyme_toolchain.md`, `docs/api.md`, and
+`docs/README.md` were all reframed. Anything Enzyme covers that fortad does
+not is to be marked unsupported rather than exposed through Enzyme.
+
+fortsym is kept, and keeping it is deliberate rather than transitional. For a
+small closed-form operator a symbolic derivative simplifies the expression
+rather than the program and can beat anything a differentiator emits. fortad
+is what scales to operators with loops and branches where the symbolic form
+would blow up. Both stay compiled and both stay tested against each other, so
+switching engines is a one-line change rather than a port.
+
+Two details worth keeping in mind when extending this:
+
+- `inv2` had to differentiate the closed-form inverse in terms of `a`, not
+  `ainv`. The fortsym rule takes the inverse entries as its input; fortad
+  differentiates the closed form. Passing `ainv` produces a wrong derivative
+  that still looks plausible.
+- fpm and CMake keep separate source lists. A new source needs adding to
+  `src/CMakeLists.txt`, `benchmark/CMakeLists.txt`, and
+  `test/ad/CMakeLists.txt` as well as the fpm convention, or CI fails with
+  a missing module file while the local fpm build stays green.
+
+### Remaining
+
+- Three vector-Newton routines are still Enzyme-only, blocked in fortad
+  rather than here. See the fortad roadmap.
+- `docs/design/derivative_kernel_inventory.csv` carries a `fortad-generated`
+  class and `scripts/check_documentation.py` reads the classification rather
+  than inferring provenance from the directory. Keep the inventory in step
+  when kernels move.
+
 ## Cross-repository handoff (2026-08-03)
 
 The ODE integrator train #59--#61 has been flattened into `main` at
