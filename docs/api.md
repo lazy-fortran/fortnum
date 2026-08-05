@@ -334,10 +334,13 @@ A^T\lambda=u.
 
 They never form an inverse for the derivative of a solve.
 
-`fortnum_krylov` provides restarted matrix-free complex GMRES through
-`complex_gmres_operator`. The caller supplies a stateless matrix-vector
-procedure; the solver uses reorthogonalized modified Gram--Schmidt, complex
-Givens rotations, and reports iterations plus the true final residual.
+`fortnum_krylov` provides matrix-free Krylov products. The caller supplies a
+stateless matrix-vector procedure; `real_conjugate_gradient_operator` solves
+real symmetric positive-definite systems with an optional preconditioner and
+reports iterations plus the true final residual. `complex_gmres_operator`
+provides restarted complex GMRES using reorthogonalized modified
+Gram--Schmidt and complex Givens rotations. Structured kernel operators and
+device-resident callbacks are planned consumers of these contracts.
 
 ## Interpolation and splines
 

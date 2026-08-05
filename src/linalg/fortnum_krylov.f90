@@ -5,6 +5,7 @@ module fortnum_krylov
     !! Complex Givens rotations update the Hessenberg least-squares problem
     !! without forming normal equations.
     use fortnum_kinds, only: dp
+    use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
     implicit none
 
     private
@@ -26,14 +27,145 @@ module fortnum_krylov
             complex(dp), intent(in) :: input(:)
             complex(dp), intent(out) :: output(:)
         end subroutine complex_matvec_t
+
+        subroutine real_preconditioner_t(input, output)
+            import :: dp
+            real(dp), intent(in) :: input(:)
+            real(dp), intent(out) :: output(:)
+        end subroutine real_preconditioner_t
     end interface
 
     public :: complex_gmres_operator
     public :: complex_matvec_t
+    public :: real_conjugate_gradient_operator
     public :: real_gmres_operator
     public :: real_matvec_t
+    public :: real_preconditioner_t
 
 contains
+
+    subroutine real_conjugate_gradient_operator( &
+            matvec, right_hand_side, solution, tolerance, max_iterations, &
+            info, iterations, residual_norm, preconditioner)
+        !! Solve an SPD matrix-free system with (preconditioned) CG.
+        !!
+        !! The callback must represent a symmetric positive-definite operator.
+        !! An optional preconditioner applies M^{-1} to a residual.  The
+        !! solution is used as the initial guess and is updated in place.
+        procedure(real_matvec_t) :: matvec
+        real(dp), intent(in) :: right_hand_side(:)
+        real(dp), intent(inout) :: solution(:)
+        real(dp), intent(in) :: tolerance
+        integer, intent(in) :: max_iterations
+        integer, intent(out) :: info, iterations
+        real(dp), intent(out) :: residual_norm
+        procedure(real_preconditioner_t), optional :: preconditioner
+
+        real(dp), allocatable :: residual(:), direction(:), preconditioned(:)
+        real(dp), allocatable :: operator_direction(:), work(:)
+        real(dp) :: right_hand_side_norm, target, rho, next_rho
+        real(dp) :: denominator, step, beta
+
+        info = KRYLOV_INVALID_ARGUMENT
+        iterations = 0
+        residual_norm = huge(1.0_dp)
+        if (size(right_hand_side) < 1) return
+        if (size(solution) /= size(right_hand_side)) return
+        if (tolerance <= 0.0_dp .or. max_iterations < 1) return
+
+        allocate( &
+            residual(size(solution)), direction(size(solution)), &
+            preconditioned(size(solution)), operator_direction(size(solution)), &
+            work(size(solution)))
+        right_hand_side_norm = norm2(right_hand_side)
+        target = tolerance*max(right_hand_side_norm, 1.0_dp)
+        if (right_hand_side_norm == 0.0_dp) then
+            solution = 0.0_dp
+            residual_norm = 0.0_dp
+            info = KRYLOV_OK
+            return
+        end if
+
+        call matvec(solution, work)
+        residual = right_hand_side - work
+        residual_norm = norm2(residual)
+        if (residual_norm <= target) then
+            info = KRYLOV_OK
+            return
+        end if
+
+        if (present(preconditioner)) then
+            call preconditioner(residual, preconditioned)
+        else
+            preconditioned = residual
+        end if
+        rho = dot_product(residual, preconditioned)
+        if (rho <= 0.0_dp) then
+            info = KRYLOV_BREAKDOWN
+            return
+        end if
+        if (.not. ieee_is_finite(rho)) then
+            info = KRYLOV_BREAKDOWN
+            return
+        end if
+        direction = preconditioned
+
+        do while (iterations < max_iterations)
+            call matvec(direction, operator_direction)
+            denominator = dot_product(direction, operator_direction)
+            if (denominator <= 0.0_dp) then
+                info = KRYLOV_BREAKDOWN
+                return
+            end if
+            if (.not. ieee_is_finite(denominator)) then
+                info = KRYLOV_BREAKDOWN
+                return
+            end if
+            step = rho/denominator
+            solution = solution + step*direction
+            residual = residual - step*operator_direction
+            iterations = iterations + 1
+            residual_norm = norm2(residual)
+            if (residual_norm <= target) then
+                ! Recompute the residual from the operator before accepting
+                ! recurrence-based convergence; this catches loss of
+                ! orthogonality and inaccurate device callbacks.
+                call matvec(solution, work)
+                residual_norm = norm2(right_hand_side - work)
+                if (residual_norm <= target) then
+                    info = KRYLOV_OK
+                    return
+                end if
+                residual = right_hand_side - work
+            end if
+
+            if (present(preconditioner)) then
+                call preconditioner(residual, preconditioned)
+            else
+                preconditioned = residual
+            end if
+            next_rho = dot_product(residual, preconditioned)
+            if (next_rho <= 0.0_dp) then
+                info = KRYLOV_BREAKDOWN
+                return
+            end if
+            if (.not. ieee_is_finite(next_rho)) then
+                info = KRYLOV_BREAKDOWN
+                return
+            end if
+            beta = next_rho/rho
+            direction = preconditioned + beta*direction
+            rho = next_rho
+        end do
+
+        call matvec(solution, work)
+        residual_norm = norm2(right_hand_side - work)
+        if (residual_norm <= target) then
+            info = KRYLOV_OK
+        else
+            info = KRYLOV_MAX_ITERATIONS
+        end if
+    end subroutine real_conjugate_gradient_operator
 
     subroutine real_gmres_operator( &
             matvec, right_hand_side, solution, tolerance, max_iterations, &
