@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "date": "2026-08-05",
+  "operator": "spd_cholesky",
+  "product": "factor_and_solve",
+  "source_revision": "eee342d",
+  "workload": "64x64 SPD factorization, one right-hand side, 100 repetitions",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor",
+    "pinned_cpu": null
+  },
+  "toolchain": {
+    "gfortran": "16.1.1 20260728",
+    "cmake": "not used",
+    "fortsym_commit": null
+  },
+  "sampling": {
+    "warmup_rounds": 0,
+    "samples": 15,
+    "calls_per_sample": 100,
+    "memory_processes_per_candidate": 1,
+    "memory_aggregation": "maximum"
+  },
+  "validation": {
+    "oracle": "independent lower-triangular reconstruction and known linear-system solution",
+    "absolute_tolerance": 2e-14,
+    "maximum_absolute_error": 2e-14
+  },
+  "native_code": {
+    "executable_bytes": null,
+    "factor_symbol_bytes": null
+  },
+  "candidates": [
+    {
+      "id": "lapack_dpotrf_dpotrs",
+      "mechanism": "analytical",
+      "median_ns_per_call": 34687.34,
+      "mad_ns_per_call": 1644.0,
+      "peak_rss_bytes": 5832704
+    }
+  ],
+  "selection": {
+    "selected": "lapack_dpotrf_dpotrs",
+    "reason": "validated SPD factorization and solve with the only implemented candidate"
+  }
+}
