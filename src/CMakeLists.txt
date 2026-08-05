@@ -115,6 +115,7 @@ target_sources(fortnum PRIVATE
     interp/fortnum_bspline.f90
     interp/fortnum_interp.f90
     interp/fortnum_polynomial.f90
+    linalg/fortnum_cholesky.f90
     linalg/fortnum_krylov.f90
     linalg/fortnum_linalg.f90
     ode/fortnum_ode.f90
