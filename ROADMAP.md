@@ -147,6 +147,8 @@ composition with at least one analytical rule.
 - [x] Add an analytical inverse JVP for callers that require an inverse.
 - [x] Add an analytical inverse VJP for callers that require an inverse.
 - [x] Add a reusable LU factorization object.
+- [x] Add a reusable SPD Cholesky factorization object with vector and
+  multiple-right-hand-side solves and log-determinant support.
 - [x] Add multiple-right-hand-side tangent solves.
 - [x] Add multiple-right-hand-side adjoint solves.
 - [x] Add a forward-mode autodiff direct-solver JVP comparator.

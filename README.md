@@ -82,7 +82,7 @@ The main public modules are:
 | ODEs | `fortnum_ode` and method modules |
 | roots | `fortnum_roots`, `fortnum_multiroot`, `fortnum_roots_complex` |
 | interpolation | `fortnum_interp`, `fortnum_polynomial`, `fortnum_bspline` |
-| linear algebra | `fortnum_linalg`, `fortnum_krylov` |
+| linear algebra | `fortnum_linalg`, `fortnum_cholesky`, `fortnum_krylov` |
 | random numbers | `fortnum_rng` |
 
 The [API guide](docs/api.md) shows the public families and common call
