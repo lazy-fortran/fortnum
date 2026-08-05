@@ -158,6 +158,20 @@ composition with at least one analytical rule.
   justifies it.
 - [x] Benchmark all implemented linear-algebra candidates.
 
+## Matrix-free operators for scalable GP consumers
+
+- [x] Add a real matrix-free SPD conjugate-gradient solver with optional
+  preconditioning, true-residual reporting, and an independent dense-LU oracle.
+- [ ] Add multi-right-hand-side CG products without materializing the operator.
+- [ ] Add reusable diagonal, block, incomplete-factorization, and Nystrom
+  preconditioner contracts for kernel operators.
+- [ ] Add structure-preserving operators for compact-support sparse matrices,
+  one-dimensional and multilevel Toeplitz grids, and Kronecker/tensor-product
+  grids. Prefer FFT or tensor contractions when the covariance structure
+  permits them.
+- [ ] Add accelerator-safe operator callbacks with persistent OpenACC,
+  OpenMP-target, and CUDA Fortran device data.
+
 ## Evidence report
 
 - [x] Add cumulative `analytical`, finite-difference diagnostic, `autodiff`,

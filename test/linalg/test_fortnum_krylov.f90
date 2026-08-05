@@ -1,7 +1,7 @@
 program test_fortnum_krylov
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
     use fortnum_krylov, only: complex_gmres_operator, real_gmres_operator, &
-        KRYLOV_OK, &
+        real_conjugate_gradient_operator, KRYLOV_BREAKDOWN, KRYLOV_OK, &
         KRYLOV_INVALID_ARGUMENT
     use fortnum_linalg, only: dense_solve, LINALG_OK
     implicit none
@@ -10,6 +10,7 @@ program test_fortnum_krylov
     complex(dp) :: dense_solution(5), zero_solution(5)
     real(dp) :: real_matrix(5, 5), real_rhs(5), real_solution(5)
     real(dp) :: real_dense_solution(5)
+    real(dp) :: diagonal(5), indefinite_matrix(5, 5)
     real(dp) :: residual_norm
     integer :: column, info, iterations, row
 
@@ -68,6 +69,42 @@ program test_fortnum_krylov
     call require(residual_norm < 1.0e-11_dp, &
         "real GMRES reports the true small residual")
 
+    real_matrix = 0.0_dp
+    do row = 1, 5
+        real_matrix(row, row) = 2.0_dp + 0.2_dp*row
+        if (row < 5) then
+            real_matrix(row, row + 1) = -0.4_dp
+            real_matrix(row + 1, row) = -0.4_dp
+        end if
+    end do
+    real_rhs = [1.0_dp, -2.0_dp, 0.5_dp, 3.0_dp, -1.0_dp]
+    diagonal = [(real_matrix(row, row), row=1, 5)]
+    call dense_solve(real_matrix, real_rhs, real_dense_solution, info)
+    call require(info == LINALG_OK, "dense SPD oracle solves the test system")
+    real_solution = 0.0_dp
+    call real_conjugate_gradient_operator( &
+        apply_spd_matrix, real_rhs, real_solution, 1.0e-12_dp, 20, info, &
+        iterations, residual_norm, diagonal_preconditioner)
+    call require(info == KRYLOV_OK, "preconditioned CG converges")
+    call require(iterations > 0 .and. iterations <= 5, &
+        "CG uses a bounded number of SPD iterations")
+    call require(maxval(abs(real_solution - real_dense_solution)) < 2.0e-11_dp, &
+        "CG matches the independent dense LU oracle")
+    call require(residual_norm < 1.0e-11_dp, "CG reports the true residual")
+
+    indefinite_matrix = -real_matrix
+    real_solution = 0.0_dp
+    call real_conjugate_gradient_operator( &
+        apply_indefinite_matrix, real_rhs, real_solution, 1.0e-12_dp, 20, &
+        info, iterations, residual_norm)
+    call require(info == KRYLOV_BREAKDOWN, &
+        "CG rejects a non-positive-definite operator")
+
+    call real_conjugate_gradient_operator( &
+        apply_spd_matrix, real_rhs, real_solution, -1.0_dp, 20, info, &
+        iterations, residual_norm)
+    call require(info == KRYLOV_INVALID_ARGUMENT, "CG rejects negative tolerance")
+
 contains
 
     subroutine apply_matrix(input, output)
@@ -83,6 +120,27 @@ contains
 
         output = matmul(real_matrix, input)
     end subroutine apply_real_matrix
+
+    subroutine apply_spd_matrix(input, output)
+        real(dp), intent(in) :: input(:)
+        real(dp), intent(out) :: output(:)
+
+        output = matmul(real_matrix, input)
+    end subroutine apply_spd_matrix
+
+    subroutine apply_indefinite_matrix(input, output)
+        real(dp), intent(in) :: input(:)
+        real(dp), intent(out) :: output(:)
+
+        output = matmul(indefinite_matrix, input)
+    end subroutine apply_indefinite_matrix
+
+    subroutine diagonal_preconditioner(input, output)
+        real(dp), intent(in) :: input(:)
+        real(dp), intent(out) :: output(:)
+
+        output = input/diagonal
+    end subroutine diagonal_preconditioner
 
     subroutine require(condition, description)
         logical, intent(in) :: condition
