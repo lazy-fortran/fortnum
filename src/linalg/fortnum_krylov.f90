@@ -22,6 +22,12 @@ module fortnum_krylov
             real(dp), intent(out) :: output(:)
         end subroutine real_matvec_t
 
+        subroutine real_matmat_t(input, output)
+            import :: dp
+            real(dp), intent(in) :: input(:, :)
+            real(dp), intent(out) :: output(:, :)
+        end subroutine real_matmat_t
+
         subroutine complex_matvec_t(input, output)
             import :: dp
             complex(dp), intent(in) :: input(:)
@@ -38,7 +44,9 @@ module fortnum_krylov
     public :: complex_gmres_operator
     public :: complex_matvec_t
     public :: real_conjugate_gradient_operator
+    public :: real_conjugate_gradient_matmat_operator
     public :: real_gmres_operator
+    public :: real_matmat_t
     public :: real_matvec_t
     public :: real_preconditioner_t
 
@@ -166,6 +174,181 @@ contains
             info = KRYLOV_MAX_ITERATIONS
         end if
     end subroutine real_conjugate_gradient_operator
+
+    subroutine real_conjugate_gradient_matmat_operator( &
+            matmat, right_hand_side, solution, tolerance, max_iterations, &
+            info, iterations, residual_norm, preconditioner)
+        !! Solve independent SPD systems while batching operator products.
+        !!
+        !! Each right-hand side follows its own CG recurrence. Active search
+        !! directions are presented to one matrix-matrix callback per
+        !! iteration, allowing a kernel backend to reuse pairwise work.
+        procedure(real_matmat_t) :: matmat
+        real(dp), intent(in) :: right_hand_side(:, :)
+        real(dp), intent(inout) :: solution(:, :)
+        real(dp), intent(in) :: tolerance
+        integer, intent(in) :: max_iterations
+        integer, intent(out) :: info(:), iterations(:)
+        real(dp), intent(out) :: residual_norm(:)
+        procedure(real_matmat_t), optional :: preconditioner
+
+        logical, allocatable :: active(:), candidate(:)
+        real(dp), allocatable :: residual(:, :), direction(:, :)
+        real(dp), allocatable :: preconditioned(:, :), operator_direction(:, :)
+        real(dp), allocatable :: work(:, :)
+        real(dp), allocatable :: right_hand_side_norm(:), target_norm(:)
+        real(dp), allocatable :: rho(:), next_rho(:), denominator(:)
+        real(dp) :: step, beta
+        integer :: n_samples, n_rhs, column
+
+        info = KRYLOV_INVALID_ARGUMENT
+        iterations = 0
+        residual_norm = huge(1.0_dp)
+        n_samples = size(right_hand_side, 1)
+        n_rhs = size(right_hand_side, 2)
+        if (n_samples < 1 .or. n_rhs < 1) return
+        if (any(shape(solution) /= [n_samples, n_rhs])) return
+        if (size(info) /= n_rhs .or. size(iterations) /= n_rhs .or. &
+            size(residual_norm) /= n_rhs) return
+        if (tolerance <= 0.0_dp .or. max_iterations < 1) return
+
+        allocate( &
+            residual(n_samples, n_rhs), direction(n_samples, n_rhs), &
+            preconditioned(n_samples, n_rhs), &
+            operator_direction(n_samples, n_rhs), work(n_samples, n_rhs), &
+            right_hand_side_norm(n_rhs), target_norm(n_rhs), rho(n_rhs), &
+            next_rho(n_rhs), &
+            denominator(n_rhs), active(n_rhs), candidate(n_rhs))
+
+        info = KRYLOV_MAX_ITERATIONS
+        iterations = 0
+        residual_norm = huge(1.0_dp)
+        active = .false.
+        candidate = .false.
+        do column = 1, n_rhs
+            right_hand_side_norm(column) = norm2(right_hand_side(:, column))
+            target_norm(column) = tolerance*max( &
+                right_hand_side_norm(column), 1.0_dp)
+            if (right_hand_side_norm(column) == 0.0_dp) then
+                solution(:, column) = 0.0_dp
+            end if
+        end do
+
+        call matmat(solution, work)
+        residual = right_hand_side - work
+        if (present(preconditioner)) then
+            call preconditioner(residual, preconditioned)
+        else
+            preconditioned = residual
+        end if
+        do column = 1, n_rhs
+            residual_norm(column) = norm2(residual(:, column))
+            if (residual_norm(column) <= target_norm(column)) then
+                info(column) = KRYLOV_OK
+            else
+                rho(column) = dot_product( &
+                    residual(:, column), preconditioned(:, column))
+                if (rho(column) <= 0.0_dp .or. &
+                    .not. ieee_is_finite(rho(column))) then
+                    info(column) = KRYLOV_BREAKDOWN
+                else
+                    direction(:, column) = preconditioned(:, column)
+                    active(column) = .true.
+                end if
+            end if
+        end do
+
+        do while (any(active))
+            call matmat(direction, operator_direction)
+            candidate = .false.
+            do column = 1, n_rhs
+                if (active(column)) then
+                    denominator(column) = dot_product( &
+                        direction(:, column), operator_direction(:, column))
+                    if (denominator(column) <= 0.0_dp .or. &
+                        .not. ieee_is_finite(denominator(column))) then
+                        info(column) = KRYLOV_BREAKDOWN
+                        active(column) = .false.
+                    else
+                        step = rho(column)/denominator(column)
+                        solution(:, column) = solution(:, column) + &
+                            step*direction(:, column)
+                        residual(:, column) = residual(:, column) - &
+                            step*operator_direction(:, column)
+                        iterations(column) = iterations(column) + 1
+                        residual_norm(column) = norm2(residual(:, column))
+                        if (residual_norm(column) <= target_norm(column) .or. &
+                            iterations(column) >= max_iterations) then
+                            candidate(column) = .true.
+                        end if
+                    end if
+                end if
+            end do
+
+            if (any(candidate)) then
+                call matmat(solution, work)
+                do column = 1, n_rhs
+                    if (candidate(column)) then
+                        residual(:, column) = right_hand_side(:, column) - &
+                            work(:, column)
+                        residual_norm(column) = norm2(residual(:, column))
+                        if (residual_norm(column) <= target_norm(column)) then
+                            info(column) = KRYLOV_OK
+                            active(column) = .false.
+                            direction(:, column) = 0.0_dp
+                        else if (iterations(column) >= max_iterations) then
+                            info(column) = KRYLOV_MAX_ITERATIONS
+                            active(column) = .false.
+                            direction(:, column) = 0.0_dp
+                        else
+                            candidate(column) = .false.
+                        end if
+                    end if
+                end do
+            end if
+
+            if (present(preconditioner)) then
+                call preconditioner(residual, preconditioned)
+            else
+                preconditioned = residual
+            end if
+            do column = 1, n_rhs
+                if (active(column)) then
+                    next_rho(column) = dot_product( &
+                        residual(:, column), preconditioned(:, column))
+                    if (next_rho(column) <= 0.0_dp .or. &
+                        .not. ieee_is_finite(next_rho(column))) then
+                        info(column) = KRYLOV_BREAKDOWN
+                        active(column) = .false.
+                    else
+                        beta = next_rho(column)/rho(column)
+                        direction(:, column) = preconditioned(:, column) + &
+                            beta*direction(:, column)
+                        rho(column) = next_rho(column)
+                    end if
+                end if
+            end do
+        end do
+
+        call matmat(solution, work)
+        do column = 1, n_rhs
+            residual(:, column) = right_hand_side(:, column) - work(:, column)
+            residual_norm(column) = norm2(residual(:, column))
+            if (residual_norm(column) <= target_norm(column)) then
+                info(column) = KRYLOV_OK
+            end if
+        end do
+
+    contains
+
+        function norm2(vector) result(value)
+            real(dp), intent(in) :: vector(:)
+            real(dp) :: value
+
+            value = sqrt(dot_product(vector, vector))
+        end function norm2
+
+    end subroutine real_conjugate_gradient_matmat_operator
 
     subroutine real_gmres_operator( &
             matvec, right_hand_side, solution, tolerance, max_iterations, &
