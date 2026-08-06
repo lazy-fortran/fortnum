@@ -337,7 +337,10 @@ They never form an inverse for the derivative of a solve.
 `fortnum_krylov` provides matrix-free Krylov products. The caller supplies a
 stateless matrix-vector procedure; `real_conjugate_gradient_operator` solves
 real symmetric positive-definite systems with an optional preconditioner and
-reports iterations plus the true final residual. `complex_gmres_operator`
+reports iterations plus the true final residual. The
+`real_conjugate_gradient_matmat_operator` variant applies independent CG
+recurrences to multiple right-hand sides while batching active directions in
+one matrix-matrix callback. `complex_gmres_operator`
 provides restarted complex GMRES using reorthogonalized modified
 Gram--Schmidt and complex Givens rotations. Structured kernel operators and
 device-resident callbacks are planned consumers of these contracts.

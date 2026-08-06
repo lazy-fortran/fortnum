@@ -162,7 +162,9 @@ composition with at least one analytical rule.
 
 - [x] Add a real matrix-free SPD conjugate-gradient solver with optional
   preconditioning, true-residual reporting, and an independent dense-LU oracle.
-- [ ] Add multi-right-hand-side CG products without materializing the operator.
+- [x] Add multi-right-hand-side CG products without materializing the operator;
+  each active right-hand side follows an independent recurrence while one
+  matrix-matrix callback batches the operator product.
 - [ ] Add reusable diagonal, block, incomplete-factorization, and Nystrom
   preconditioner contracts for kernel operators.
 - [ ] Add structure-preserving operators for compact-support sparse matrices,
