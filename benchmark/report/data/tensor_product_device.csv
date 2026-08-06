@@ -1,0 +1,3 @@
+compiler,flags,device,cpu,gpu,affinity,n_samples,n_rhs,dimension,repetitions,host_seconds,device_transfer_seconds,device_resident_seconds,host_to_resident,transfer_to_resident,peak_rss_kb,build_seconds,code_size_bytes
+nvfortran,-O3 -acc,cuda,AMD Ryzen 9 5950X 16-Core Processor,GeForce RTX 5060 Ti,CPU 4,512,4,3,200,3.694050e-05,8.111500e-05,6.524000e-05,5.662247e-01,1.243332e+00,118436,1.33,335762
+nvfortran,-O3 -acc,cuda,AMD Ryzen 9 5950X 16-Core Processor,GeForce RTX 5060 Ti,CPU 4,4096,4,3,60,8.427333e-04,1.779467e-04,1.260850e-04,6.683851e+00,1.411323e+00,118436,1.33,335762

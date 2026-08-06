@@ -243,6 +243,15 @@ dimension, so the represented matrix is (A_d\otimes\cdots\otimes A_1).
 full Kronecker matrix. Invalid factor shapes and vector or RHS dimensions
 return `FORTNUM_DOMAIN_ERROR` through `fortnum_status_t`.
 
+For OpenACC, `enter_data(status, n_rhs)` copies the factors and allocates
+persistent vector and optional multi-RHS workspaces; `exit_data(status)` ends
+that lifetime. `matvec_device` and `matmat_device` then apply the contractions
+inside a caller-owned OpenACC data region whose input and output arrays are
+present. This keeps factor and work arrays resident across repeated products;
+the independent device test checks the results against the same dense oracle as
+the host path. OpenMP-target and CUDA Fortran backends remain separate roadmap
+items.
+
 `fortnum_toeplitz` provides `toeplitz_operator_t` for one-dimensional grid
 operators. Its first column and optional first row define the Toeplitz matrix;
 omitting the row gives the symmetric covariance case. Initialization caches a
