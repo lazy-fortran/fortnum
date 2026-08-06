@@ -14,6 +14,7 @@ contains
         next_order, following_order_b, x_b, current_b, next_order_b)
         use, intrinsic :: iso_fortran_env, only: dp => real64
         implicit none
+        !$acc routine seq
         real(dp), intent(in) :: degree
         real(dp), intent(in) :: order
         real(dp), intent(in) :: x

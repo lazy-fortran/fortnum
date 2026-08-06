@@ -14,6 +14,7 @@ contains
         b_b, c_b, d_b, f_b, g_b, h_b, j_b, k_b)
         use, intrinsic :: iso_fortran_env, only: dp => real64
         implicit none
+        !$acc routine seq
         real(dp), intent(in) :: a
         real(dp), intent(in) :: b
         real(dp), intent(in) :: c

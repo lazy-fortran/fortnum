@@ -14,6 +14,7 @@ contains
         x_b, y1_b, y2_b, y3_b, y4_b)
         use, intrinsic :: iso_fortran_env, only: dp => real64
         implicit none
+        !$acc routine seq
         real(dp), intent(in) :: x
         real(dp), intent(in) :: y1
         real(dp), intent(in) :: y2

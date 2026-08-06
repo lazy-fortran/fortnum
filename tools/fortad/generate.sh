@@ -94,6 +94,29 @@ for spec in "${multi_output[@]}"; do
         -o "$out/fortnum_${op}_vjp_fortad.f90" "$src"
 done
 
+# Every generated derivative kernel is called from inside an OpenACC compute
+# region by at least one caller (fortnum_linalg does it, and downstream
+# libraries do it through the kernel operators). nvfortran refuses a call in a
+# compute region to a procedure with no `acc routine` information, so the
+# directive is added here rather than left for each consumer to discover as a
+# build failure. It is a comment to every compiler that does not read it.
+python3 - "$out" <<'PYTHON'
+import pathlib
+import sys
+
+directive = "        !$acc routine seq\n"
+for path in sorted(pathlib.Path(sys.argv[1]).glob("*.f90")):
+    lines = path.read_text().splitlines(keepends=True)
+    if any("acc routine" in line for line in lines):
+        continue
+    patched = []
+    for line in lines:
+        patched.append(line)
+        if line == "        implicit none\n":
+            patched.append(directive)
+    path.write_text("".join(patched))
+PYTHON
+
 # The primals themselves are compiled into the library, so the tests have
 # something to difference the generated products against. The generator reads
 # the copies under tools/; these are what link.

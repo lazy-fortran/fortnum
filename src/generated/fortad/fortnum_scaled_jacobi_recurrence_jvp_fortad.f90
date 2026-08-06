@@ -14,6 +14,7 @@ contains
         x, x_d, scale, scale_d, previous, previous_d, current, current_d, next_d)
         use, intrinsic :: iso_fortran_env, only: dp => real64
         implicit none
+        !$acc routine seq
         real(dp), intent(in) :: degree
         real(dp), intent(in) :: alpha
         real(dp), intent(in) :: beta
