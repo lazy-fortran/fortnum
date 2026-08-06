@@ -176,8 +176,11 @@ composition with at least one analytical rule.
   matrix-free tensor contractions, including vector, multi-RHS, and diagonal
   products. The first factor is the innermost grid dimension, and tests compare
   against an explicitly assembled dense Kronecker oracle.
-- [ ] Add accelerator-safe operator callbacks with persistent OpenACC,
-  OpenMP-target, and CUDA Fortran device data.
+- [x] Add OpenACC accelerator-safe tensor-product callbacks with persistent
+  factor and vector/multi-RHS work data, plus nvfortran CUDA execution and
+  independent dense-oracle tests.
+- [ ] Extend accelerator-safe operator callbacks to OpenMP-target and CUDA
+  Fortran device data, and connect persistent device products to CG.
 
 ## Evidence report
 

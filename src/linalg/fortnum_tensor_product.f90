@@ -19,11 +19,20 @@ module fortnum_tensor_product
     type, public :: tensor_product_operator_t
         type(tensor_factor_t), allocatable :: factors(:)
         integer, allocatable :: dimensions(:)
+        real(dp), pointer :: device_current(:) => null(), device_work(:) => null()
+        real(dp), pointer :: device_current_matrix(:, :) => null()
+        real(dp), pointer :: device_work_matrix(:, :) => null()
         integer :: total_size = 0
+        integer :: device_rhs = 0
+        logical :: device_resident = .false.
     contains
         procedure, public :: initialize => tensor_product_initialize
         procedure, public :: matvec => tensor_product_matvec
         procedure, public :: matmat => tensor_product_matmat
+        procedure, public :: enter_data => tensor_product_enter_data
+        procedure, public :: exit_data => tensor_product_exit_data
+        procedure, public :: matvec_device => tensor_product_matvec_device
+        procedure, public :: matmat_device => tensor_product_matmat_device
         procedure, public :: diagonal => tensor_product_diagonal
         procedure, public :: element_count => tensor_product_element_count
     end type tensor_product_operator_t
@@ -39,6 +48,7 @@ contains
         integer(int64) :: total_size
 
         self%total_size = 0
+        self%device_resident = .false.
         if (size(factors) < 1) then
             call status_set(status, FORTNUM_DOMAIN_ERROR, &
                 "tensor product: at least one factor is required")
@@ -82,6 +92,76 @@ contains
         self%total_size = int(total_size)
         call status_set(status, FORTNUM_OK, "")
     end subroutine tensor_product_initialize
+
+    subroutine tensor_product_enter_data(self, status, n_rhs)
+        class(tensor_product_operator_t), intent(inout) :: self
+        type(fortnum_status_t), intent(out) :: status
+        integer, intent(in), optional :: n_rhs
+
+        integer :: mode, requested_rhs
+
+        call validate_ready(self, status)
+        if (status%code /= FORTNUM_OK) return
+        requested_rhs = 0
+        if (present(n_rhs)) requested_rhs = n_rhs
+        if (requested_rhs < 0) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "tensor product: device RHS count must be nonnegative")
+            return
+        end if
+        if (self%device_resident) then
+            if (requested_rhs > self%device_rhs) then
+                call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                    "tensor product: device workspace already has fewer RHS")
+                return
+            end if
+            call status_set(status, FORTNUM_OK, "")
+            return
+        end if
+        allocate(self%device_current(self%total_size), &
+            self%device_work(self%total_size))
+        if (requested_rhs > 0) then
+            allocate( &
+                self%device_current_matrix(self%total_size, requested_rhs), &
+                self%device_work_matrix(self%total_size, requested_rhs))
+        end if
+        do mode = 1, size(self%factors)
+            !$acc enter data copyin(self%factors(mode)%values)
+        end do
+        !$acc enter data create(self%device_current, self%device_work)
+        if (requested_rhs > 0) then
+            !$acc enter data create( &
+            !$acc& self%device_current_matrix, self%device_work_matrix)
+        end if
+        self%device_rhs = requested_rhs
+        self%device_resident = .true.
+        call status_set(status, FORTNUM_OK, "")
+    end subroutine tensor_product_enter_data
+
+    subroutine tensor_product_exit_data(self, status)
+        class(tensor_product_operator_t), intent(inout) :: self
+        type(fortnum_status_t), intent(out) :: status
+
+        integer :: mode
+
+        if (.not. self%device_resident) then
+            call status_set(status, FORTNUM_OK, "")
+            return
+        end if
+        do mode = size(self%factors), 1, -1
+            !$acc exit data delete(self%factors(mode)%values)
+        end do
+        if (associated(self%device_current_matrix)) then
+            !$acc exit data delete( &
+            !$acc& self%device_current_matrix, self%device_work_matrix)
+            deallocate(self%device_current_matrix, self%device_work_matrix)
+        end if
+        !$acc exit data delete(self%device_current, self%device_work)
+        deallocate(self%device_current, self%device_work)
+        self%device_rhs = 0
+        self%device_resident = .false.
+        call status_set(status, FORTNUM_OK, "")
+    end subroutine tensor_product_exit_data
 
     subroutine tensor_product_matvec(self, input, output, status)
         class(tensor_product_operator_t), intent(in) :: self
@@ -138,6 +218,114 @@ contains
         output = current
         call status_set(status, FORTNUM_OK, "")
     end subroutine tensor_product_matmat
+
+    subroutine tensor_product_matvec_device(self, input, output, status)
+        class(tensor_product_operator_t), intent(inout) :: self
+        real(dp), intent(in) :: input(:)
+        real(dp), intent(out) :: output(:)
+        type(fortnum_status_t), intent(out) :: status
+
+        real(dp), pointer :: current(:), work(:)
+        integer :: mode, stride, block_count, index, n
+
+        call validate_vector_shapes(self, size(input), size(output), status)
+        if (status%code /= FORTNUM_OK) return
+        if (.not. self%device_resident) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "tensor product: enter_data is required for device products")
+            return
+        end if
+
+        if (.not. associated(self%device_current)) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "tensor product: device workspace is missing")
+            return
+        end if
+        n = self%total_size
+        current => self%device_current
+        work => self%device_work
+        !$acc data present(input, output, current, work)
+        !$acc parallel loop
+        do index = 1, n
+            current(index) = input(index)
+        end do
+        do mode = 1, size(self%dimensions)
+            stride = mode_stride(self, mode)
+            block_count = self%total_size/(stride*self%dimensions(mode))
+            call apply_factor_vector_acc( &
+                self%factors(mode)%values, self%dimensions(mode), stride, &
+                block_count, current, work)
+            !$acc parallel loop
+            do index = 1, n
+                current(index) = work(index)
+            end do
+        end do
+        !$acc parallel loop
+        do index = 1, n
+            output(index) = current(index)
+        end do
+        !$acc end data
+        call status_set(status, FORTNUM_OK, "")
+    end subroutine tensor_product_matvec_device
+
+    subroutine tensor_product_matmat_device(self, input, output, status)
+        class(tensor_product_operator_t), intent(inout) :: self
+        real(dp), intent(in) :: input(:, :)
+        real(dp), intent(out) :: output(:, :)
+        type(fortnum_status_t), intent(out) :: status
+
+        real(dp), pointer :: current(:, :), work(:, :)
+        integer :: mode, stride, block_count, row, column, n, n_rhs
+
+        call validate_matrix_shapes( &
+            self, size(input, 1), size(input, 2), size(output, 1), &
+            size(output, 2), status)
+        if (status%code /= FORTNUM_OK) return
+        if (.not. self%device_resident) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "tensor product: enter_data is required for device products")
+            return
+        end if
+
+        if (.not. associated(self%device_current_matrix) .or. &
+            size(self%device_current_matrix, 2) < size(input, 2)) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "tensor product: device matrix workspace is too small")
+            return
+        end if
+        n = self%total_size
+        n_rhs = size(input, 2)
+        current => self%device_current_matrix
+        work => self%device_work_matrix
+        !$acc data present(input, output, current, work)
+        !$acc parallel loop collapse(2)
+        do column = 1, n_rhs
+            do row = 1, n
+                current(row, column) = input(row, column)
+            end do
+        end do
+        do mode = 1, size(self%dimensions)
+            stride = mode_stride(self, mode)
+            block_count = self%total_size/(stride*self%dimensions(mode))
+            call apply_factor_matrix_acc( &
+                self%factors(mode)%values, self%dimensions(mode), stride, &
+                block_count, current, work)
+            !$acc parallel loop collapse(2)
+            do column = 1, n_rhs
+                do row = 1, n
+                    current(row, column) = work(row, column)
+                end do
+            end do
+        end do
+        !$acc parallel loop collapse(2)
+        do column = 1, n_rhs
+            do row = 1, n
+                output(row, column) = current(row, column)
+            end do
+        end do
+        !$acc end data
+        call status_set(status, FORTNUM_OK, "")
+    end subroutine tensor_product_matmat_device
 
     subroutine tensor_product_diagonal(self, output, status)
         class(tensor_product_operator_t), intent(in) :: self
@@ -296,5 +484,64 @@ contains
             end do
         end do
     end subroutine apply_factor_matrix
+
+    subroutine apply_factor_vector_acc( &
+            factor, dimension, stride, block_count, input, output)
+        real(dp), intent(in) :: factor(:, :)
+        integer, intent(in) :: dimension, stride, block_count
+        real(dp), intent(in) :: input(:)
+        real(dp), intent(out) :: output(:)
+
+        integer :: block, column, inner, offset, row, source, target
+        real(dp) :: value
+
+        !$acc parallel loop gang collapse(3) present(factor, input, output)
+        do block = 0, block_count - 1
+            do inner = 1, stride
+                do row = 1, dimension
+                    offset = block*stride*dimension
+                    value = 0.0_dp
+                    !$acc loop seq
+                    do column = 1, dimension
+                        source = offset + inner + (column - 1)*stride
+                        value = value + factor(row, column)*input(source)
+                    end do
+                    target = offset + inner + (row - 1)*stride
+                    output(target) = value
+                end do
+            end do
+        end do
+    end subroutine apply_factor_vector_acc
+
+    subroutine apply_factor_matrix_acc( &
+            factor, dimension, stride, block_count, input, output)
+        real(dp), intent(in) :: factor(:, :)
+        integer, intent(in) :: dimension, stride, block_count
+        real(dp), intent(in) :: input(:, :)
+        real(dp), intent(out) :: output(:, :)
+
+        integer :: block, column, inner, offset, row, source, target, rhs
+        real(dp) :: value
+
+        !$acc parallel loop gang collapse(3) present(factor, input, output)
+        do block = 0, block_count - 1
+            do inner = 1, stride
+                do row = 1, dimension
+                    offset = block*stride*dimension
+                    do rhs = 1, size(input, 2)
+                        value = 0.0_dp
+                        !$acc loop seq
+                        do column = 1, dimension
+                            source = offset + inner + (column - 1)*stride
+                            value = value + factor(row, column)* &
+                                input(source, rhs)
+                        end do
+                        target = offset + inner + (row - 1)*stride
+                        output(target, rhs) = value
+                    end do
+                end do
+            end do
+        end do
+    end subroutine apply_factor_matrix_acc
 
 end module fortnum_tensor_product

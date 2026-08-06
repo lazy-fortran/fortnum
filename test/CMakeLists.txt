@@ -306,6 +306,10 @@ add_executable(test_fortnum_tensor_product linalg/test_fortnum_tensor_product.f9
 target_link_libraries(test_fortnum_tensor_product PRIVATE fortnum)
 add_test(NAME fortnum_tensor_product COMMAND test_fortnum_tensor_product)
 
+add_executable(test_fortnum_tensor_product_device linalg/test_fortnum_tensor_product_device.f90)
+target_link_libraries(test_fortnum_tensor_product_device PRIVATE fortnum)
+add_test(NAME fortnum_tensor_product_device COMMAND test_fortnum_tensor_product_device)
+
 add_executable(test_fortnum_toeplitz linalg/test_fortnum_toeplitz.f90)
 target_link_libraries(test_fortnum_toeplitz PRIVATE fortnum)
 add_test(NAME fortnum_toeplitz COMMAND test_fortnum_toeplitz)
