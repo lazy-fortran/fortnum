@@ -217,7 +217,8 @@ replay the accepted subdivision stored in `integrate_result_t`.
 
 - `fortnum_fft_plan_t`
 - `fft_plan_init`
-- `fft_c2c`
+- `fft_c2c_plan_init`
+- `fft_c2c` (optionally with a caller-owned complex-transform plan)
 - `fft_r2c`
 - `fft_c2c_jvp`, `fft_c2c_vjp`
 - `fft_r2c_jvp`, `fft_r2c_vjp`
@@ -241,6 +242,15 @@ dimension, so the represented matrix is (A_d\otimes\cdots\otimes A_1).
 `matvec`, `matmat`, and `diagonal` apply the factors without assembling the
 full Kronecker matrix. Invalid factor shapes and vector or RHS dimensions
 return `FORTNUM_DOMAIN_ERROR` through `fortnum_status_t`.
+
+`fortnum_toeplitz` provides `toeplitz_operator_t` for one-dimensional grid
+operators. Its first column and optional first row define the Toeplitz matrix;
+omitting the row gives the symmetric covariance case. Initialization caches a
+circulant embedding spectrum, and `matvec`/`matmat` use FFT products without
+forming the dense matrix. The FFT convention is unnormalized in both
+directions, so the operator applies the required inverse-transform scaling
+internally. The current implementation is host-resident; accelerator-resident
+FFT products remain a separate integration item.
 
 ## ODEs
 

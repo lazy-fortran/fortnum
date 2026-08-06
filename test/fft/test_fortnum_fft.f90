@@ -3,7 +3,8 @@ program test_fortnum_fft
     ! linearity, and Parseval's theorem over a size battery.
     use, intrinsic :: iso_fortran_env, only: error_unit
     use fortnum_kinds, only: dp
-    use fortnum_fft, only: fft_c2c, fft_r2c, fortnum_fft_plan_t, fft_plan_init
+    use fortnum_fft, only: fft_c2c, fft_r2c, fortnum_fft_plan_t, &
+        fft_c2c_plan_init
     implicit none
 
     real(dp), parameter :: tol = 1.0e-11_dp
@@ -129,12 +130,11 @@ contains
 
         call fill_test(z1, n, 7)
         z2 = z1
-        call fft_plan_init(plan, n)
+        call fft_c2c_plan_init(plan, n)
         call fft_r2c_via_c2c(z1, n) ! plan-less reference via fft_c2c
-        ! plan-based (exercise the optional plan path of fft_r2c on real data)
-        ! re-fill z2, forward with plan
+        ! Re-fill z2 and exercise the optional plan path of fft_c2c.
         call fill_test(z2, n, 7)
-        call fft_c2c(z2, -1)
+        call fft_c2c(z2, -1, plan)
         err = maxval(abs(z1 - z2))
         if (.not. (err < tol)) then
             write (error_unit, "(a,es12.4)") "FAIL plan_reuse err=", err

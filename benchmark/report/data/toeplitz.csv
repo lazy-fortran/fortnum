@@ -1,0 +1,13 @@
+compiler,flags,cpu,gpu,affinity,n_samples,n_rhs,dimension,repetitions,toeplitz_seconds,dense_seconds,speedup,peak_rss_kb,build_seconds,code_size_bytes
+gfortran,-O3,AMD Ryzen 9 5950X 16-Core Processor,,CPU 4,128,4,1,400,8.827918e-06,,,6636,1.00,71423
+gfortran,-O3,AMD Ryzen 9 5950X 16-Core Processor,,CPU 4,256,4,1,240,1.820126e-05,,,6636,1.00,71423
+gfortran,-O3,AMD Ryzen 9 5950X 16-Core Processor,,CPU 4,512,4,1,120,4.000664e-05,4.515067e-04,1.128579e+01,6636,1.00,71423
+gfortran,-O3,AMD Ryzen 9 5950X 16-Core Processor,,CPU 4,1024,4,1,60,8.494207e-05,,,6636,1.00,71423
+gfortran,-O3,AMD Ryzen 9 5950X 16-Core Processor,,CPU 4,2048,4,1,24,2.062370e-04,,,6636,1.00,71423
+gfortran,-O3,AMD Ryzen 9 5950X 16-Core Processor,,CPU 4,4096,4,1,12,4.528633e-04,,,6636,1.00,71423
+nvfortran,-O3,AMD Ryzen 9 5950X 16-Core Processor,GeForce RTX 5060 Ti,CPU 4,128,4,1,400,6.922250e-06,,,10264,1.52,92988
+nvfortran,-O3,AMD Ryzen 9 5950X 16-Core Processor,GeForce RTX 5060 Ti,CPU 4,256,4,1,240,1.587875e-05,,,10264,1.52,92988
+nvfortran,-O3,AMD Ryzen 9 5950X 16-Core Processor,GeForce RTX 5060 Ti,CPU 4,512,4,1,120,3.524000e-05,1.857568e-03,5.271190e+01,10264,1.52,92988
+nvfortran,-O3,AMD Ryzen 9 5950X 16-Core Processor,GeForce RTX 5060 Ti,CPU 4,1024,4,1,60,7.163167e-05,,,10264,1.52,92988
+nvfortran,-O3,AMD Ryzen 9 5950X 16-Core Processor,GeForce RTX 5060 Ti,CPU 4,2048,4,1,24,1.623750e-04,,,10264,1.52,92988
+nvfortran,-O3,AMD Ryzen 9 5950X 16-Core Processor,GeForce RTX 5060 Ti,CPU 4,4096,4,1,12,3.745750e-04,,,10264,1.52,92988

@@ -306,6 +306,10 @@ add_executable(test_fortnum_tensor_product linalg/test_fortnum_tensor_product.f9
 target_link_libraries(test_fortnum_tensor_product PRIVATE fortnum)
 add_test(NAME fortnum_tensor_product COMMAND test_fortnum_tensor_product)
 
+add_executable(test_fortnum_toeplitz linalg/test_fortnum_toeplitz.f90)
+target_link_libraries(test_fortnum_toeplitz PRIVATE fortnum)
+add_test(NAME fortnum_toeplitz COMMAND test_fortnum_toeplitz)
+
 # --- M3 interp ---
 add_executable(test_fortnum_polynomial interp/test_fortnum_polynomial.f90)
 target_link_libraries(test_fortnum_polynomial PRIVATE fortnum)

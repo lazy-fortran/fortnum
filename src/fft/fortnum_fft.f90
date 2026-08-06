@@ -28,7 +28,8 @@ module fortnum_fft
     implicit none
     private
 
-    public :: fft_r2c, fft_c2c, fortnum_fft_plan_t, fft_plan_init
+    public :: fft_r2c, fft_c2c, fortnum_fft_plan_t, fft_plan_init, &
+        fft_c2c_plan_init
     public :: fft_c2c_jvp, fft_c2c_vjp, fft_r2c_jvp, fft_r2c_vjp
 
     real(dp), parameter :: pi = 3.141592653589793238462643383279502884_dp
@@ -47,6 +48,7 @@ module fortnum_fft
         integer :: nfacm = 0
         logical :: even = .false.
         logical :: bluestein = .false.
+        logical :: c2c_plan = .false.
         integer :: fac(max_fac) = 0
         integer :: facm(max_fac) = 0
         complex(dp), allocatable :: w(:)
@@ -66,6 +68,7 @@ contains
 
         if (n < 1) error stop "fft_plan_init: n must be positive"
         plan%n = n
+        plan%c2c_plan = .false.
         plan%even = mod(n, 2) == 0
         if (plan%even) then
             plan%ncpx = n/2
@@ -78,6 +81,18 @@ contains
         end if
         call init_core(plan, plan%ncpx)
     end subroutine fft_plan_init
+
+    subroutine fft_c2c_plan_init(plan, n)
+        ! Initialize a reusable plan for complex transforms of length n.
+        type(fortnum_fft_plan_t), intent(out) :: plan
+        integer, intent(in) :: n
+
+        if (n < 1) error stop "fft_c2c_plan_init: n must be positive"
+        plan%n = n
+        plan%ncpx = n
+        plan%c2c_plan = .true.
+        call init_core(plan, n)
+    end subroutine fft_c2c_plan_init
 
     subroutine fft_r2c(x, c, plan)
         ! Real-to-complex DFT. c has size n/2+1; c(k+1) is the k-th bin.
@@ -100,26 +115,41 @@ contains
         end if
     end subroutine fft_r2c
 
-    subroutine fft_c2c(z, sign)
+    subroutine fft_c2c(z, sign, plan)
         ! In-place complex-to-complex DFT.
         ! sign = -1: forward (exp(-2 pi i j k / n), FFTW / numpy convention).
         ! sign = +1: inverse (exp(+2 pi i j k / n)), unnormalized.
         complex(dp), intent(inout) :: z(:)
         integer, intent(in) :: sign
-        type(fortnum_fft_plan_t) :: plan
+        type(fortnum_fft_plan_t), intent(in), optional :: plan
+        type(fortnum_fft_plan_t) :: local_plan
 
         if (size(z) < 1) error stop "fft_c2c: empty input"
         if (abs(sign) /= 1) error stop "fft_c2c: sign must be -1 or +1"
+        if (present(plan)) then
+            if (plan%n /= size(z)) then
+                error stop "fft_c2c: plan built for different length"
+            end if
+            if (.not. plan%c2c_plan) then
+                error stop "fft_c2c: plan was not initialized for complex transforms"
+            end if
+        end if
         if (size(z) == 8) then
             call fft_c2c8(z(1), z(2), z(3), z(4), z(5), z(6), z(7), z(8), sign)
             return
         end if
-        plan%n = size(z)
-        plan%ncpx = size(z)
-        call init_core(plan, plan%ncpx)
+        if (present(plan)) then
+            if (sign == 1) z = conjg(z)
+            call c2c_forward(plan, z)
+            if (sign == 1) z = conjg(z)
+            return
+        end if
+        local_plan%n = size(z)
+        local_plan%ncpx = size(z)
+        call init_core(local_plan, local_plan%ncpx)
         ! Inverse via conj(forward(conj(.))): conjugate, forward, conjugate.
         if (sign == 1) z = conjg(z)
-        call c2c_forward(plan, z)
+        call c2c_forward(local_plan, z)
         if (sign == 1) z = conjg(z)
     end subroutine fft_c2c
 
