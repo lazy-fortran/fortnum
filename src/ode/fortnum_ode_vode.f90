@@ -188,7 +188,7 @@ contains
         integer,  intent(in),  optional      :: event_dir2
         class(*), intent(in), optional       :: ctx
 
-        integer  :: neq, kflag, nev, found_idx
+        integer  :: neq, kflag, nev, found_idx, nsteps_start
         integer  :: edir(VODE_MAX_EVENTS)
         real(dp) :: dir, etol, troot, tlast
         real(dp) :: g_left(VODE_MAX_EVENTS)
@@ -200,6 +200,7 @@ contains
         found_idx = 0
         troot = state%tn
         neq = state%neq
+        nsteps_start = state%nsteps
 
         if (present(root_found)) root_found = .false.
         if (present(t_root)) t_root = state%tn
@@ -291,7 +292,7 @@ contains
         end if
 
         do
-            if (state%nsteps >= state%max_steps) then
+            if (state%nsteps - nsteps_start >= state%max_steps) then
                 call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
                     "vode_integrate_to: exceeded max_steps")
                 exit
@@ -315,8 +316,12 @@ contains
                     tlast, g_left, troot, found, found_idx, ctx)
                 if (found) then
                     call interpolate(state, troot, y_out)
-                    state%tn = troot
-                    state%hu = troot - tlast
+                    ! The completed step leaves the Nordsieck history at state%tn,
+                    ! beyond the located root. A continuation must start from the
+                    ! interpolated root state, not from that future history with only
+                    ! its time stamp changed. Restarting also makes a zero at the
+                    ! left endpoint inert until the event function crosses again.
+                    call vode_init(state, neq, troot, y_out)
                     if (present(t_root)) t_root = troot
                     if (present(root_found)) root_found = .true.
                     if (present(event_index)) event_index = found_idx

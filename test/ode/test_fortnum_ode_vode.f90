@@ -25,7 +25,9 @@ program test_fortnum_ode_vode
     call check_linear_system(nfail)
     call check_event_root(nfail)
     call check_two_event_root(nfail)
+    call check_event_continuation(nfail)
     call check_restart_continuation(nfail)
+    call check_continuation_step_budget(nfail)
 
     if (nfail > 0) then
         write (error_unit, "(i0,a)") nfail, " test(s) failed"
@@ -276,6 +278,42 @@ contains
                             end if
                         end subroutine check_two_event_root
 
+                        ! Continue after an event using the same state.  For y1 = cos(t),
+                        ! successive zero crossings are pi/2 and 3*pi/2.  This independently
+                        ! checks that the state and time are both restarted at the first root.
+                        subroutine check_event_continuation(nfail)
+                            integer, intent(inout) :: nfail
+                            type(vode_state_t) :: st
+                            type(fortnum_status_t) :: status
+                            real(dp), allocatable :: yout(:)
+                            real(dp) :: atol(1), rtol, troot, expected
+                            logical :: found
+
+                            rtol = 1.0e-10_dp
+                            atol = 1.0e-12_dp
+                            call vode_init(st, 2, 0.0_dp, [1.0_dp, 0.0_dp])
+                            call vode_integrate_to(rhs_osc, st, 5.0_dp, rtol, atol, &
+                                yout, status, event=ev_y1, event_tol=1.0e-10_dp, &
+                                t_root=troot, root_found=found)
+                            call vode_integrate_to(rhs_osc, st, 5.0_dp, rtol, atol, &
+                                yout, status, event=ev_y1, event_tol=1.0e-10_dp, &
+                                t_root=troot, root_found=found)
+
+                            expected = 1.5_dp * PI
+                            write (*, "(a,l1,a,es20.12,a,es12.4)") &
+                                "event continuation: found=", found, " troot=", troot, &
+                                " err=", abs(troot - expected)
+                            if (.not. status_ok(status) .or. .not. found) then
+                                write (error_unit, "(a)") &
+                                    "  event continuation: second root not found"
+                                nfail = nfail + 1
+                            else if (abs(troot - expected) > 1.0e-8_dp) then
+                                write (error_unit, "(a)") &
+                                    "  event continuation: wrong second root"
+                                nfail = nfail + 1
+                            end if
+                        end subroutine check_event_continuation
+
                         ! Restart continuation: integrating to tout in one shot must match a series
                         ! of contiguous calls that carry state forward (KAMEL grid-to-grid usage).
                         subroutine check_restart_continuation(nfail)
@@ -305,5 +343,37 @@ contains
                                 nfail = nfail + 1
                             end if
                         end subroutine check_restart_continuation
+
+                        ! max_steps limits each integrate_to request, not the lifetime sum of
+                        ! accepted steps in a continued state. Two analytic decay intervals that
+                        ! each fit the first interval's budget must therefore both complete.
+                        subroutine check_continuation_step_budget(nfail)
+                            integer, intent(inout) :: nfail
+                            type(vode_state_t) :: st
+                            type(fortnum_status_t) :: status
+                            real(dp), allocatable :: yout(:)
+                            real(dp) :: atol(1), rtol
+                            integer :: first_steps
+
+                            rtol = 1.0e-9_dp
+                            atol = 1.0e-12_dp
+                            call vode_init(st, 1, 0.0_dp, [1.0_dp])
+                            call vode_integrate_to(rhs_decay, st, 1.0_dp, rtol, atol, &
+                                yout, status)
+                            first_steps = st%nsteps
+                            st%max_steps = first_steps + 5
+                            call vode_integrate_to(rhs_decay, st, 2.0_dp, rtol, atol, &
+                                yout, status)
+
+                            if (.not. status_ok(status)) then
+                                write (error_unit, "(a)") &
+                                    "  continuation budget: second interval exceeded budget"
+                                nfail = nfail + 1
+                            else if (abs(yout(1) - exp(-2.0_dp)) > 1.0e-8_dp) then
+                                write (error_unit, "(a)") &
+                                    "  continuation budget: wrong analytic endpoint"
+                                nfail = nfail + 1
+                            end if
+                        end subroutine check_continuation_step_budget
 
                     end program test_fortnum_ode_vode
