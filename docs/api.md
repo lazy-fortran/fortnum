@@ -233,6 +233,15 @@ shared by the analytical product and its autodiff benchmark candidate.
 That internal leaf lives in `fortnum_fft8_kernel`; callers should continue
 through `fortnum_fft`.
 
+## Structured tensor products
+
+`fortnum_tensor_product` provides `tensor_product_operator_t` for a caller-owned
+array of square `tensor_factor_t` matrices. Factor 1 is the fastest-varying
+dimension, so the represented matrix is (A_d\otimes\cdots\otimes A_1).
+`matvec`, `matmat`, and `diagonal` apply the factors without assembling the
+full Kronecker matrix. Invalid factor shapes and vector or RHS dimensions
+return `FORTNUM_DOMAIN_ERROR` through `fortnum_status_t`.
+
 ## ODEs
 
 The main stateful API is in `fortnum_ode`:

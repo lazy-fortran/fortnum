@@ -118,6 +118,7 @@ target_sources(fortnum PRIVATE
     linalg/fortnum_cholesky.f90
     linalg/fortnum_krylov.f90
     linalg/fortnum_linalg.f90
+    linalg/fortnum_tensor_product.f90
     ode/fortnum_ode.f90
     ode/fortnum_ode_cash_karp.f90
     ode/fortnum_ode_ddeabm.f90

@@ -167,10 +167,13 @@ composition with at least one analytical rule.
   matrix-matrix callback batches the operator product.
 - [ ] Add reusable diagonal, block, incomplete-factorization, and Nystrom
   preconditioner contracts for kernel operators.
-- [ ] Add structure-preserving operators for compact-support sparse matrices,
-  one-dimensional and multilevel Toeplitz grids, and Kronecker/tensor-product
-  grids. Prefer FFT or tensor contractions when the covariance structure
-  permits them.
+- [ ] Add structure-preserving operators for compact-support sparse matrices.
+- [ ] Add one-dimensional and multilevel Toeplitz grid operators, using FFT
+  products when the covariance structure permits them.
+- [x] Add a higher-dimensional Kronecker/tensor-product operator using
+  matrix-free tensor contractions, including vector, multi-RHS, and diagonal
+  products. The first factor is the innermost grid dimension, and tests compare
+  against an explicitly assembled dense Kronecker oracle.
 - [ ] Add accelerator-safe operator callbacks with persistent OpenACC,
   OpenMP-target, and CUDA Fortran device data.
 
