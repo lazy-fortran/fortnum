@@ -168,8 +168,10 @@ composition with at least one analytical rule.
 - [ ] Add reusable diagonal, block, incomplete-factorization, and Nystrom
   preconditioner contracts for kernel operators.
 - [ ] Add structure-preserving operators for compact-support sparse matrices.
-- [ ] Add one-dimensional and multilevel Toeplitz grid operators, using FFT
-  products when the covariance structure permits them.
+- [x] Add a one-dimensional Toeplitz grid operator using a cached circulant
+  embedding and FFT products; validate vector and multi-RHS products against
+  an independently assembled dense Toeplitz oracle.
+- [ ] Extend the Toeplitz path to multilevel tensor-grid embeddings.
 - [x] Add a higher-dimensional Kronecker/tensor-product operator using
   matrix-free tensor contractions, including vector, multi-RHS, and diagonal
   products. The first factor is the innermost grid dimension, and tests compare
