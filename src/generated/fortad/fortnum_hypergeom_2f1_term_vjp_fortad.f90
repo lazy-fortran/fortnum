@@ -14,6 +14,7 @@ contains
         next_term_b, z_b, term_b)
         use, intrinsic :: iso_fortran_env, only: dp => real64
         implicit none
+        !$acc routine seq
         real(dp), intent(in) :: a
         real(dp), intent(in) :: b
         real(dp), intent(in) :: c

@@ -14,6 +14,7 @@ contains
         r2_d, r3_d, r4_d)
         use, intrinsic :: iso_fortran_env, only: dp => real64
         implicit none
+        !$acc routine seq
         real(dp), intent(in) :: a
         real(dp), intent(in) :: a_d
         real(dp), intent(in) :: b

@@ -14,6 +14,7 @@ contains
         x, x_d, previous, previous_d, current, current_d, next_d, derivative_d)
         use, intrinsic :: iso_fortran_env, only: dp => real64
         implicit none
+        !$acc routine seq
         real(dp), intent(in) :: degree
         real(dp), intent(in) :: order
         real(dp), intent(in) :: x

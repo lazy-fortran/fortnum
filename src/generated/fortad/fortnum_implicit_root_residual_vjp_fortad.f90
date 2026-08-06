@@ -14,6 +14,7 @@ contains
         p_b)
         use, intrinsic :: iso_fortran_env, only: dp => real64
         implicit none
+        !$acc routine seq
         real(dp), intent(in) :: x
         real(dp), intent(in) :: p
         real(dp), intent(in) :: residual_b

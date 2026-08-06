@@ -13,6 +13,7 @@ contains
     pure subroutine fortnum_erf_jvp_fortad(x, x_d, value_d)
         use, intrinsic :: iso_fortran_env, only: dp => real64
         implicit none
+        !$acc routine seq
         real(dp), intent(in), dimension(:) :: x
         real(dp), intent(in), dimension(:) :: x_d
         real(dp), intent(out), dimension(:) :: value_d

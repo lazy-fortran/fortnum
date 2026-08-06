@@ -13,6 +13,7 @@ contains
     pure subroutine fortnum_sqrt1pm1_stable_vjp_fortad(x, value_b, x_b)
         use, intrinsic :: iso_fortran_env, only: dp => real64
         implicit none
+        !$acc routine seq
         real(dp), intent(in) :: x
         real(dp), intent(in) :: value_b
         real(dp), intent(out) :: x_b

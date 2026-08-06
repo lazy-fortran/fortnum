@@ -14,6 +14,7 @@ contains
         value, value_b, x1_b, x2_b, x3_b, x4_b, x5_b, x6_b, x7_b, x8_b)
         use, intrinsic :: iso_fortran_env, only: dp => real64
         implicit none
+        !$acc routine seq
         real(dp), intent(in) :: x1
         real(dp), intent(in) :: x2
         real(dp), intent(in) :: x3

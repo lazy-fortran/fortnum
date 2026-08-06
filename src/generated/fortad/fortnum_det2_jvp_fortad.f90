@@ -13,6 +13,7 @@ contains
     pure subroutine fortnum_det2_jvp_fortad(a, a_d, b, b_d, c, c_d, d, d_d, value_d)
         use, intrinsic :: iso_fortran_env, only: dp => real64
         implicit none
+        !$acc routine seq
         real(dp), intent(in) :: a
         real(dp), intent(in) :: a_d
         real(dp), intent(in) :: b

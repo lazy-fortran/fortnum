@@ -13,6 +13,7 @@ contains
     pure subroutine fortnum_dawson_outer_value_jvp_fortad(f, f_d, value_d)
         use, intrinsic :: iso_fortran_env, only: dp => real64
         implicit none
+        !$acc routine seq
         real(dp), intent(in) :: f
         real(dp), intent(in) :: f_d
         real(dp), intent(out) :: value_d
