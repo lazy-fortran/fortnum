@@ -291,6 +291,7 @@ Method modules expose:
 | Module | Surface |
 | --- | --- |
 | `fortnum_ode_cash_karp` | one Cash-Karp step |
+| `fortnum_ode_rk54_device` | allocation-free four-state Cash-Karp and Dormand-Prince reverse communication for GPU callers |
 | `fortnum_ode_dop853` | DOP853 step and drivers |
 | `fortnum_ode_extrapolation` | adaptive Gragg-Bulirsch-Stoer extrapolation integration |
 | `fortnum_ode_gauss_radau` | adaptive 15th-order Gauss-Radau integration and drivers |

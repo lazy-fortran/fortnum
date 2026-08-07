@@ -100,6 +100,19 @@ target_sources(fortnum PRIVATE
     generated/fortnum_inv3_vjp_kernel.f90
     generated/fortnum_implicit_root_residual_kernel.f90
     generated/fortnum_legendre_recurrence_kernel.f90
+    generated/fortnum_rk54_ck_finish_kernel.f90
+    generated/fortnum_rk54_ck_stage2_kernel.f90
+    generated/fortnum_rk54_ck_stage3_kernel.f90
+    generated/fortnum_rk54_ck_stage4_kernel.f90
+    generated/fortnum_rk54_ck_stage5_kernel.f90
+    generated/fortnum_rk54_ck_stage6_kernel.f90
+    generated/fortnum_rk54_dp_finish_kernel.f90
+    generated/fortnum_rk54_dp_stage2_kernel.f90
+    generated/fortnum_rk54_dp_stage3_kernel.f90
+    generated/fortnum_rk54_dp_stage4_kernel.f90
+    generated/fortnum_rk54_dp_stage5_kernel.f90
+    generated/fortnum_rk54_dp_stage6_kernel.f90
+    generated/fortnum_rk54_dp_stage7_kernel.f90
     generated/fortnum_jacobi_recurrence_kernel.f90
     generated/fortnum_scaled_jacobi_recurrence_kernel.f90
     generated/fortnum_scaled_jacobi_gradient_recurrence_kernel.f90
@@ -129,6 +142,7 @@ target_sources(fortnum PRIVATE
     ode/fortnum_ode_gauss_radau.f90
     ode/fortnum_ode_events.f90
     ode/fortnum_ode_rk8pd.f90
+    ode/fortnum_ode_rk54_device.f90
     ode/fortnum_ode_vode.f90
     ode/fortnum_ode_wrapper.f90
     quadrature/fortnum_cquad.f90
