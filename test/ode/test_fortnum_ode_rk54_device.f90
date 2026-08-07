@@ -3,7 +3,7 @@ program test_fortnum_ode_rk54_device
     use fortnum_ode_rk54_device, only: rk54_controls4_t, rk54_state4_t, &
         rk54_initialize4, rk54_request4, rk54_supply4, &
         RK54_CASH_KARP, RK54_DORMAND_PRINCE, RK54_NEED_RHS, &
-        RK54_ACCEPTED, RK54_REJECTED
+        RK54_ACCEPTED, RK54_REJECTED, RK54_FAILED
     implicit none
 
     integer :: failures
@@ -12,6 +12,8 @@ program test_fortnum_ode_rk54_device
     call test_dormand_prince_external_fixture()
     call test_exact_exponential(RK54_CASH_KARP)
     call test_exact_exponential(RK54_DORMAND_PRINCE)
+    call test_device_exponential(RK54_CASH_KARP)
+    call test_device_exponential(RK54_DORMAND_PRINCE)
     call test_rejection_and_minimum_step()
     if (failures /= 0) then
         write (error_unit, "(i0,a)") failures, " RK54 device test(s) failed"
@@ -101,6 +103,83 @@ contains
         call check(maxval(abs(state%y - initial*exp(lambda))) < 2.0e-9_dp, &
             "adaptive trace agrees with exact exponential")
     end subroutine test_exact_exponential
+
+    subroutine test_device_exponential(method)
+        integer, parameter :: batch_size = 128
+        integer, intent(in) :: method
+        real(dp), parameter :: lambda(4) = [-1.0_dp, 0.5_dp, 1.0_dp, -2.0_dp]
+        real(dp), parameter :: initial(4) = [1.0_dp, -2.0_dp, 0.25_dp, 3.0_dp]
+        real(dp) :: result(4, batch_size), final_time(batch_size)
+        integer :: status(batch_size), attempts(batch_size), particle
+        integer :: request
+        type(rk54_controls4_t) :: controls
+
+        controls%method = method
+        controls%rtol = 1.0e-10_dp
+        controls%atol = 1.0e-12_dp
+        controls%hmin = 1.0e-14_dp
+        controls%hmax = 0.2_dp
+        result = 0.0_dp
+        final_time = 0.0_dp
+        status = RK54_FAILED
+        attempts = 0
+
+        !$acc parallel loop copyout(result, final_time, status, attempts) &
+        !$acc& firstprivate(controls)
+        do particle = 1, batch_size
+            call integrate_exponential_device(controls, lambda, initial, &
+                result(:, particle), final_time(particle), request, &
+                attempts(particle))
+            status(particle) = request
+        end do
+        !$acc end parallel loop
+
+        call check(all(status == RK54_ACCEPTED), &
+            "device adaptive requests terminate normally")
+        call check(all(attempts < 10000), "device adaptive traces finish")
+        call check(maxval(abs(final_time - 1.0_dp)) < 2.0e-15_dp, &
+            "device adaptive traces reach final time")
+        call check(maxval(abs(result - spread(initial*exp(lambda), 2, &
+            batch_size))) < 2.0e-9_dp, &
+            "device adaptive traces agree with exact exponential")
+    end subroutine test_device_exponential
+
+    subroutine integrate_exponential_device(controls, lambda, initial, result, &
+            final_time, status, attempts)
+        !$acc routine seq
+        type(rk54_controls4_t), intent(in) :: controls
+        real(dp), intent(in) :: lambda(4), initial(4)
+        real(dp), intent(out) :: result(4), final_time
+        integer, intent(out) :: status, attempts
+
+        type(rk54_state4_t) :: state
+        real(dp) :: t_eval, y_eval(4), derivative(4), remaining
+        integer :: rhs_calls
+
+        call rk54_initialize4(state, 0.0_dp, initial, 0.02_dp)
+        status = RK54_ACCEPTED
+        do attempts = 1, 10000
+            if (state%t >= 1.0_dp) exit
+            remaining = 1.0_dp - state%t
+            if (state%h > remaining) state%h = remaining
+            call rk54_request4(state, controls, t_eval, y_eval, status)
+            rhs_calls = 0
+            do while (status == RK54_NEED_RHS)
+                derivative = lambda*y_eval
+                call rk54_supply4(state, controls, derivative, t_eval, &
+                    y_eval, status)
+                rhs_calls = rhs_calls + 1
+                if (rhs_calls > 7) then
+                    status = RK54_FAILED
+                    exit
+                end if
+            end do
+            if (status == RK54_FAILED) exit
+        end do
+        attempts = min(attempts, 10000)
+        result = state%y
+        final_time = state%t
+    end subroutine integrate_exponential_device
 
     subroutine test_rejection_and_minimum_step()
         type(rk54_controls4_t) :: controls

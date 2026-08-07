@@ -33,6 +33,19 @@ src/generated/fortnum_multi_input_p8_jvp_kernel.f90,fortnum_multi_input_p8_jvp_k
 src/generated/fortnum_multi_input_p8_vjp_kernel.f90,fortnum_multi_input_p8_vjp_kernel,fortsym-generated,analytical,generated scaling-study VJP
 src/generated/fortnum_multi_input_p16_jvp_kernel.f90,fortnum_multi_input_p16_jvp_kernel,fortsym-generated,analytical,generated scaling-study JVP
 src/generated/fortnum_multi_input_p16_vjp_kernel.f90,fortnum_multi_input_p16_vjp_kernel,fortsym-generated,analytical,generated scaling-study VJP
+src/generated/fortnum_rk54_ck_finish_kernel.f90,fortnum_rk54_ck_finish,fortsym-generated,analytical,generated Cash-Karp fifth-order state and embedded error algebra
+src/generated/fortnum_rk54_ck_stage2_kernel.f90,fortnum_rk54_ck_stage2,fortsym-generated,analytical,generated Cash-Karp second-stage state algebra
+src/generated/fortnum_rk54_ck_stage3_kernel.f90,fortnum_rk54_ck_stage3,fortsym-generated,analytical,generated Cash-Karp third-stage state algebra
+src/generated/fortnum_rk54_ck_stage4_kernel.f90,fortnum_rk54_ck_stage4,fortsym-generated,analytical,generated Cash-Karp fourth-stage state algebra
+src/generated/fortnum_rk54_ck_stage5_kernel.f90,fortnum_rk54_ck_stage5,fortsym-generated,analytical,generated Cash-Karp fifth-stage state algebra
+src/generated/fortnum_rk54_ck_stage6_kernel.f90,fortnum_rk54_ck_stage6,fortsym-generated,analytical,generated Cash-Karp sixth-stage state algebra
+src/generated/fortnum_rk54_dp_finish_kernel.f90,fortnum_rk54_dp_finish,fortsym-generated,analytical,generated Dormand-Prince fifth-order state and embedded error algebra
+src/generated/fortnum_rk54_dp_stage2_kernel.f90,fortnum_rk54_dp_stage2,fortsym-generated,analytical,generated Dormand-Prince second-stage state algebra
+src/generated/fortnum_rk54_dp_stage3_kernel.f90,fortnum_rk54_dp_stage3,fortsym-generated,analytical,generated Dormand-Prince third-stage state algebra
+src/generated/fortnum_rk54_dp_stage4_kernel.f90,fortnum_rk54_dp_stage4,fortsym-generated,analytical,generated Dormand-Prince fourth-stage state algebra
+src/generated/fortnum_rk54_dp_stage5_kernel.f90,fortnum_rk54_dp_stage5,fortsym-generated,analytical,generated Dormand-Prince fifth-stage state algebra
+src/generated/fortnum_rk54_dp_stage6_kernel.f90,fortnum_rk54_dp_stage6,fortsym-generated,analytical,generated Dormand-Prince sixth-stage state algebra
+src/generated/fortnum_rk54_dp_stage7_kernel.f90,fortnum_rk54_dp_stage7,fortsym-generated,analytical,generated Dormand-Prince seventh-stage state algebra
 src/interp/fortnum_bspline.f90,bspline_eval_jvp;bspline_eval_vjp;bspline_eval_coef_jvp;bspline_eval_coef_vjp;bspline_eval_knots_jvp;bspline_eval_knots_vjp;bspline_eval_combined_jvp;bspline_eval_combined_vjp,hand-written algorithmic,analytical,fixed-span basis products and transposed products
 src/interp/fortnum_bspline.f90,bspline_fit_jvp_factored;bspline_fit_vjp_factored,implicit solve,analytical,fitted coefficients are defined by a collocation residual
 src/interp/fortnum_polynomial.f90,lagrange_weights_jvp;lagrange_weights_vjp;lagrange_fval_jvp;lagrange_fval_vjp;lagrange_nodes_jvp;lagrange_nodes_vjp;lagrange_combined_jvp;lagrange_combined_vjp,hand-written algorithmic,analytical,direct basis products and product recurrences
