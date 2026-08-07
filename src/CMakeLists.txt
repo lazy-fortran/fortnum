@@ -170,6 +170,14 @@ target_sources(fortnum PRIVATE
     testing/fortnum_oracle.f90
 )
 
+# NVFortran 26.5 can crash in fort2 when this already-preprocessed source is
+# passed through -Mpreprocess a second time by an embedding project.  The file
+# contains no preprocessor directives, so compile the original source directly.
+if(CMAKE_Fortran_COMPILER_ID STREQUAL "NVHPC")
+    set_source_files_properties(roots/fortnum_multiroot_rc.f90 PROPERTIES
+        Fortran_PREPROCESS OFF)
+endif()
+
 # Consumers find .mod files in the module output directory.
 target_include_directories(fortnum PUBLIC ${CMAKE_Fortran_MODULE_DIRECTORY})
 
