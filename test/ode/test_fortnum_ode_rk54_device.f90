@@ -10,6 +10,7 @@ program test_fortnum_ode_rk54_device
 
     failures = 0
     call test_dormand_prince_external_fixture()
+    call test_dormand_prince_fsal()
     call test_exact_exponential(RK54_CASH_KARP)
     call test_exact_exponential(RK54_DORMAND_PRINCE)
     call test_device_exponential(RK54_CASH_KARP)
@@ -69,6 +70,36 @@ contains
             "FIRM3D maximum error norm")
         call check(state%nfev == 7, "DOPRI fixture has seven RHS evaluations")
     end subroutine test_dormand_prince_external_fixture
+
+    subroutine test_dormand_prince_fsal()
+        ! Two fixed steps of the published DOPRI tableau require 7 + 6 RHS
+        ! evaluations because stage 7 of the first step is stage 1 of the next.
+        real(dp), parameter :: lambda(4) = [-1.0_dp, 2.0_dp, -3.0_dp, 0.25_dp]
+        real(dp), parameter :: initial(4) = [1.0_dp, 2.0_dp, -1.0_dp, 0.5_dp]
+        type(rk54_controls4_t) :: controls
+        type(rk54_state4_t) :: state
+        real(dp) :: t_eval, y_eval(4), derivative(4)
+        integer :: request, step
+
+        controls%method = RK54_DORMAND_PRINCE
+        controls%rtol = 1.0e-6_dp
+        controls%atol = 1.0e-6_dp
+        controls%hmin = 0.01_dp
+        controls%hmax = 0.01_dp
+        call rk54_initialize4(state, 0.0_dp, initial, 0.01_dp)
+        do step = 1, 2
+            call rk54_request4(state, controls, t_eval, y_eval, request)
+            do while (request == RK54_NEED_RHS)
+                derivative = lambda*y_eval
+                call rk54_supply4(state, controls, derivative, t_eval, y_eval, &
+                    request)
+            end do
+            call check(request == RK54_ACCEPTED, "DOPRI FSAL fixture accepts")
+        end do
+        call check(state%nfev == 13, "DOPRI FSAL uses 13 RHS evaluations")
+        call check(maxval(abs(state%y - initial*exp(0.02_dp*lambda))) < 2.0e-12_dp, &
+            "DOPRI FSAL agrees with exact exponential")
+    end subroutine test_dormand_prince_fsal
 
     subroutine test_exact_exponential(method)
         integer, intent(in) :: method
@@ -186,7 +217,7 @@ contains
         type(rk54_controls4_t) :: controls
         type(rk54_state4_t) :: state
         real(dp) :: t_eval, y_eval(4), derivative(4)
-        integer :: request
+        integer :: request, previous_nfev
 
         controls%method = RK54_DORMAND_PRINCE
         controls%rtol = 1.0e-15_dp
@@ -205,12 +236,15 @@ contains
             "rejection clamps to minimum step")
 
         do while (request == RK54_REJECTED)
+            previous_nfev = state%nfev
             call rk54_request4(state, controls, t_eval, y_eval, request)
             do while (request == RK54_NEED_RHS)
                 derivative = 100.0_dp*y_eval
                 call rk54_supply4(state, controls, derivative, t_eval, y_eval, &
                     request)
             end do
+            call check(state%nfev - previous_nfev == 6, &
+                "DOPRI rejection reuses its unchanged first stage")
         end do
         call check(request == RK54_ACCEPTED, &
             "FIRM3D policy accepts at minimum step")

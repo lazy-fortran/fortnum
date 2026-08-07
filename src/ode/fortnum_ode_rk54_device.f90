@@ -331,6 +331,8 @@ contains
         if (accepted) then
             state%t = state%t + state%h
             state%y = state%trial
+            if (controls%method == RK54_DORMAND_PRINCE) &
+                state%k(:, 1) = state%k(:, 7)
             state%h = hnew
             state%previous_error = max(state%last_error, 1.0e-10_dp)
             state%first_step = .false.
@@ -343,7 +345,14 @@ contains
             state%nrejected = state%nrejected + 1
             request = RK54_REJECTED
         end if
-        state%stage = 1
+        if (controls%method == RK54_DORMAND_PRINCE) then
+            ! The accepted step's seventh stage is f(t+h, y_new). After a
+            ! rejection the original first stage is still f(t, y). Both are
+            ! valid first stages for the next attempt.
+            state%stage = 2
+        else
+            state%stage = 1
+        end if
         t_eval = state%t
         y_eval = state%y
     end subroutine finish_attempt
