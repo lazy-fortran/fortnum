@@ -44,6 +44,7 @@ contains
         controls%method = RK54_DORMAND_PRINCE
         controls%rtol = 1.0e-6_dp
         controls%atol = [1.0e-6_dp, 1.0e-6_dp, 1.0e-6_dp, 13.0_dp]
+        controls%hmin = 0.0_dp
         controls%hmax = 0.01_dp
         call rk54_initialize4(state, 0.0_dp, [1.0_dp, 2.0_dp, -1.0_dp, 0.5_dp], &
             0.01_dp)
