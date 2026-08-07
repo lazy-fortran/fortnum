@@ -33,29 +33,33 @@ module fortnum_ode_rk54_device
     real(dp), parameter :: PI_ALPHA = 0.7_dp/5.0_dp
     real(dp), parameter :: PI_BETA = 0.4_dp/5.0_dp
 
+    ! Keep device-local derived types free of component default initializers.
+    ! NVHPC 26.5 emits duplicate hidden device globals when two kernels use a
+    ! default-initialized type. Callers set every control field explicitly;
+    ! rk54_initialize4 initializes every state field.
     type, public :: rk54_controls4_t
-        integer :: method = RK54_DORMAND_PRINCE
-        real(dp) :: rtol = 1.0e-6_dp
-        real(dp) :: atol(4) = 1.0e-6_dp
-        real(dp) :: hmin = 0.0_dp
-        real(dp) :: hmax = huge(1.0_dp)
+        integer :: method
+        real(dp) :: rtol
+        real(dp) :: atol(4)
+        real(dp) :: hmin
+        real(dp) :: hmax
     end type rk54_controls4_t
 
     type, public :: rk54_state4_t
-        real(dp) :: t = 0.0_dp
-        real(dp) :: y(4) = 0.0_dp
-        real(dp) :: h = 0.0_dp
-        real(dp) :: k(4, 7) = 0.0_dp
-        real(dp) :: trial(4) = 0.0_dp
-        real(dp) :: error(4) = 0.0_dp
-        real(dp) :: previous_error = 1.0_dp
-        real(dp) :: last_error = 0.0_dp
-        integer :: stage = 1
-        integer :: nfev = 0
-        integer :: naccepted = 0
-        integer :: nrejected = 0
-        logical :: first_step = .true.
-        logical :: after_reject = .false.
+        real(dp) :: t
+        real(dp) :: y(4)
+        real(dp) :: h
+        real(dp) :: k(4, 7)
+        real(dp) :: trial(4)
+        real(dp) :: error(4)
+        real(dp) :: previous_error
+        real(dp) :: last_error
+        integer :: stage
+        integer :: nfev
+        integer :: naccepted
+        integer :: nrejected
+        logical :: first_step
+        logical :: after_reject
     end type rk54_state4_t
 
     public :: rk54_initialize4, rk54_request4, rk54_supply4

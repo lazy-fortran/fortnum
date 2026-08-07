@@ -30,6 +30,7 @@ contains
             controls%method = RK54_DORMAND_PRINCE
             controls%rtol = 1.0e-6_dp
             controls%atol = 1.0e-6_dp
+            controls%hmin = 0.0_dp
             controls%hmax = h
             initial = [y0(i, 1), y0(i, 2), y0(i, 3), y0(i, 4)]
             call rk54_initialize4(state, 0.0_dp, initial, h)
