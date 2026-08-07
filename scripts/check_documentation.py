@@ -219,7 +219,12 @@ def check_generated_revision(root: Path) -> list[str]:
     revision = lock_path.read_text(encoding="utf-8").strip()
     if re.fullmatch(r"[0-9a-f]{40}", revision) is None:
         return ["tools/codegen/fortsym.lock is not one full hexadecimal revision"]
-    expected = f"Generator revision: fortsym@{revision}"
+    rk54_lock_path = root / "tools/codegen/fortsym-rk54.lock"
+    rk54_revision = rk54_lock_path.read_text(encoding="utf-8").strip()
+    if re.fullmatch(r"[0-9a-f]{40}", rk54_revision) is None:
+        return [
+            "tools/codegen/fortsym-rk54.lock is not one full hexadecimal revision"
+        ]
     # Only fortsym's own output carries a fortsym revision. src/generated also
     # holds kernels fortad produced, and the inventory is what says which is
     # which, so the classification there is the authority rather than the
@@ -234,9 +239,19 @@ def check_generated_revision(root: Path) -> list[str]:
     for path in sorted((root / "src/generated").glob("*.f90")):
         if str(path.relative_to(root)) in fortad:
             continue
-        if expected not in path.read_text(encoding="utf-8"):
+        text = path.read_text(encoding="utf-8")
+        path_revision = (
+            rk54_revision if "Generator: gen_rk54_device" in text else revision
+        )
+        expected = f"Generator revision: fortsym@{path_revision}"
+        if expected not in text:
+            lock_name = (
+                "fortsym-rk54.lock"
+                if "Generator: gen_rk54_device" in text
+                else "fortsym.lock"
+            )
             errors.append(
-                f"{path.relative_to(root)} does not match tools/codegen/fortsym.lock"
+                f"{path.relative_to(root)} does not match tools/codegen/{lock_name}"
             )
     return errors
 

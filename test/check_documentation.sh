@@ -16,6 +16,7 @@ cp "${source_root}/benchmark/README.md" "${base}/benchmark/"
 cp -a "${source_root}/benchmark/reference" "${base}/benchmark/"
 cp -a "${source_root}/benchmark/report/data" "${base}/benchmark/report/"
 cp "${source_root}/tools/codegen/fortsym.lock" "${base}/tools/codegen/"
+cp "${source_root}/tools/codegen/fortsym-rk54.lock" "${base}/tools/codegen/"
 cp "${source_root}/tools/codegen/app/gen_enzyme_scalar_wrappers.f90" \
     "${base}/tools/codegen/app/"
 

@@ -72,6 +72,17 @@ contains
         state%t = t
         state%y = y
         state%h = h
+        state%k = 0.0_dp
+        state%trial = 0.0_dp
+        state%error = 0.0_dp
+        state%previous_error = 1.0_dp
+        state%last_error = 0.0_dp
+        state%stage = 1
+        state%nfev = 0
+        state%naccepted = 0
+        state%nrejected = 0
+        state%first_step = .true.
+        state%after_reject = .false.
     end subroutine rk54_initialize4
 
     !NVF$ INLINE
