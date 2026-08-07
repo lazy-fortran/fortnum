@@ -46,30 +46,33 @@ module fortnum_sobol
     public :: sobol_next
     public :: sobol_skip
     public :: sobol_fill
+    public :: sobol_primitive_polynomials
     public :: SOBOL_MAX_DIMENSION
+    public :: SOBOL_TABULATED_DIMENSION
 
     ! Bits of resolution. 2^32 distinct values per coordinate.
     integer, parameter :: SOBOL_BITS = 32
     integer(int64), parameter :: TWO_POW_32 = 4294967296_int64
     integer(int64), parameter :: MASK_32 = TWO_POW_32 - 1_int64
 
-    ! Direction-number data is tabulated for this many dimensions. Beyond it the
-    ! initializer refuses rather than falling back to a different generator,
-    ! because a silent fallback would destroy the very property the caller asked
-    ! for and would not be visible in the output.
-    integer, parameter :: SOBOL_MAX_DIMENSION = 21
+    ! Highest dimension for which Joe-Kuo initial direction integers are
+    ! tabulated. Beyond it the construction continues with computed primitive
+    ! polynomials and unit initial values (see sobol_initialize), which is a
+    ! valid Sobol sequence but not the Joe-Kuo optimized one.
+    integer, parameter :: SOBOL_TABULATED_DIMENSION = 21
 
-    ! Degree of the primitive polynomial for dimensions 2..SOBOL_MAX_DIMENSION.
-    integer, parameter :: POLY_DEGREE(2:SOBOL_MAX_DIMENSION) = [ &
-        1, 2, 3, 3, 4, 4, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 7, 7]
+    ! Highest polynomial degree enumerated. Degree 13 yields 1110 primitive
+    ! polynomials in total, so dimensions up to 1111 are constructible; the
+    ! enumeration itself costs a few thousand cheap bit operations.
+    integer, parameter :: MAX_POLY_DEGREE = 13
+    integer, parameter :: SOBOL_MAX_DIMENSION = 1111
 
-    ! Polynomial coefficients a_1..a_{s-1} packed as an integer, one per
-    ! dimension (Joe & Kuo, new-joe-kuo-6.21201).
-    integer, parameter :: POLY_COEFFICIENT(2:SOBOL_MAX_DIMENSION) = [ &
-        0, 1, 1, 2, 1, 4, 2, 4, 7, 11, 13, 14, 1, 13, 16, 19, 22, 25, 1, 4]
-
-    ! Initial direction integers m_1..m_s, padded with zeros to width 7.
-    integer, parameter :: INITIAL_M(7, 2:SOBOL_MAX_DIMENSION) = reshape([ &
+    ! Joe-Kuo initial direction integers m_1..m_s, padded with zeros to width 7.
+    ! The primitive polynomials themselves are no longer tabulated: they are
+    ! enumerated in canonical order by sobol_primitive_polynomials, which
+    ! reproduces the published (degree, coefficient) sequence exactly and keeps
+    ! going past where any table would stop.
+    integer, parameter :: INITIAL_M(7, 2:SOBOL_TABULATED_DIMENSION) = reshape([ &
         1, 0, 0, 0, 0, 0, 0, &
         1, 3, 0, 0, 0, 0, 0, &
         1, 3, 1, 0, 0, 0, 0, &
@@ -89,7 +92,7 @@ module fortnum_sobol
         1, 3, 1, 15, 13, 25, 0, &
         1, 1, 5, 5, 19, 61, 0, &
         1, 3, 7, 11, 23, 15, 103, &
-        1, 3, 7, 13, 13, 15, 69], [7, SOBOL_MAX_DIMENSION - 1])
+        1, 3, 7, 13, 13, 15, 69], [7, SOBOL_TABULATED_DIMENSION - 1])
 
     ! Caller-owned generator state. `index` counts points already emitted, so
     ! the state is fully described by (dimension, index) plus the fixed table.
@@ -108,7 +111,8 @@ contains
         integer, intent(in) :: dimension
         type(fortnum_status_t), intent(out) :: status
         integer(int64) :: m(SOBOL_BITS), value, term
-        integer :: j, k, degree, coefficient, bit
+        integer, allocatable :: degrees(:), coefficients(:)
+        integer :: j, k, degree, coefficient, bit, found
 
         if (dimension < 1) then
             call status_set(status, FORTNUM_DOMAIN_ERROR, &
@@ -117,7 +121,7 @@ contains
         end if
         if (dimension > SOBOL_MAX_DIMENSION) then
             call status_set(status, FORTNUM_NOT_IMPLEMENTED, &
-                "sobol: tabulated direction numbers stop at dimension 21")
+                "sobol: primitive polynomials are enumerated only to degree 13")
             return
         end if
 
@@ -133,12 +137,30 @@ contains
             sequence%direction(1, k) = ishft(1_int64, SOBOL_BITS - k)
         end do
 
+        ! One primitive polynomial per dimension after the first, in canonical
+        ! order. Dimensions 2..21 additionally use the published Joe-Kuo
+        ! initial values, which are chosen for good low-dimensional
+        ! projections; beyond the table the initial values are all one, which
+        ! is admissible (each m_k must be odd and below 2^k) and still yields a
+        ! valid Sobol sequence, just not the projection-optimized one.
+        allocate (degrees(dimension), coefficients(dimension))
+        call sobol_primitive_polynomials(dimension - 1, degrees, coefficients, found)
+        if (found < dimension - 1) then
+            call status_set(status, FORTNUM_NOT_IMPLEMENTED, &
+                "sobol: not enough primitive polynomials for this dimension")
+            return
+        end if
+
         do j = 2, dimension
-            degree = POLY_DEGREE(j)
-            coefficient = POLY_COEFFICIENT(j)
+            degree = degrees(j - 1)
+            coefficient = coefficients(j - 1)
             m = 0_int64
             do k = 1, degree
-                m(k) = int(INITIAL_M(k, j), int64)
+                if (j <= SOBOL_TABULATED_DIMENSION) then
+                    m(k) = int(INITIAL_M(k, j), int64)
+                else
+                    m(k) = 1_int64
+                end if
             end do
             do k = degree + 1, SOBOL_BITS
                 ! m_k = 2^s m_{k-s} XOR m_{k-s} XOR (sum over set coefficient
@@ -247,6 +269,139 @@ contains
         end do
         call status_set(status, FORTNUM_OK, "")
     end subroutine sobol_fill
+
+
+    ! Enumerate primitive polynomials over GF(2) in canonical order: increasing
+    ! degree, and within a degree increasing coefficient word.
+    !
+    ! A Sobol dimension needs a primitive polynomial because primitivity is
+    ! exactly the condition that makes the direction-number recurrence visit
+    ! every nonzero residue before repeating. An irreducible-but-not-primitive
+    ! polynomial produces a short cycle and a coordinate that silently stops
+    ! being equidistributed partway through the sequence.
+    !
+    ! The polynomial is x^s + a_1 x^(s-1) + ... + a_(s-1) x + 1, stored as the
+    ! coefficient word a_1..a_(s-1). The leading and constant terms are implicit:
+    ! a primitive polynomial always has a nonzero constant term.
+    subroutine sobol_primitive_polynomials(wanted, degrees, coefficients, found)
+        integer, intent(in) :: wanted
+        integer, intent(out) :: degrees(:)
+        integer, intent(out) :: coefficients(:)
+        integer, intent(out) :: found
+        integer :: degree, coefficient, limit
+
+        found = 0
+        degrees = 0
+        coefficients = 0
+        if (wanted < 1) return
+
+        do degree = 1, MAX_POLY_DEGREE
+            limit = 2**max(degree - 1, 0) - 1
+            do coefficient = 0, limit
+                if (.not. is_primitive(degree, coefficient)) cycle
+                found = found + 1
+                if (found > size(degrees) .or. found > size(coefficients)) then
+                    found = found - 1
+                    return
+                end if
+                degrees(found) = degree
+                coefficients(found) = coefficient
+                if (found >= wanted) return
+            end do
+        end do
+    end subroutine sobol_primitive_polynomials
+
+    ! True when x has multiplicative order exactly 2^degree - 1 modulo the
+    ! polynomial, which is the definition of primitivity.
+    logical function is_primitive(degree, coefficient) result(primitive)
+        integer, intent(in) :: degree, coefficient
+        integer(int64) :: polynomial, order, quotient, residue
+        integer :: factors(16), n_factors, k
+
+        primitive = .false.
+        if (degree < 1) return
+        if (degree == 1) then
+            ! x + 1 is the only degree-one candidate and is primitive.
+            primitive = coefficient == 0
+            return
+        end if
+
+        polynomial = ior(ior(ishft(1_int64, degree), &
+            ishft(int(coefficient, int64), 1)), 1_int64)
+        order = ishft(1_int64, degree) - 1_int64
+
+        ! x^order must be the identity.
+        if (gf2_power(2_int64, order, polynomial, degree) /= 1_int64) return
+
+        ! and no proper divisor of the order may already be the identity.
+        call distinct_prime_factors(order, factors, n_factors)
+        do k = 1, n_factors
+            quotient = order/int(factors(k), int64)
+            residue = gf2_power(2_int64, quotient, polynomial, degree)
+            if (residue == 1_int64) return
+        end do
+        primitive = .true.
+    end function is_primitive
+
+    ! Carry-less multiply modulo the polynomial, over GF(2).
+    pure function gf2_multiply(a, b, polynomial, degree) result(product)
+        integer(int64), intent(in) :: a, b, polynomial
+        integer, intent(in) :: degree
+        integer(int64) :: product, shifted
+        integer :: k
+
+        product = 0_int64
+        shifted = a
+        do k = 0, degree - 1
+            if (btest(b, k)) product = ieor(product, shifted)
+            shifted = ishft(shifted, 1)
+            if (btest(shifted, degree)) shifted = ieor(shifted, polynomial)
+        end do
+    end function gf2_multiply
+
+    pure function gf2_power(base, exponent, polynomial, degree) result(value)
+        integer(int64), intent(in) :: base, exponent, polynomial
+        integer, intent(in) :: degree
+        integer(int64) :: value, factor, remaining
+
+        value = 1_int64
+        factor = base
+        remaining = exponent
+        do while (remaining > 0_int64)
+            if (btest(remaining, 0)) &
+                value = gf2_multiply(value, factor, polynomial, degree)
+            factor = gf2_multiply(factor, factor, polynomial, degree)
+            remaining = ishft(remaining, -1)
+        end do
+    end function gf2_power
+
+    ! Trial division. The largest order tested is 2^13 - 1 = 8191, so this is
+    ! trivial work done once at initialization.
+    pure subroutine distinct_prime_factors(value, factors, count)
+        integer(int64), intent(in) :: value
+        integer, intent(out) :: factors(:)
+        integer, intent(out) :: count
+        integer(int64) :: remaining, divisor
+
+        count = 0
+        factors = 0
+        remaining = value
+        divisor = 2_int64
+        do while (divisor*divisor <= remaining)
+            if (mod(remaining, divisor) == 0_int64) then
+                count = count + 1
+                if (count <= size(factors)) factors(count) = int(divisor)
+                do while (mod(remaining, divisor) == 0_int64)
+                    remaining = remaining/divisor
+                end do
+            end if
+            divisor = divisor + 1_int64
+        end do
+        if (remaining > 1_int64) then
+            count = count + 1
+            if (count <= size(factors)) factors(count) = int(remaining)
+        end if
+    end subroutine distinct_prime_factors
 
     ! One-based position of the rightmost zero bit, which is the direction
     ! number the Gray-code step must flip.
