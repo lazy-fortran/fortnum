@@ -25,7 +25,8 @@ program test_fortnum_sobol
         FORTNUM_NOT_IMPLEMENTED
     use fortnum_rng, only: rng_t, rng_seed, rng_uniform
     use fortnum_sobol, only: sobol_t, sobol_initialize, sobol_next, sobol_skip, &
-        sobol_fill, SOBOL_MAX_DIMENSION
+        sobol_fill, sobol_primitive_polynomials, SOBOL_MAX_DIMENSION, &
+        SOBOL_TABULATED_DIMENSION
     implicit none
 
     integer :: failures
@@ -37,6 +38,8 @@ program test_fortnum_sobol
     call check_beats_random_discrepancy(failures)
     call check_skip_matches_generation(failures)
     call check_reproducible(failures)
+    call check_primitive_polynomials(failures)
+    call check_high_dimensional_equidistribution(failures)
     call check_refusals(failures)
 
     if (failures == 0) then
@@ -71,16 +74,16 @@ contains
         type(fortnum_status_t) :: status
         integer, parameter :: k = 10
         integer, parameter :: n = 2**k
-        real(dp) :: points(n, SOBOL_MAX_DIMENSION)
+        real(dp) :: points(n, SOBOL_TABULATED_DIMENSION)
         integer :: counts(n)
         integer :: j, i, bin
         logical :: stratified
 
-        call sobol_initialize(sequence, SOBOL_MAX_DIMENSION, status)
+        call sobol_initialize(sequence, SOBOL_TABULATED_DIMENSION, status)
         call sobol_fill(sequence, points, status)
 
         stratified = .true.
-        do j = 1, SOBOL_MAX_DIMENSION
+        do j = 1, SOBOL_TABULATED_DIMENSION
             counts = 0
             do i = 1, n
                 bin = int(points(i, j)*real(n, dp)) + 1
@@ -237,6 +240,90 @@ contains
             "the sequence starts at the origin", failures)
     end subroutine check_reproducible
 
+    ! The enumeration is checked against the published Joe-Kuo (degree,
+    ! coefficient) sequence for the first twenty polynomials. Those values were
+    ! not used to build the enumerator, so agreement is evidence that the
+    ! primitivity test is right, not a tautology. A test that only checked
+    ! "some polynomial was produced" would accept an irreducible-but-not-
+    ! primitive one, which yields a short cycle and a coordinate that quietly
+    ! stops being equidistributed partway through the sequence.
+    subroutine check_primitive_polynomials(failures)
+        integer, intent(inout) :: failures
+        integer, parameter :: n = 20
+        integer :: degrees(64), coefficients(64), found
+        integer, parameter :: published_degree(n) = [ &
+            1, 2, 3, 3, 4, 4, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 7, 7]
+        integer, parameter :: published_coefficient(n) = [ &
+            0, 1, 1, 2, 1, 4, 2, 4, 7, 11, 13, 14, 1, 13, 16, 19, 22, 25, 1, 4]
+        integer :: k
+        logical :: agrees
+
+        call sobol_primitive_polynomials(n, degrees, coefficients, found)
+        call expect(found == n, "the requested polynomial count is produced", failures)
+
+        agrees = .true.
+        do k = 1, n
+            if (degrees(k) /= published_degree(k)) agrees = .false.
+            if (coefficients(k) /= published_coefficient(k)) agrees = .false.
+        end do
+        call expect(agrees, &
+            "the enumeration reproduces the published primitive polynomials", &
+            failures)
+
+        ! Counts per degree must equal phi(2^s - 1) / s. For degree 5 that is
+        ! phi(31)/5 = 30/5 = 6, and for degree 6 phi(63)/6 = 36/6 = 6.
+        call sobol_primitive_polynomials(64, degrees, coefficients, found)
+        call expect(count(degrees(1:found) == 5) == 6, &
+            "degree five has six primitive polynomials", failures)
+        call expect(count(degrees(1:found) == 6) == 6, &
+            "degree six has six primitive polynomials", failures)
+        call expect(count(degrees(1:found) == 7) == 18, &
+            "degree seven has eighteen primitive polynomials", failures)
+    end subroutine check_primitive_polynomials
+
+    ! Two hundred dimensions is the regime TuRBO is built for, and it is well
+    ! past where any tabulated set of direction numbers stops. Exact
+    ! one-dimensional equidistribution must still hold in every one of them.
+    subroutine check_high_dimensional_equidistribution(failures)
+        integer, intent(inout) :: failures
+        type(sobol_t) :: sequence
+        type(fortnum_status_t) :: status
+        integer, parameter :: d = 200
+        integer, parameter :: k = 8
+        integer, parameter :: n = 2**k
+        real(dp), allocatable :: points(:, :)
+        integer :: counts(n)
+        integer :: j, i, bin
+        logical :: stratified
+
+        allocate (points(n, d))
+        call sobol_initialize(sequence, d, status)
+        call expect(status%code == FORTNUM_OK, &
+            "two hundred dimensions initialize", failures)
+        call sobol_fill(sequence, points, status)
+        call expect(status%code == FORTNUM_OK, "two hundred dimensions generate", &
+            failures)
+        call expect(all(points >= 0.0_dp) .and. all(points < 1.0_dp), &
+            "every high-dimensional coordinate stays in [0,1)", failures)
+
+        stratified = .true.
+        do j = 1, d
+            counts = 0
+            do i = 1, n
+                bin = int(points(i, j)*real(n, dp)) + 1
+                if (bin < 1 .or. bin > n) then
+                    stratified = .false.
+                    cycle
+                end if
+                counts(bin) = counts(bin) + 1
+            end do
+            if (any(counts /= 1)) stratified = .false.
+        end do
+        call expect(stratified, &
+            "every one of two hundred dimensions is exactly equidistributed", &
+            failures)
+    end subroutine check_high_dimensional_equidistribution
+
     subroutine check_refusals(failures)
         integer, intent(inout) :: failures
         type(sobol_t) :: sequence
@@ -249,7 +336,8 @@ contains
 
         call sobol_initialize(sequence, SOBOL_MAX_DIMENSION + 1, status)
         call expect(status%code == FORTNUM_NOT_IMPLEMENTED, &
-            "a dimension beyond the table is refused, not approximated", failures)
+            "a dimension beyond the enumeration is refused, not approximated", &
+            failures)
 
         call sobol_initialize(sequence, 3, status)
         call sobol_fill(sequence, wide, status)
