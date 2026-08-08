@@ -373,6 +373,13 @@ provides restarted complex GMRES using reorthogonalized modified
 Gram--Schmidt and complex Givens rotations. Structured kernel operators and
 device-resident callbacks are planned consumers of these contracts.
 
+`fortnum_cholesky` provides `cholesky_factorization_t` and the corresponding
+`cholesky_factorize`, `cholesky_solve_vector`, `cholesky_solve_matrix`,
+`cholesky_solve_lower_matrix`, and `cholesky_log_determinant` procedures.
+Factorization and solve failures are returned through `fortnum_status_t`; the
+lower-triangular solve is exposed separately for covariance and posterior
+calculations that need `L^-1 b` without a second triangular solve.
+
 ## Interpolation and splines
 
 `fortnum_interp` exports grid search and a directional status check for cell
@@ -415,6 +422,12 @@ function for known-answer tests.
 
 Seeds, keys, counters, and draws have no derivative products. Differentiate
 distribution-level estimators in the caller when needed.
+
+`fortnum_sobol` provides caller-owned low-discrepancy state through `sobol_t`.
+Use `sobol_initialize`, `sobol_next`, `sobol_skip`, and `sobol_fill` to emit
+reproducible points in the unit cube. The implementation supports dimensions
+through `SOBOL_MAX_DIMENSION`; `SOBOL_TABULATED_DIMENSION` identifies the
+dimensions using the published Joe--Kuo initial direction values.
 
 ## Optimizer-facing interfaces
 
