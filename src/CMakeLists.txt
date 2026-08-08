@@ -176,6 +176,13 @@ target_sources(fortnum PRIVATE
 if(CMAKE_Fortran_COMPILER_ID STREQUAL "NVHPC")
     set_source_files_properties(roots/fortnum_multiroot_rc.f90 PROPERTIES
         Fortran_PREPROCESS OFF)
+    # NVHPC 23.7 crashes in fort2 at -O3 while lowering the default-initialized
+    # reverse-communication state for OpenACC.  The device routine compiles at
+    # -O2; newer NVHPC releases do not need the workaround.
+    if(CMAKE_Fortran_COMPILER_VERSION VERSION_LESS 24)
+        set_property(SOURCE roots/fortnum_multiroot_rc.f90 APPEND PROPERTY
+            COMPILE_OPTIONS -O2)
+    endif()
 endif()
 
 # Consumers find .mod files in the module output directory.
