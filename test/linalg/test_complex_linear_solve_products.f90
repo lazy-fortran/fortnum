@@ -5,10 +5,29 @@ program test_complex_linear_solve_products
     implicit none
 
     integer, parameter :: n = 3
-    real(dp), parameter :: step = 2.0e-7_dp
+    !! Base step for the finite-difference oracle, with the error budget
+    !! written down rather than assumed.
+    !!
+    !! A central difference carries truncation error growing as `step**2` and
+    !! cancellation error growing as `eps/step`. The previous value, 2e-7, put
+    !! the cancellation term at about `2.2e-16 * 0.3 / 2e-7 = 3e-10` -- larger
+    !! than the 2e-10 tolerance it was checked against. The test was therefore
+    !! inside its own noise floor and passed on a particular rounding pattern:
+    !! relinking BLAS changed the rounding and it failed, which is how this was
+    !! found.
+    !!
+    !! A larger step with Richardson extrapolation fixes both terms at once.
+    !! At 1e-4 the cancellation term falls to about 1e-12, and extrapolating
+    !! two central differences cancels the leading truncation term so what
+    !! remains scales as `step**4`, around 1e-16. The tolerance below now sits
+    !! orders of magnitude above the error rather than beneath it.
+    real(dp), parameter :: step = 1.0e-4_dp
     complex(dp) :: a(n, n), a_bar(n, n), a_dot(n, n)
     complex(dp) :: b(n), b_bar(n), b_dot(n), x(n), x_bar(n), x_dot(n)
     complex(dp) :: x_minus(n), x_plus(n)
+    complex(dp) :: x_fine_minus(n), x_fine_plus(n)
+    complex(dp) :: coarse(n), fine(n), extrapolated(n)
+    integer :: info_fine_minus, info_fine_plus
     real(dp) :: lhs, rhs
     integer :: info, info_minus, info_plus
 
@@ -35,11 +54,21 @@ program test_complex_linear_solve_products
     call linear_solve_complex_jvp(n, a, x, a_dot, b_dot, x_dot, info)
     call dense_solve(a + step*a_dot, b + step*b_dot, x_plus, info_plus)
     call dense_solve(a - step*a_dot, b - step*b_dot, x_minus, info_minus)
+    call dense_solve(a + 0.5_dp*step*a_dot, b + 0.5_dp*step*b_dot, &
+        x_fine_plus, info_fine_plus)
+    call dense_solve(a - 0.5_dp*step*a_dot, b - 0.5_dp*step*b_dot, &
+        x_fine_minus, info_fine_minus)
     call require( &
         info == LINALG_OK .and. info_plus == LINALG_OK .and. &
-        info_minus == LINALG_OK, "complex solve JVP succeeds")
-    call require(maxval(abs( &
-        x_dot - (x_plus - x_minus)/(2.0_dp*step))) < 2.0e-10_dp, &
+        info_minus == LINALG_OK .and. info_fine_plus == LINALG_OK .and. &
+        info_fine_minus == LINALG_OK, "complex solve JVP succeeds")
+
+    ! Central differences are second order, so the extrapolation weights are
+    ! (4*fine - coarse)/3 and the leading truncation term cancels.
+    coarse = (x_plus - x_minus)/(2.0_dp*step)
+    fine = (x_fine_plus - x_fine_minus)/step
+    extrapolated = (4.0_dp*fine - coarse)/3.0_dp
+    call require(maxval(abs(x_dot - extrapolated)) < 1.0e-9_dp, &
         "complex solve JVP matches central differences")
 
     call linear_solve_complex_vjp( &
