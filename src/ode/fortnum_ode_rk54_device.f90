@@ -49,7 +49,10 @@ module fortnum_ode_rk54_device
         real(dp) :: t
         real(dp) :: y(4)
         real(dp) :: h
-        real(dp) :: k(4, 7)
+        ! Dormand-Prince no longer needs k2 after forming its sixth stage.
+        ! Reuse that slot for k6 and keep k7 in slot 6, reducing the hot
+        ! device state by one four-vector without changing the tableau.
+        real(dp) :: k(4, 6)
         real(dp) :: trial(4)
         real(dp) :: error(4)
         real(dp) :: previous_error
@@ -134,8 +137,6 @@ contains
             return
         end if
 
-        state%k(:, state%stage) = derivative
-        state%nfev = state%nfev + 1
         if (controls%method == RK54_CASH_KARP) then
             last_stage = 6
         else if (controls%method == RK54_DORMAND_PRINCE) then
@@ -146,6 +147,21 @@ contains
             request = RK54_FAILED
             return
         end if
+        if (state%stage > last_stage) then
+            t_eval = state%t
+            y_eval = state%y
+            request = RK54_FAILED
+            return
+        end if
+        if (controls%method == RK54_DORMAND_PRINCE .and. state%stage == 6) then
+            state%k(:, 2) = derivative
+        else if (controls%method == RK54_DORMAND_PRINCE .and. &
+                state%stage == 7) then
+            state%k(:, 6) = derivative
+        else
+            state%k(:, state%stage) = derivative
+        end if
+        state%nfev = state%nfev + 1
 
         if (state%stage < last_stage) then
             state%stage = state%stage + 1
@@ -238,7 +254,7 @@ contains
             t_eval = state%t + state%h
             call fortnum_rk54_dp_stage7(state%y, state%h, state%k(:, 1), &
                 state%k(:, 2), state%k(:, 3), state%k(:, 4), &
-                state%k(:, 5), state%k(:, 6), y_eval)
+                state%k(:, 5), state%k(:, 2), y_eval)
         case default
             t_eval = state%t
             y_eval = state%y
@@ -262,8 +278,8 @@ contains
         type(rk54_state4_t), intent(inout) :: state
 
         call fortnum_rk54_dp_finish(state%y, state%h, state%k(:, 1), &
-            state%k(:, 3), state%k(:, 4), state%k(:, 5), state%k(:, 6), &
-            state%k(:, 7), state%trial, state%error)
+            state%k(:, 3), state%k(:, 4), state%k(:, 5), state%k(:, 2), &
+            state%k(:, 6), state%trial, state%error)
     end subroutine finish_dormand_prince
 
     ! FIRM3D/CATAPULT's exact four-component maximum norm.
@@ -332,7 +348,7 @@ contains
             state%t = state%t + state%h
             state%y = state%trial
             if (controls%method == RK54_DORMAND_PRINCE) &
-                state%k(:, 1) = state%k(:, 7)
+                state%k(:, 1) = state%k(:, 6)
             state%h = hnew
             state%previous_error = max(state%last_error, 1.0e-10_dp)
             state%first_step = .false.
