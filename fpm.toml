@@ -6,19 +6,15 @@ maintainer = "albert@tugraz.at"
 license = "MIT"
 copyright = "Copyright 2025, lazy-fortran"
 
-[dev-dependencies]
-test-drive = { git = "https://github.com/fortran-lang/test-drive.git" }
-
 [build]
 auto-tests = true
-# roots/fortnum_roots_complex.f90 calls LAPACK ZGGEV; link LAPACK and its BLAS
-# so the fpm/fo build resolves it without relying on the default library path.
-# OpenBLAS, with netlib LAPACK ahead of it.
+# roots/fortnum_roots_complex.f90 calls LAPACK ZGGEV.  Ask fpm/fo for the
+# BLAS metapackage so the platform selects OpenBLAS, MKL, Accelerate, or the
+# best available system provider instead of hard-coding one installation.
 #
-# The reference netlib BLAS is unoptimized and single-threaded: a 400 by 4000
-# triangular solve measured 143 ms against 52 ms for the same operation
-# through numpy's OpenBLAS, and that solve dominates every Gaussian-process
-# prediction in the stack.
+# The reference netlib BLAS is unoptimized and single-threaded; the selected
+# provider is both faster on the development machine and reproducible through
+# the provider's pkg-config metadata.
 #
 # Switching exposed a fragile test rather than a real regression.
 # test_complex_linear_solve_products compared a JVP against a central
@@ -27,7 +23,12 @@ auto-tests = true
 # floor and passed on one BLAS's rounding. It now uses Richardson
 # extrapolation at a larger step, where the error budget is orders of
 # magnitude under the tolerance, and passes on either library.
-link = ["lapack", "openblas"]
+
+[dependencies]
+blas = "*"
+
+[dev-dependencies]
+test-drive = { git = "https://github.com/fortran-lang/test-drive.git" }
 
 [fortran]
 implicit-typing = false
