@@ -13,6 +13,19 @@ test-drive = { git = "https://github.com/fortran-lang/test-drive.git" }
 auto-tests = true
 # roots/fortnum_roots_complex.f90 calls LAPACK ZGGEV; link LAPACK and its BLAS
 # so the fpm/fo build resolves it without relying on the default library path.
+# Reference netlib LAPACK and BLAS.
+#
+# This is measurably slow: a 400 by 4000 triangular solve takes 143 ms here
+# against 52 ms for the same operation through numpy's threaded OpenBLAS, and
+# that solve dominates every Gaussian-process prediction in the stack.
+#
+# Switching to OpenBLAS was tried and reverted. It breaks
+# test_complex_linear_solve_products, whose complex solve JVP stops matching
+# central differences within its 2e-10 tolerance -- the complex BLAS kernels
+# round differently. Loosening a correctness tolerance to unlock a performance
+# change is not a trade this package makes, so the default stays on the
+# implementation the tests were validated against and the cost is recorded
+# rather than hidden. Callers who want the faster BLAS can link it themselves.
 link = ["lapack", "blas"]
 
 [fortran]
