@@ -181,7 +181,7 @@ if(CMAKE_Fortran_COMPILER_ID STREQUAL "NVHPC")
     # -O2; newer NVHPC releases do not need the workaround.
     if(CMAKE_Fortran_COMPILER_VERSION VERSION_LESS 24)
         set_property(SOURCE roots/fortnum_multiroot_rc.f90 APPEND PROPERTY
-            COMPILE_OPTIONS -O2)
+            COMPILE_OPTIONS -O2 -Mnovect)
     endif()
 endif()
 
