@@ -79,12 +79,15 @@ and supplies the derivative. This avoids procedure pointers, polymorphism, and
 host callbacks in accelerator regions while leaving the tableau and adaptive
 controller in fortnum.
 
-The Dormand-Prince controller includes the FIRM3D-compatible four-component
-maximum norm, `error**(-1/3)` update, bounded growth, and minimum-step
-acceptance. Absolute tolerances are per component so velocity-like states can
-use the same scaling as the external reference. Cash-Karp retains fortnum's RMS
-norm and PI controller. Generated stage and embedded-error leaves are pure,
-elemental, OpenACC device routines and OpenMP declare-target procedures.
+The compatibility Dormand-Prince mode includes the FIRM3D-compatible
+four-component maximum norm, `error**(-1/3)` update, bounded growth, and
+minimum-step acceptance. The tuned Dormand-Prince mode uses the same tableau,
+norm, FSAL reuse, and minimum-step policy with the fifth-order first/retry
+controller and Fortnum's PI history. Absolute tolerances are per component so
+velocity-like states can use the same scaling as the external reference.
+Cash-Karp retains Fortnum's RMS norm and PI controller. Generated stage and
+embedded-error leaves are pure, elemental, OpenACC device routines and OpenMP
+declare-target procedures.
 
 ## Events
 
