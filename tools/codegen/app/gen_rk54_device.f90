@@ -17,7 +17,7 @@ program gen_rk54_device
     use fortsym_expr, only: expr_t, sym, real_expr, operator(+), operator(*)
     use fortsym_kernel, only: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE
     use fortsym_rk, only: butcher_t, rk_from_rows, rk_is_consistent, &
-        rk_attains_order, rk_error_weights, rk_is_fsal
+        rk_attains_order, rk_error_weights, rk_is_fsal, rk_is_zero
     use fortsym_string, only: str_t, str, chars
     use fortnum_codegen_provenance, only: codegen_log, generated_path
     implicit none
@@ -170,7 +170,7 @@ contains
         do j = 1, size(weight_sets, 1)
             used = .false.
             do w = 1, size(weight_sets, 2)
-                if (chars(weight_sets(j, w)) /= "0") used = .true.
+                if (.not. rk_is_zero(weight_sets(j, w))) used = .true.
             end do
             if (used) names = [names, str("k"//integer_text(j))]
         end do
@@ -187,7 +187,7 @@ contains
 
         started = .false.
         do j = 1, size(weights)
-            if (chars(weights(j)) == "0") cycle
+            if (rk_is_zero(weights(j))) cycle
             stage_name = str("k"//integer_text(j))
             ! Round the exact weight to a double here, once, rather than
             ! emitting the rational and leaving a division in the inner loop.
