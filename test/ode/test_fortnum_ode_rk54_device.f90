@@ -23,6 +23,8 @@ program test_fortnum_ode_rk54_device
     call test_device_exponential(RK54_DORMAND_PRINCE_TUNED)
     call test_tuned_controller()
     call test_rejection_and_minimum_step()
+    call test_observed_order(RK54_CASH_KARP)
+    call test_observed_order(RK54_DORMAND_PRINCE)
     if (failures /= 0) then
         write (error_unit, "(i0,a)") failures, " RK54 device test(s) failed"
         error stop 1
@@ -272,6 +274,76 @@ contains
         result = state%y
         final_time = state%t
     end subroutine integrate_exponential_device
+
+    !> Observed order of convergence on a nonlinear problem with a known
+    !> solution.
+    !>
+    !> The coefficients in the generated kernels are correctly-rounded doubles
+    !> of the exact published rationals, so they carry up to an ulp of error.
+    !> That is deliberate: it removes a division per stage per component from
+    !> the inner loop. This is the check that says the rounding is harmless and
+    !> a real transcription error is not.
+    !>
+    !> Halving the step must divide the fifth-order error by about 32. A single
+    !> mistyped tableau digit breaks an order condition and drops the observed
+    !> order to four or lower, which this catches; a one-ulp coefficient
+    !> perturbation does not move the observed order at all, which is exactly
+    !> the tolerance we want.
+    !>
+    !> The oracle is the closed-form solution of y' = -y**2, y(0) = 1, which is
+    !> y(t) = 1/(1+t) -- not a reference produced by this integrator.
+    subroutine test_observed_order(method)
+        integer, intent(in) :: method
+        integer, parameter :: coarse = 12
+        real(dp) :: error_coarse, error_fine, ratio, observed
+
+        error_coarse = fixed_step_error(method, coarse)
+        error_fine = fixed_step_error(method, 2*coarse)
+        call check(error_coarse > 0.0_dp .and. error_fine > 0.0_dp, &
+            "fixed-step errors are non-zero and measurable")
+        if (error_fine <= 0.0_dp) return
+        ratio = error_coarse/error_fine
+        observed = log(ratio)/log(2.0_dp)
+        ! Fifth order, with room for the usual asymptotic drift at these step
+        ! counts. Order four would give 4.0 and fail.
+        call check(observed > 4.6_dp, "observed order is at least five")
+    end subroutine test_observed_order
+
+    !> |y_N - 1/(1+1)| after n equal fixed steps over [0, 1] of y' = -y**2.
+    !>
+    !> Step-size control is disabled by making the tolerances loose enough that
+    !> every step is accepted, so this measures the tableau and nothing else.
+    function fixed_step_error(method, n) result(error)
+        integer, intent(in) :: method, n
+        real(dp) :: error
+        type(rk54_controls4_t) :: controls
+        type(rk54_state4_t) :: state
+        real(dp) :: t_eval, y_eval(4), derivative(4), h
+        integer :: request, step, guard
+
+        h = 1.0_dp/real(n, dp)
+        controls%method = method
+        controls%rtol = 1.0_dp
+        controls%atol = 1.0_dp
+        controls%hmin = 0.5_dp*h
+        controls%hmax = h
+        call rk54_initialize4(state, 0.0_dp, [1.0_dp, 1.0_dp, 1.0_dp, 1.0_dp], h)
+        guard = 0
+        do step = 1, n
+            state%h = h
+            request = RK54_NEED_RHS
+            call rk54_request4(state, controls, t_eval, y_eval, request)
+            do while (request == RK54_NEED_RHS)
+                derivative = -y_eval*y_eval
+                call rk54_supply4(state, controls, derivative, t_eval, y_eval, &
+                    request)
+                guard = guard + 1
+                if (guard > 100000) exit
+            end do
+            if (request == RK54_FAILED) exit
+        end do
+        error = abs(state%y(1) - 1.0_dp/(1.0_dp + state%t))
+    end function fixed_step_error
 
     subroutine test_rejection_and_minimum_step()
         type(rk54_controls4_t) :: controls
