@@ -131,8 +131,7 @@ contains
         character(len=2) :: stage_text
 
         roots(1) = sym(arena, "y") + scaled_sum(tableau%a(stage, :))
-        names = argument_names(reshape(tableau%a(stage, :), &
-                                       [tableau%stages, 1]))
+        names = argument_names(as_columns(tableau%a(stage, :)))
         write (stage_text, "(i0)") stage
         call write_kernel(prefix//"_stage"//trim(stage_text), names, &
                           [str("ystage")], roots)
@@ -151,8 +150,7 @@ contains
 
         roots(1) = sym(arena, "y") + scaled_sum(tableau%b)
         roots(2) = scaled_sum(error_weights)
-        names = argument_names(reshape([tableau%b, error_weights], &
-                                       [tableau%stages, 2]))
+        names = argument_names(as_columns(tableau%b, error_weights))
         call write_kernel(prefix//"_finish", names, &
                           [str("ynew"), str("yerror")], roots)
     end subroutine emit_finish
@@ -161,6 +159,33 @@ contains
     !> ascending stage order. Consumers bind these positionally, so the order
     !> has to depend only on the tableau and not on which expression named a
     !> stage first.
+    !> Gather one or two weight vectors into a two-dimensional array, by
+    !> element.
+    !>
+    !> str_t carries an allocatable character component, so building this with
+    !> an array constructor and reshape leaves the result depending on whether
+    !> the compiler deep-copies the temporary. One gfortran did and another did
+    !> not: the second column came through as freed memory, weights were
+    !> classified non-zero at random, and a generated kernel gained a stage it
+    !> does not use. Element-wise assignment has no such freedom.
+    function as_columns(first, second) result(columns)
+        type(str_t), intent(in) :: first(:)
+        type(str_t), intent(in), optional :: second(:)
+        type(str_t), allocatable :: columns(:, :)
+        integer :: j, n
+
+        n = size(first)
+        if (present(second)) then
+            allocate (columns(n, 2))
+        else
+            allocate (columns(n, 1))
+        end if
+        do j = 1, n
+            columns(j, 1) = first(j)
+            if (present(second)) columns(j, 2) = second(j)
+        end do
+    end function as_columns
+
     !> Log the exact rendering and zero verdict of every weight.
     !>
     !> Which stages a kernel takes is decided here, so when a generated file
