@@ -13,9 +13,9 @@ program gen_dop853_tableau
     !> published decimals appear here only in the drift check that follows, as
     !> an oracle, never as an input.
     use fortsym_quadratic, only: quadratic_t, quad_rational, quad_to_real, &
-        quad_text
-    use fortsym_rk_reduced, only: rk_dp8_t, rk_dormand_prince_8, &
-        RK_DP8_OK, RK_DP8_STAGES
+        quad_text, quad_sub
+    use dop853_construction, only: rk_dp8_t, rk_dormand_prince_8, &
+        rk_dp8_error_weights, RK_DP8_OK, RK_DP8_STAGES
     use fortnum_codegen_provenance, only: codegen_log, generated_path
     implicit none
 
@@ -23,6 +23,8 @@ program gen_dop853_tableau
     integer, parameter :: D = 6
 
     type(rk_dp8_t) :: tableau
+    type(quadratic_t) :: bbar(RK_DP8_STAGES), btilde(RK_DP8_STAGES)
+    type(quadratic_t) :: e5(RK_DP8_STAGES), e3(RK_DP8_STAGES)
     integer :: status, unit, ios, i, j
     logical :: ok
     character(:), allocatable :: path
@@ -33,6 +35,39 @@ program gen_dop853_tableau
         error stop "DOP853: the reduced system did not solve exactly"
     end if
     call codegen_log("DOP853: reduced system solved exactly in Q(sqrt 6)")
+
+    call rk_dp8_error_weights(tableau, bbar, btilde, status)
+    if (status /= RK_DP8_OK) then
+        error stop "DOP853: the embedded estimators did not solve exactly"
+    end if
+    do i = 1, RK_DP8_STAGES
+        ! The fifth order estimator is bbar - b; the third order one is
+        ! b - btilde, so both are applied as a single weighted stage sum.
+        e5(i) = quad_sub(bbar(i), tableau%b(i), ok)
+        if (.not. ok) error stop "DOP853: bad fifth order error weight"
+        e3(i) = quad_sub(tableau%b(i), btilde(i), ok)
+        if (.not. ok) error stop "DOP853: bad third order error weight"
+    end do
+    call codegen_log("DOP853: embedded estimators derived (section II.10)")
+
+    ! Compare against Hairer and Wanner's dop853.f before emitting anything.
+    ! Those decimals are an oracle, never an input: the construction above took
+    ! only the four free nodes. A derivation that drifted would stop the build
+    ! here rather than quietly ship a different method.
+    call expect(tableau%c(2), 0.526001519587677318785587544488e-01_dp, "c2")
+    call expect(tableau%c(4), 0.118350341907227396726757197510_dp, "c4")
+    call expect(tableau%c(9), 0.651282051282051282051282051282_dp, "c9")
+    call expect(tableau%b(1), 5.42937341165687622380535766363e-2_dp, "b1")
+    call expect(tableau%b(12), 4.47106157277725905176885569043e-2_dp, "b12")
+    call expect(tableau%a(9, 4), -3.36089262944694129406857109825_dp, "a94")
+    call expect(tableau%a(12, 5), -2.00087205822486249909675718444_dp, "a125")
+    call expect(tableau%a(12, 11), 6.43392746015763530355970484046e-1_dp, "a1211")
+    call expect(e5(1), 0.1312004499419488073250102996e-01_dp, "er1")
+    call expect(e5(12), -0.2235530786388629525884427845e-01_dp, "er12")
+    call expect(btilde(1), 0.244094488188976377952755905512_dp, "bhh1")
+    call expect(btilde(9), 0.733846688281611857341361741547_dp, "bhh2")
+    call expect(btilde(12), 0.220588235294117647058823529412e-1_dp, "bhh3")
+    call codegen_log("DOP853: agrees with dop853.f on every checked value")
 
     path = generated_path("fortnum_dop853_tableau.f90")
     open (newunit=unit, file=path, status="replace", action="write", iostat=ios)
@@ -62,6 +97,7 @@ program gen_dop853_tableau
     write (unit, "(a)") "    private"
     write (unit, "(a)") ""
     write (unit, "(a)") "    public :: dop853_c, dop853_b, dop853_a"
+    write (unit, "(a)") "    public :: dop853_e5, dop853_e3"
     write (unit, "(a)") ""
     write (unit, "(a,i0)") "    integer, parameter, public :: DOP853_STAGES = ", &
         RK_DP8_STAGES
@@ -70,12 +106,32 @@ program gen_dop853_tableau
     call emit_vector(unit, "dop853_c", tableau%c)
     call emit_vector(unit, "dop853_b", tableau%b)
     call emit_matrix(unit, "dop853_a", tableau%a)
+    write (unit, "(a)") "    !> Fifth order estimator, section II.10:"
+    write (unit, "(a)") "    !> err5 = h * sum_i dop853_e5(i) * k_i."
+    call emit_vector(unit, "dop853_e5", e5)
+    write (unit, "(a)") "    !> Third order estimator, carried by c1, c9, c12."
+    call emit_vector(unit, "dop853_e3", e3)
 
     write (unit, "(a)") "end module fortnum_dop853_tableau"
     close (unit)
     call codegen_log("wrote "//path)
 
 contains
+
+    !> Stop the build unless a derived coefficient matches its published value.
+    subroutine expect(value, reference, name)
+        type(quadratic_t), intent(in) :: value
+        real(dp), intent(in) :: reference
+        character(*), intent(in) :: name
+        real(dp) :: got
+        logical :: s
+
+        got = quad_to_real(value, s)
+        if (.not. s) error stop "DOP853: "//name//" is not representable"
+        if (abs(got - reference) > 1.0e-14_dp*max(1.0_dp, abs(reference))) then
+            error stop "DOP853: derived "//name//" disagrees with dop853.f"
+        end if
+    end subroutine expect
 
     function rat(text) result(value)
         character(*), intent(in) :: text

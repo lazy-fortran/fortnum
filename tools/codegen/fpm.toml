@@ -8,6 +8,9 @@ fortsym = { path = "../../../fortsym" }
 [build]
 auto-executables = true
 
+[library]
+source-dir = "src"
+
 [fortran]
 implicit-typing = false
 source-form = "free"

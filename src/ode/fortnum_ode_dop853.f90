@@ -27,7 +27,8 @@ module fortnum_ode_dop853
     use, intrinsic :: iso_fortran_env, only: dp => real64
     ! The nodes, coupling matrix and weights are derived from the reduced
     ! system, not declared here. See tools/codegen/app/gen_dop853_tableau.f90.
-    use fortnum_dop853_tableau, only: dop853_c, dop853_b, dop853_a
+    use fortnum_dop853_tableau, only: dop853_c, dop853_b, dop853_a, &
+        dop853_e5, dop853_e3
     use fortnum_status, only: fortnum_status_t, status_set, &
         FORTNUM_OK, FORTNUM_DOMAIN_ERROR, FORTNUM_CONVERGENCE_ERROR
     use fortnum_ode, only: ode_problem_t, ode_workspace_t, ode_solution_t, &
@@ -54,24 +55,8 @@ module fortnum_ode_dop853
     ! Eighth-order solution weights (stages 2..5 carry zero weight).
 
     ! Order-5 embedded error weights (err5 = sum E5_i k_i).
-    real(dp), parameter :: E5_1  = 0.01312004499419488_dp
-    real(dp), parameter :: E5_6  = -1.2251564463762044_dp
-    real(dp), parameter :: E5_7  = -0.4957589496572502_dp
-    real(dp), parameter :: E5_8  = 1.6643771824549864_dp
-    real(dp), parameter :: E5_9  = -0.35032884874997366_dp
-    real(dp), parameter :: E5_10 = 0.3341791187130175_dp
-    real(dp), parameter :: E5_11 = 0.08192320648511571_dp
-    real(dp), parameter :: E5_12 = -0.022355307863886294_dp
 
     ! Order-3 embedded error weights (err3 = sum E3_i k_i).
-    real(dp), parameter :: E3_1  = -0.18980075407240762_dp
-    real(dp), parameter :: E3_6  = 4.450312892752409_dp
-    real(dp), parameter :: E3_7  = 1.8915178993145003_dp
-    real(dp), parameter :: E3_8  = -5.801203960010585_dp
-    real(dp), parameter :: E3_9  = -0.4226823213237919_dp
-    real(dp), parameter :: E3_10 = -0.1521609496625161_dp
-    real(dp), parameter :: E3_11 = 0.20136540080403034_dp
-    real(dp), parameter :: E3_12 = 0.02265179219836082_dp
 
 contains
 
@@ -151,10 +136,10 @@ contains
         y8 = y + h * (dop853_b(1) * k1 + dop853_b(6) * k6 + dop853_b(7) * k7 + dop853_b(8) * k8 + dop853_b(9) * k9 &
             + dop853_b(10) * k10 + dop853_b(11) * k11 + dop853_b(12) * k12)
 
-        err5 = h * (E5_1 * k1 + E5_6 * k6 + E5_7 * k7 + E5_8 * k8 + E5_9 * k9 &
-            + E5_10 * k10 + E5_11 * k11 + E5_12 * k12)
-        err3 = h * (E3_1 * k1 + E3_6 * k6 + E3_7 * k7 + E3_8 * k8 + E3_9 * k9 &
-            + E3_10 * k10 + E3_11 * k11 + E3_12 * k12)
+        err5 = h * (dop853_e5(1) * k1 + dop853_e5(6) * k6 + dop853_e5(7) * k7 + dop853_e5(8) * k8 + dop853_e5(9) * k9 &
+            + dop853_e5(10) * k10 + dop853_e5(11) * k11 + dop853_e5(12) * k12)
+        err3 = h * (dop853_e3(1) * k1 + dop853_e3(6) * k6 + dop853_e3(7) * k7 + dop853_e3(8) * k8 + dop853_e3(9) * k9 &
+            + dop853_e3(10) * k10 + dop853_e3(11) * k11 + dop853_e3(12) * k12)
     end subroutine dop853_step
 
     ! Integrate problem%rhs from t0 to t1 with adaptive RK8(7)13M. Records the
