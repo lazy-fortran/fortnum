@@ -70,6 +70,22 @@ The package also exposes:
 
 Each method owns its documented state. They do not share hidden solver globals.
 
+## Four-state GPU reverse communication
+
+`fortnum_ode_rk54_device` provides allocation-free Cash-Karp 5(4) and
+Dormand-Prince 5(4) stepping for four-state accelerator workloads. The caller
+asks for a stage state, evaluates its application-specific RHS on the device,
+and supplies the derivative. This avoids procedure pointers, polymorphism, and
+host callbacks in accelerator regions while leaving the tableau and adaptive
+controller in fortnum.
+
+The Dormand-Prince controller includes the FIRM3D-compatible four-component
+maximum norm, `error**(-1/3)` update, bounded growth, and minimum-step
+acceptance. Absolute tolerances are per component so velocity-like states can
+use the same scaling as the external reference. Cash-Karp retains fortnum's RMS
+norm and PI controller. Generated stage and embedded-error leaves are pure,
+elemental, OpenACC device routines and OpenMP declare-target procedures.
+
 ## Events
 
 An event callback returns a scalar residual \(g(t,y)\). Direction is

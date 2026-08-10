@@ -100,6 +100,19 @@ target_sources(fortnum PRIVATE
     generated/fortnum_inv3_vjp_kernel.f90
     generated/fortnum_implicit_root_residual_kernel.f90
     generated/fortnum_legendre_recurrence_kernel.f90
+    generated/fortnum_rk54_ck_finish_kernel.f90
+    generated/fortnum_rk54_ck_stage2_kernel.f90
+    generated/fortnum_rk54_ck_stage3_kernel.f90
+    generated/fortnum_rk54_ck_stage4_kernel.f90
+    generated/fortnum_rk54_ck_stage5_kernel.f90
+    generated/fortnum_rk54_ck_stage6_kernel.f90
+    generated/fortnum_rk54_dp_finish_kernel.f90
+    generated/fortnum_rk54_dp_stage2_kernel.f90
+    generated/fortnum_rk54_dp_stage3_kernel.f90
+    generated/fortnum_rk54_dp_stage4_kernel.f90
+    generated/fortnum_rk54_dp_stage5_kernel.f90
+    generated/fortnum_rk54_dp_stage6_kernel.f90
+    generated/fortnum_rk54_dp_stage7_kernel.f90
     generated/fortnum_jacobi_recurrence_kernel.f90
     generated/fortnum_scaled_jacobi_recurrence_kernel.f90
     generated/fortnum_scaled_jacobi_gradient_recurrence_kernel.f90
@@ -130,6 +143,7 @@ target_sources(fortnum PRIVATE
     ode/fortnum_ode_gauss_radau.f90
     ode/fortnum_ode_events.f90
     ode/fortnum_ode_rk8pd.f90
+    ode/fortnum_ode_rk54_device.f90
     ode/fortnum_ode_vode.f90
     ode/fortnum_ode_wrapper.f90
     quadrature/fortnum_cquad.f90
@@ -156,6 +170,14 @@ target_sources(fortnum PRIVATE
     special/fortnum_special_toroidal.f90
     testing/fortnum_oracle.f90
 )
+
+# NVFortran 26.5 can crash in fort2 when this already-preprocessed source is
+# passed through -Mpreprocess a second time by an embedding project.  The file
+# contains no preprocessor directives, so compile the original source directly.
+if(CMAKE_Fortran_COMPILER_ID STREQUAL "NVHPC")
+    set_source_files_properties(roots/fortnum_multiroot_rc.f90 PROPERTIES
+        Fortran_PREPROCESS OFF)
+endif()
 
 # Consumers find .mod files in the module output directory.
 target_include_directories(fortnum PUBLIC ${CMAKE_Fortran_MODULE_DIRECTORY})

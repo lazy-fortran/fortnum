@@ -55,20 +55,22 @@ module fortnum_multiroot_rc
 
     ! Caller-owned RC state.  Flat: only scalars and fixed-size arrays, so it
     ! copies cleanly to the device and is valid as a routine-seq dummy.
+    ! Every valid state is created by multiroot_rc_init, which assigns all
+    ! components explicitly without compiler-generated device initialization.
     type, public :: multiroot_rc_t
-        integer :: n = 0 ! system size (1..MULTIROOT_RC_MAX_N)
-        integer :: phase = PHASE_START
-        integer :: iter = 0 ! Newton steps taken
-        integer :: max_iter = 1000
-        integer :: ls_count = 0 ! line-search halvings tried
-        integer :: fail_code = 0
-        real(dp) :: xtol = 1.0e-10_dp
-        real(dp) :: ftol = 1.0e-10_dp
-        real(dp) :: lambda = 1.0_dp ! current line-search step length
-        real(dp) :: g0 = 0.0_dp ! 1/2 |F|^2 at the accepted point
-        real(dp) :: x(MULTIROOT_RC_MAX_N) = 0.0_dp ! current iterate / trial point
-        real(dp) :: x_base(MULTIROOT_RC_MAX_N) = 0.0_dp ! accepted iterate
-        real(dp) :: dx(MULTIROOT_RC_MAX_N) = 0.0_dp ! Newton direction
+        integer :: n ! system size (1..MULTIROOT_RC_MAX_N)
+        integer :: phase
+        integer :: iter ! Newton steps taken
+        integer :: max_iter
+        integer :: ls_count ! line-search halvings tried
+        integer :: fail_code
+        real(dp) :: xtol
+        real(dp) :: ftol
+        real(dp) :: lambda ! current line-search step length
+        real(dp) :: g0 ! 1/2 |F|^2 at the accepted point
+        real(dp) :: x(MULTIROOT_RC_MAX_N) ! current iterate / trial point
+        real(dp) :: x_base(MULTIROOT_RC_MAX_N) ! accepted iterate
+        real(dp) :: dx(MULTIROOT_RC_MAX_N) ! Newton direction
     end type multiroot_rc_t
 
     public :: multiroot_rc_init, multiroot_step
