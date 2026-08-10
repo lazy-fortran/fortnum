@@ -124,6 +124,14 @@ endif()
 # The complex analytic-zero finder (fortnum_roots_complex) solves a small
 # generalized eigenproblem with LAPACK ZGGEV, so the library links LAPACK (and
 # its BLAS dependency). This is the only external numerical dependency.
+if(FORTNUM_GPU_BACKEND STREQUAL "OPENACC"
+        AND CMAKE_Fortran_COMPILER_ID STREQUAL "NVHPC"
+        AND NOT BLA_VENDOR)
+    # A GNU-OpenMP OpenBLAS loads libgomp before NVHPC's OpenACC runtime and
+    # intercepts accelerator registration. Prefer CMake's NVHPC-compatible
+    # BLAS search; callers can still override BLA_VENDOR explicitly.
+    set(BLA_VENDOR NVHPC)
+endif()
 find_package(LAPACK REQUIRED)
 
 add_subdirectory(src)

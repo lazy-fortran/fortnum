@@ -188,6 +188,10 @@ add_executable(test_fortnum_ode_cash_karp ode/test_fortnum_ode_cash_karp.f90)
 target_link_libraries(test_fortnum_ode_cash_karp PRIVATE fortnum)
 add_test(NAME fortnum_ode_cash_karp COMMAND test_fortnum_ode_cash_karp)
 
+add_executable(test_fortnum_ode_rk54_device ode/test_fortnum_ode_rk54_device.f90)
+target_link_libraries(test_fortnum_ode_rk54_device PRIVATE fortnum)
+add_test(NAME fortnum_ode_rk54_device COMMAND test_fortnum_ode_rk54_device)
+
 add_executable(test_fortnum_ode_events ode/test_fortnum_ode_events.f90)
 target_link_libraries(test_fortnum_ode_events PRIVATE fortnum)
 add_test(NAME fortnum_ode_events COMMAND test_fortnum_ode_events)

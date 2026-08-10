@@ -66,3 +66,8 @@ main = "gen_special_region_candidates.f90"
 name = "gen_enzyme_scalar_wrappers"
 source-dir = "app"
 main = "gen_enzyme_scalar_wrappers.f90"
+
+[[executable]]
+name = "gen_rk54_device"
+source-dir = "app"
+main = "gen_rk54_device.f90"

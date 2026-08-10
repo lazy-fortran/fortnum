@@ -87,6 +87,7 @@ tools expose reliable values.
 | scalar root residual | local products plus implicit JVP | closed-form root |
 | ODE trace | two-state tangent and adjoint maps | closed-form matrix composition |
 | terminal ODE objective | value plus reverse gradient | closed-form terminal state and gradient |
+| adaptive RK5(4) | four-state Cash-Karp and Dormand-Prince reverse communication | exact exponential trajectories and an external FIRM3D fixture |
 
 These are individually validated leaves. Unsupported dimensions and algorithms
 do not silently route to a different GPU implementation.

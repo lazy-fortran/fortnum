@@ -115,6 +115,31 @@ add_library(bench_core STATIC
 )
 target_link_libraries(bench_core PUBLIC fortnum_gpu_backend LAPACK::LAPACK)
 
+# RK54 offload has no BLAS/LAPACK dependency. Keep it in a small target so a
+# threaded system BLAS cannot pull libgomp into an NVHPC OpenACC executable.
+add_library(bench_rk54_core STATIC
+    ${FORTNUM_CORE_DIR}/generated/fortnum_rk54_ck_finish_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_rk54_ck_stage2_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_rk54_ck_stage3_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_rk54_ck_stage4_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_rk54_ck_stage5_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_rk54_ck_stage6_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_rk54_dp_finish_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_rk54_dp_stage2_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_rk54_dp_stage3_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_rk54_dp_stage4_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_rk54_dp_stage5_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_rk54_dp_stage6_kernel.f90
+    ${FORTNUM_CORE_DIR}/generated/fortnum_rk54_dp_stage7_kernel.f90
+    ${FORTNUM_CORE_DIR}/ode/fortnum_ode_rk54_device.f90
+    gpu/fortnum_gpu_rk54_wrapper.f90
+    gpu/test_gpu_rk54_support.f90)
+target_link_libraries(bench_rk54_core PUBLIC fortnum_gpu_backend)
+set_target_properties(bench_rk54_core PROPERTIES
+    Fortran_MODULE_DIRECTORY ${PROJECT_BINARY_DIR}/include-rk54)
+target_include_directories(bench_rk54_core PUBLIC
+    ${PROJECT_BINARY_DIR}/include-rk54)
+
 if(FORTNUM_DAWSON_VARIANT_DIR)
     set(FORTNUM_DAWSON_VARIANT_SOURCES
         ${FORTNUM_DAWSON_VARIANT_DIR}/fortnum_dawson_jvp_raw.f90
@@ -332,6 +357,11 @@ if(FORTNUM_GPU_BACKEND STREQUAL "OPENACC")
     target_link_libraries(test_openacc_ode_objective_offload PRIVATE bench_core)
     add_test(NAME openacc_ode_objective_offload
         COMMAND test_openacc_ode_objective_offload)
+
+    add_executable(test_openacc_rk54_offload
+        gpu/test_openacc_rk54_offload.f90)
+    target_link_libraries(test_openacc_rk54_offload PRIVATE bench_rk54_core)
+    add_test(NAME openacc_rk54_offload COMMAND test_openacc_rk54_offload)
 
     if(FORTNUM_DAWSON_VARIANT_DIR)
         add_executable(test_openacc_dawson_variants_offload
