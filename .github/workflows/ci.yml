@@ -65,6 +65,22 @@ jobs:
           # lock it is contracted to, not the revision it was built against.
           general="$(cat tools/codegen/fortsym.lock)"
           rk54="$(cat tools/codegen/fortsym-rk54.lock)"
+          # A clone only carries objects reachable from a branch or tag. A
+          # locked revision whose branch was squash-merged and deleted is
+          # absent, so fetch it by SHA before deciding anything.
+          for revision in "$general" "$rk54"; do
+            if git -C ../fortsym cat-file -e "$revision^{commit}" 2>/dev/null
+            then
+              continue
+            fi
+            if ! git -C ../fortsym fetch --depth 1 origin "$revision" \
+                   2>/dev/null; then
+              echo "::error::fortsym revision $revision is unreachable." \
+                "Its branch was probably squash-merged and deleted; bump" \
+                "the lock to a revision on fortsym main."
+              exit 1
+            fi
+          done
           if git -C ../fortsym merge-base --is-ancestor "$general" "$rk54"; then
             build_revision="$rk54"
           elif git -C ../fortsym merge-base --is-ancestor "$rk54" "$general"; then
@@ -311,6 +327,22 @@ jobs:
           # runs the Enzyme wrapper generator.
           general="$(cat tools/codegen/fortsym.lock)"
           rk54="$(cat tools/codegen/fortsym-rk54.lock)"
+          # A clone only carries objects reachable from a branch or tag. A
+          # locked revision whose branch was squash-merged and deleted is
+          # absent, so fetch it by SHA before deciding anything.
+          for revision in "$general" "$rk54"; do
+            if git -C ../fortsym cat-file -e "$revision^{commit}" 2>/dev/null
+            then
+              continue
+            fi
+            if ! git -C ../fortsym fetch --depth 1 origin "$revision" \
+                   2>/dev/null; then
+              echo "::error::fortsym revision $revision is unreachable." \
+                "Its branch was probably squash-merged and deleted; bump" \
+                "the lock to a revision on fortsym main."
+              exit 1
+            fi
+          done
           if git -C ../fortsym merge-base --is-ancestor "$general" "$rk54"; then
             build_revision="$rk54"
           elif git -C ../fortsym merge-base --is-ancestor "$rk54" "$general"; then
