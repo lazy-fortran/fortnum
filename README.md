@@ -81,7 +81,7 @@ The main public modules are:
 | transforms | `fortnum_fft` |
 | ODEs | `fortnum_ode` and method modules |
 | roots | `fortnum_roots`, `fortnum_multiroot`, `fortnum_roots_complex` |
-| interpolation | `fortnum_interp`, `fortnum_polynomial`, `fortnum_bspline` |
+| interpolation | `fortnum_interp`, `fortnum_polynomial`, `fortnum_bspline`, `fortnum_bspline_lsq` |
 | linear algebra | `fortnum_linalg`, `fortnum_cholesky`, `fortnum_krylov`, `fortnum_tensor_product`, `fortnum_toeplitz` |
 | random numbers | `fortnum_rng` |
 

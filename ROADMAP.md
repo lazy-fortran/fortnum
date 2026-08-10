@@ -197,6 +197,7 @@ composition with at least one analytical rule.
 - [x] Benchmark separate and fused combined-active Lagrange products.
 - [x] Benchmark separate and fused combined-active B-spline products.
 - [x] Compare analytical basis products with fixed-span autodiff candidates.
+- [x] Add matrix-free 1D B-spline least-squares fitting on the shared workspace.
 
 ## Generated-kernel policy and reproducibility
 

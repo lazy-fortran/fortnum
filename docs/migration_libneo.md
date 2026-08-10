@@ -99,6 +99,7 @@ Preserve bracket, tolerance, iteration, and singular-Jacobian behavior.
 | knot setup | `bspline_set_knots` |
 | basis values | `bspline_eval_basis` |
 | basis derivatives | `bspline_eval_deriv` |
+| 1D matrix-free B-spline least squares | `bspline_1d_lsq_cgls` from `fortnum_bspline_lsq` |
 
 Grid-cell and knot-span selection are discrete. Preserve endpoint conventions
 and caller array bounds.
