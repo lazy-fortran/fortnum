@@ -12,6 +12,7 @@ program gen_rk54_device
     !> rows do not sum to their nodes, stops the build. That check is exact:
     !> the residuals are rationals through FLINT, so it is a proof and not a
     !> tolerance.
+    use, intrinsic :: iso_fortran_env, only: dp => real64
     use fortsym_arena, only: arena_t
     use fortsym_exact, only: exact_to_real
     use fortsym_expr, only: expr_t, sym, real_expr, operator(+), operator(*)
@@ -170,11 +171,24 @@ contains
         do j = 1, size(weight_sets, 1)
             used = .false.
             do w = 1, size(weight_sets, 2)
-                if (.not. rk_is_zero(weight_sets(j, w))) used = .true.
+                if (.not. is_zero_weight(weight_sets(j, w))) used = .true.
             end do
             if (used) names = [names, str("k"//integer_text(j))]
         end do
     end function argument_names
+
+    !> Exact zeros must not change spelling with the compiler or FLINT build.
+    !> Convert only for this boolean classification: zero is represented
+    !> exactly as 0.0_dp, while every RK54 coefficient is far from underflow.
+    logical function is_zero_weight(weight)
+        type(str_t), intent(in) :: weight
+        real(dp) :: value
+        logical :: ok
+
+        value = exact_to_real(chars(weight), ok)
+        if (.not. ok) error stop "weight is not an exact rational"
+        is_zero_weight = value == 0.0_dp
+    end function is_zero_weight
 
     !> h * sum_j w_j k_j over the non-zero weights, in ascending stage order.
     function scaled_sum(weights) result(expression)
@@ -187,7 +201,7 @@ contains
 
         started = .false.
         do j = 1, size(weights)
-            if (rk_is_zero(weights(j))) cycle
+            if (is_zero_weight(weights(j))) cycle
             stage_name = str("k"//integer_text(j))
             ! Round the exact weight to a double here, once, rather than
             ! emitting the rational and leaving a division in the inner loop.
