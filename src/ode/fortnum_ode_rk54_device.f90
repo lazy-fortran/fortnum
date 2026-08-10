@@ -252,9 +252,11 @@ contains
                 state%k(:, 5), y_eval)
         case (7)
             t_eval = state%t + state%h
+            ! Stage 7 gives no weight to stage 2, so the generated kernel does
+            ! not take it. Stage 6 lives in slot 2 under the stage recycling.
             call fortnum_rk54_dp_stage7(state%y, state%h, state%k(:, 1), &
-                state%k(:, 2), state%k(:, 3), state%k(:, 4), &
-                state%k(:, 5), state%k(:, 2), y_eval)
+                state%k(:, 3), state%k(:, 4), state%k(:, 5), &
+                state%k(:, 2), y_eval)
         case default
             t_eval = state%t
             y_eval = state%y
