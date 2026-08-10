@@ -25,6 +25,10 @@ module fortnum_ode_dop853
     ! trace; the step writes only its output arguments and stage slots.
 
     use, intrinsic :: iso_fortran_env, only: dp => real64
+    ! The nodes, coupling matrix and weights are derived from the reduced
+    ! system, not declared here. See tools/codegen/app/gen_dop853_tableau.f90.
+    use fortnum_dop853_tableau, only: dop853_c, dop853_b, dop853_a, &
+        dop853_e5, dop853_e3
     use fortnum_status, only: fortnum_status_t, status_set, &
         FORTNUM_OK, FORTNUM_DOMAIN_ERROR, FORTNUM_CONVERGENCE_ERROR
     use fortnum_ode, only: ode_problem_t, ode_workspace_t, ode_solution_t, &
@@ -45,99 +49,14 @@ module fortnum_ode_dop853
     real(dp), parameter :: TRACE_GROWTH = 2.0_dp
 
     ! Stage nodes c2..c12 (c1 = 0 is implicit).
-    real(dp), parameter :: C2  = 0.05260015195876773_dp
-    real(dp), parameter :: C3  = 0.0789002279381516_dp
-    real(dp), parameter :: C4  = 0.1183503419072274_dp
-    real(dp), parameter :: C5  = 0.2816496580927726_dp
-    real(dp), parameter :: C6  = 0.3333333333333333_dp
-    real(dp), parameter :: C7  = 0.25_dp
-    real(dp), parameter :: C8  = 0.3076923076923077_dp
-    real(dp), parameter :: C9  = 0.6512820512820513_dp
-    real(dp), parameter :: C10 = 0.6_dp
-    real(dp), parameter :: C11 = 0.8571428571428571_dp
-    real(dp), parameter :: C12 = 1.0_dp
 
     ! Coupling coefficients a(i,j), j < i.
-    real(dp), parameter :: A2_1 = 0.05260015195876773_dp
-    real(dp), parameter :: A3_1 = 0.0197250569845379_dp
-    real(dp), parameter :: A3_2 = 0.0591751709536137_dp
-    real(dp), parameter :: A4_1 = 0.02958758547680685_dp
-    real(dp), parameter :: A4_3 = 0.08876275643042054_dp
-    real(dp), parameter :: A5_1 = 0.2413651341592667_dp
-    real(dp), parameter :: A5_3 = -0.8845494793282861_dp
-    real(dp), parameter :: A5_4 = 0.924834003261792_dp
-    real(dp), parameter :: A6_1 = 0.037037037037037035_dp
-    real(dp), parameter :: A6_4 = 0.17082860872947386_dp
-    real(dp), parameter :: A6_5 = 0.12546768756682242_dp
-    real(dp), parameter :: A7_1 = 0.037109375_dp
-    real(dp), parameter :: A7_4 = 0.17025221101954405_dp
-    real(dp), parameter :: A7_5 = 0.06021653898045596_dp
-    real(dp), parameter :: A7_6 = -0.017578125_dp
-    real(dp), parameter :: A8_1 = 0.03709200011850479_dp
-    real(dp), parameter :: A8_4 = 0.17038392571223998_dp
-    real(dp), parameter :: A8_5 = 0.10726203044637328_dp
-    real(dp), parameter :: A8_6 = -0.015319437748624402_dp
-    real(dp), parameter :: A8_7 = 0.008273789163814023_dp
-    real(dp), parameter :: A9_1 = 0.6241109587160757_dp
-    real(dp), parameter :: A9_4 = -3.3608926294469414_dp
-    real(dp), parameter :: A9_5 = -0.868219346841726_dp
-    real(dp), parameter :: A9_6 = 27.59209969944671_dp
-    real(dp), parameter :: A9_7 = 20.154067550477894_dp
-    real(dp), parameter :: A9_8 = -43.48988418106996_dp
-    real(dp), parameter :: A10_1 = 0.47766253643826434_dp
-    real(dp), parameter :: A10_4 = -2.4881146199716677_dp
-    real(dp), parameter :: A10_5 = -0.590290826836843_dp
-    real(dp), parameter :: A10_6 = 21.230051448181193_dp
-    real(dp), parameter :: A10_7 = 15.279233632882423_dp
-    real(dp), parameter :: A10_8 = -33.28821096898486_dp
-    real(dp), parameter :: A10_9 = -0.020331201708508627_dp
-    real(dp), parameter :: A11_1 = -0.9371424300859873_dp
-    real(dp), parameter :: A11_4 = 5.186372428844064_dp
-    real(dp), parameter :: A11_5 = 1.0914373489967295_dp
-    real(dp), parameter :: A11_6 = -8.149787010746927_dp
-    real(dp), parameter :: A11_7 = -18.52006565999696_dp
-    real(dp), parameter :: A11_8 = 22.739487099350505_dp
-    real(dp), parameter :: A11_9 = 2.4936055526796523_dp
-    real(dp), parameter :: A11_10 = -3.0467644718982196_dp
-    real(dp), parameter :: A12_1 = 2.273310147516538_dp
-    real(dp), parameter :: A12_4 = -10.53449546673725_dp
-    real(dp), parameter :: A12_5 = -2.0008720582248625_dp
-    real(dp), parameter :: A12_6 = -17.9589318631188_dp
-    real(dp), parameter :: A12_7 = 27.94888452941996_dp
-    real(dp), parameter :: A12_8 = -2.8589982771350235_dp
-    real(dp), parameter :: A12_9 = -8.87285693353063_dp
-    real(dp), parameter :: A12_10 = 12.360567175794303_dp
-    real(dp), parameter :: A12_11 = 0.6433927460157636_dp
 
     ! Eighth-order solution weights (stages 2..5 carry zero weight).
-    real(dp), parameter :: B1  = 0.054293734116568765_dp
-    real(dp), parameter :: B6  = 4.450312892752409_dp
-    real(dp), parameter :: B7  = 1.8915178993145003_dp
-    real(dp), parameter :: B8  = -5.801203960010585_dp
-    real(dp), parameter :: B9  = 0.3111643669578199_dp
-    real(dp), parameter :: B10 = -0.1521609496625161_dp
-    real(dp), parameter :: B11 = 0.20136540080403034_dp
-    real(dp), parameter :: B12 = 0.04471061572777259_dp
 
     ! Order-5 embedded error weights (err5 = sum E5_i k_i).
-    real(dp), parameter :: E5_1  = 0.01312004499419488_dp
-    real(dp), parameter :: E5_6  = -1.2251564463762044_dp
-    real(dp), parameter :: E5_7  = -0.4957589496572502_dp
-    real(dp), parameter :: E5_8  = 1.6643771824549864_dp
-    real(dp), parameter :: E5_9  = -0.35032884874997366_dp
-    real(dp), parameter :: E5_10 = 0.3341791187130175_dp
-    real(dp), parameter :: E5_11 = 0.08192320648511571_dp
-    real(dp), parameter :: E5_12 = -0.022355307863886294_dp
 
     ! Order-3 embedded error weights (err3 = sum E3_i k_i).
-    real(dp), parameter :: E3_1  = -0.18980075407240762_dp
-    real(dp), parameter :: E3_6  = 4.450312892752409_dp
-    real(dp), parameter :: E3_7  = 1.8915178993145003_dp
-    real(dp), parameter :: E3_8  = -5.801203960010585_dp
-    real(dp), parameter :: E3_9  = -0.4226823213237919_dp
-    real(dp), parameter :: E3_10 = -0.1521609496625161_dp
-    real(dp), parameter :: E3_11 = 0.20136540080403034_dp
-    real(dp), parameter :: E3_12 = 0.02265179219836082_dp
 
 contains
 
@@ -173,54 +92,54 @@ contains
             nfev = nfev + 1
         end if
 
-        ytmp = y + h * (A2_1 * k1)
-        call rhs(t + C2 * h, ytmp, k2, ctx)
+        ytmp = y + h * (dop853_a(2,1) * k1)
+        call rhs(t + dop853_c(2) * h, ytmp, k2, ctx)
 
-        ytmp = y + h * (A3_1 * k1 + A3_2 * k2)
-        call rhs(t + C3 * h, ytmp, k3, ctx)
+        ytmp = y + h * (dop853_a(3,1) * k1 + dop853_a(3,2) * k2)
+        call rhs(t + dop853_c(3) * h, ytmp, k3, ctx)
 
-        ytmp = y + h * (A4_1 * k1 + A4_3 * k3)
-        call rhs(t + C4 * h, ytmp, k4, ctx)
+        ytmp = y + h * (dop853_a(4,1) * k1 + dop853_a(4,3) * k3)
+        call rhs(t + dop853_c(4) * h, ytmp, k4, ctx)
 
-        ytmp = y + h * (A5_1 * k1 + A5_3 * k3 + A5_4 * k4)
-        call rhs(t + C5 * h, ytmp, k5, ctx)
+        ytmp = y + h * (dop853_a(5,1) * k1 + dop853_a(5,3) * k3 + dop853_a(5,4) * k4)
+        call rhs(t + dop853_c(5) * h, ytmp, k5, ctx)
 
-        ytmp = y + h * (A6_1 * k1 + A6_4 * k4 + A6_5 * k5)
-        call rhs(t + C6 * h, ytmp, k6, ctx)
+        ytmp = y + h * (dop853_a(6,1) * k1 + dop853_a(6,4) * k4 + dop853_a(6,5) * k5)
+        call rhs(t + dop853_c(6) * h, ytmp, k6, ctx)
 
-        ytmp = y + h * (A7_1 * k1 + A7_4 * k4 + A7_5 * k5 + A7_6 * k6)
-        call rhs(t + C7 * h, ytmp, k7, ctx)
+        ytmp = y + h * (dop853_a(7,1) * k1 + dop853_a(7,4) * k4 + dop853_a(7,5) * k5 + dop853_a(7,6) * k6)
+        call rhs(t + dop853_c(7) * h, ytmp, k7, ctx)
 
-        ytmp = y + h * (A8_1 * k1 + A8_4 * k4 + A8_5 * k5 + A8_6 * k6 &
-            + A8_7 * k7)
-        call rhs(t + C8 * h, ytmp, k8, ctx)
+        ytmp = y + h * (dop853_a(8,1) * k1 + dop853_a(8,4) * k4 + dop853_a(8,5) * k5 + dop853_a(8,6) * k6 &
+            + dop853_a(8,7) * k7)
+        call rhs(t + dop853_c(8) * h, ytmp, k8, ctx)
 
-        ytmp = y + h * (A9_1 * k1 + A9_4 * k4 + A9_5 * k5 + A9_6 * k6 &
-            + A9_7 * k7 + A9_8 * k8)
-        call rhs(t + C9 * h, ytmp, k9, ctx)
+        ytmp = y + h * (dop853_a(9,1) * k1 + dop853_a(9,4) * k4 + dop853_a(9,5) * k5 + dop853_a(9,6) * k6 &
+            + dop853_a(9,7) * k7 + dop853_a(9,8) * k8)
+        call rhs(t + dop853_c(9) * h, ytmp, k9, ctx)
 
-        ytmp = y + h * (A10_1 * k1 + A10_4 * k4 + A10_5 * k5 + A10_6 * k6 &
-            + A10_7 * k7 + A10_8 * k8 + A10_9 * k9)
-        call rhs(t + C10 * h, ytmp, k10, ctx)
+        ytmp = y + h * (dop853_a(10,1) * k1 + dop853_a(10,4) * k4 + dop853_a(10,5) * k5 + dop853_a(10,6) * k6 &
+            + dop853_a(10,7) * k7 + dop853_a(10,8) * k8 + dop853_a(10,9) * k9)
+        call rhs(t + dop853_c(10) * h, ytmp, k10, ctx)
 
-        ytmp = y + h * (A11_1 * k1 + A11_4 * k4 + A11_5 * k5 + A11_6 * k6 &
-            + A11_7 * k7 + A11_8 * k8 + A11_9 * k9 + A11_10 * k10)
-        call rhs(t + C11 * h, ytmp, k11, ctx)
+        ytmp = y + h * (dop853_a(11,1) * k1 + dop853_a(11,4) * k4 + dop853_a(11,5) * k5 + dop853_a(11,6) * k6 &
+            + dop853_a(11,7) * k7 + dop853_a(11,8) * k8 + dop853_a(11,9) * k9 + dop853_a(11,10) * k10)
+        call rhs(t + dop853_c(11) * h, ytmp, k11, ctx)
 
-        ytmp = y + h * (A12_1 * k1 + A12_4 * k4 + A12_5 * k5 + A12_6 * k6 &
-            + A12_7 * k7 + A12_8 * k8 + A12_9 * k9 + A12_10 * k10 &
-            + A12_11 * k11)
-        call rhs(t + C12 * h, ytmp, k12, ctx)
+        ytmp = y + h * (dop853_a(12,1) * k1 + dop853_a(12,4) * k4 + dop853_a(12,5) * k5 + dop853_a(12,6) * k6 &
+            + dop853_a(12,7) * k7 + dop853_a(12,8) * k8 + dop853_a(12,9) * k9 + dop853_a(12,10) * k10 &
+            + dop853_a(12,11) * k11)
+        call rhs(t + dop853_c(12) * h, ytmp, k12, ctx)
 
         nfev = nfev + 11
 
-        y8 = y + h * (B1 * k1 + B6 * k6 + B7 * k7 + B8 * k8 + B9 * k9 &
-            + B10 * k10 + B11 * k11 + B12 * k12)
+        y8 = y + h * (dop853_b(1) * k1 + dop853_b(6) * k6 + dop853_b(7) * k7 + dop853_b(8) * k8 + dop853_b(9) * k9 &
+            + dop853_b(10) * k10 + dop853_b(11) * k11 + dop853_b(12) * k12)
 
-        err5 = h * (E5_1 * k1 + E5_6 * k6 + E5_7 * k7 + E5_8 * k8 + E5_9 * k9 &
-            + E5_10 * k10 + E5_11 * k11 + E5_12 * k12)
-        err3 = h * (E3_1 * k1 + E3_6 * k6 + E3_7 * k7 + E3_8 * k8 + E3_9 * k9 &
-            + E3_10 * k10 + E3_11 * k11 + E3_12 * k12)
+        err5 = h * (dop853_e5(1) * k1 + dop853_e5(6) * k6 + dop853_e5(7) * k7 + dop853_e5(8) * k8 + dop853_e5(9) * k9 &
+            + dop853_e5(10) * k10 + dop853_e5(11) * k11 + dop853_e5(12) * k12)
+        err3 = h * (dop853_e3(1) * k1 + dop853_e3(6) * k6 + dop853_e3(7) * k7 + dop853_e3(8) * k8 + dop853_e3(9) * k9 &
+            + dop853_e3(10) * k10 + dop853_e3(11) * k11 + dop853_e3(12) * k12)
     end subroutine dop853_step
 
     ! Integrate problem%rhs from t0 to t1 with adaptive RK8(7)13M. Records the

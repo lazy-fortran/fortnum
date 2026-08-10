@@ -240,16 +240,17 @@ def check_generated_revision(root: Path) -> list[str]:
         if str(path.relative_to(root)) in fortad:
             continue
         text = path.read_text(encoding="utf-8")
-        path_revision = (
-            rk54_revision if "Generator: gen_rk54_device" in text else revision
+        rk54_generator = any(
+            marker in text
+            for marker in (
+                "Generator: gen_rk54_device",
+                "Generator: gen_rk54_cpu_tableau",
+            )
         )
+        path_revision = rk54_revision if rk54_generator else revision
         expected = f"Generator revision: fortsym@{path_revision}"
         if expected not in text:
-            lock_name = (
-                "fortsym-rk54.lock"
-                if "Generator: gen_rk54_device" in text
-                else "fortsym.lock"
-            )
+            lock_name = "fortsym-rk54.lock" if rk54_generator else "fortsym.lock"
             errors.append(
                 f"{path.relative_to(root)} does not match tools/codegen/{lock_name}"
             )

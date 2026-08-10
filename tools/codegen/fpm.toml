@@ -8,6 +8,9 @@ fortsym = { path = "../../../fortsym" }
 [build]
 auto-executables = true
 
+[library]
+source-dir = "src"
+
 [fortran]
 implicit-typing = false
 source-form = "free"
@@ -71,3 +74,13 @@ main = "gen_enzyme_scalar_wrappers.f90"
 name = "gen_rk54_device"
 source-dir = "app"
 main = "gen_rk54_device.f90"
+
+[[executable]]
+name = "gen_rk54_cpu_tableau"
+source-dir = "app"
+main = "gen_rk54_cpu_tableau.f90"
+
+[[executable]]
+name = "gen_dop853_tableau"
+source-dir = "app"
+main = "gen_dop853_tableau.f90"

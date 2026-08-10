@@ -131,8 +131,7 @@ contains
         character(len=2) :: stage_text
 
         roots(1) = sym(arena, "y") + scaled_sum(tableau%a(stage, :))
-        names = argument_names(reshape(tableau%a(stage, :), &
-                                       [tableau%stages, 1]))
+        names = argument_names(as_columns(tableau%a(stage, :)))
         write (stage_text, "(i0)") stage
         call write_kernel(prefix//"_stage"//trim(stage_text), names, &
                           [str("ystage")], roots)
@@ -151,8 +150,7 @@ contains
 
         roots(1) = sym(arena, "y") + scaled_sum(tableau%b)
         roots(2) = scaled_sum(error_weights)
-        names = argument_names(reshape([tableau%b, error_weights], &
-                                       [tableau%stages, 2]))
+        names = argument_names(as_columns(tableau%b, error_weights))
         call write_kernel(prefix//"_finish", names, &
                           [str("ynew"), str("yerror")], roots)
     end subroutine emit_finish
@@ -161,34 +159,72 @@ contains
     !> ascending stage order. Consumers bind these positionally, so the order
     !> has to depend only on the tableau and not on which expression named a
     !> stage first.
+    !> Gather one or two weight vectors into a two-dimensional array, by
+    !> element.
+    !>
+    !> str_t carries an allocatable character component, so building this with
+    !> an array constructor and reshape leaves the result depending on whether
+    !> the compiler deep-copies the temporary. One gfortran did and another did
+    !> not: the second column came through as freed memory, weights were
+    !> classified non-zero at random, and a generated kernel gained a stage it
+    !> does not use. Element-wise assignment has no such freedom.
+    function as_columns(first, second) result(columns)
+        type(str_t), intent(in) :: first(:)
+        type(str_t), intent(in), optional :: second(:)
+        type(str_t), allocatable :: columns(:, :)
+        integer :: j, n
+
+        n = size(first)
+        if (present(second)) then
+            allocate (columns(n, 2))
+        else
+            allocate (columns(n, 1))
+        end if
+        do j = 1, n
+            columns(j, 1) = first(j)
+            if (present(second)) columns(j, 2) = second(j)
+        end do
+    end function as_columns
+
+    !> Log the exact rendering and zero verdict of every weight.
+    !>
+    !> Which stages a kernel takes is decided here, so when a generated file
+    !> disagrees with the committed one this is the evidence that says why.
+    !> Printing the renderings makes an environment-dependent classification
+    !> visible instead of leaving it to be inferred from a byte offset.
+    subroutine log_support(label, weight_sets)
+        character(*), intent(in) :: label
+        type(str_t), intent(in) :: weight_sets(:, :)
+        integer :: j, w
+        character(len=8) :: index_text
+
+        do j = 1, size(weight_sets, 1)
+            do w = 1, size(weight_sets, 2)
+                write (index_text, "(i0,a,i0)") j, "/", w
+                call codegen_log(label//" "//trim(index_text)//" = <"// &
+                                 chars(weight_sets(j, w))//"> zero="// &
+                                 merge("yes", "no ", rk_is_zero(weight_sets(j, w))))
+            end do
+        end do
+    end subroutine log_support
+
     function argument_names(weight_sets) result(names)
         type(str_t), intent(in) :: weight_sets(:, :)
         type(str_t), allocatable :: names(:)
         integer :: j, w
         logical :: used
 
+        call log_support("weight", weight_sets)
         names = [str("y"), str("h")]
         do j = 1, size(weight_sets, 1)
             used = .false.
             do w = 1, size(weight_sets, 2)
-                if (.not. is_zero_weight(weight_sets(j, w))) used = .true.
+                if (.not. rk_is_zero(weight_sets(j, w))) used = .true.
             end do
             if (used) names = [names, str("k"//integer_text(j))]
         end do
     end function argument_names
 
-    !> Exact zeros must not change spelling with the compiler or FLINT build.
-    !> Convert only for this boolean classification: zero is represented
-    !> exactly as 0.0_dp, while every RK54 coefficient is far from underflow.
-    logical function is_zero_weight(weight)
-        type(str_t), intent(in) :: weight
-        real(dp) :: value
-        logical :: ok
-
-        value = exact_to_real(chars(weight), ok)
-        if (.not. ok) error stop "weight is not an exact rational"
-        is_zero_weight = value == 0.0_dp
-    end function is_zero_weight
 
     !> h * sum_j w_j k_j over the non-zero weights, in ascending stage order.
     function scaled_sum(weights) result(expression)
@@ -201,7 +237,7 @@ contains
 
         started = .false.
         do j = 1, size(weights)
-            if (is_zero_weight(weights(j))) cycle
+            if (rk_is_zero(weights(j))) cycle
             stage_name = str("k"//integer_text(j))
             ! Round the exact weight to a double here, once, rather than
             ! emitting the rational and leaving a division in the inner loop.

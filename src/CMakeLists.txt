@@ -100,6 +100,8 @@ target_sources(fortnum PRIVATE
     generated/fortnum_inv3_vjp_kernel.f90
     generated/fortnum_implicit_root_residual_kernel.f90
     generated/fortnum_legendre_recurrence_kernel.f90
+    generated/fortnum_dop853_tableau.f90
+    generated/fortnum_rk54_ck_tableau.f90
     generated/fortnum_rk54_ck_finish_kernel.f90
     generated/fortnum_rk54_ck_stage2_kernel.f90
     generated/fortnum_rk54_ck_stage3_kernel.f90

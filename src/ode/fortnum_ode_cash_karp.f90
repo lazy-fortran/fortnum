@@ -20,48 +20,19 @@ module fortnum_ode_cash_karp
     ! its output arguments and the six stage slots it is handed.
 
     use, intrinsic :: iso_fortran_env, only: dp => real64
+    ! The tableau is generated from the verified Butcher data, not declared
+    ! here. See tools/codegen/app/gen_rk54_cpu_tableau.f90.
+    use fortnum_rk54_ck_tableau, only: &
+        ck_c2, ck_c3, ck_c4, ck_c5, ck_c6, &
+        ck_a21, ck_a31, ck_a32, ck_a41, ck_a42, ck_a43, &
+        ck_a51, ck_a52, ck_a53, ck_a54, &
+        ck_a61, ck_a62, ck_a63, ck_a64, ck_a65, &
+        ck_b1, ck_b3, ck_b4, ck_b6, &
+        ck_e1, ck_e3, ck_e4, ck_e5, ck_e6
     implicit none
     private
 
     public :: cash_karp_step
-
-    ! Stage nodes c2..c6 (c1 = 0 is implicit).
-    real(dp), parameter :: c2 = 0.2_dp
-    real(dp), parameter :: c3 = 0.3_dp
-    real(dp), parameter :: c4 = 0.6_dp
-    real(dp), parameter :: c5 = 1.0_dp
-    real(dp), parameter :: c6 = 0.875_dp
-
-    ! Coupling coefficients a(i,j), j < i.
-    real(dp), parameter :: a21 = 0.2_dp
-    real(dp), parameter :: a31 = 3.0_dp / 40.0_dp
-    real(dp), parameter :: a32 = 9.0_dp / 40.0_dp
-    real(dp), parameter :: a41 = 0.3_dp
-    real(dp), parameter :: a42 = -0.9_dp
-    real(dp), parameter :: a43 = 1.2_dp
-    real(dp), parameter :: a51 = -11.0_dp / 54.0_dp
-    real(dp), parameter :: a52 = 2.5_dp
-    real(dp), parameter :: a53 = -70.0_dp / 27.0_dp
-    real(dp), parameter :: a54 = 35.0_dp / 27.0_dp
-    real(dp), parameter :: a61 = 1631.0_dp / 55296.0_dp
-    real(dp), parameter :: a62 = 175.0_dp / 512.0_dp
-    real(dp), parameter :: a63 = 575.0_dp / 13824.0_dp
-    real(dp), parameter :: a64 = 44275.0_dp / 110592.0_dp
-    real(dp), parameter :: a65 = 253.0_dp / 4096.0_dp
-
-    ! Fifth-order solution weights (stage 2 has weight zero).
-    real(dp), parameter :: b5_1 = 37.0_dp / 378.0_dp
-    real(dp), parameter :: b5_3 = 250.0_dp / 621.0_dp
-    real(dp), parameter :: b5_4 = 125.0_dp / 594.0_dp
-    real(dp), parameter :: b5_6 = 512.0_dp / 1771.0_dp
-
-    ! Embedded fourth-order solution weights.
-    real(dp), parameter :: b4_1 = 2825.0_dp / 27648.0_dp
-    real(dp), parameter :: b4_3 = 18575.0_dp / 48384.0_dp
-    real(dp), parameter :: b4_4 = 13525.0_dp / 55296.0_dp
-    real(dp), parameter :: b4_5 = 277.0_dp / 14336.0_dp
-    real(dp), parameter :: b4_6 = 0.25_dp
-
 
 contains
 
@@ -104,29 +75,30 @@ contains
             nfev = nfev + 1
         end if
 
-        ytmp = y + h * (a21 * k1)
-        call rhs(t + c2 * h, ytmp, k2, ctx)
+        ytmp = y + h * (ck_a21 * k1)
+        call rhs(t + ck_c2 * h, ytmp, k2, ctx)
 
-        ytmp = y + h * (a31 * k1 + a32 * k2)
-        call rhs(t + c3 * h, ytmp, k3, ctx)
+        ytmp = y + h * (ck_a31 * k1 + ck_a32 * k2)
+        call rhs(t + ck_c3 * h, ytmp, k3, ctx)
 
-        ytmp = y + h * (a41 * k1 + a42 * k2 + a43 * k3)
-        call rhs(t + c4 * h, ytmp, k4, ctx)
+        ytmp = y + h * (ck_a41 * k1 + ck_a42 * k2 + ck_a43 * k3)
+        call rhs(t + ck_c4 * h, ytmp, k4, ctx)
 
-        ytmp = y + h * (a51 * k1 + a52 * k2 + a53 * k3 + a54 * k4)
-        call rhs(t + c5 * h, ytmp, k5, ctx)
+        ytmp = y + h * (ck_a51 * k1 + ck_a52 * k2 + ck_a53 * k3 + ck_a54 * k4)
+        call rhs(t + ck_c5 * h, ytmp, k5, ctx)
 
-        ytmp = y + h * (a61 * k1 + a62 * k2 + a63 * k3 + a64 * k4 + a65 * k5)
-        call rhs(t + c6 * h, ytmp, k6, ctx)
+        ytmp = y + h * (ck_a61 * k1 + ck_a62 * k2 + ck_a63 * k3 + ck_a64 * k4 + ck_a65 * k5)
+        call rhs(t + ck_c6 * h, ytmp, k6, ctx)
 
         nfev = nfev + 5
 
-        y5 = y + h * (b5_1 * k1 + b5_3 * k3 + b5_4 * k4 + b5_6 * k6)
+        y5 = y + h * (ck_b1 * k1 + ck_b3 * k3 + ck_b4 * k4 + ck_b6 * k6)
 
-        ! yerr = y5 - y4, formed from the weight differences to avoid cancelling
-        ! the shared y term.
-        yerr = h * ((b5_1 - b4_1) * k1 + (b5_3 - b4_3) * k3 &
-            + (b5_4 - b4_4) * k4 - b4_5 * k5 + (b5_6 - b4_6) * k6)
+        ! yerr = y5 - y4. The weights are b - bhat, differenced once in exact
+        ! arithmetic by the generator, so the shared y term never appears and
+        ! the subtraction is not restated here.
+        yerr = h * (ck_e1 * k1 + ck_e3 * k3 + ck_e4 * k4 + ck_e5 * k5 &
+            + ck_e6 * k6)
     end subroutine cash_karp_step
 
 end module fortnum_ode_cash_karp
