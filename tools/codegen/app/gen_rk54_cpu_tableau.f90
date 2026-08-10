@@ -13,7 +13,7 @@ program gen_rk54_cpu_tableau
     !> arithmetic, and rounded once.
     use fortsym_exact, only: exact_to_real
     use fortsym_rk, only: butcher_t, rk_from_rows, rk_is_consistent, &
-        rk_attains_order, rk_error_weights, rk_is_fsal
+        rk_attains_order, rk_error_weights, rk_is_fsal, rk_is_zero
     use fortsym_string, only: str_t, str, chars
     use fortnum_codegen_provenance, only: codegen_log, generated_path
     implicit none
@@ -48,11 +48,11 @@ program gen_rk54_cpu_tableau
         end do
     end do
     do i = 1, tableau%stages
-        if (is_zero_weight(tableau%b(i))) cycle
+        if (rk_is_zero(tableau%b(i))) cycle
         call collect("ck_b"//digits(i), chars(tableau%b(i)))
     end do
     do i = 1, tableau%stages
-        if (is_zero_weight(error_weights(i))) cycle
+        if (rk_is_zero(error_weights(i))) cycle
         call collect("ck_e"//digits(i), chars(error_weights(i)))
     end do
 
@@ -91,15 +91,6 @@ contains
     !> Use exact-to-real only for the zero/non-zero decision. Exact zero is
     !> represented as 0.0_dp on every supported compiler, while each RK54
     !> coefficient is far from underflow.
-    logical function is_zero_weight(weight)
-        type(str_t), intent(in) :: weight
-        real(dp) :: value
-        logical :: converted
-
-        value = exact_to_real(chars(weight), converted)
-        if (.not. converted) error stop "weight is not an exact rational"
-        is_zero_weight = value == 0.0_dp
-    end function is_zero_weight
 
     subroutine collect(name, exact_value)
         character(*), intent(in) :: name, exact_value

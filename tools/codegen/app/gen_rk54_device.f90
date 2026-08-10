@@ -171,24 +171,12 @@ contains
         do j = 1, size(weight_sets, 1)
             used = .false.
             do w = 1, size(weight_sets, 2)
-                if (.not. is_zero_weight(weight_sets(j, w))) used = .true.
+                if (.not. rk_is_zero(weight_sets(j, w))) used = .true.
             end do
             if (used) names = [names, str("k"//integer_text(j))]
         end do
     end function argument_names
 
-    !> Exact zeros must not change spelling with the compiler or FLINT build.
-    !> Convert only for this boolean classification: zero is represented
-    !> exactly as 0.0_dp, while every RK54 coefficient is far from underflow.
-    logical function is_zero_weight(weight)
-        type(str_t), intent(in) :: weight
-        real(dp) :: value
-        logical :: ok
-
-        value = exact_to_real(chars(weight), ok)
-        if (.not. ok) error stop "weight is not an exact rational"
-        is_zero_weight = value == 0.0_dp
-    end function is_zero_weight
 
     !> h * sum_j w_j k_j over the non-zero weights, in ascending stage order.
     function scaled_sum(weights) result(expression)
@@ -201,7 +189,7 @@ contains
 
         started = .false.
         do j = 1, size(weights)
-            if (is_zero_weight(weights(j))) cycle
+            if (rk_is_zero(weights(j))) cycle
             stage_name = str("k"//integer_text(j))
             ! Round the exact weight to a double here, once, rather than
             ! emitting the rational and leaving a division in the inner loop.
