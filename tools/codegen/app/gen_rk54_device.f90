@@ -161,12 +161,35 @@ contains
     !> ascending stage order. Consumers bind these positionally, so the order
     !> has to depend only on the tableau and not on which expression named a
     !> stage first.
+    !> Log the exact rendering and zero verdict of every weight.
+    !>
+    !> Which stages a kernel takes is decided here, so when a generated file
+    !> disagrees with the committed one this is the evidence that says why.
+    !> Printing the renderings makes an environment-dependent classification
+    !> visible instead of leaving it to be inferred from a byte offset.
+    subroutine log_support(label, weight_sets)
+        character(*), intent(in) :: label
+        type(str_t), intent(in) :: weight_sets(:, :)
+        integer :: j, w
+        character(len=8) :: index_text
+
+        do j = 1, size(weight_sets, 1)
+            do w = 1, size(weight_sets, 2)
+                write (index_text, "(i0,a,i0)") j, "/", w
+                call codegen_log(label//" "//trim(index_text)//" = <"// &
+                                 chars(weight_sets(j, w))//"> zero="// &
+                                 merge("yes", "no ", rk_is_zero(weight_sets(j, w))))
+            end do
+        end do
+    end subroutine log_support
+
     function argument_names(weight_sets) result(names)
         type(str_t), intent(in) :: weight_sets(:, :)
         type(str_t), allocatable :: names(:)
         integer :: j, w
         logical :: used
 
+        call log_support("weight", weight_sets)
         names = [str("y"), str("h")]
         do j = 1, size(weight_sets, 1)
             used = .false.
