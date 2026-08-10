@@ -97,6 +97,10 @@ jobs:
         run: |
           set -euo pipefail
           export PATH="$HOME/.local/bin:$PATH"
+          # A drift failure should arrive with evidence. The generators log
+          # which stages each kernel takes and why, which is what distinguishes
+          # a real change from an environment-dependent classification.
+          export FORTNUM_CODEGEN_VERBOSE=1
           cmake -S . -B build-generated -G Ninja \
             -DFORTNUM_BUILD_TESTING=OFF \
             -DFORTNUM_BUILD_EXAMPLES=OFF \
