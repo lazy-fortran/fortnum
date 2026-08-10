@@ -522,6 +522,10 @@ if(FORTNUM_ENABLE_ENZYME)
             ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_det3_vjp_fortad.f90
             ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_inv2_jvp_fortad.f90
             ${CMAKE_SOURCE_DIR}/src/linalg/fortnum_linalg.f90
+            # The Cash-Karp tableau is generated, and this pipeline compiles
+            # its sources in isolation, so the module has to be listed before
+            # the stepper that uses it.
+            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_rk54_ck_tableau.f90
             ${CMAKE_SOURCE_DIR}/src/ode/fortnum_ode_cash_karp.f90
             ${CMAKE_SOURCE_DIR}/src/ode/fortnum_ode.f90
             ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
