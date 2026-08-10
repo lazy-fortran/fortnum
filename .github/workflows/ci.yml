@@ -57,8 +57,25 @@ jobs:
           set -euo pipefail
           git clone https://github.com/lazy-fortran/fortsym.git \
             ../fortsym
-          git -C ../fortsym checkout \
-            "$(cat tools/codegen/fortsym.lock)"
+          # There is one fortsym checkout but two contracted revisions:
+          # gen_rk54_device needs fortsym-rk54.lock, every other generator
+          # needs fortsym.lock. Build against whichever is the descendant, so
+          # all generators compile against one tree. Provenance stays per file
+          # -- check_documentation.py asserts each generated kernel records the
+          # lock it is contracted to, not the revision it was built against.
+          general="$(cat tools/codegen/fortsym.lock)"
+          rk54="$(cat tools/codegen/fortsym-rk54.lock)"
+          if git -C ../fortsym merge-base --is-ancestor "$general" "$rk54"; then
+            build_revision="$rk54"
+          elif git -C ../fortsym merge-base --is-ancestor "$rk54" "$general"; then
+            build_revision="$general"
+          else
+            echo "::error::fortsym.lock ($general) and fortsym-rk54.lock" \
+              "($rk54) have diverged; no single checkout satisfies both"
+            exit 1
+          fi
+          echo "Building generators against fortsym $build_revision"
+          git -C ../fortsym checkout "$build_revision"
 
       - name: Register and run CTest drift check
         run: |
@@ -288,8 +305,22 @@ jobs:
           mkdir -p "$RUNNER_TEMP/enzyme-wrappers"
           git clone https://github.com/lazy-fortran/fortsym.git \
             ../fortsym
-          git -C ../fortsym checkout \
-            "$(cat tools/codegen/fortsym.lock)"
+          # One checkout, two contracted revisions -- see the codegen job.
+          # fpm builds every generator in tools/codegen together, so the tree
+          # must satisfy gen_rk54_device as well, even though this job only
+          # runs the Enzyme wrapper generator.
+          general="$(cat tools/codegen/fortsym.lock)"
+          rk54="$(cat tools/codegen/fortsym-rk54.lock)"
+          if git -C ../fortsym merge-base --is-ancestor "$general" "$rk54"; then
+            build_revision="$rk54"
+          elif git -C ../fortsym merge-base --is-ancestor "$rk54" "$general"; then
+            build_revision="$general"
+          else
+            echo "::error::fortsym.lock ($general) and fortsym-rk54.lock" \
+              "($rk54) have diverged; no single checkout satisfies both"
+            exit 1
+          fi
+          git -C ../fortsym checkout "$build_revision"
           (
             cd tools/codegen
             FORTNUM_ENZYME_WRAPPER_OUTPUT_DIR="$RUNNER_TEMP/enzyme-wrappers" \
