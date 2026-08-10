@@ -48,11 +48,11 @@ program gen_rk54_cpu_tableau
         end do
     end do
     do i = 1, tableau%stages
-        if (chars(tableau%b(i)) == "0") cycle
+        if (is_zero_weight(tableau%b(i))) cycle
         call collect("ck_b"//digits(i), chars(tableau%b(i)))
     end do
     do i = 1, tableau%stages
-        if (chars(error_weights(i)) == "0") cycle
+        if (is_zero_weight(error_weights(i))) cycle
         call collect("ck_e"//digits(i), chars(error_weights(i)))
     end do
 
@@ -87,6 +87,19 @@ program gen_rk54_cpu_tableau
     call codegen_log("wrote "//path)
 
 contains
+
+    !> Use exact-to-real only for the zero/non-zero decision. Exact zero is
+    !> represented as 0.0_dp on every supported compiler, while each RK54
+    !> coefficient is far from underflow.
+    logical function is_zero_weight(weight)
+        type(str_t), intent(in) :: weight
+        real(dp) :: value
+        logical :: converted
+
+        value = exact_to_real(chars(weight), converted)
+        if (.not. converted) error stop "weight is not an exact rational"
+        is_zero_weight = value == 0.0_dp
+    end function is_zero_weight
 
     subroutine collect(name, exact_value)
         character(*), intent(in) :: name, exact_value
