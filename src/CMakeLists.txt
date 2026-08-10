@@ -126,6 +126,7 @@ target_sources(fortnum PRIVATE
     generated/fortnum_vector_root_residual_jvp_kernel.f90
     generated/fortnum_vector_root_residual_vjp_kernel.f90
     interp/fortnum_bspline.f90
+    interp/fortnum_bspline_lsq.f90
     interp/fortnum_interp.f90
     interp/fortnum_polynomial.f90
     linalg/fortnum_cholesky.f90

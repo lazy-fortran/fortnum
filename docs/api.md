@@ -406,6 +406,12 @@ crossings.
 - combined evaluation-point/coefficient products
 - factorization-reusing implicit products for fitted coefficients
 
+`fortnum_bspline_lsq` exports `bspline_1d_lsq_cgls`. It fits sampled values to
+the existing `bspline_workspace_t` with matrix-free CGLS, returning a status,
+iteration count, and residual norm. The basis is cached once per fit; normal
+equations are not formed. Tensor-product fitting and direct interpolation are
+not part of this API.
+
 Products involving location arguments are defined on a fixed cell or knot
 span. Use the status guards when a perturbation can cross a boundary.
 

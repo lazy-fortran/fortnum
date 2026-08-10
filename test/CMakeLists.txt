@@ -333,6 +333,10 @@ add_test(NAME fortnum_bspline_oracle
     COMMAND test_fortnum_bspline_oracle
         ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/bspline.csv)
 
+add_executable(test_fortnum_bspline_lsq interp/test_fortnum_bspline_lsq.f90)
+target_link_libraries(test_fortnum_bspline_lsq PRIVATE fortnum)
+add_test(NAME fortnum_bspline_lsq COMMAND test_fortnum_bspline_lsq)
+
 # --- M3 rng ---
 add_executable(test_fortnum_rng rng/test_fortnum_rng.f90)
 target_link_libraries(test_fortnum_rng PRIVATE fortnum)
