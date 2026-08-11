@@ -9,7 +9,7 @@ program gen_inverse_products
     use fortsym_engine, only: engine_result_t
     use fortsym_engine_symengine, only: symengine_engine_t, make_symengine_engine
     use fortnum_codegen_provenance, only: codegen_log, codegen_log_count, &
-        fortsym_revision, generated_path
+        fortsym_revision, generated_path, cost_block_text, insert_cost_block
     implicit none
 
     type(arena_t), target :: arena
@@ -37,7 +37,7 @@ contains
         logical, intent(in) :: transpose_product
         character(*), intent(in) :: path, name, module_name
         type(expr_t) :: inverse_entries(n*n), directions(n*n)
-        type(expr_t) :: roots(n*n), candidate(n*n)
+        type(expr_t) :: roots(n*n), candidate(n*n), symbolic(n*n)
         type(kernel_spec_t) :: spec
         type(operation_count_t) :: operations, candidate_operations
         type(engine_result_t) :: simplified
@@ -83,6 +83,7 @@ contains
             end do
         end do
 
+        symbolic = roots
         operations = count_operations(roots)
         candidate = roots
         do q = 1, size(candidate)
@@ -119,6 +120,7 @@ contains
         open (newunit=unit, file=path, status="replace", action="write", iostat=ios)
         if (ios /= 0) error stop "cannot write "//path
         code = chars(emit_kernel(roots, spec))
+        code = insert_cost_block(code, cost_block_text(symbolic, roots))
         write (unit, "(a)") code(:len(code) - 1)
         close (unit)
 

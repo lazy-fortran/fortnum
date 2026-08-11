@@ -9,7 +9,7 @@ program gen_multi_input_scalar
     use fortsym_engine, only: engine_result_t
     use fortsym_engine_symengine, only: symengine_engine_t, make_symengine_engine
     use fortnum_codegen_provenance, only: codegen_log, codegen_log_count, &
-        fortsym_revision, generated_path
+        fortsym_revision, generated_path, cost_block_text, insert_cost_block
     implicit none
 
     integer, parameter :: active_sizes(4) = [2, 4, 8, 16]
@@ -106,6 +106,7 @@ contains
         type(symengine_engine_t), intent(inout) :: engine
         character(:), allocatable :: output, code
         type(expr_t) :: roots(size(expressions)), candidate(size(expressions))
+        type(expr_t) :: symbolic(size(expressions))
         type(kernel_spec_t) :: spec
         type(operation_count_t) :: operations, candidate_operations
         type(engine_result_t) :: simplified
@@ -113,6 +114,7 @@ contains
 
         output = generated_path(filename)
         roots = expressions
+        symbolic = roots
         operations = count_operations(roots)
         candidate = roots
         do i = 1, size(candidate)
@@ -143,6 +145,7 @@ contains
             iostat=ios)
         if (ios /= 0) error stop "cannot write "//output
         code = chars(emit_kernel(roots, spec))
+        code = insert_cost_block(code, cost_block_text(symbolic, roots))
         write (unit, "(a)") code(:len(code) - 1)
         close (unit)
 

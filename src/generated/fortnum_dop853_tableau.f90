@@ -2,6 +2,11 @@
 ! Generator: gen_dop853_tableau
 ! Generator revision: fortsym@1176dc1c0054c3363c648898abd68dbc252ee024
 ! Regenerate with: cd tools/codegen && fo exec gen_dop853_tableau
+! cost: {
+!   "n_sym": {"flops": 0, "adds": 0, "muls": 0, "divs": 0, "transcendental": {}},
+!   "n_emit": {"flops": 0, "instructions": 0},
+!   "gaps": {"generator": 0}
+! }
 !
 ! Derived, not transcribed. The four free nodes
 ! c7 = 1/4, c8 = 4/13, c10 = 3/5, c11 = 6/7 are the
