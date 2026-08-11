@@ -2,6 +2,11 @@
 ! Generator: gen_determinant_products
 ! Generator revision: fortsym@0cb3349222b90c949da1c4a09e8c177f3dec9097
 ! Regenerate with: cd tools/codegen && fo exec gen_determinant_products
+! cost: {
+!   "n_sym": {"flops": 56, "adds": 9, "muls": 47, "divs": 0, "transcendental": {},
+!   "n_emit": {"flops": 52, "instructions": 52},
+!   "gaps": {"generator": -4}
+! }
 
 module fortnum_generated_det3_vjp
     implicit none
