@@ -2,6 +2,11 @@
 ! Generator: gen_special_region_candidates
 ! Generator revision: fortsym@bff765e663d82b4e174a0641d3cd651b4be8446b
 ! Regenerate with: cd tools/codegen && fo exec gen_special_region_candidates
+! cost: {
+!   "n_sym": {"flops": 17, "adds": 2, "muls": 11, "divs": 1, "transcendental": {"exp": 1},
+!   "n_emit": {"flops": 17, "instructions": 17},
+!   "gaps": {"generator": 0}
+! }
 
 module fortnum_generated_hyperg_asymptotic_outer_vjp
     implicit none

@@ -10,7 +10,7 @@ program gen_implicit_root_residual
     use fortsym_engine_symengine, only: symengine_engine_t, &
         make_symengine_engine
     use fortnum_codegen_provenance, only: codegen_log, codegen_log_count, &
-        fortsym_revision, generated_path
+        fortsym_revision, generated_path, cost_block_text, insert_cost_block
     implicit none
 
     type(arena_t), target :: arena
@@ -19,7 +19,7 @@ program gen_implicit_root_residual
     type(expr_t) :: x1, x2, u1, u2
     type(expr_t) :: x_variables(1), p_variables(1), parameter_tangent(1)
     type(expr_t) :: residuals(1), residual_x(1)
-    type(expr_t) :: tangent_rhs(1), roots(3)
+    type(expr_t) :: tangent_rhs(1), roots(3), symbolic_roots(3)
     type(expr_t) :: scalar_residuals(1), scalar_x_variables(1)
     type(expr_t) :: scalar_p_variables(2), scalar_p_tangents(2)
     type(expr_t) :: scalar_cotangents(1), scalar_f_x(1)
@@ -73,6 +73,7 @@ program gen_implicit_root_residual
     roots(1) = residual
     roots(2) = residual_x(1)
     roots(3) = -tangent_rhs(1)
+    symbolic_roots = roots
     do i = 1, size(roots)
         simplified = engine%simplify(roots(i))
         if (simplified%ok) roots(i) = simplified%value
@@ -103,6 +104,7 @@ program gen_implicit_root_residual
         iostat=ios)
     if (ios /= 0) error stop "cannot write "//output
     code = chars(emit_kernel(roots, spec))
+    code = insert_cost_block(code, cost_block_text(symbolic_roots, roots))
     write (unit, "(a)") code(:len(code) - 1)
     close (unit)
 
@@ -249,12 +251,14 @@ contains
         type(str_t), intent(in), optional :: output_shapes(:)
         type(kernel_spec_t) :: product_spec
         type(expr_t) :: product_roots(size(expressions))
+        type(expr_t) :: product_symbolic(size(expressions))
         type(engine_result_t) :: result
         type(operation_count_t) :: product_operations
         character(:), allocatable :: product_code
         integer :: product_unit, product_ios, k
 
         product_roots = expressions
+        product_symbolic = product_roots
         do k = 1, size(product_roots)
             result = engine%simplify(product_roots(k))
             if (result%ok) product_roots(k) = result%value
@@ -280,6 +284,8 @@ contains
             status="replace", action="write", iostat=product_ios)
         if (product_ios /= 0) error stop "cannot write "//filename
         product_code = chars(emit_kernel(product_roots, product_spec))
+        product_code = insert_cost_block(product_code, &
+            cost_block_text(product_symbolic, product_roots))
         write (product_unit, "(a)") product_code(:len(product_code) - 1)
         close (product_unit)
         product_operations = count_operations(product_roots)

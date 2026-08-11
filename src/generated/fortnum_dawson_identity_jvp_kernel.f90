@@ -2,6 +2,11 @@
 ! Generator: gen_dawson_jvp_variants
 ! Generator revision: fortsym@bff765e663d82b4e174a0641d3cd651b4be8446b
 ! Regenerate with: cd tools/codegen && fo exec gen_dawson_jvp_variants
+! cost: {
+!   "n_sym": {"flops": 10, "adds": 2, "muls": 6, "divs": 0, "transcendental": {"exp": 1},
+!   "n_emit": {"flops": 10, "instructions": 10},
+!   "gaps": {"generator": 0}
+! }
 
 module fortnum_generated_dawson_identity_jvp
     implicit none

@@ -2,6 +2,11 @@
 ! Generator: gen_lagrange4_interpolation
 ! Generator revision: fortsym@bff765e663d82b4e174a0641d3cd651b4be8446b
 ! Regenerate with: cd tools/codegen && fo exec gen_lagrange4_interpolation
+! cost: {
+!   "n_sym": {"flops": 83, "adds": 16, "muls": 59, "divs": 7, "transcendental": {},
+!   "n_emit": {"flops": 83, "instructions": 83},
+!   "gaps": {"generator": 0}
+! }
 
 module fortnum_generated_lagrange4_vjp
     implicit none

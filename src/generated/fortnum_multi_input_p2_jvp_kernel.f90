@@ -2,6 +2,11 @@
 ! Generator: gen_multi_input_scalar
 ! Generator revision: fortsym@bff765e663d82b4e174a0641d3cd651b4be8446b
 ! Regenerate with: cd tools/codegen && fo exec gen_multi_input_scalar
+! cost: {
+!   "n_sym": {"flops": 28, "adds": 10, "muls": 10, "divs": 1, "transcendental": {"sin": 2, "cos": 2},
+!   "n_emit": {"flops": 16, "instructions": 16},
+!   "gaps": {"generator": -12}
+! }
 
 module fortnum_generated_multi_input_p2_jvp
     implicit none

@@ -2,6 +2,11 @@
 ! Generator: gen_erf_products
 ! Generator revision: fortsym@bff765e663d82b4e174a0641d3cd651b4be8446b
 ! Regenerate with: cd tools/codegen && fo exec gen_erf_products
+! cost: {
+!   "n_sym": {"flops": 8, "adds": 0, "muls": 4, "divs": 0, "transcendental": {"exp": 1},
+!   "n_emit": {"flops": 8, "instructions": 8},
+!   "gaps": {"generator": 0}
+! }
 
 module fortnum_generated_erfc_jvp
     implicit none

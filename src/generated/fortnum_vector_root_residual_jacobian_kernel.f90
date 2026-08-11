@@ -2,6 +2,11 @@
 ! Generator: gen_implicit_root_residual
 ! Generator revision: fortsym@bff765e663d82b4e174a0641d3cd651b4be8446b
 ! Regenerate with: cd tools/codegen && fo exec gen_implicit_root_residual
+! cost: {
+!   "n_sym": {"flops": 31, "adds": 17, "muls": 12, "divs": 0, "transcendental": {},
+!   "n_emit": {"flops": 4, "instructions": 4},
+!   "gaps": {"generator": -27}
+! }
 
 module fortnum_generated_vector_root_residual_jacobian
     implicit none
