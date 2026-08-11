@@ -15,7 +15,7 @@ program gen_rk54_cpu_tableau
     use fortsym_rk, only: butcher_t, rk_from_rows, rk_is_consistent, &
         rk_attains_order, rk_error_weights, rk_is_fsal, rk_is_zero
     use fortsym_string, only: str_t, str, chars
-    use fortnum_codegen_provenance, only: codegen_log, generated_path
+    use fortnum_codegen_provenance, only: codegen_log, generated_path, cost_block_text, insert_cost_block
     implicit none
 
     integer, parameter :: dp = kind(1.0d0)
@@ -61,6 +61,11 @@ program gen_rk54_cpu_tableau
     write (unit, "(a)") "! Generator revision: "//revision()
     write (unit, "(a)") "! Regenerate with: cd tools/codegen && fo exec "// &
         "gen_rk54_cpu_tableau"
+    write (unit, "(a)") "! cost: {"
+    write (unit, "(a)") '!   "n_sym": {"flops": 0, "adds": 0, "muls": 0, "divs": 0, "transcendental": {}},'
+    write (unit, "(a)") '!   "n_emit": {"flops": 0, "instructions": 0},'
+    write (unit, "(a)") '!   "gaps": {"generator": 0}'
+    write (unit, "(a)") "! }"
     write (unit, "(a)") "!"
     write (unit, "(a)") "! Cash, Karp, ACM TOMS 16(3), 201-222 (1990). The"
     write (unit, "(a)") "! order conditions were checked in exact arithmetic"

@@ -2,6 +2,11 @@
 ! Generator: gen_rk54_cpu_tableau
 ! Generator revision: fortsym@bff765e663d82b4e174a0641d3cd651b4be8446b
 ! Regenerate with: cd tools/codegen && fo exec gen_rk54_cpu_tableau
+! cost: {
+!   "n_sym": {"flops": 0, "adds": 0, "muls": 0, "divs": 0, "transcendental": {}},
+!   "n_emit": {"flops": 0, "instructions": 0},
+!   "gaps": {"generator": 0}
+! }
 !
 ! Cash, Karp, ACM TOMS 16(3), 201-222 (1990). The
 ! order conditions were checked in exact arithmetic

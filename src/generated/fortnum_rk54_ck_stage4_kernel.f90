@@ -2,6 +2,11 @@
 ! Generator: gen_rk54_device
 ! Generator revision: fortsym@bff765e663d82b4e174a0641d3cd651b4be8446b
 ! Regenerate with: cd tools/codegen && fo exec gen_rk54_device
+! cost: {
+!   "n_sym": {"flops": 7, "adds": 3, "muls": 4, "divs": 0, "transcendental": {},
+!   "n_emit": {"flops": 7, "instructions": 7},
+!   "gaps": {"generator": 0}
+! }
 
 module fortnum_generated_rk54_ck_stage4
     implicit none

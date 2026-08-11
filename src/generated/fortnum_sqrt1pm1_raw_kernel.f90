@@ -2,6 +2,11 @@
 ! Generator: gen_stable_sqrt_difference
 ! Generator revision: fortsym@4cec36a2f446c8aeade737733293c4f83469b861
 ! Regenerate with: cd tools/codegen && fo exec gen_stable_sqrt_difference
+! cost: {
+!   "n_sym": {"flops": 3, "adds": 2, "muls": 0, "divs": 0, "transcendental": {},
+!   "n_emit": {"flops": 3, "instructions": 3},
+!   "gaps": {"generator": 0}
+! }
 
 module fortnum_generated_sqrt1pm1_raw
     implicit none

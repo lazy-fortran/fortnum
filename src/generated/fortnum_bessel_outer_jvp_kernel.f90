@@ -2,6 +2,11 @@
 ! Generator: gen_special_outer
 ! Generator revision: fortsym@4cec36a2f446c8aeade737733293c4f83469b861
 ! Regenerate with: cd tools/codegen && fo exec gen_special_outer
+! cost: {
+!   "n_sym": {"flops": 5, "adds": 1, "muls": 3, "divs": 0, "transcendental": {"cos": 1},
+!   "n_emit": {"flops": 5, "instructions": 5},
+!   "gaps": {"generator": 0}
+! }
 
 module fortnum_generated_bessel_outer_jvp
     implicit none
