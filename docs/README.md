@@ -24,6 +24,7 @@ measured evidence.
 | [Downstream active kernels](design/downstream_ad.md) | Packing and composing downstream differentiable kernels |
 | [Enzyme toolchain](design/enzyme_toolchain.md) | Enzyme as a correctness oracle for testing, not a user backend |
 | [CPU/GPU contract](design/gpu.md) | Device leaves, supported mechanisms, and offload gates |
+| [CPU multiversioning](design/cpu_multiversioning.md) | Compiler FMV availability and the deferred runtime-dispatch decision |
 | [Adaptive integration](design/integrate.md) | Integration state, status, traces, and derivative semantics |
 | [ODE](design/ode.md) | Solver state, events, traces, and sensitivity semantics |
 | [Geometric time](design/geometric_time.md) | Structure-preserving geometric time integration and products |
