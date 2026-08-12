@@ -218,6 +218,20 @@ composition with at least one analytical rule.
 - [x] Generate fused value/JVP, fused value/VJP, separate JVP/VJP, and
   contracted products from one symbolic DAG.
 
+## CPU microarchitecture variants and runtime dispatch
+
+- [x] Confirm that gfortran/ifx/flang expose no Fortran function
+  multiversioning (`target_clones`/ifunc is C/C++ only), so per-microarchitecture
+  variants must be emitted under different names and selected at runtime.
+- [x] Measure `-O3 -march=x86-64-v2` versus `-O3 -march=native` on the existing
+  generated kernels (transcendental scalar and pure-arithmetic batch), timed
+  end to end, with interleaved runs to cancel shared-host run-order bias.
+- [x] Record the verdict and defer runtime dispatch until a distributed-binary
+  consumer needs a portable build that must match native performance.
+
+Design and evidence: [CPU multiversioning](docs/design/cpu_multiversioning.md)
+and `benchmark/reference/xeon_e5_2630v4_march_gap.json`.
+
 ## Reliable performance-portable GPU execution
 
 This tranche starts immediately after the preceding single-DAG item. It adopts
