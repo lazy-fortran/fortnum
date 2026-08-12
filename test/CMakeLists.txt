@@ -432,3 +432,13 @@ add_test(
     COMMAND ${CMAKE_COMMAND}
         -DFORTNUM_SOURCE_DIR=${CMAKE_SOURCE_DIR}
         -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/test_benchmark_selection.cmake)
+
+# Multi-target Lagrange-4 JVP kernel: one expression, four artifacts. The
+# fortran_cpu artifact is compiled and checked against the independent
+# oracle; the OpenMP-offload, OpenACC, and CUDA artifacts are emitted and
+# committed but recorded as not run on runners without those toolchains.
+add_executable(
+    test_lagrange4_multi_target
+    "${PROJECT_SOURCE_DIR}/test/lagrange4/test_lagrange4_multi_target.f90"
+    "${PROJECT_SOURCE_DIR}/src/generated/fortnum_lagrange4_jvp_kernel_cpu.f90")
+add_test(NAME lagrange4_multi_target COMMAND test_lagrange4_multi_target)
