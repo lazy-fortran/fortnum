@@ -22,6 +22,7 @@ module fortnum_ode_rk54_device
 
     integer, parameter, public :: RK54_CASH_KARP = 1
     integer, parameter, public :: RK54_DORMAND_PRINCE = 2
+    integer, parameter, public :: RK54_DORMAND_PRINCE_TUNED = 3
     integer, parameter, public :: RK54_NEED_RHS = 1
     integer, parameter, public :: RK54_ACCEPTED = 2
     integer, parameter, public :: RK54_REJECTED = 3
@@ -104,7 +105,7 @@ contains
         select case (controls%method)
         case (RK54_CASH_KARP)
             call request_cash_karp(state, t_eval, y_eval, request)
-        case (RK54_DORMAND_PRINCE)
+        case (RK54_DORMAND_PRINCE, RK54_DORMAND_PRINCE_TUNED)
             call request_dormand_prince(state, t_eval, y_eval, request)
         case default
             t_eval = state%t
@@ -139,7 +140,7 @@ contains
 
         if (controls%method == RK54_CASH_KARP) then
             last_stage = 6
-        else if (controls%method == RK54_DORMAND_PRINCE) then
+        else if (is_dormand_prince_method(controls%method)) then
             last_stage = 7
         else
             t_eval = state%t
@@ -153,11 +154,14 @@ contains
             request = RK54_FAILED
             return
         end if
-        if (controls%method == RK54_DORMAND_PRINCE .and. state%stage == 6) then
-            state%k(:, 2) = derivative
-        else if (controls%method == RK54_DORMAND_PRINCE .and. &
-                state%stage == 7) then
-            state%k(:, 6) = derivative
+        if (is_dormand_prince_method(controls%method)) then
+            if (state%stage == 6) then
+                state%k(:, 2) = derivative
+            else if (state%stage == 7) then
+                state%k(:, 6) = derivative
+            else
+                state%k(:, state%stage) = derivative
+            end if
         else
             state%k(:, state%stage) = derivative
         end if
@@ -284,6 +288,15 @@ contains
             state%k(:, 6), state%trial, state%error)
     end subroutine finish_dormand_prince
 
+    !NVF$ INLINE
+    pure logical function is_dormand_prince_method(method)
+        !$acc routine seq
+        integer, intent(in) :: method
+
+        is_dormand_prince_method = method == RK54_DORMAND_PRINCE .or. &
+            method == RK54_DORMAND_PRINCE_TUNED
+    end function is_dormand_prince_method
+
     ! FIRM3D/CATAPULT's exact four-component maximum norm.
     !NVF$ INLINE
     pure function rk54_firm3d_error_norm4(y, k1, error, h, rtol, atol) result(norm)
@@ -349,7 +362,7 @@ contains
         if (accepted) then
             state%t = state%t + state%h
             state%y = state%trial
-            if (controls%method == RK54_DORMAND_PRINCE) &
+            if (is_dormand_prince_method(controls%method)) &
                 state%k(:, 1) = state%k(:, 6)
             state%h = hnew
             state%previous_error = max(state%last_error, 1.0e-10_dp)
@@ -363,7 +376,7 @@ contains
             state%nrejected = state%nrejected + 1
             request = RK54_REJECTED
         end if
-        if (controls%method == RK54_DORMAND_PRINCE) then
+        if (is_dormand_prince_method(controls%method)) then
             ! The accepted step's seventh stage is f(t+h, y_new). After a
             ! rejection the original first stage is still f(t, y). Both are
             ! valid first stages for the next attempt.
