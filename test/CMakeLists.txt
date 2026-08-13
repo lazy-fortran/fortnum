@@ -27,6 +27,11 @@ add_test(
     COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/check_contracted_codegen.sh"
         "${PROJECT_SOURCE_DIR}")
 
+add_test(
+    NAME machine_count_oracle
+    COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/test_machine_count.sh"
+        "${PROJECT_SOURCE_DIR}")
+
 add_executable(
     test_gpu_batch_wrappers
     "${PROJECT_SOURCE_DIR}/benchmark/gpu/fortnum_gpu_batch_wrappers.f90"

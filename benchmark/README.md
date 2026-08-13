@@ -69,6 +69,25 @@ The script pins one CPU, runs three warmups and 15 samples, verifies
 byte-identical deterministic application outputs, and records complete-process
 wall clock, peak RSS, and cache counters.
 
+## Machine-code operation counts
+
+`N_machine` counts floating-point instructions in the compiled artifact, from
+disassembly. It is the level that shows the compiler's own contribution to a
+kernel's cost: FMA fusion reduces instructions, and register-pressure spills
+add loads and stores that never appear in the source. The measurement is
+opt-in — when the disassembler is absent the level is not measured (the
+manifest field is absent, never `"skipped"`, never zero).
+
+```bash
+python3 benchmark/collect_machine_count.py   --object /path/to/kernel.o   --source src/generated/fortnum_det2_jvp_kernel.f90   --target cpu   --output benchmark/reference/xeon_e5_2630v4_det2_machine_count.json
+```
+
+`--target cpu` uses `objdump -d`; `--target cuda` uses `cuobjdump -sass` /
+`nvdisasm` for SASS. The record reports instruction count and FLOP count
+separately (one FMA is one instruction and two FLOPs), spill loads and stores
+apart from ordinary memory traffic, and register count where the tool reports
+it. See [docs/design/machine_count.md](../docs/design/machine_count.md).
+
 ## Derivative tournaments
 
 Derivative benchmarks compare implementations of the same mathematical
