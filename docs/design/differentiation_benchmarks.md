@@ -40,6 +40,7 @@ primal evaluations required by the stated oracle.
 | ODE | `ryzen9_5950x_ode_*.json` | continuous tangent, discrete tangent/adjoint, parameters, checkpoint/recompute, events, implicit stages | closed forms, refinement, frozen-map finite differences, matrix exponentials, adjoint identities |
 | downstream applications | `ryzen9_5950x_itpplasma_simple.json` | current fortnum versus the consumer-pinned revision inside implicit symplectic orbit steps | byte-identical deterministic SIMPLE analytic-field outputs |
 | selection | build and static-selection records | deterministic registry and CMake consumption | exact workload lookup and negative malformed-record tests |
+| machine counts | `xeon_e5_2630v4_det2_machine_count.json` | `N_emit` versus `N_machine` on one generated kernel | expression-derived instruction/FLOP counts and preserved FLOPs across FMA fusion |
 
 CPU records use separate processes when peak RSS must be attributed to one
 candidate. Low-latency reference runs record CPU affinity. Cache and work
