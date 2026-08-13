@@ -3,18 +3,25 @@ program test_fortnum_ode_rk54_device
     use fortnum_ode_rk54_device, only: rk54_controls4_t, rk54_state4_t, &
         rk54_initialize4, rk54_request4, rk54_supply4, &
         RK54_CASH_KARP, RK54_DORMAND_PRINCE, RK54_NEED_RHS, &
-        RK54_ACCEPTED, RK54_REJECTED, RK54_FAILED
+        RK54_DORMAND_PRINCE_TUNED, RK54_ACCEPTED, RK54_REJECTED, RK54_FAILED
     implicit none
 
     integer :: failures
 
     failures = 0
-    call test_dormand_prince_external_fixture()
-    call test_dormand_prince_fsal()
+    call test_dormand_prince_external_fixture(RK54_DORMAND_PRINCE, &
+        "DOPRI")
+    call test_dormand_prince_external_fixture(RK54_DORMAND_PRINCE_TUNED, &
+        "tuned DOPRI")
+    call test_dormand_prince_fsal(RK54_DORMAND_PRINCE, "DOPRI")
+    call test_dormand_prince_fsal(RK54_DORMAND_PRINCE_TUNED, "tuned DOPRI")
     call test_exact_exponential(RK54_CASH_KARP)
     call test_exact_exponential(RK54_DORMAND_PRINCE)
+    call test_exact_exponential(RK54_DORMAND_PRINCE_TUNED)
     call test_device_exponential(RK54_CASH_KARP)
     call test_device_exponential(RK54_DORMAND_PRINCE)
+    call test_device_exponential(RK54_DORMAND_PRINCE_TUNED)
+    call test_tuned_controller()
     call test_rejection_and_minimum_step()
     call test_observed_order(RK54_CASH_KARP)
     call test_observed_order(RK54_DORMAND_PRINCE)
@@ -25,7 +32,7 @@ program test_fortnum_ode_rk54_device
 
 contains
 
-    subroutine test_dormand_prince_external_fixture()
+    subroutine test_dormand_prince_external_fixture(method, label)
         ! Golden values were evaluated at 80 decimal digits from the published
         ! Dormand-Prince tableau, independently of the generated Fortran.
         real(dp), parameter :: expected_y(4) = [ &
@@ -39,12 +46,14 @@ contains
         real(dp), parameter :: expected_norm = &
             9.79326930169055741e-6_dp
         real(dp), parameter :: lambda(4) = [-1.0_dp, 2.0_dp, -3.0_dp, 0.25_dp]
+        integer, intent(in) :: method
+        character(*), intent(in) :: label
         type(rk54_controls4_t) :: controls
         type(rk54_state4_t) :: state
         real(dp) :: t_eval, y_eval(4), derivative(4)
         integer :: request
 
-        controls%method = RK54_DORMAND_PRINCE
+        controls%method = method
         controls%rtol = 1.0e-6_dp
         controls%atol = [1.0e-6_dp, 1.0e-6_dp, 1.0e-6_dp, 13.0_dp]
         controls%hmin = 0.0_dp
@@ -57,33 +66,35 @@ contains
             call rk54_supply4(state, controls, derivative, t_eval, y_eval, request)
         end do
 
-        call check(request == RK54_ACCEPTED, "DOPRI fixture accepts")
+        call check(request == RK54_ACCEPTED, label//" fixture accepts")
         call check(maxval(abs(state%y - expected_y)) < 3.0e-16_dp, &
-            "DOPRI fixture fifth-order state")
+            label//" fixture fifth-order state")
         if (maxval(abs(state%error - expected_error)) >= 3.0e-26_dp) then
             write (error_unit, "(a,4es24.16)") "actual error: ", state%error
         end if
         call check(maxval(abs(state%error - expected_error)) < 1.0e-18_dp, &
-            "DOPRI fixture embedded error")
+            label//" fixture embedded error")
         if (abs(state%last_error - expected_norm) >= 3.0e-19_dp) then
             write (error_unit, "(a,es24.16)") "actual norm: ", state%last_error
         end if
         call check(abs(state%last_error - expected_norm) < 5.0e-12_dp, &
-            "FIRM3D maximum error norm")
-        call check(state%nfev == 7, "DOPRI fixture has seven RHS evaluations")
+            label//" FIRM3D maximum error norm")
+        call check(state%nfev == 7, label//" fixture has seven RHS evaluations")
     end subroutine test_dormand_prince_external_fixture
 
-    subroutine test_dormand_prince_fsal()
+    subroutine test_dormand_prince_fsal(method, label)
         ! Two fixed steps of the published DOPRI tableau require 7 + 6 RHS
         ! evaluations because stage 7 of the first step is stage 1 of the next.
         real(dp), parameter :: lambda(4) = [-1.0_dp, 2.0_dp, -3.0_dp, 0.25_dp]
         real(dp), parameter :: initial(4) = [1.0_dp, 2.0_dp, -1.0_dp, 0.5_dp]
+        integer, intent(in) :: method
+        character(*), intent(in) :: label
         type(rk54_controls4_t) :: controls
         type(rk54_state4_t) :: state
         real(dp) :: t_eval, y_eval(4), derivative(4)
         integer :: request, step
 
-        controls%method = RK54_DORMAND_PRINCE
+        controls%method = method
         controls%rtol = 1.0e-6_dp
         controls%atol = 1.0e-6_dp
         controls%hmin = 0.01_dp
@@ -96,11 +107,11 @@ contains
                 call rk54_supply4(state, controls, derivative, t_eval, y_eval, &
                     request)
             end do
-            call check(request == RK54_ACCEPTED, "DOPRI FSAL fixture accepts")
+            call check(request == RK54_ACCEPTED, label//" FSAL fixture accepts")
         end do
-        call check(state%nfev == 13, "DOPRI FSAL uses 13 RHS evaluations")
+        call check(state%nfev == 13, label//" FSAL uses 13 RHS evaluations")
         call check(maxval(abs(state%y - initial*exp(0.02_dp*lambda))) < 2.0e-12_dp, &
-            "DOPRI FSAL agrees with exact exponential")
+            label//" FSAL agrees with exact exponential")
     end subroutine test_dormand_prince_fsal
 
     subroutine test_exact_exponential(method)
@@ -177,6 +188,55 @@ contains
             batch_size))) < 2.0e-9_dp, &
             "device adaptive traces agree with exact exponential")
     end subroutine test_device_exponential
+
+    subroutine test_tuned_controller()
+        ! The external fixture has a maximum error of 1.98803366824318315e-11.
+        ! With zero relative tolerance and atol=1e-11, the FIRM3D norm is the
+        ! known value below. The tuned first-step rule is 0.9*error**(-1/5),
+        ! while the compatibility controller uses error**(-1/3).
+        real(dp), parameter :: expected_norm = 1.98803366824318315_dp
+        real(dp), parameter :: initial_h = 0.01_dp
+        real(dp), parameter :: lambda(4) = [-1.0_dp, 2.0_dp, -3.0_dp, 0.25_dp]
+        real(dp), parameter :: initial(4) = [1.0_dp, 2.0_dp, -1.0_dp, 0.5_dp]
+        type(rk54_controls4_t) :: controls
+        type(rk54_state4_t) :: tuned, original
+        real(dp) :: t_eval, y_eval(4), derivative(4), expected_h
+        integer :: request
+
+        controls%rtol = 0.0_dp
+        controls%atol = 1.0e-11_dp
+        controls%hmin = 0.0_dp
+        controls%hmax = 1.0_dp
+
+        controls%method = RK54_DORMAND_PRINCE_TUNED
+        call rk54_initialize4(tuned, 0.0_dp, initial, initial_h)
+        call rk54_request4(tuned, controls, t_eval, y_eval, request)
+        do while (request == RK54_NEED_RHS)
+            derivative = lambda*y_eval
+            call rk54_supply4(tuned, controls, derivative, t_eval, y_eval, &
+                request)
+        end do
+        expected_h = initial_h*0.9_dp*expected_norm**(-1.0_dp/5.0_dp)
+        call check(request == RK54_REJECTED, "tuned controller rejects")
+        call check(abs(tuned%h - expected_h) < 2.0e-10_dp, &
+            "tuned controller uses fifth-order exponent")
+        call check(tuned%nfev == 7, "tuned controller evaluates seven stages")
+
+        controls%method = RK54_DORMAND_PRINCE
+        call rk54_initialize4(original, 0.0_dp, initial, initial_h)
+        call rk54_request4(original, controls, t_eval, y_eval, request)
+        do while (request == RK54_NEED_RHS)
+            derivative = lambda*y_eval
+            call rk54_supply4(original, controls, derivative, t_eval, y_eval, &
+                request)
+        end do
+        expected_h = initial_h*0.9_dp*expected_norm**(-1.0_dp/3.0_dp)
+        call check(request == RK54_REJECTED, "compatibility controller rejects")
+        call check(abs(original%h - expected_h) < 2.0e-10_dp, &
+            "compatibility controller keeps cubic exponent")
+        call check(tuned%h > original%h, &
+            "tuned controller takes the larger rejected-step retry")
+    end subroutine test_tuned_controller
 
     subroutine integrate_exponential_device(controls, lambda, initial, result, &
             final_time, status, attempts)
