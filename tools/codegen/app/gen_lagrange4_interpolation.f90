@@ -6,6 +6,8 @@ program gen_lagrange4_interpolation
     use fortsym_products, only: jvp, vjp
     use fortsym_kernel, only: kernel_spec_t, emit_kernel, count_operations, &
         operation_count_t, KERNEL_SUBROUTINE
+    use fortsym_kernel_ir, only: kernel_ir_t, lower_kernel_ir
+    use fortsym_kernel_emit, only: kernel_emit_spec_t, emit_cuda_device_ir
     use fortsym_engine, only: engine_result_t
     use fortsym_engine_symengine, only: symengine_engine_t, &
         make_symengine_engine
@@ -65,6 +67,19 @@ program gen_lagrange4_interpolation
         [str("value"), str("adjoint_x"), str("adjoint_y1"), &
         str("adjoint_y2"), str("adjoint_y3"), str("adjoint_y4")], &
         vjp_roots)
+
+    ! Emit the JVP kernel to CUDA as well as Fortran: one expression, two
+    ! spellings. The Fortran leaf above is unchanged; this lowers the same
+    ! simplified JVP roots to the backend-neutral kernel IR and emits the
+    ! device leaf from it via fortsym_kernel_emit's emit_cuda_device_ir. The
+    ! artifact lands in src/generated/cuda/, a bare __device__ function that a
+    ! backend-owned global wrapper may launch.
+    call write_cuda_kernel( &
+        "fortnum_lagrange4_jvp_kernel_cuda.cu", &
+        "fortnum_lagrange4_jvp_kernel_cuda", &
+        [str("x"), str("y1"), str("y2"), str("y3"), str("y4"), &
+        str("tx"), str("ty1"), str("ty2"), str("ty3"), str("ty4")], &
+        [str("value"), str("jvp")], jvp_roots)
 
 contains
 
@@ -127,5 +142,89 @@ contains
         call codegen_log_count("post-CSE structural operations: ", &
             operations%total)
     end subroutine write_kernel
+
+    subroutine write_cuda_kernel( &
+            filename, name, arguments, outputs, roots)
+        !! Lower the kernel expression once to the backend-neutral kernel IR
+        !! and emit a CUDA device leaf from it. The Fortran emission path is
+        !! untouched; this is the second spelling of the same expression.
+        character(*), intent(in) :: filename, name
+        type(str_t), intent(in) :: arguments(:), outputs(:)
+        type(expr_t), intent(in) :: roots(:)
+        type(kernel_ir_t) :: ir
+        type(kernel_emit_spec_t) :: spec
+        type(str_t) :: source
+        logical :: ok
+        character(:), allocatable :: message, code, output
+        integer :: unit, ios
+
+        call lower_kernel_ir(roots, ir, ok, message)
+        if (.not. ok) error stop "cannot lower kernel IR: "//message
+
+        spec%name = str(name)
+        spec%args = arguments
+        spec%outputs = outputs
+        spec%temp_prefix = str("t")
+        spec%generator = str("gen_lagrange4_interpolation")
+        spec%generator_revision = str(fortsym_revision())
+        spec%regenerate_command = str( &
+            "cd tools/codegen && fo exec gen_lagrange4_interpolation")
+
+        source = emit_cuda_device_ir(ir, spec, ok, message)
+        if (.not. ok) error stop "cannot emit CUDA leaf: "//message
+
+        output = generated_cuda_path(filename)
+        call make_parent_directory(output)
+        open (newunit=unit, file=output, status="replace", action="write", &
+            iostat=ios)
+        if (ios /= 0) error stop "cannot write "//output
+        code = chars(source)
+        write (unit, "(a)") code(:len(code) - 1)
+        close (unit)
+        call codegen_log("wrote "//output)
+    end subroutine write_cuda_kernel
+
+    function generated_cuda_path(filename) result(path)
+        !! generated_path in fortnum_codegen_provenance writes the flat
+        !! src/generated/ tree; the CUDA artifact lives in its cuda/
+        !! subdirectory, so route it there.
+        character(*), intent(in) :: filename
+        character(:), allocatable :: path
+        character(4096) :: output_directory
+        integer :: length, status
+
+        call get_environment_variable("FORTNUM_CODEGEN_OUTPUT_DIR", &
+            output_directory, length=length, status=status)
+        if (status /= 0 .or. length == 0) then
+            path = "../../src/generated/cuda/"//filename
+            return
+        end if
+        if (output_directory(length:length) == "/") then
+            path = output_directory(:length)//"cuda/"//filename
+        else
+            path = output_directory(:length)//"/cuda/"//filename
+        end if
+    end function generated_cuda_path
+
+    subroutine make_parent_directory(path)
+        !! Create the parent directory of a generated artifact path so the
+        !! CUDA file can live in src/generated/cuda/ even on a fresh checkout
+        !! where that subdirectory does not yet exist.
+        character(*), intent(in) :: path
+        character(:), allocatable :: parent
+        integer :: slash
+        logical :: ok
+        integer :: exitstat
+
+        slash = index(path, "/", back=.true.)
+        if (slash == 0) return
+        parent = path(:slash - 1)
+        if (len_trim(parent) == 0) return
+        inquire (file=parent, exist=ok)
+        if (ok) return
+        call execute_command_line("mkdir -p '"//parent//"'", &
+            wait=.true., exitstat=exitstat)
+        if (exitstat /= 0) error stop "cannot create directory "//parent
+    end subroutine make_parent_directory
 
 end program gen_lagrange4_interpolation

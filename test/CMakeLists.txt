@@ -432,3 +432,13 @@ add_test(
     COMMAND ${CMAKE_COMMAND}
         -DFORTNUM_SOURCE_DIR=${CMAKE_SOURCE_DIR}
         -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/test_benchmark_selection.cmake)
+
+# --- Lagrange-4 JVP: one expression, two emitted spellings (issue #72) ---
+add_executable(test_lagrange4_jvp_oracle
+    lagrange4/test_lagrange4_jvp_oracle.f90
+    ${CMAKE_SOURCE_DIR}/src/generated/fortnum_lagrange4_jvp_kernel.f90)
+target_link_libraries(test_lagrange4_jvp_oracle PRIVATE fortnum)
+add_test(NAME lagrange4_jvp_oracle COMMAND test_lagrange4_jvp_oracle)
+
+add_test(NAME lagrange4_cuda_leaf
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/lagrange4/check_cuda_leaf.sh)
