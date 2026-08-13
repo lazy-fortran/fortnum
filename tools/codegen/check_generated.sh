@@ -25,4 +25,11 @@ for generated in "$temporary_dir"/fortnum_*.f90; do
     cmp -- "$repository_dir/src/generated/$(basename "$generated")" "$generated"
 done
 
+# The Lagrange-4 JVP kernel also has a CUDA spelling in src/generated/cuda/,
+# emitted from the same kernel IR. Keep it byte-stable too.
+for generated in "$temporary_dir"/cuda/fortnum_*.cu; do
+    cmp -- "$repository_dir/src/generated/cuda/$(basename "$generated")" \
+        "$generated"
+done
+
 echo "generated kernels match committed sources"

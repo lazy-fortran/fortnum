@@ -304,6 +304,17 @@ derivatives. CPU Enzyme remains the `autodiff` backend and supplies CPU
   candidates from end-to-end wall clock and peak memory rather than isolated
   kernel latency.
 
+- [x] Emit one existing kernel (Lagrange-4 JVP) to CUDA as well as Fortran
+  from the same `kernel_ir_t` (issue #72): `src/generated/cuda/` holds the
+  CUDA leaf next to the unchanged Fortran spelling, both from one simplified
+  expression. The CUDA leaf is a bare `extern "C" __device__` function; the
+  emitted arithmetic agrees with the independent cubic oracle at 1e-13
+  (Fortran run plus CUDA host compile here; the `nvcc` device run is recorded
+  as not run on this runner). It does not yet compose with the existing
+  OpenACC/OpenMP offload wrappers, which expect an `acc routine seq` /
+  `declare target` Fortran leaf; calling it needs a backend-owned `__global__`
+  launcher that `fortnum` has not added.
+
 ### GPU source ownership and exclusions
 
 The symbolic input, selected generated leaf, provenance, regeneration test, and
