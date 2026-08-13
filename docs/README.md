@@ -26,6 +26,7 @@ measured evidence.
 | [Error-control primitives](design/error-control-primitives.md) | Point-matrix actions on interval data with aggregate rounding bounds; sampled norm upper bounds with a declared probability law |
 | [CPU/GPU contract](design/gpu.md) | Device leaves, supported mechanisms, and offload gates |
 | [CPU multiversioning](design/cpu_multiversioning.md) | Compiler FMV availability and the deferred runtime-dispatch decision |
+| [Machine counts](design/machine_count.md) | `N_machine` floating-point instruction counts from disassembly |
 | [Adaptive integration](design/integrate.md) | Integration state, status, traces, and derivative semantics |
 | [ODE](design/ode.md) | Solver state, events, traces, and sensitivity semantics |
 | [Fortran Synthesis pilot](design/fortran_synthesis_pilot.md) | Verification and evaluation of the consumer synthesis slice (order conditions, equivalence checks, Why3 tableau identities, hand-written vs generated) |
