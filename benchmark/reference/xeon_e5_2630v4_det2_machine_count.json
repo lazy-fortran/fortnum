@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "source_revision": "1e0765a57feb8dcd981192ebc0210683b5b32cf0",
+  "operation": "machine-code floating-point instruction count (N_machine) from disassembly",
+  "target": "cpu",
+  "object": "/tmp/ref/det2.o",
+  "toolchain": {
+    "compiler": "GNU Fortran (Debian 14.2.0-19) 14.2.0",
+    "disassembler": "GNU objdump (GNU Binutils for Debian) 2.44",
+    "disassembly": "objdump -d on the object file"
+  },
+  "n_emit": {
+    "instruction_count": 7,
+    "flop_count": 7,
+    "breakdown": {
+      "add": 1,
+      "sub": 2,
+      "mul": 4,
+      "div": 0,
+      "transcendental": 0
+    }
+  },
+  "n_machine": {
+    "instruction_count": 4,
+    "flop_count": 7,
+    "fma_count": 3,
+    "spill_loads": 0,
+    "spill_stores": 0
+  },
+  "fusion": {
+    "emitted_instructions": 7,
+    "machine_instructions": 4,
+    "instruction_reduction": 3,
+    "emitted_flops": 7,
+    "machine_flops": 7,
+    "flop_count_preserved": true
+  }
+}
