@@ -20,7 +20,8 @@ program gen_rk54_device
     use fortsym_rk, only: butcher_t, rk_from_rows, rk_is_consistent, &
         rk_attains_order, rk_error_weights, rk_is_fsal, rk_is_zero
     use fortsym_string, only: str_t, str, chars
-    use fortnum_codegen_provenance, only: codegen_log, generated_path
+    use fortnum_codegen_provenance, only: codegen_log, generated_path, &
+        cost_block_text, insert_cost_block
     implicit none
 
     type(arena_t), target :: arena
@@ -302,6 +303,7 @@ contains
               iostat=ios)
         if (ios /= 0) error stop "cannot write "//path
         code = chars(emit_kernel(roots, spec))
+        code = insert_cost_block(code, cost_block_text(roots, roots))
         write (unit, "(a)") code(:len(code) - 1)
         close (unit)
         call codegen_log("wrote "//path)

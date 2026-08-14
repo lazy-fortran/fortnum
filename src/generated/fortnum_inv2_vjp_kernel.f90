@@ -2,6 +2,11 @@
 ! Generator: gen_inverse_products
 ! Generator revision: fortsym@1176dc1c0054c3363c648898abd68dbc252ee024
 ! Regenerate with: cd tools/codegen && fo exec gen_inverse_products
+! cost: {
+!   "n_sym": {"flops": 60, "adds": 12, "muls": 48, "divs": 0, "transcendental": {},
+!   "n_emit": {"flops": 60, "instructions": 60},
+!   "gaps": {"generator": 0}
+! }
 
 module fortnum_generated_inv2_vjp
     implicit none

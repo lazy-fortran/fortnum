@@ -16,7 +16,7 @@ program gen_dop853_tableau
         quad_text, quad_sub
     use dop853_construction, only: rk_dp8_t, rk_dormand_prince_8, &
         rk_dp8_error_weights, RK_DP8_OK, RK_DP8_STAGES
-    use fortnum_codegen_provenance, only: codegen_log, generated_path
+    use fortnum_codegen_provenance, only: codegen_log, generated_path, cost_block_text, insert_cost_block
     implicit none
 
     integer, parameter :: dp = kind(1.0d0)
@@ -78,6 +78,11 @@ program gen_dop853_tableau
     write (unit, "(a)") "! Generator revision: "//revision()
     write (unit, "(a)") "! Regenerate with: cd tools/codegen && fo exec "// &
         "gen_dop853_tableau"
+    write (unit, "(a)") "! cost: {"
+    write (unit, "(a)") '!   "n_sym": {"flops": 0, "adds": 0, "muls": 0, "divs": 0, "transcendental": {}},'
+    write (unit, "(a)") '!   "n_emit": {"flops": 0, "instructions": 0},'
+    write (unit, "(a)") '!   "gaps": {"generator": 0}'
+    write (unit, "(a)") "! }"
     write (unit, "(a)") "!"
     write (unit, "(a)") "! Derived, not transcribed. The four free nodes"
     write (unit, "(a)") "! c7 = 1/4, c8 = 4/13, c10 = 3/5, c11 = 6/7 are the"

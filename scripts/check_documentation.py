@@ -257,6 +257,37 @@ def check_generated_revision(root: Path) -> list[str]:
     return errors
 
 
+def check_generated_cost(root: Path) -> list[str]:
+    """Every fortsym-generated kernel carries a four-count cost block."""
+    errors: list[str] = []
+    inventory = root / "docs/design/derivative_kernel_inventory.csv"
+    fortad = set()
+    if inventory.exists():
+        with inventory.open(newline="", encoding="utf-8") as stream:
+            for row in csv.DictReader(stream):
+                if row["classification"].strip() == "fortad-generated":
+                    fortad.add(row["path"].strip())
+    generators = {p.stem for p in (root / "tools/codegen/app").glob("*.f90")}
+    for path in sorted((root / "src/generated").glob("*.f90")):
+        if str(path.relative_to(root)) in fortad:
+            continue
+        text = path.read_text(encoding="utf-8")
+        match = re.search(r"^!\s*Generator:\s*(\S+)\s*$", text, re.M)
+        if match is None or match.group(1) not in generators:
+            # Only sources this checkout can regenerate are byte-gated by
+            # check_generated.sh; generators outside tools/codegen/app (and
+            # fortad) are not reproducible here.
+            continue
+        if "! cost: {" not in text:
+            errors.append(f"{path.relative_to(root)} is missing its cost block")
+            continue
+        block = text.split("! cost: {", 1)[1]
+        for key in ('"n_sym"', '"n_emit"', '"gaps"'):
+            if key not in block.split("! }", 1)[0]:
+                errors.append(f"{path.relative_to(root)} cost block lacks {key}")
+    return errors
+
+
 def check_report(root: Path) -> list[str]:
     errors: list[str] = []
     csv_path = root / "benchmark/report/data/mechanism_tournaments.csv"
@@ -348,6 +379,7 @@ def main() -> int:
     errors.extend(check_api(root))
     errors.extend(check_terminology(paths, root))
     errors.extend(check_generated_revision(root))
+    errors.extend(check_generated_cost(root))
     errors.extend(check_report(root))
     errors.extend(check_no_figures(root))
     errors.extend(check_inventory(root))
