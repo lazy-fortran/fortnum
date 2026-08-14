@@ -52,6 +52,19 @@ python3 benchmark/collect_dawson_family.py \
   --output dawson-family.json
 ```
 
+The microarchitecture-gap record compares `-O3 -march=x86-64-v2` with
+`-O3 -march=native` on the existing generated kernels. It builds both
+benchmark trees, interleaves runs to cancel shared-host run-order bias, and
+emits a verdict against a 5% noise margin:
+
+```bash
+python3 benchmark/collect_march_gap.py \
+  --build-dir /tmp/fortnum-march \
+  --output benchmark/reference/<host>_march_gap.json
+```
+
+See `docs/design/cpu_multiversioning.md` for the decision this record supports.
+
 For the downstream `itpplasma/SIMPLE` comparison, build the same SIMPLE
 revision once with this checkout through
 `FETCHCONTENT_SOURCE_DIR_FORTNUM` and once with SIMPLE's pinned fortnum
