@@ -240,6 +240,15 @@ add_test(NAME fortnum_dop853_oracle
     COMMAND test_fortnum_dop853_oracle
         ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data)
 
+# Spec-derived order-condition check on the generated DOP853 tableau: the
+# generated coefficients must satisfy the Butcher order conditions up to
+# order 8 and the stage/weight consistency identities.
+add_executable(test_fortnum_dop853_order_conditions
+    ode/test_fortnum_dop853_order_conditions.f90)
+target_link_libraries(test_fortnum_dop853_order_conditions PRIVATE fortnum)
+add_test(NAME fortnum_dop853_order_conditions
+    COMMAND test_fortnum_dop853_order_conditions)
+
 # --- M3 roots ---
 add_executable(test_fortnum_roots roots/test_fortnum_roots.f90)
 target_link_libraries(test_fortnum_roots PRIVATE fortnum)
@@ -287,6 +296,17 @@ add_test(NAME fortnum_roots_multiplicity COMMAND test_fortnum_roots_multiplicity
 add_executable(test_fortnum_region_roots_converge roots/test_fortnum_region_roots_converge.f90)
 target_link_libraries(test_fortnum_region_roots_converge PRIVATE fortnum)
 add_test(NAME fortnum_region_roots_converge COMMAND test_fortnum_region_roots_converge)
+
+# Generated residual/JVP/VJP/Jacobian kernels must equal the hand-written
+# analytic derivatives of the symbolic residual (the synthesis equivalence
+# proof for the root residual slice).
+# The generated root-residual kernels are already part of the fortnum library
+# (see src/CMakeLists.txt), so the test only needs to use their modules.
+add_executable(test_fortnum_generated_residual_equivalence
+    roots/test_fortnum_generated_residual_equivalence.f90)
+target_link_libraries(test_fortnum_generated_residual_equivalence PRIVATE fortnum)
+add_test(NAME fortnum_generated_residual_equivalence
+    COMMAND test_fortnum_generated_residual_equivalence)
 
 # reverse-communication device-style multiroot stepper (matches host hybrid)
 add_executable(test_fortnum_multiroot_rc roots/test_fortnum_multiroot_rc.f90)
