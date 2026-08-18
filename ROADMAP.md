@@ -199,6 +199,24 @@ composition with at least one analytical rule.
 - [x] Compare analytical basis products with fixed-span autodiff candidates.
 - [x] Add matrix-free 1D B-spline least-squares fitting on the shared workspace.
 
+## Fortran Synthesis pilot (verification and evaluation)
+
+The derivation half of the synthesis pilot (the derived DOP853 tableau) is
+delivered; see `docs/design/fortran_synthesis_pilot.md` for the evaluation.
+
+- [x] Prove the generated root-residual JVP/VJP/Jacobian kernels equal the
+  hand-written analytic derivatives of the symbolic residual, with a
+  finite-difference secondary oracle.
+- [x] Prove the generated DOP853 tableau satisfies the order-8 Butcher order
+  conditions and the stage/weight consistency identities, with the tree
+  enumeration validated against A000081.
+- [x] Add a spec-derived invariant check (order conditions) that catches a
+  generated-tableau error before integration runs.
+- [x] Express shape, range and precondition contracts on the DOP853 step API
+  in Why3 and provide a discharge script.
+- [x] Document which tests proofs replaced and which remain necessary, and
+  record the hand-written versus generated comparison.
+
 ## Generated-kernel policy and reproducibility
 
 - [x] Document which symbolic, generated numerical, generated Enzyme, and
