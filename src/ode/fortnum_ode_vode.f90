@@ -82,6 +82,13 @@ module fortnum_ode_vode
         real(dp) :: tn    = 0.0_dp ! current time at top of yh
         real(dp) :: h     = 0.0_dp ! current step size (signed)
         real(dp) :: hu    = 0.0_dp ! step that produced the current yh
+        !  Where a reported event root sat inside the current step.  DVODE
+        !  keeps tn and yh at the internal mesh top and re-enters the root
+        !  scan from the previously returned root; storing it here lets this
+        !  module do the same instead of moving tn, which would relabel the
+        !  Nordsieck history it does not rebuild.
+        real(dp) :: t_event = 0.0_dp
+        logical  :: at_event = .false.
         real(dp) :: hscal = 0.0_dp
         real(dp) :: rc    = 0.0_dp
         real(dp) :: prl1  = 1.0_dp
@@ -191,6 +198,7 @@ contains
         integer  :: neq, kflag, nev, found_idx
         integer  :: edir(VODE_MAX_EVENTS)
         real(dp) :: dir, etol, troot, tlast
+        logical  :: etol_auto
         real(dp) :: g_left(VODE_MAX_EVENTS)
         logical  :: found, has_event
         real(dp), allocatable :: y_left(:)
@@ -234,6 +242,13 @@ contains
             nev = 2
             if (present(event_dir2)) edir(2) = event_dir2
         end if
+        !  DVODE polishes a root to 100*uround*max(|x0|,|x1|), i.e. to relative
+        !  precision.  A fixed absolute default is only as good as the time
+        !  scale it was chosen for: at taub ~ 1.8e-4 the old 1e-10 is 5.5e-7
+        !  relative, which is coarser than the integrator it is resolving.  So
+        !  the default now scales with the interval, and an explicit
+        !  `event_tol` still wins outright.
+        etol_auto = .not. present(event_tol)
         etol = 1.0e-10_dp
         if (present(event_tol)) etol = event_tol
 
@@ -282,12 +297,40 @@ contains
             state%started = .true.
         end if
 
-        ! seed the event left endpoint at the current state
+        ! Seed the event left endpoint.  After a reported root the mesh top is
+        ! unchanged, so the remainder of the step that produced it is still
+        ! interpolable and must be scanned before another step is taken --
+        ! otherwise the interval between the root and the mesh top is skipped,
+        ! and a second root lying in it is never reported.
         if (has_event) then
-            y_left = state%yh(:, 1)
-            g_left(1) = event(state%tn, y_left, ctx)
-            if (nev == 2) g_left(2) = event2(state%tn, y_left, ctx)
-            tlast = state%tn
+            if (state%at_event) then
+                tlast = state%t_event
+                call interpolate(state, tlast, y_left)
+                state%at_event = .false.
+            else
+                tlast = state%tn
+                y_left = state%yh(:, 1)
+            end if
+            g_left(1) = event(tlast, y_left, ctx)
+            if (nev == 2) g_left(2) = event2(tlast, y_left, ctx)
+            if (tlast /= state%tn) then
+                call scan_step_for_root(event, event2, nev, state, edir, &
+                    root_tol(etol_auto, etol, tlast, state%tn), tlast, g_left, &
+                    troot, found, found_idx, ctx)
+                if (found) then
+                    call report_root(state, troot, y_out, found_idx, t_root, &
+                        root_found, event_index)
+                    return
+                end if
+                tlast = state%tn
+                y_left = state%yh(:, 1)
+                g_left(1) = event(state%tn, y_left, ctx)
+                if (nev == 2) g_left(2) = event2(state%tn, y_left, ctx)
+                if ((state%tn - tout) * dir >= 0.0_dp) then
+                    call interpolate(state, tout, y_out)
+                    return
+                end if
+            end if
         end if
 
         do
@@ -311,15 +354,12 @@ contains
 
             ! Event scan over the completed step [tlast, state%tn].
             if (has_event) then
-                call scan_step_for_root(event, event2, nev, state, edir, etol, &
-                    tlast, g_left, troot, found, found_idx, ctx)
+                call scan_step_for_root(event, event2, nev, state, edir, &
+                    root_tol(etol_auto, etol, tlast, state%tn), tlast, g_left, &
+                    troot, found, found_idx, ctx)
                 if (found) then
-                    call interpolate(state, troot, y_out)
-                    state%tn = troot
-                    state%hu = troot - tlast
-                    if (present(t_root)) t_root = troot
-                    if (present(root_found)) root_found = .true.
-                    if (present(event_index)) event_index = found_idx
+                    call report_root(state, troot, y_out, found_idx, t_root, &
+                        root_found, event_index)
                     exit
                 end if
                 tlast = state%tn
@@ -993,6 +1033,53 @@ contains
                             ! Nordsieck interpolant by the Illinois algorithm to resolution etol, and
                             ! return the earliest in the integration direction (DVODE NEVENTS root logic).
                             ! ev_idx reports which function (1 or 2) owns the returned root.
+                            ! Report a located root without disturbing the integrator.
+                            !
+                            ! DVODE returns the root time to the caller while leaving TN, H and
+                            ! the Nordsieck array YH at the internal mesh top, and re-enters the
+                            ! scan from the previously returned root.  Writing `tn = troot` here
+                            ! instead would relabel a history array that is still the expansion
+                            ! about the old mesh top, so every continuation past a root would be
+                            ! shifted earlier by up to one internal step.  That is silent: the
+                            ! solution stays smooth and plausible, and only its clock is wrong.
+                            subroutine report_root(state, troot, y_out, ev_idx, t_root, &
+                                    root_found, event_index)
+                                type(vode_state_t), intent(inout) :: state
+                                real(dp), intent(in)              :: troot
+                                real(dp), allocatable, intent(inout) :: y_out(:)
+                                integer,  intent(in)              :: ev_idx
+                                real(dp), intent(out), optional   :: t_root
+                                logical,  intent(out), optional   :: root_found
+                                integer,  intent(out), optional   :: event_index
+
+                                call interpolate(state, troot, y_out)
+                                state%t_event = troot
+                                state%at_event = .true.
+                                if (present(t_root)) t_root = troot
+                                if (present(root_found)) root_found = .true.
+                                if (present(event_index)) event_index = ev_idx
+                            end subroutine report_root
+
+                            ! The root resolution for one step: the caller's value when given,
+                            ! otherwise DVODE's relative rule over the interval being scanned.
+                            pure function root_tol(automatic, given, tlast, tn) result(etol)
+                                logical,  intent(in) :: automatic
+                                real(dp), intent(in) :: given, tlast, tn
+                                real(dp) :: etol
+
+                                real(dp) :: scale
+
+                                if (.not. automatic) then
+                                    etol = given
+                                    return
+                                end if
+                                scale = max(abs(tlast), abs(tn), abs(tn - tlast))
+                                etol = 100.0_dp * epsilon(1.0_dp) * scale
+                                !  A scan that begins at t = 0 has no scale of its own yet; fall
+                                !  back rather than ask the root finder to converge to zero.
+                                if (etol <= 0.0_dp) etol = tiny(1.0_dp)
+                            end function root_tol
+
                             subroutine scan_step_for_root(event, event2, nev, state, edir, etol, &
                                     tlast, g_left, troot, found, ev_idx, ctx)
                                 procedure(ode_event_t)            :: event
