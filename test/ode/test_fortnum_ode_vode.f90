@@ -24,6 +24,7 @@ program test_fortnum_ode_vode
     call check_harmonic_energy(nfail)
     call check_linear_system(nfail)
     call check_event_root(nfail)
+    call check_roots_after_the_first(nfail)
     call check_two_event_root(nfail)
     call check_restart_continuation(nfail)
 
@@ -182,6 +183,83 @@ contains
 
                         ! Oscillator y1 = cos(t): first rising-or-falling zero of y1 is at t=pi/2.
                         ! Locate it with event_tol and assert the located root matches.
+                        ! Continue past a located root, several times over.
+                        !
+                        ! The first root is the easy case, and it was the only one
+                        ! covered.  What a root-finding integrator has to get right is
+                        ! what happens *after* it reports one: DVODE leaves TN and the
+                        ! Nordsieck array at the internal mesh top and re-enters the
+                        ! scan from the returned root, and an implementation that
+                        ! instead moves TN onto the root relabels a history it does not
+                        ! rebuild, shifting everything downstream by up to one step.
+                        !
+                        ! y'' = -y from (1, 0) is y1 = cos t, so the roots of y1 are at
+                        ! (k - 1/2) pi exactly, for every k.  The oracle is the analytic
+                        ! solution, not a previous run, and it is available at every
+                        ! root rather than only the first.
+                        !
+                        ! Mutation result, recorded because it bounds what the two
+                        ! checks see.  Restoring `state%tn = troot` moves the worst root
+                        ! time from 6.8e-10 to 1.65e-01 -- one internal step -- and the
+                        ! time check rejects it.  The state check does not, and that is
+                        ! the point rather than a gap: |y2| at the reported root stays
+                        ! 1.7e-9 either way, because the trajectory is perfectly
+                        ! self-consistent with the shifted clock.  Nothing about the
+                        ! solution looks wrong; only when it happened is.
+                        subroutine check_roots_after_the_first(nfail)
+                            integer, intent(inout) :: nfail
+                            type(vode_state_t) :: st
+                            type(fortnum_status_t) :: status
+                            real(dp), allocatable :: yout(:)
+                            real(dp) :: atol(1), rtol, troot, exact, worst, worst_y
+                            logical  :: found
+                            integer  :: k
+
+                            rtol = 1.0e-10_dp
+                            atol = 1.0e-12_dp
+                            worst = 0.0_dp
+                            worst_y = 0.0_dp
+                            call vode_init(st, 2, 0.0_dp, [1.0_dp, 0.0_dp])
+                            do k = 1, 6
+                                call vode_integrate_to(rhs_osc, st, 40.0_dp, rtol, &
+                                    atol, yout, status, event=ev_y1, &
+                                    t_root=troot, root_found=found)
+                                if (.not. status_ok(status)) then
+                                    write (error_unit, "(a,i0)") &
+                                        "  continued event: status not OK at root ", k
+                                    nfail = nfail + 1
+                                    return
+                                end if
+                                if (.not. found) then
+                                    write (error_unit, "(a,i0)") &
+                                        "  continued event: no root ", k
+                                    nfail = nfail + 1
+                                    return
+                                end if
+                                exact = (real(k, dp) - 0.5_dp) * PI
+                                worst = max(worst, abs(troot - exact))
+                                !  y1 = cos t vanishes at the root and y2 = -sin t is
+                                !  +-1 there, so the state is pinned as well as the time.
+                                worst_y = max(worst_y, abs(abs(yout(2)) - 1.0_dp))
+                            end do
+                            write (*, "(a,es12.4,a,es12.4)") &
+                                "continued events: worst |troot-exact|=", worst, &
+                                " worst ||y2|-1|=", worst_y
+                            !  Far tighter than one internal step, which is what a
+                            !  relabelled history costs, and far looser than the
+                            !  integrator's own accuracy.
+                            if (worst > 1.0e-7_dp) then
+                                write (error_unit, "(a)") &
+                                    "  continued event: root times drift after the first"
+                                nfail = nfail + 1
+                            end if
+                            if (worst_y > 1.0e-7_dp) then
+                                write (error_unit, "(a)") &
+                                    "  continued event: state at the root drifts"
+                                nfail = nfail + 1
+                            end if
+                        end subroutine check_roots_after_the_first
+
                         subroutine check_event_root(nfail)
                             integer, intent(inout) :: nfail
                             type(vode_state_t) :: st
