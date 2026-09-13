@@ -22,6 +22,14 @@ module fortnum_cholesky
             real(dp), intent(inout) :: b(ldb, *)
             integer, intent(out) :: info
         end subroutine dpotrs
+
+        subroutine dtrsm(side, uplo, transa, diag, m, n, alpha, a, lda, b, ldb)
+            import :: dp
+            character(1), intent(in) :: side, uplo, transa, diag
+            integer, intent(in) :: m, n, lda, ldb
+            real(dp), intent(in) :: alpha, a(lda, *)
+            real(dp), intent(inout) :: b(ldb, *)
+        end subroutine dtrsm
     end interface
 
     type, public :: cholesky_factorization_t

@@ -18,6 +18,7 @@ program test_cholesky
     failures = 0
     call test_factor_and_solve(failures)
     call test_multiple_rhs(failures)
+    call test_lower_multiple_rhs(failures)
     call test_non_positive_definite(failures)
     if (failures /= 0) then
         write (error_unit, '(i0,a)') failures, " Cholesky test(s) failed"
@@ -122,6 +123,33 @@ contains
             failures = failures + 1
         end if
     end subroutine test_multiple_rhs
+
+    subroutine test_lower_multiple_rhs(failures)
+        integer, intent(inout) :: failures
+        type(cholesky_factorization_t) :: factorization
+        type(fortnum_status_t) :: status
+        real(dp) :: lower(3, 3), matrix(3, 3), rhs(3, 2), exact(3, 2)
+
+        lower = reshape([ &
+            2.0_dp, 0.5_dp, -0.2_dp, &
+            0.0_dp, 1.5_dp, 0.3_dp, &
+            0.0_dp, 0.0_dp, 1.2_dp], shape(lower))
+        matrix = matmul(lower, transpose(lower))
+        exact(:, 1) = [1.0_dp, -2.0_dp, 0.5_dp]
+        exact(:, 2) = [-0.25_dp, 0.75_dp, 2.0_dp]
+        rhs = matmul(lower, exact)
+        call factorization%factorize(matrix, status)
+        if (.not. status_ok(status)) then
+            write (error_unit, '(a)') "FAIL [lower_multiple_rhs] factorization"
+            failures = failures + 1
+            return
+        end if
+        call factorization%solve_lower_matrix(rhs, status)
+        if (.not. status_ok(status) .or. maxval(abs(rhs - exact)) > 2.0e-14_dp) then
+            write (error_unit, '(a)') "FAIL [lower_multiple_rhs] forward solve"
+            failures = failures + 1
+        end if
+    end subroutine test_lower_multiple_rhs
 
     subroutine test_non_positive_definite(failures)
         integer, intent(inout) :: failures
