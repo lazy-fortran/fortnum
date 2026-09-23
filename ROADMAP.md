@@ -543,7 +543,18 @@ the exact neighbours from `nearest`.
   products, weighted inner products, Wiener reciprocals, `fortnum_fseries`.
 - [x] Verified linear algebra: matrix balls, norm bounds, verified inverse,
   Cholesky-certified eigenvalue bounds, `fortnum_verified_linalg`.
-- [ ] Validated ODE (Lohner) with an abstract right-hand side,
-  `fortnum_validated_ode`.
+- [x] Validated ODE (Lohner) with an abstract right-hand side,
+  `fortnum_validated_ode`: `ode_rhs_t`, `picard_apriori`, `gronwall_bound`,
+  `lohner_step_jacobian`, `lohner_qr_frame`, `lohner_inverse_enclosure`
+  (reusing `fortnum_verified_linalg`'s general matrix-ball inverse),
+  `taylor_lohner_predictor`, `lohner_state_t`/`lohner_step`/
+  `lohner_integrate`, `event_crossing_newton`.
+- [ ] Extend `fortnum_validated_ode`'s propagated linear part (frame A, B)
+  to full order-q variational Taylor coefficients; it is currently
+  first-order in h like `lohner7`/`lohner8`, only the centre predictor is
+  order q.
+- [ ] Port `lohner_time`'s section-crossing driver and `flow_enclosure`'s
+  remaining physics-specific glue onto `fortnum_validated_ode` in
+  `gc-loss-certificate`.
 - [x] Interval Bernstein evaluation, `fortnum_bernstein`.
 - [ ] Stieltjes/Pick bounds once the kinetic-compression algorithm settles.

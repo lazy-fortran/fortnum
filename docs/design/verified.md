@@ -167,7 +167,7 @@ All verified sources live under `src/verified/`.
 | `fortnum_fseries` | 1D/2D ball Fourier series with tails: add, scale, product (direct and FFT), derivative, weighted inner products, Wiener reciprocal | implemented |
 | `fortnum_verified_linalg` | matrix balls, rigorous norm bounds, product error bounds, verified inverse, Cholesky-certified eigenvalue bounds (real symmetric, Hermitian by real embedding), interval matrix products | implemented |
 | `fortnum_taylor_series` | order-by-order Taylor arithmetic over `interval_t`, `idual_t`, `cdual_t` coefficients | implemented |
-| `fortnum_validated_ode` | Lohner QR enclosure and high-order Taylor-Lohner step with an abstract right-hand side (reverse communication or deferred binding), Picard a priori boxes, Gronwall variational bounds, interval Newton event crossings | planned |
+| `fortnum_validated_ode` | Lohner QR enclosure and an order-q Taylor-Lohner predictor with an abstract right-hand side (`ode_rhs_t` deferred binding), Picard a priori boxes, Gronwall variational bounds, interval Newton event crossings | implemented (arbitrary-order centre predictor; the propagated linear part stays first-order in h, see Migration below) |
 | `fortnum_bernstein` | interval Bernstein evaluation, convex-hull bounds, local re-expansion, grid caching, least-squares fit | implemented |
 | `fortnum_stieltjes` | Stieltjes/Pick bounds: Pade-type two-sided bounds for `c^T (A + z B)^-1 c` from moments, convexity and monotonicity certificates | planned after `kinetic-compression` settles the algorithm |
 
@@ -324,8 +324,23 @@ than the old bounds plus the documented rounding fixes).
 1. `interval` -> `fortnum_interval`. Guard: `test_model`, `test_boozer`.
 2. `cinterval` (`cint_t`) -> `fortnum_interval` (`cinterval_t`); `idual` ->
    `fortnum_idual`. Guard: `test_taylor`, `test_corrected`.
-3. `lohner7`/`lohner8` helpers -> `fortnum_verified_linalg` and, once
-   implemented, `fortnum_validated_ode`. Guard: `test_enclosure_slow`,
+3. `lohner7`/`lohner8` helpers -> `fortnum_verified_linalg` (`mm`/`mv` ->
+   `interval_matmul`/`interval_matvec`; `inverse_enclosure` -> the general
+   complex matrix-ball `verified_inverse`, embedding the real frame with
+   zero input error) and `fortnum_validated_ode` (`qr_frame` ->
+   `lohner_qr_frame`, `step_jacobian` -> `lohner_step_jacobian`, `apriori` ->
+   `picard_apriori`, `flow7`/`flow8` -> `lohner_state_t`/`lohner_step`/
+   `lohner_integrate`, arbitrary n instead of one hand-written copy per
+   dimension). `flow7`'s hand-derived order-2 centre predictor generalizes to
+   `taylor_lohner_predictor` at any order q using `fortnum_idual` Taylor
+   coefficients; the propagated linear part (frame A, B) stays first-order in
+   h, matching `flow7`/`flow8` -- a full high-order variational propagation
+   (order-q Taylor coefficients of the Jacobian itself) is unimplemented
+   follow-up work, tracked in ROADMAP.md. `lohner_time`'s event handling
+   generalizes to the standalone `event_crossing_newton` (interval Newton on
+   a scalar event function of t); porting its section-specific glue and
+   `lohner_taylor`'s and `flow_enclosure`'s remaining physics-specific
+   drivers is still project-side work. Guard: `test_enclosure_slow`,
    `test_taylor_time_slow`.
 4. Bernstein core of `cheb_field` -> `fortnum_bernstein`; Boozer parts ->
    `libneo`. Guard: `test_bern`, `test_boozer`.
