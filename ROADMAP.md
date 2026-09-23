@@ -535,13 +535,15 @@ the exact neighbours from `nearest`.
   interface (the interval interface lives in `fortnum_interval`).
 - [x] Interval forward AD, `fortnum_idual`.
 - [x] Complex-box forward AD, `fortnum_cdual`.
+- [x] Order-by-order Taylor-series arithmetic over interval, idual, and
+  complex-dual coefficients, `fortnum_taylor_series`.
 - [x] Radix-2 FFT with certified twiddles and the non-asymptotic Higham
   convolution bound, `fortnum_cfft_rigorous`.
 - [x] Ball Fourier series with l1 tails (1D, 2D sigma-weighted), FFT
   products, weighted inner products, Wiener reciprocals, `fortnum_fseries`.
 - [x] Verified linear algebra: matrix balls, norm bounds, verified inverse,
   Cholesky-certified eigenvalue bounds, `fortnum_verified_linalg`.
-- [ ] Taylor-series arithmetic and validated ODE (Lohner) with an abstract
-  right-hand side.
+- [ ] Validated ODE (Lohner) with an abstract right-hand side,
+  `fortnum_validated_ode`.
 - [ ] Interval Bernstein evaluation.
 - [ ] Stieltjes/Pick bounds once the kinetic-compression algorithm settles.
