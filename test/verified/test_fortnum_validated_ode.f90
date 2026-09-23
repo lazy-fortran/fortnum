@@ -6,7 +6,7 @@ module test_fortnum_validated_ode_fixtures
     use fortnum_interval, only: interval_t, interval, operator(+), &
         operator(-), operator(*), operator(/), sin, cos
     use fortnum_idual, only: idual_t, operator(+), operator(-), operator(*), &
-        operator(/)
+        operator(/), sin, cos
     use fortnum_validated_ode, only: ode_rhs_t
     implicit none
 
@@ -40,6 +40,20 @@ module test_fortnum_validated_ode_fixtures
         procedure :: eval_box => logistic_box
         procedure :: eval_taylor => logistic_taylor
     end type logistic_rhs_t
+
+    !> Nonlinear pendulum: y1' = y2, y2' = -sin(y1) (y1 the angle, y2 the
+    !> angular velocity). Oracle for `section_crossing`: released from rest
+    !> at angle theta0 (a turning point), energy conservation
+    !> 0.5 y2^2 - cos(y1) = -cos(theta0) gives the exact velocity
+    !> -sqrt(2(1 - cos theta0)) at the first return to y1 = 0, and the
+    !> substitution sin(y1/2) = sin(theta0/2) sin(psi) gives the exact
+    !> return time as the complete elliptic integral of the first kind
+    !> K(sin(theta0/2)) (`elliptic_k_agm`, independent AGM evaluation).
+    type, extends(ode_rhs_t) :: pendulum_rhs_t
+    contains
+        procedure :: eval_box => pendulum_box
+        procedure :: eval_taylor => pendulum_taylor
+    end type pendulum_rhs_t
 
 contains
 
@@ -164,6 +178,105 @@ contains
         dj = et/(den*den)
     end function exact_logistic_jac
 
+    subroutine pendulum_box(this, x, f, df, ok)
+        class(pendulum_rhs_t), intent(in) :: this
+        type(interval_t), intent(in) :: x(:)
+        type(interval_t), intent(out) :: f(:), df(:, :)
+        logical, intent(out) :: ok
+        f(1) = x(2)
+        f(2) = -sin(x(1))
+        df(1, 1) = interval(0.0_dp)
+        df(1, 2) = interval(1.0_dp)
+        df(2, 1) = -cos(x(1))
+        df(2, 2) = interval(0.0_dp)
+        ok = .true.
+    end subroutine pendulum_box
+
+    !> Order-k Taylor coefficient of y2' = -sin(y1(t)) by the standard
+    !> Faa-di-Bruno recursion for sin/cos of a Taylor series: with
+    !> s = sin(y1(t)), c = cos(y1(t)), s_0 = sin(y1_0), c_0 = cos(y1_0), and
+    !> for m >= 1, m s_m = sum_{j=0}^{m-1} (m-j) y1_(m-j) c_j,
+    !> m c_m = -sum_{j=0}^{m-1} (m-j) y1_(m-j) s_j. Recomputed from scratch
+    !> up to order k on every call (k stays small in practice), needing no
+    !> persistent state across the interface's per-order calls.
+    subroutine pendulum_taylor(this, k, y, fk)
+        class(pendulum_rhs_t), intent(in) :: this
+        integer, intent(in) :: k
+        type(idual_t), intent(in) :: y(0:, :)
+        type(idual_t), intent(out) :: fk(:)
+        type(idual_t) :: s(0:k), c(0:k), acc_s, acc_c
+        integer :: m, j
+        s(0) = sin(y(0, 1))
+        c(0) = cos(y(0, 1))
+        do m = 1, k
+            acc_s = real(m, dp)*y(m, 1)*c(0)
+            acc_c = real(m, dp)*y(m, 1)*s(0)
+            do j = 1, m - 1
+                acc_s = acc_s + real(m - j, dp)*y(m - j, 1)*c(j)
+                acc_c = acc_c + real(m - j, dp)*y(m - j, 1)*s(j)
+            end do
+            s(m) = acc_s/real(m, dp)
+            c(m) = -acc_c/real(m, dp)
+        end do
+        fk(1) = y(k, 2)
+        fk(2) = -s(k)
+    end subroutine pendulum_taylor
+
+    !> Complete elliptic integral of the first kind K(k) by the
+    !> arithmetic-geometric mean (Gauss, quadratic convergence): an
+    !> independent oracle sharing no code with the Taylor recursion above.
+    pure function elliptic_k_agm(k) result(kk)
+        real(qp), intent(in) :: k
+        real(qp) :: kk, a, b, an
+        integer :: it
+        a = 1.0_qp
+        b = sqrt(1.0_qp - k*k)
+        do it = 1, 80
+            an = 0.5_qp*(a + b)
+            b = sqrt(a*b)
+            a = an
+            if (abs(a - b) < 1.0e-32_qp) exit
+        end do
+        kk = acos(-1.0_qp)/(2.0_qp*a)
+    end function elliptic_k_agm
+
+    !> Plain real cos/sin, disambiguated from the interval_t/idual_t `cos`,
+    !> `sin` generics imported above (which have no real specific and would
+    !> otherwise shadow the intrinsics for a plain-real argument).
+    pure elemental function qcos(x) result(y)
+        real(qp), intent(in) :: x
+        real(qp) :: y
+        intrinsic :: cos
+        y = cos(x)
+    end function qcos
+
+    pure elemental function qsin(x) result(y)
+        real(qp), intent(in) :: x
+        real(qp) :: y
+        intrinsic :: sin
+        y = sin(x)
+    end function qsin
+
+    !> Section g(y) = y2 for the rotation system: crossing the y1-axis.
+    subroutine rotation_section_y2(y, g, dgdy)
+        type(interval_t), intent(in) :: y(:)
+        type(interval_t), intent(out) :: g
+        type(interval_t), intent(out) :: dgdy(:)
+        g = y(2)
+        dgdy(1) = interval(0.0_dp)
+        dgdy(2) = interval(1.0_dp)
+    end subroutine rotation_section_y2
+
+    !> Section g(y) = y1 for the pendulum: crossing the angle-zero line.
+    subroutine pendulum_section_y1(y, g, dgdy)
+        type(interval_t), intent(in) :: y(:)
+        type(interval_t), intent(out) :: g
+        type(interval_t), intent(out) :: dgdy(:)
+        g = y(1)
+        dgdy(1) = interval(1.0_dp)
+        dgdy(2) = interval(0.0_dp)
+    end subroutine pendulum_section_y1
+
 end module test_fortnum_validated_ode_fixtures
 
 !> Validated ODE integration, checked against closed-form flows: the
@@ -182,10 +295,11 @@ program test_fortnum_validated_ode
         operator(-)
     use fortnum_validated_ode, only: ode_rhs_t, lohner_integrate, &
         taylor_lohner_predictor, event_crossing_newton, picard_apriori, &
-        lohner_step_jacobian
+        lohner_step_jacobian, section_crossing
     use test_fortnum_validated_ode_fixtures, only: rotation_rhs_t, &
-        shear_rhs_t, exp_rhs_t, logistic_rhs_t, exact_rotation, exact_shear, &
-        exact_logistic, exact_logistic_jac
+        shear_rhs_t, exp_rhs_t, logistic_rhs_t, pendulum_rhs_t, &
+        exact_rotation, exact_shear, exact_logistic, exact_logistic_jac, &
+        rotation_section_y2, pendulum_section_y1, elliptic_k_agm, qcos, qsin
     implicit none
 
     integer :: nfail, seed_size
@@ -194,6 +308,7 @@ program test_fortnum_validated_ode
     type(shear_rhs_t) :: shr
     type(exp_rhs_t) :: expo
     type(logistic_rhs_t) :: logi
+    type(pendulum_rhs_t) :: pend
 
     nfail = 0
     call random_seed(size=seed_size)
@@ -206,6 +321,8 @@ program test_fortnum_validated_ode
     call check_taylor_predictor(expo, nfail)
     call check_variational_jacobian(logi, nfail)
     call check_event(nfail)
+    call check_section_crossing_harmonic(rot, nfail)
+    call check_section_crossing_pendulum(pend, nfail)
 
     deallocate (seed)
     if (nfail > 0) then
@@ -367,6 +484,126 @@ contains
             piq_half <= real(troot%hi, qp) .and. width(troot) < 1.0e-9_dp, &
             "interval-Newton event crossing brackets pi/2, cos(t)'s root", nfail)
     end subroutine check_event
+
+    !> `section_crossing` on the harmonic oscillator (rotation system),
+    !> against the exact closed form: for a box of points near radius 1,
+    !> angle phi0 (small spread in both a and b), the section g = y2 = 0 is
+    !> next crossed (rotation preserves a sin(t + phi) with phi = atan2(b,
+    !> a)) at t = pi - phi (direction < 0, downward) or t = -phi (direction
+    !> > 0, upward, for phi0 < 0), exactly. Checked against 200 sampled
+    !> points of the box, both directions.
+    subroutine check_section_crossing_harmonic(rhs, nfail)
+        class(ode_rhs_t), intent(in) :: rhs
+        integer, intent(inout) :: nfail
+        type(interval_t) :: cell(2), tau, ztau(2)
+        real(dp) :: r(2)
+        real(qp) :: a, b, phi, texact, piq
+        real(qp) :: xt(2)
+        logical :: ok
+        integer :: i, nbad
+
+        piq = acos(-1.0_qp)
+
+        ! Downward crossing (direction < 0): box near angle 0.3.
+        cell = [interval(real(qcos(0.3_qp), dp) - 0.005_dp, &
+            real(qcos(0.3_qp), dp) + 0.005_dp), &
+            interval(real(qsin(0.3_qp), dp) - 0.005_dp, &
+            real(qsin(0.3_qp), dp) + 0.005_dp)]
+        call section_crossing(rhs, rotation_section_y2, cell, 0.05_dp, 4, &
+            -1, 300, tau, ztau, ok)
+        nbad = 0
+        if (.not. ok) then
+            nbad = 1
+        else
+            do i = 1, 200
+                call random_number(r)
+                a = real(cell(1)%lo, qp) + real(cell(1)%hi - cell(1)%lo, qp) &
+                    *real(r(1), qp)
+                b = real(cell(2)%lo, qp) + real(cell(2)%hi - cell(2)%lo, qp) &
+                    *real(r(2), qp)
+                phi = atan2(b, a)
+                texact = piq - phi
+                if (.not. (real(tau%lo, qp) <= texact .and. &
+                    texact <= real(tau%hi, qp))) nbad = nbad + 1
+                xt = exact_rotation([a, b], texact)
+                if (.not. (real(ztau(1)%lo, qp) <= xt(1) .and. &
+                    xt(1) <= real(ztau(1)%hi, qp) .and. &
+                    real(ztau(2)%lo, qp) <= xt(2) .and. &
+                    xt(2) <= real(ztau(2)%hi, qp))) nbad = nbad + 1
+            end do
+        end if
+        call require(nbad == 0, "section_crossing: downward y2 = 0 "// &
+            "crossing of the rotation flow encloses 200 sampled exact "// &
+            "crossing times and states", nfail)
+
+        ! Upward crossing (direction > 0): box near angle -0.325 (off a
+        ! step boundary so the exact crossing sits well inside the
+        ! detected step's window, not at its edge).
+        cell = [interval(real(qcos(-0.325_qp), dp) - 0.005_dp, &
+            real(qcos(-0.325_qp), dp) + 0.005_dp), &
+            interval(real(qsin(-0.325_qp), dp) - 0.005_dp, &
+            real(qsin(-0.325_qp), dp) + 0.005_dp)]
+        call section_crossing(rhs, rotation_section_y2, cell, 0.05_dp, 4, &
+            1, 300, tau, ztau, ok)
+        nbad = 0
+        if (.not. ok) then
+            nbad = 1
+        else
+            do i = 1, 200
+                call random_number(r)
+                a = real(cell(1)%lo, qp) + real(cell(1)%hi - cell(1)%lo, qp) &
+                    *real(r(1), qp)
+                b = real(cell(2)%lo, qp) + real(cell(2)%hi - cell(2)%lo, qp) &
+                    *real(r(2), qp)
+                phi = atan2(b, a)
+                texact = -phi
+                if (.not. (real(tau%lo, qp) <= texact .and. &
+                    texact <= real(tau%hi, qp))) nbad = nbad + 1
+                xt = exact_rotation([a, b], texact)
+                if (.not. (real(ztau(1)%lo, qp) <= xt(1) .and. &
+                    xt(1) <= real(ztau(1)%hi, qp) .and. &
+                    real(ztau(2)%lo, qp) <= xt(2) .and. &
+                    xt(2) <= real(ztau(2)%hi, qp))) nbad = nbad + 1
+            end do
+        end if
+        call require(nbad == 0, "section_crossing: upward y2 = 0 "// &
+            "crossing of the rotation flow encloses 200 sampled exact "// &
+            "crossing times and states", nfail)
+    end subroutine check_section_crossing_harmonic
+
+    !> `section_crossing` on the nonlinear pendulum, against the return
+    !> time and velocity at y1 = 0 from a turning point at theta0 = 0.8,
+    !> checked with a real128 AGM elliptic-integral oracle
+    !> (`elliptic_k_agm`) and exact energy conservation, independent of the
+    !> Taylor-coefficient recursion the integrator uses.
+    subroutine check_section_crossing_pendulum(rhs, nfail)
+        class(ode_rhs_t), intent(in) :: rhs
+        integer, intent(inout) :: nfail
+        type(interval_t) :: cell(2), tau, ztau(2)
+        real(qp) :: theta0, texact, vexact, k
+        logical :: ok
+
+        theta0 = 0.8_qp
+        k = qsin(theta0/2.0_qp)
+        texact = elliptic_k_agm(k)
+        vexact = -sqrt(2.0_qp*(1.0_qp - qcos(theta0)))
+
+        cell = [interval(real(theta0, dp) - 1.0e-7_dp, &
+            real(theta0, dp) + 1.0e-7_dp), interval(-1.0e-7_dp, 1.0e-7_dp)]
+        call section_crossing(rhs, pendulum_section_y1, cell, 0.05_dp, 5, &
+            -1, 200, tau, ztau, ok)
+        call require(ok .and. real(tau%lo, qp) <= texact .and. &
+            texact <= real(tau%hi, qp), "section_crossing: pendulum "// &
+            "quarter-period encloses the AGM elliptic-integral reference "// &
+            "K(sin(theta0/2))", nfail)
+        call require(ok .and. real(ztau(1)%lo, qp) <= 0.0_qp .and. &
+            0.0_qp <= real(ztau(1)%hi, qp), &
+            "section_crossing: pendulum crossing state has y1 = 0", nfail)
+        call require(ok .and. real(ztau(2)%lo, qp) <= vexact .and. &
+            vexact <= real(ztau(2)%hi, qp), "section_crossing: pendulum "// &
+            "crossing velocity encloses the exact energy-conservation "// &
+            "value", nfail)
+    end subroutine check_section_crossing_pendulum
 
     subroutine require(cond, msg, nfail)
         logical, intent(in) :: cond

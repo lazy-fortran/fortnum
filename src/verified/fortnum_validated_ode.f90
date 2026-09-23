@@ -31,7 +31,8 @@
 module fortnum_validated_ode
     use, intrinsic :: iso_fortran_env, only: dp => real64
     use fortnum_interval, only: interval_t, interval, operator(+), &
-        operator(-), operator(*), operator(/), exp, mid, width, mag, hull
+        operator(-), operator(*), operator(/), operator(**), exp, mid, &
+        width, mag, hull, contains_zero
     use fortnum_idual, only: idual_t, idual_var, idual_const, operator(+), &
         operator(-), operator(*), operator(/)
     use fortnum_verified_linalg, only: mball_t, verified_inverse, &
@@ -46,6 +47,7 @@ module fortnum_validated_ode
     public :: taylor_lohner_predictor
     public :: lohner_state_t, lohner_state_init, lohner_step, lohner_integrate
     public :: event_fn_if, event_crossing_newton
+    public :: section_fn_if, section_crossing
 
     !> Abstract autonomous right-hand side y' = f(y).
     type, abstract :: ode_rhs_t
@@ -83,6 +85,20 @@ module fortnum_validated_ode
             type(interval_t), intent(in) :: t
             type(interval_t), intent(out) :: g, dgdt
         end subroutine event_fn_if
+    end interface
+
+    !> Scalar section function g(y) and its gradient dg/dy, enclosed on a
+    !> real box y: the crossing condition is g(y) = 0. Generalizes
+    !> `lohner_time`'s xi = 0 coordinate section (there g is simply a state
+    !> component, dg/dy a fixed unit vector) to an arbitrary differentiable
+    !> function of the state.
+    abstract interface
+        subroutine section_fn_if(y, g, dgdy)
+            import :: interval_t
+            type(interval_t), intent(in) :: y(:)
+            type(interval_t), intent(out) :: g
+            type(interval_t), intent(out) :: dgdy(:)
+        end subroutine section_fn_if
     end interface
 
     !> Lohner parallelepiped state: x(t) in xc + A (dlt) + B e, dlt fixed at
@@ -291,8 +307,19 @@ contains
     !> (only the order-(q+1) remainder term uses the cruder Gronwall
     !> enclosure), unlike `lohner_step_jacobian`'s Q = I + h A (1 + eps),
     !> which is first-order in h regardless of q.
+    !> Optional `ybx_out`: the order-(q+1) box Taylor coefficient values
+    !> (the `%v` part only, no idual gradient), i.e. the array
+    !> `y_bx(:, :)%v` computed below. Shared with `lohner_step`'s local
+    !> step-time polynomial consumers (`section_crossing`,
+    !> `stopping_enclosure`): the Horner form from `ybx_out(0:q, :)` plus
+    !> the Lagrange remainder from `ybx_out(q+1, :)` is a rigorous
+    !> enclosure of the state at any local step-time t in [0, h] for every
+    !> point of the a priori box (the `y_bx` recursion starts from the
+    !> whole box, not just its centre), following `lohner_time`'s
+    !> `local_state` generalized from a point-plus-remainder enclosure to a
+    !> full box-valid one.
     subroutine taylor_lohner_predictor(rhs, xc, apriori_box, h, q, xpred, &
-        remainder, jac_pred, ok, ay, q_jac)
+        remainder, jac_pred, ok, ay, q_jac, ybx_out)
         class(ode_rhs_t), intent(in) :: rhs
         real(dp), intent(in) :: xc(:)
         type(interval_t), intent(in) :: apriori_box(:)
@@ -303,6 +330,7 @@ contains
         logical, intent(out) :: ok
         type(interval_t), intent(in), optional :: ay(:, :)
         type(interval_t), intent(out), optional :: q_jac(:, :)
+        type(interval_t), intent(out), optional :: ybx_out(0:, :)
         integer :: n, i, j, k
         type(idual_t) :: y_pt(0:q + 1, size(xc)), fk_pt(size(xc))
         type(idual_t) :: y_bx(0:q + 1, size(xc)), fk_bx(size(xc))
@@ -328,6 +356,11 @@ contains
                 y_bx(k, i) = fk_bx(i)/idual_const(interval(real(k, dp)), 0)
             end do
         end do
+        if (present(ybx_out)) then
+            do k = 0, q + 1
+                ybx_out(k, :) = y_bx(k, :)%v
+            end do
+        end if
 
         xpred = xc
         jac_pred = 0.0_dp
@@ -412,13 +445,24 @@ contains
     !> order q: a priori box, order-q centre prediction with remainder,
     !> mean-value Jacobian propagation, frame re-orthonormalization, and
     !> rigorous inverse-enclosed error-frame update.
-    subroutine lohner_step(state, rhs, h, q, ok, variational)
+    !> Optional `apriori_y`/`apriori_f`: this step's a priori box (`y` in
+    !> `picard_apriori`, valid for every t in the step, not just its
+    !> endpoints) and the right-hand side there. Optional `ybx_out`:
+    !> pass-through of `taylor_lohner_predictor`'s local step-time box
+    !> Taylor coefficients (see its header). Consumed by `section_crossing`
+    !> and `stopping_enclosure` to build a priori-box section bounds and
+    !> locate crossings within the step without a second a priori/Taylor
+    !> computation.
+    subroutine lohner_step(state, rhs, h, q, ok, variational, apriori_y, &
+        apriori_f, ybx_out)
         type(lohner_state_t), intent(inout) :: state
         class(ode_rhs_t), intent(in) :: rhs
         real(dp), intent(in) :: h
         integer, intent(in) :: q
         logical, intent(out) :: ok
         logical, intent(in), optional :: variational
+        type(interval_t), intent(out), optional :: apriori_y(:), apriori_f(:)
+        type(interval_t), intent(out), optional :: ybx_out(0:, :)
         integer :: n
         type(interval_t) :: y(state%n), fy(state%n), ay(state%n, state%n)
         type(interval_t) :: xb(state%n), qmat(state%n, state%n)
@@ -436,12 +480,15 @@ contains
         if (present(variational)) use_var = variational
         call picard_apriori(rhs, state%bx, h, y, fy, ay, ok)
         if (.not. ok) return
+        if (present(apriori_y)) apriori_y = y
+        if (present(apriori_f)) apriori_f = fy
         if (use_var) then
             call taylor_lohner_predictor(rhs, state%xc, y, h, q, xpred, &
-                remainder, jac_pred, ok, ay=ay, q_jac=qmat)
+                remainder, jac_pred, ok, ay=ay, q_jac=qmat, &
+                ybx_out=ybx_out)
         else
             call taylor_lohner_predictor(rhs, state%xc, y, h, q, xpred, &
-                remainder, jac_pred, ok)
+                remainder, jac_pred, ok, ybx_out=ybx_out)
         end if
         if (.not. ok) return
         xb = interval(xpred) + remainder
@@ -562,5 +609,228 @@ contains
         troot = t
         ok = .true.
     end subroutine event_crossing_newton
+
+    !> Rigorous dg/dt = dg/dy . f(y) by the chain rule, given a box y, the
+    !> right-hand side value f on y (as returned by `picard_apriori` or
+    !> `lohner_step`'s `apriori_f`), and the section's own gradient dg/dy.
+    !> Valid on any box, not just the a priori one: called on both the whole
+    !> step's a priori box (transversality) and on narrowing local-time
+    !> brackets (`locate_section_crossing`'s Newton derivative).
+    subroutine section_rate(rhs, section, y, dgdt, ok)
+        class(ode_rhs_t), intent(in) :: rhs
+        procedure(section_fn_if) :: section
+        type(interval_t), intent(in) :: y(:)
+        type(interval_t), intent(out) :: dgdt
+        logical, intent(out) :: ok
+        type(interval_t) :: g, dgdy(size(y)), f(size(y)), df(size(y), size(y))
+        integer :: i
+
+        call rhs%eval_box(y, f, df, ok)
+        if (.not. ok) return
+        call section(y, g, dgdy)
+        dgdt = dgdy(1)*f(1)
+        do i = 2, size(y)
+            dgdt = dgdt + dgdy(i)*f(i)
+        end do
+    end subroutine section_rate
+
+    !> Rigorous state enclosure at local step-time t in [0, h], valid for
+    !> every point of the a priori box the step's `ybx_out` was seeded from
+    !> (not just the step's centre trajectory): Horner evaluation of the
+    !> order-0..q box Taylor coefficients plus the Lagrange remainder from
+    !> the box coefficient at order q + 1. Unlike `taylor_lohner_predictor`'s
+    !> `xpred` (which uses the tight point coefficients `y_pt` for orders
+    !> 0..q and the box coefficient only for the remainder, to predict the
+    !> centre trajectory as precisely as possible), this generalizes
+    !> `lohner_time`'s `local_state` from a single-trajectory enclosure to a
+    !> genuine whole-box one, needed to certify a crossing for every point
+    !> of a `section_crossing` cell that is not itself a near-point box.
+    pure function section_local_state(ybx, q, t) result(s)
+        type(interval_t), intent(in) :: ybx(0:, :)
+        integer, intent(in) :: q
+        type(interval_t), intent(in) :: t
+        type(interval_t) :: s(size(ybx, 2))
+        integer :: k
+
+        s = ybx(q, :)
+        do k = q - 1, 0, -1
+            s = ybx(k, :) + t*s
+        end do
+        s = s + ybx(q + 1, :)*t**(q + 1)
+    end function section_local_state
+
+    !> Interval-Newton bracket refinement of the root t of g(state(t)) = 0
+    !> on [0, h], given a sign change and transversality already certified
+    !> by the caller over the whole step (`section_crossing`). Each
+    !> iteration narrows t by the interval Newton map t <- mid(t) -
+    !> g(state(mid(t))) / (dg/dt on state(t)), following `lohner_time`'s
+    !> `locate_crossing` generalized from a coordinate section to an
+    !> abstract `section_fn_if` and the derivative recomputed by the chain
+    !> rule (`section_rate`) instead of a fixed state component. Fails
+    !> (`ok = .false.`) if the derivative bracket ever contains zero or the
+    !> bracket becomes empty, exactly as `lohner_time` does, rather than
+    !> falling back to bisection: transversality was already certified over
+    !> the whole step, so this should not happen away from numerical noise.
+    subroutine locate_section_crossing(rhs, section, ybx, q, h, tau, &
+        ztau, ok)
+        class(ode_rhs_t), intent(in) :: rhs
+        procedure(section_fn_if) :: section
+        type(interval_t), intent(in) :: ybx(0:, :)
+        integer, intent(in) :: q
+        real(dp), intent(in) :: h
+        type(interval_t), intent(out) :: tau, ztau(size(ybx, 2))
+        logical, intent(out) :: ok
+        type(interval_t) :: t, tnew, sm(size(ybx, 2)), st(size(ybx, 2))
+        type(interval_t) :: gm, dgdy(size(ybx, 2)), dgdt
+        real(dp) :: m
+        integer :: it
+        logical :: ok2
+
+        t = interval(0.0_dp, h)
+        ok = .true.
+        do it = 1, 80
+            m = mid(t)
+            sm = section_local_state(ybx, q, interval(m, m))
+            st = section_local_state(ybx, q, t)
+            call section_rate(rhs, section, st, dgdt, ok2)
+            if (.not. ok2 .or. contains_zero(dgdt)) then
+                ok = .false.
+                return
+            end if
+            call section(sm, gm, dgdy)
+            tnew = interval(m, m) - gm/dgdt
+            tnew = interval(max(tnew%lo, t%lo), min(tnew%hi, t%hi))
+            if (tnew%lo > tnew%hi) then
+                ok = .false.
+                return
+            end if
+            if (width(tnew) >= width(t) .and. width(t) < 1.0e-15_dp*h) then
+                t = tnew
+                exit
+            end if
+            t = tnew
+        end do
+        tau = t
+        ztau = section_local_state(ybx, q, tau)
+    end subroutine locate_section_crossing
+
+    !> Validated first-return map to a section g(y) = 0 with a prescribed
+    !> crossing direction, generalizing `lohner_time::bounce_return_v`'s
+    !> adaptive-step/state-machine/interval-Newton crossing localization
+    !> from a fixed 8D complex-time state with a coordinate section (xi = 0)
+    !> to an abstract `ode_rhs_t` of any dimension and an abstract scalar
+    !> `section_fn_if`. From an initial box `cell0`, integrates forward with
+    !> adaptive step (shrinking by half on a priori-box failure and retrying
+    !> from the same running state, since `lohner_step` only mutates it on
+    !> success; growing back by 1.2x towards h0 on success -- following
+    !> `bounce_return_v`). `direction > 0` looks for g increasing through
+    !> zero (dg/dt > 0 required); `direction < 0` for g decreasing through
+    !> zero (dg/dt < 0). At each step the rigorous node enclosure
+    !> `state%bx` gives g there (`section`); the FIRST step whose node
+    !> value g_end is certainly on the prescribed "after" side (g_end%lo > 0
+    !> for direction > 0, g_end%hi < 0 for direction < 0) while the
+    !> preceding node g_prev was not yet certainly on that side (g_prev%lo
+    !> <= 0, respectively g_prev%hi >= 0 -- true whether g_prev was
+    !> certainly "before" or still straddling zero) is the one checked for
+    !> transversality, over the WHOLE step's a priori box (`section_rate` on
+    !> `lohner_step`'s `apriori_y`/`apriori_f`, a rigorous superset of the
+    !> trajectory for every t in the step): only if dg/dt there is bounded
+    !> away from 0 in the prescribed direction is the crossing located, by
+    !> `locate_section_crossing` on that step's local Taylor polynomial
+    !> (valid over the step regardless of exactly where within it the sign
+    !> actually changes). No earlier crossing is missed, because every
+    !> prior step's node pair failed this test, and every accepted step's a
+    !> priori box is a valid enclosure of the trajectory throughout the
+    !> step.
+    !>
+    !> Returns `tau` (enclosure of the crossing time from t = 0) and `ztau`
+    !> (enclosure of the state there): `locate_section_crossing` builds its
+    !> local polynomial from `ybx_out`, the box Taylor coefficients seeded
+    !> on the whole a priori box for the detected step, not just the step's
+    !> centre trajectory, so (tau, ztau) is a rigorous enclosure of the
+    !> crossing event certified at that step. This differs from
+    !> `lohner_time`'s `local_state`, which mixed a tight centre polynomial
+    !> with only the top-order box coefficient (sufficient there because
+    !> `bounce_return_v`'s `cell0` is effectively a single physical orbit
+    !> carried with interval bookkeeping, not a set of visibly distinct
+    !> initial conditions).
+    !>
+    !> Caution for a genuinely wide `cell0`: the node test fires at the
+    !> FIRST step whose end is certainly past the section for the WHOLE
+    !> running box, so if different points of `cell0` cross several steps
+    !> apart, a point that crossed earlier is not guaranteed to lie within
+    !> the returned (tau, ztau) -- it can cross before `tau` starts. The
+    !> guarantee is exact for a point cell0 and degrades gracefully as
+    !> width grows; callers needing every point's individual crossing
+    !> bounded should keep `cell0` narrow enough (relative to h0 and dg/dt)
+    !> that the whole box crosses within one step, or should split `cell0`
+    !> and call `section_crossing` per sub-box. `nsteps`/`nshrink`
+    !> optionally report step and halving counts for diagnostics.
+    subroutine section_crossing(rhs, section, cell0, h0, q, direction, &
+        nmax, tau, ztau, ok, nsteps, nshrink)
+        class(ode_rhs_t), intent(in) :: rhs
+        procedure(section_fn_if) :: section
+        type(interval_t), intent(in) :: cell0(:)
+        real(dp), intent(in) :: h0
+        integer, intent(in) :: q, direction, nmax
+        type(interval_t), intent(out) :: tau, ztau(size(cell0))
+        logical, intent(out) :: ok
+        integer, intent(out), optional :: nsteps, nshrink
+        type(lohner_state_t) :: state
+        type(interval_t) :: y(size(cell0)), fy(size(cell0))
+        type(interval_t) :: ybx(0:q + 1, size(cell0))
+        type(interval_t) :: g_prev, g_end, dgdy_dummy(size(cell0)), dgdt
+        real(dp) :: h, hused, tcur
+        integer :: j, nshrink_
+        logical :: stepok, crossing
+
+        call lohner_state_init(state, cell0)
+        call section(state%bx, g_prev, dgdy_dummy)
+        h = h0
+        tcur = 0.0_dp
+        nshrink_ = 0
+        ok = .true.
+        do j = 1, nmax
+            do
+                call lohner_step(state, rhs, h, q, stepok, &
+                    apriori_y=y, apriori_f=fy, ybx_out=ybx)
+                if (stepok) exit
+                h = 0.5_dp*h
+                nshrink_ = nshrink_ + 1
+                if (h < h0*1.0e-8_dp) then
+                    ok = .false.
+                    if (present(nsteps)) nsteps = j - 1
+                    if (present(nshrink)) nshrink = nshrink_
+                    return
+                end if
+            end do
+            hused = h
+            h = min(h0, h*1.2_dp)
+            call section(state%bx, g_end, dgdy_dummy)
+            if (direction > 0) then
+                crossing = g_prev%lo <= 0.0_dp .and. g_end%lo > 0.0_dp
+            else
+                crossing = g_prev%hi >= 0.0_dp .and. g_end%hi < 0.0_dp
+            end if
+            if (crossing) then
+                call section_rate(rhs, section, y, dgdt, ok)
+                if (ok .and. ((direction > 0 .and. dgdt%lo > 0.0_dp) .or. &
+                    (direction < 0 .and. dgdt%hi < 0.0_dp))) then
+                    call locate_section_crossing(rhs, section, ybx, q, &
+                        hused, tau, ztau, ok)
+                    if (present(nsteps)) nsteps = j
+                    if (present(nshrink)) nshrink = nshrink_
+                    if (.not. ok) return
+                    tau = interval(tcur, tcur) + tau
+                    return
+                end if
+            end if
+            g_prev = g_end
+            tcur = tcur + hused
+        end do
+        ok = .false.
+        if (present(nsteps)) nsteps = nmax
+        if (present(nshrink)) nshrink = nshrink_
+    end subroutine section_crossing
 
 end module fortnum_validated_ode

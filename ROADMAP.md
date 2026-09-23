@@ -561,8 +561,18 @@ the exact neighbours from `nearest`.
   Jacobian at orders 2-4, enclosure width shrinking faster than 0.5 per
   halving of h at fixed order, and a tighter enclosure than the
   first-order fallback in the moderately nonlinear regime.
-- [ ] Port `lohner_time`'s section-crossing driver and `flow_enclosure`'s
-  remaining physics-specific glue onto `fortnum_validated_ode` in
-  `gc-loss-certificate`.
+- [x] Port `lohner_time`'s section-crossing driver (adaptive step,
+  sign-change state machine, interval-Newton crossing localization with
+  transversality) onto `fortnum_validated_ode`, generalized from the fixed
+  8D complex-time state and xi = 0 coordinate section to an abstract
+  `ode_rhs_t` and scalar `section_fn_if`: `section_crossing`, built on
+  `lohner_step`'s new `apriori_y`/`apriori_f`/`ybx_out` pass-through
+  outputs. Oracle: `test_fortnum_validated_ode`'s harmonic-oscillator
+  (rotation) return against the exact closed form (both crossing
+  directions, sampled over the initial box) and nonlinear-pendulum return
+  time/velocity against a real128 AGM elliptic-integral reference and exact
+  energy conservation.
+- [ ] Port `flow_enclosure`'s remaining physics-specific glue onto
+  `fortnum_validated_ode` in `gc-loss-certificate`.
 - [x] Interval Bernstein evaluation, `fortnum_bernstein`.
 - [ ] Stieltjes/Pick bounds once the kinetic-compression algorithm settles.

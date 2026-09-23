@@ -167,7 +167,7 @@ All verified sources live under `src/verified/`.
 | `fortnum_fseries` | 1D/2D ball Fourier series with tails: add, scale, product (direct and FFT), derivative, weighted inner products, Wiener reciprocal | implemented |
 | `fortnum_verified_linalg` | matrix balls, rigorous norm bounds, product error bounds, verified inverse, Cholesky-certified eigenvalue bounds (real symmetric, Hermitian by real embedding), interval matrix products | implemented |
 | `fortnum_taylor_series` | order-by-order Taylor arithmetic over `interval_t`, `idual_t`, `cdual_t` coefficients | implemented |
-| `fortnum_validated_ode` | Lohner QR enclosure and an order-q Taylor-Lohner predictor with an abstract right-hand side (`ode_rhs_t` deferred binding), Picard a priori boxes, Gronwall variational bounds, order-q variational step Jacobian, interval Newton event crossings | implemented |
+| `fortnum_validated_ode` | Lohner QR enclosure and an order-q Taylor-Lohner predictor with an abstract right-hand side (`ode_rhs_t` deferred binding), Picard a priori boxes, Gronwall variational bounds, order-q variational step Jacobian, interval Newton event crossings, validated first-return section crossing (`section_crossing`) | implemented |
 | `fortnum_bernstein` | interval Bernstein evaluation, convex-hull bounds, local re-expansion, grid caching, least-squares fit | implemented |
 | `fortnum_stieltjes` | Stieltjes/Pick bounds: Pade-type two-sided bounds for `c^T (A + z B)^-1 c` from moments, convexity and monotonicity certificates | planned after `kinetic-compression` settles the algorithm |
 
@@ -341,9 +341,23 @@ than the old bounds plus the documented rounding fixes).
    `flow7`/`flow8`-style Q = I + h A (1 + eps) kept as the opt-out
    fallback). `lohner_time`'s event handling
    generalizes to the standalone `event_crossing_newton` (interval Newton on
-   a scalar event function of t); porting its section-specific glue and
-   `lohner_taylor`'s and `flow_enclosure`'s remaining physics-specific
-   drivers is still project-side work. Guard: `test_enclosure_slow`,
-   `test_taylor_time_slow`.
+   a scalar event function of t) and, for its section-crossing driver
+   (`bounce_return_v`'s adaptive step, sign-change state machine, and
+   interval-Newton crossing localization on the local Taylor polynomial), to
+   `section_fn_if`/`section_crossing`: an abstract scalar section g(y) with
+   its gradient in place of `lohner_time`'s fixed xi = 0 coordinate, and
+   `lohner_step`'s new `apriori_y`/`apriori_f`/`ybx_out` pass-through outputs
+   (the step's a priori box, right-hand side there, and box Taylor
+   coefficients) in place of the hand-written `one_step`/`local_state`.
+   Unlike `lohner_time`'s `local_state` (tight centre polynomial plus a
+   top-order box remainder, adequate for a single physical orbit carried
+   with interval bookkeeping), `section_crossing`'s localization uses the
+   box Taylor coefficients at every order, so the returned crossing
+   enclosure is rigorous for a genuinely wide `cell0`, not just a
+   near-point one (see `section_crossing`'s docstring for the resulting
+   "last point of the box" caveat on tightness). `flow_enclosure`'s
+   remaining physics-specific glue (`wall_box`, `gc_system_t`) and
+   `lohner_taylor`'s physics-specific drivers stay project-side work.
+   Guard: `test_enclosure_slow`, `test_taylor_time_slow`.
 4. Bernstein core of `cheb_field` -> `fortnum_bernstein`; Boozer parts ->
    `libneo`. Guard: `test_bern`, `test_boozer`.
