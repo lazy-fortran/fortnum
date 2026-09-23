@@ -456,6 +456,7 @@ assumptions, and error models.
 | `fortnum_ball` | complex balls `ball_t`: operators, `binv`, `bsqrt`, `bpowi`, modulus and component bounds, box conversions |
 | `fortnum_idual` | `idual_t` interval forward AD with up to `idual_max_vars` seeded variables |
 | `fortnum_cdual` | `cdual_t` complex-box forward AD with up to `cdual_max_vars` seeded complex variables, `cdual_sincos` |
+| `fortnum_taylor_series` | order-by-order Taylor arithmetic over `interval_t`, `idual_t`, and `cdual_t` coefficient arrays: `ts_mul`, `ts_div`, `ts_sincos`, `ts_exp`, `ts_sqrt`, `ts_lin`, `ts_zero` |
 | `fortnum_cfft_rigorous` | `rigorous_fft_plan_t` with certified twiddles, `rigorous_fft_apply`, `rigorous_fft2_apply`, `conv_error_bound`, `conv_error_bound_2d`, `conv_nonneg`, `conv_nonneg_2d` |
 | `fortnum_fseries` | ball Fourier series with l1 tails: `fseries_t` (1D) and `fseries2d_t` (2D, sigma-weighted) with sums, direct and FFT products, derivatives, weighted inner products, and Wiener reciprocals `fs_inverse`, `fs2_inverse` |
 | `fortnum_verified_linalg` | matrix balls `mball_t`, `fro_up`, `norm1_up`, `norminf_up`, `norm2_up`, `norm2_tight_up`, `matmul_err`, `approx_inverse`, `verified_inverse`, Cholesky-certified `sym_lower_bound`, `eig_lower_bound`, `eig_upper_bound` (real symmetric and Hermitian), `interval_matmul`, `interval_matvec` |

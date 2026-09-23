@@ -166,7 +166,7 @@ All verified sources live under `src/verified/`.
 | `fortnum_cfft_rigorous` | radix-2 FFT with certified twiddles, Higham error factor, 1D/2D convolution error bounds, upper-bound convolution of nonnegative sequences | implemented |
 | `fortnum_fseries` | 1D/2D ball Fourier series with tails: add, scale, product (direct and FFT), derivative, weighted inner products, Wiener reciprocal | implemented |
 | `fortnum_verified_linalg` | matrix balls, rigorous norm bounds, product error bounds, verified inverse, Cholesky-certified eigenvalue bounds (real symmetric, Hermitian by real embedding), interval matrix products | implemented |
-| `fortnum_taylor_series` | order-by-order Taylor arithmetic on intervals and complex duals | planned with `validated_ode` |
+| `fortnum_taylor_series` | order-by-order Taylor arithmetic over `interval_t`, `idual_t`, `cdual_t` coefficients | implemented |
 | `fortnum_validated_ode` | Lohner QR enclosure and high-order Taylor-Lohner step with an abstract right-hand side (reverse communication or deferred binding), Picard a priori boxes, Gronwall variational bounds, interval Newton event crossings | planned |
 | `fortnum_bernstein` | interval Bernstein evaluation, convex-hull bounds, local re-expansion | planned |
 | `fortnum_stieltjes` | Stieltjes/Pick bounds: Pade-type two-sided bounds for `c^T (A + z B)^-1 c` from moments, convexity and monotonicity certificates | planned after `kinetic-compression` settles the algorithm |
