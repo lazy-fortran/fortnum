@@ -257,6 +257,18 @@ contains
         y = sin(x)
     end function qsin
 
+    !> Section g(y) = y1 - 0.5 for the rotation system: a half-plane
+    !> stopping set y1 > 0.5, exactly solvable (y1(t) = r cos(theta0 + t)
+    !> under rotation), the oracle for `stopping_enclosure`.
+    subroutine rotation_halfplane_section(y, g, dgdy)
+        type(interval_t), intent(in) :: y(:)
+        type(interval_t), intent(out) :: g
+        type(interval_t), intent(out) :: dgdy(:)
+        g = y(1) - interval(0.5_dp)
+        dgdy(1) = interval(1.0_dp)
+        dgdy(2) = interval(0.0_dp)
+    end subroutine rotation_halfplane_section
+
     !> Section g(y) = y2 for the rotation system: crossing the y1-axis.
     subroutine rotation_section_y2(y, g, dgdy)
         type(interval_t), intent(in) :: y(:)
@@ -295,11 +307,13 @@ program test_fortnum_validated_ode
         operator(-)
     use fortnum_validated_ode, only: ode_rhs_t, lohner_integrate, &
         taylor_lohner_predictor, event_crossing_newton, picard_apriori, &
-        lohner_step_jacobian, section_crossing
+        lohner_step_jacobian, section_crossing, stopping_enclosure, &
+        stop_crossed, stop_avoided
     use test_fortnum_validated_ode_fixtures, only: rotation_rhs_t, &
         shear_rhs_t, exp_rhs_t, logistic_rhs_t, pendulum_rhs_t, &
         exact_rotation, exact_shear, exact_logistic, exact_logistic_jac, &
-        rotation_section_y2, pendulum_section_y1, elliptic_k_agm, qcos, qsin
+        rotation_section_y2, pendulum_section_y1, elliptic_k_agm, qcos, qsin, &
+        rotation_halfplane_section
     implicit none
 
     integer :: nfail, seed_size
@@ -323,6 +337,7 @@ program test_fortnum_validated_ode
     call check_event(nfail)
     call check_section_crossing_harmonic(rot, nfail)
     call check_section_crossing_pendulum(pend, nfail)
+    call check_stopping_enclosure(rot, nfail)
 
     deallocate (seed)
     if (nfail > 0) then
@@ -604,6 +619,51 @@ contains
             "crossing velocity encloses the exact energy-conservation "// &
             "value", nfail)
     end subroutine check_section_crossing_pendulum
+
+    !> `stopping_enclosure` on the rotation flow against the half-plane
+    !> stopping set y1 > 0.5, exactly solvable since y1(t) =
+    !> r cos(theta0 + t): an immediate crossing (box starts inside the
+    !> stopping set), a crossing located within the horizon, and an
+    !> avoided classification over a horizon shorter than the exact
+    !> crossing time acos(0.5) - theta0.
+    subroutine check_stopping_enclosure(rhs, nfail)
+        class(ode_rhs_t), intent(in) :: rhs
+        integer, intent(inout) :: nfail
+        type(interval_t) :: cell(2), m
+        integer :: status, nsteps
+        logical :: ok
+
+        ! (a) immediate crossing: box near angle 0, g0 = cos(0) - 0.5 = 0.5.
+        cell = [interval(real(qcos(0.0_qp), dp) - 0.005_dp, &
+            real(qcos(0.0_qp), dp) + 0.005_dp), &
+            interval(real(qsin(0.0_qp), dp) - 0.005_dp, &
+            real(qsin(0.0_qp), dp) + 0.005_dp)]
+        call stopping_enclosure(rhs, rotation_halfplane_section, cell, &
+            0.05_dp, 1.0_dp, 4, status, m, ok, nsteps)
+        call require(ok .and. status == stop_crossed .and. nsteps == 0, &
+            "stopping_enclosure: immediate crossing of y1 = 0.5 detected "// &
+            "at t = 0 without stepping", nfail)
+
+        ! (b) crossing partway through the horizon: box near angle -1.2,
+        ! exact crossing at t = acos(0.5) - 1.2 ~ 0.1528 < tmax = 0.5.
+        cell = [interval(real(qcos(-1.2_qp), dp) - 0.005_dp, &
+            real(qcos(-1.2_qp), dp) + 0.005_dp), &
+            interval(real(qsin(-1.2_qp), dp) - 0.005_dp, &
+            real(qsin(-1.2_qp), dp) + 0.005_dp)]
+        call stopping_enclosure(rhs, rotation_halfplane_section, cell, &
+            0.02_dp, 0.5_dp, 4, status, m, ok, nsteps)
+        call require(ok .and. status == stop_crossed, "stopping_enclosure:"// &
+            " rotation crosses y1 = 0.5 before the horizon, matching the "// &
+            "exact acos(0.5) - 1.2 crossing time", nfail)
+
+        ! (c) avoided over a horizon shorter than the exact crossing time:
+        ! same box, tmax = 0.1 < acos(0.5) - 1.2 ~ 0.1528.
+        call stopping_enclosure(rhs, rotation_halfplane_section, cell, &
+            0.02_dp, 0.1_dp, 4, status, m, ok, nsteps)
+        call require(ok .and. status == stop_avoided .and. m%hi < 0.0_dp, &
+            "stopping_enclosure: rotation stays below y1 = 0.5 over a "// &
+            "horizon shorter than the exact crossing time", nfail)
+    end subroutine check_stopping_enclosure
 
     subroutine require(cond, msg, nfail)
         logical, intent(in) :: cond
