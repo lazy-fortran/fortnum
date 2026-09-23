@@ -167,7 +167,7 @@ All verified sources live under `src/verified/`.
 | `fortnum_fseries` | 1D/2D ball Fourier series with tails: add, scale, product (direct and FFT), derivative, weighted inner products, Wiener reciprocal | implemented |
 | `fortnum_verified_linalg` | matrix balls, rigorous norm bounds, product error bounds, verified inverse, Cholesky-certified eigenvalue bounds (real symmetric, Hermitian by real embedding), interval matrix products | implemented |
 | `fortnum_taylor_series` | order-by-order Taylor arithmetic over `interval_t`, `idual_t`, `cdual_t` coefficients | implemented |
-| `fortnum_validated_ode` | Lohner QR enclosure and an order-q Taylor-Lohner predictor with an abstract right-hand side (`ode_rhs_t` deferred binding), Picard a priori boxes, Gronwall variational bounds, interval Newton event crossings | implemented (arbitrary-order centre predictor; the propagated linear part stays first-order in h, see Migration below) |
+| `fortnum_validated_ode` | Lohner QR enclosure and an order-q Taylor-Lohner predictor with an abstract right-hand side (`ode_rhs_t` deferred binding), Picard a priori boxes, Gronwall variational bounds, order-q variational step Jacobian, interval Newton event crossings | implemented |
 | `fortnum_bernstein` | interval Bernstein evaluation, convex-hull bounds, local re-expansion, grid caching, least-squares fit | implemented |
 | `fortnum_stieltjes` | Stieltjes/Pick bounds: Pade-type two-sided bounds for `c^T (A + z B)^-1 c` from moments, convexity and monotonicity certificates | planned after `kinetic-compression` settles the algorithm |
 
@@ -333,10 +333,13 @@ than the old bounds plus the documented rounding fixes).
    `lohner_integrate`, arbitrary n instead of one hand-written copy per
    dimension). `flow7`'s hand-derived order-2 centre predictor generalizes to
    `taylor_lohner_predictor` at any order q using `fortnum_idual` Taylor
-   coefficients; the propagated linear part (frame A, B) stays first-order in
-   h, matching `flow7`/`flow8` -- a full high-order variational propagation
-   (order-q Taylor coefficients of the Jacobian itself) is unimplemented
-   follow-up work, tracked in ROADMAP.md. `lohner_time`'s event handling
+   coefficients; the propagated linear part (frame A, B) now also has a
+   full order-q variational path, following `lohner_taylor`'s
+   Q = sum_k D y_k(Y) h^k + D y_{q+1}(Y) M h^(q+1) (`taylor_lohner_predictor`'s
+   optional `q_jac` output, selected by default in `lohner_step` via the
+   `variational` flag, with `lohner_step_jacobian`'s first-order
+   `flow7`/`flow8`-style Q = I + h A (1 + eps) kept as the opt-out
+   fallback). `lohner_time`'s event handling
    generalizes to the standalone `event_crossing_newton` (interval Newton on
    a scalar event function of t); porting its section-specific glue and
    `lohner_taylor`'s and `flow_enclosure`'s remaining physics-specific

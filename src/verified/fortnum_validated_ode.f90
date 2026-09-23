@@ -41,6 +41,7 @@ module fortnum_validated_ode
 
     public :: ode_rhs_t
     public :: picard_apriori, gronwall_bound, lohner_step_jacobian
+    public :: eps_ball_matrix
     public :: lohner_qr_frame, lohner_inverse_enclosure
     public :: taylor_lohner_predictor
     public :: lohner_state_t, lohner_state_init, lohner_step, lohner_integrate
@@ -152,15 +153,16 @@ contains
         bound = exp(interval(0.0_dp, l*h))
     end function gronwall_bound
 
-    !> Mean-value one-step Jacobian enclosure Q = I + h A (1 + eps) for a
-    !> Jacobian enclosure `a` on the a priori box, with eps a rigorous bound
-    !> on the local (Lagrange-remainder-free) linearization error, following
-    !> `lohner7`'s `step_jacobian`.
-    pure function lohner_step_jacobian(a, h) result(q)
+    !> Isotropic matrix ball M = I + [-eps, eps] enclosing the mean-value
+    !> propagator D Phi_t for t in [0, h], eps a rigorous bound on
+    !> exp(h ||a||_inf) - 1 by the linear majorant x + x^2 for
+    !> x = h ||a||_inf (1 + delta) <= 0.5, following `lohner7`'s
+    !> `step_jacobian`. Shared by the first-order step Jacobian and the
+    !> order-q variational Jacobian's remainder term.
+    pure function eps_ball_matrix(a, h) result(m)
         type(interval_t), intent(in) :: a(:, :)
         real(dp), intent(in) :: h
-        type(interval_t) :: q(size(a, 1), size(a, 1))
-        type(interval_t) :: m(size(a, 1), size(a, 1)), am(size(a, 1), size(a, 1))
+        type(interval_t) :: m(size(a, 1), size(a, 1))
         real(dp) :: norm, x, eps
         integer :: i, j, n
 
@@ -181,6 +183,22 @@ contains
             end do
             m(j, j) = interval(1.0_dp - eps, 1.0_dp + eps)
         end do
+    end function eps_ball_matrix
+
+    !> Mean-value one-step Jacobian enclosure Q = I + h A (1 + eps) for a
+    !> Jacobian enclosure `a` on the a priori box, with eps a rigorous bound
+    !> on the local (Lagrange-remainder-free) linearization error, following
+    !> `lohner7`'s `step_jacobian`. First-order-in-h fallback; see
+    !> `taylor_lohner_predictor`'s `q_jac` output for the order-q enclosure.
+    pure function lohner_step_jacobian(a, h) result(q)
+        type(interval_t), intent(in) :: a(:, :)
+        real(dp), intent(in) :: h
+        type(interval_t) :: q(size(a, 1), size(a, 1))
+        type(interval_t) :: m(size(a, 1), size(a, 1)), am(size(a, 1), size(a, 1))
+        integer :: i, j, n
+
+        n = size(a, 1)
+        m = eps_ball_matrix(a, h)
         am = interval_matmul(a, m)
         do j = 1, n
             do i = 1, n
@@ -261,8 +279,20 @@ contains
     !> point Jacobian d(xpred)/d(xc) carried by the idual_t coefficients'
     !> gradients. Generalizes the order-2 predictor hand-derived in
     !> `lohner7::flow7` (h f(x) + h^2/2 f'(x) f(x)) to any order q >= 1.
+    !>
+    !> With the optional `ay` (a Jacobian bound of f on `apriori_box`, as
+    !> returned by `picard_apriori`), also returns `q_jac`, the order-q
+    !> variational Jacobian enclosure of `lohner_taylor`:
+    !>   Q = sum_{k=0}^{q} D y_k(Y) h^k + D y_{q+1}(Y) M h^{q+1},
+    !> D y_k(Y) the box Jacobian of the k-th Taylor coefficient (the idual_t
+    !> gradient carried by the box coefficients `y_bx` below, seeded on
+    !> `apriori_box`), and M = `eps_ball_matrix(ay, h)` the Gronwall
+    !> enclosure of D Phi_t for t in [0, h]. This is exact to order q in h
+    !> (only the order-(q+1) remainder term uses the cruder Gronwall
+    !> enclosure), unlike `lohner_step_jacobian`'s Q = I + h A (1 + eps),
+    !> which is first-order in h regardless of q.
     subroutine taylor_lohner_predictor(rhs, xc, apriori_box, h, q, xpred, &
-        remainder, jac_pred, ok)
+        remainder, jac_pred, ok, ay, q_jac)
         class(ode_rhs_t), intent(in) :: rhs
         real(dp), intent(in) :: xc(:)
         type(interval_t), intent(in) :: apriori_box(:)
@@ -271,16 +301,24 @@ contains
         real(dp), intent(out) :: xpred(:), jac_pred(:, :)
         type(interval_t), intent(out) :: remainder(:)
         logical, intent(out) :: ok
+        type(interval_t), intent(in), optional :: ay(:, :)
+        type(interval_t), intent(out), optional :: q_jac(:, :)
         integer :: n, i, j, k
         type(idual_t) :: y_pt(0:q + 1, size(xc)), fk_pt(size(xc))
         type(idual_t) :: y_bx(0:q + 1, size(xc)), fk_bx(size(xc))
         real(dp) :: hp
+        type(interval_t) :: jk(size(xc), size(xc)), m(size(xc), size(xc))
+        type(interval_t) :: hq1
 
         n = size(xc)
         ok = .true.
         do i = 1, n
             y_pt(0, i) = idual_var(interval(xc(i)), i, n)
-            y_bx(0, i) = idual_const(apriori_box(i), 0)
+            ! Seeded as an independent variable per box component (not
+            ! idual_const) so d(j) carries the box Jacobian D y_k(Y) needed
+            ! by the optional `q_jac` output below; the remainder term only
+            ! reads %v, unaffected by carrying the gradient too.
+            y_bx(0, i) = idual_var(apriori_box(i), i, n)
         end do
         do k = 1, q + 1
             call rhs%eval_taylor(k - 1, y_pt(0:k - 1, :), fk_pt)
@@ -309,6 +347,38 @@ contains
         do i = 1, n
             remainder(i) = interval(h**(q + 1))*y_bx(q + 1, i)%v
         end do
+
+        if (present(q_jac)) then
+            do j = 1, n
+                do i = 1, n
+                    q_jac(i, j) = y_bx(0, i)%d(j)
+                end do
+            end do
+            hp = 1.0_dp
+            do k = 1, q
+                hp = hp*h
+                do j = 1, n
+                    do i = 1, n
+                        q_jac(i, j) = q_jac(i, j) + interval(hp)*y_bx(k, i)%d(j)
+                    end do
+                end do
+            end do
+            if (present(ay)) then
+                do j = 1, n
+                    do i = 1, n
+                        jk(i, j) = y_bx(q + 1, i)%d(j)
+                    end do
+                end do
+                m = eps_ball_matrix(ay, h)
+                jk = interval_matmul(jk, m)
+                hq1 = interval(h**(q + 1))
+                do j = 1, n
+                    do i = 1, n
+                        q_jac(i, j) = q_jac(i, j) + hq1*jk(i, j)
+                    end do
+                end do
+            end if
+        end if
     end subroutine taylor_lohner_predictor
 
     !> Initialize a Lohner integration from an initial box cell: centre at
@@ -342,12 +412,13 @@ contains
     !> order q: a priori box, order-q centre prediction with remainder,
     !> mean-value Jacobian propagation, frame re-orthonormalization, and
     !> rigorous inverse-enclosed error-frame update.
-    subroutine lohner_step(state, rhs, h, q, ok)
+    subroutine lohner_step(state, rhs, h, q, ok, variational)
         type(lohner_state_t), intent(inout) :: state
         class(ode_rhs_t), intent(in) :: rhs
         real(dp), intent(in) :: h
         integer, intent(in) :: q
         logical, intent(out) :: ok
+        logical, intent(in), optional :: variational
         integer :: n
         type(interval_t) :: y(state%n), fy(state%n), ay(state%n, state%n)
         type(interval_t) :: xb(state%n), qmat(state%n, state%n)
@@ -358,16 +429,24 @@ contains
         real(dp) :: xpred(state%n), jac_pred(state%n, state%n)
         real(dp) :: am_new(state%n, state%n), bm_new(state%n, state%n)
         real(dp) :: x_new(state%n)
+        logical :: use_var
 
         n = state%n
+        use_var = .true.
+        if (present(variational)) use_var = variational
         call picard_apriori(rhs, state%bx, h, y, fy, ay, ok)
         if (.not. ok) return
-        call taylor_lohner_predictor(rhs, state%xc, y, h, q, xpred, &
-            remainder, jac_pred, ok)
+        if (use_var) then
+            call taylor_lohner_predictor(rhs, state%xc, y, h, q, xpred, &
+                remainder, jac_pred, ok, ay=ay, q_jac=qmat)
+        else
+            call taylor_lohner_predictor(rhs, state%xc, y, h, q, xpred, &
+                remainder, jac_pred, ok)
+        end if
         if (.not. ok) return
         xb = interval(xpred) + remainder
 
-        qmat = lohner_step_jacobian(ay, h)
+        if (.not. use_var) qmat = lohner_step_jacobian(ay, h)
         qa = interval_matmul(qmat, interval(state%a))
         qb = interval_matmul(qmat, interval(state%b))
         am_new = mid(qa)
@@ -403,13 +482,14 @@ contains
     !> Integrate from an initial box `cell` over [0, tend] with step at most
     !> hmax and predictor order q, returning a rigorous enclosure of the
     !> image of every point of cell at time tend.
-    subroutine lohner_integrate(rhs, cell, tend, hmax, q, out, ok)
+    subroutine lohner_integrate(rhs, cell, tend, hmax, q, out, ok, variational)
         class(ode_rhs_t), intent(in) :: rhs
         type(interval_t), intent(in) :: cell(:)
         real(dp), intent(in) :: tend, hmax
         integer, intent(in) :: q
         type(interval_t), intent(out) :: out(size(cell))
         logical, intent(out) :: ok
+        logical, intent(in), optional :: variational
         type(lohner_state_t) :: state
         integer :: nstep, i
         real(dp) :: h
@@ -419,7 +499,7 @@ contains
         h = tend/real(nstep, dp)
         ok = .true.
         do i = 1, nstep
-            call lohner_step(state, rhs, h, q, ok)
+            call lohner_step(state, rhs, h, q, ok, variational)
             if (.not. ok) return
         end do
         out = interval(state%xc) + interval_matvec(interval(state%a), state%dlt) &

@@ -31,6 +31,16 @@ module test_fortnum_validated_ode_fixtures
         procedure :: eval_taylor => exp_taylor
     end type exp_rhs_t
 
+    !> Logistic: y' = y - y^2 (nonlinear, scalar). Exact flow
+    !> Phi_t(y0) = y0 e^t / (1 - y0 + y0 e^t), a smooth strictly convex map
+    !> on (0, 1) so the variational Jacobian dPhi_t/dy0 is not constant --
+    !> an oracle a linear system (rotation, shear) cannot exercise.
+    type, extends(ode_rhs_t) :: logistic_rhs_t
+    contains
+        procedure :: eval_box => logistic_box
+        procedure :: eval_taylor => logistic_taylor
+    end type logistic_rhs_t
+
 contains
 
     subroutine rotation_box(this, x, f, df, ok)
@@ -111,6 +121,49 @@ contains
         fk(1) = y(k, 1)
     end subroutine exp_taylor
 
+    subroutine logistic_box(this, x, f, df, ok)
+        class(logistic_rhs_t), intent(in) :: this
+        type(interval_t), intent(in) :: x(:)
+        type(interval_t), intent(out) :: f(:), df(:, :)
+        logical, intent(out) :: ok
+        f(1) = x(1) - x(1)*x(1)
+        df(1, 1) = interval(1.0_dp) - interval(2.0_dp)*x(1)
+        ok = .true.
+    end subroutine logistic_box
+
+    !> f_k = a_k - sum_{i=0}^{k} a_i a_{k-i}, the order-k Taylor coefficient
+    !> of y(t) - y(t)^2 from the Cauchy product of y with itself.
+    subroutine logistic_taylor(this, k, y, fk)
+        class(logistic_rhs_t), intent(in) :: this
+        integer, intent(in) :: k
+        type(idual_t), intent(in) :: y(0:, :)
+        type(idual_t), intent(out) :: fk(:)
+        type(idual_t) :: conv
+        integer :: i
+        conv = y(0, 1)*y(k, 1)
+        do i = 1, k
+            conv = conv + y(i, 1)*y(k - i, 1)
+        end do
+        fk(1) = y(k, 1) - conv
+    end subroutine logistic_taylor
+
+    pure function exact_logistic(x0, t) result(x)
+        real(qp), intent(in) :: x0, t
+        real(qp) :: x, et
+        et = exp(t)
+        x = x0*et/(1.0_qp - x0 + x0*et)
+    end function exact_logistic
+
+    !> dPhi_t/dy0 = e^t / (1 - y0 + y0 e^t)^2, by direct differentiation of
+    !> exact_logistic.
+    pure function exact_logistic_jac(x0, t) result(dj)
+        real(qp), intent(in) :: x0, t
+        real(qp) :: dj, et, den
+        et = exp(t)
+        den = 1.0_qp - x0 + x0*et
+        dj = et/(den*den)
+    end function exact_logistic_jac
+
 end module test_fortnum_validated_ode_fixtures
 
 !> Validated ODE integration, checked against closed-form flows: the
@@ -128,9 +181,11 @@ program test_fortnum_validated_ode
     use fortnum_interval, only: interval_t, interval, width, sin, cos, &
         operator(-)
     use fortnum_validated_ode, only: ode_rhs_t, lohner_integrate, &
-        taylor_lohner_predictor, event_crossing_newton
+        taylor_lohner_predictor, event_crossing_newton, picard_apriori, &
+        lohner_step_jacobian
     use test_fortnum_validated_ode_fixtures, only: rotation_rhs_t, &
-        shear_rhs_t, exp_rhs_t, exact_rotation, exact_shear
+        shear_rhs_t, exp_rhs_t, logistic_rhs_t, exact_rotation, exact_shear, &
+        exact_logistic, exact_logistic_jac
     implicit none
 
     integer :: nfail, seed_size
@@ -138,6 +193,7 @@ program test_fortnum_validated_ode
     type(rotation_rhs_t) :: rot
     type(shear_rhs_t) :: shr
     type(exp_rhs_t) :: expo
+    type(logistic_rhs_t) :: logi
 
     nfail = 0
     call random_seed(size=seed_size)
@@ -148,6 +204,7 @@ program test_fortnum_validated_ode
     call check_flow(rot, exact_rotation, "rotation", nfail)
     call check_flow(shr, exact_shear, "shear", nfail)
     call check_taylor_predictor(expo, nfail)
+    call check_variational_jacobian(logi, nfail)
     call check_event(nfail)
 
     deallocate (seed)
@@ -219,6 +276,75 @@ contains
         call require(abs(jac(1, 1) - real(exp(real(h, qp)), dp)) < 1.0e-4_dp, &
             "predictor Jacobian matches d(exp(h) y0)/dy0 = exp(h)", nfail)
     end subroutine check_taylor_predictor
+
+    !> Order-q variational Jacobian enclosure (`taylor_lohner_predictor`'s
+    !> `q_jac`) against the closed-form logistic-map Jacobian: containment
+    !> at several orders, width shrinking as h shrinks with q fixed, and a
+    !> tighter enclosure than the first-order fallback `lohner_step_jacobian`
+    !> (Q = I + h A (1 + eps)) in the moderately nonlinear regime where the
+    !> resolved Taylor terms pay for the extra interval dependency they
+    !> introduce. (At both very small h, where the box-Jacobian term A
+    !> dominates both enclosures equally, and very large h, where the
+    !> Taylor series itself is not yet resolving the nonlinearity, the two
+    !> methods are not comparable in general; the tested step size is
+    !> chosen where the order-q advantage is expected and verified.)
+    subroutine check_variational_jacobian(rhs, nfail)
+        class(ode_rhs_t), intent(in) :: rhs
+        integer, intent(inout) :: nfail
+        type(interval_t) :: box(1), y(1), fy(1), ay(1, 1), qjac(1, 1)
+        type(interval_t) :: q1(1, 1), remainder(1)
+        real(dp) :: xc(1), xpred(1), jac_pred(1, 1), h
+        real(qp) :: refj
+        logical :: ok
+        integer :: q
+        real(dp) :: w_prev, w_now
+
+        xc(1) = 0.2_dp
+        box(1) = interval(0.15_dp, 0.25_dp)
+
+        do q = 2, 4
+            call picard_apriori(rhs, box, 0.3_dp, y, fy, ay, ok)
+            call require(ok, "logistic picard_apriori succeeds", nfail)
+            call taylor_lohner_predictor(rhs, xc, y, 0.3_dp, q, xpred, &
+                remainder, jac_pred, ok, ay=ay, q_jac=qjac)
+            call require(ok, "order-q variational predictor succeeds", nfail)
+            refj = exact_logistic_jac(0.2_qp, 0.3_qp)
+            call require(real(qjac(1, 1)%lo, qp) <= refj .and. &
+                refj <= real(qjac(1, 1)%hi, qp), &
+                "order-q variational Jacobian encloses the exact logistic "// &
+                "dPhi/dy0", nfail)
+        end do
+
+        ! Width shrinks with h at fixed order q = 3 (local variational
+        ! error is O(h^(q+1)); the composed one-step bound should shrink
+        ! well within a factor 0.5 per halving of h).
+        w_prev = -1.0_dp
+        do q = 1, 4
+            h = 0.4_dp/real(2**q, dp)
+            call picard_apriori(rhs, box, h, y, fy, ay, ok)
+            call taylor_lohner_predictor(rhs, xc, y, h, 3, xpred, &
+                remainder, jac_pred, ok, ay=ay, q_jac=qjac)
+            w_now = width(qjac(1, 1))
+            if (w_prev > 0.0_dp) then
+                call require(w_now < 0.5_dp*w_prev, &
+                    "order-q variational Jacobian width shrinks as h halves", &
+                    nfail)
+            end if
+            w_prev = w_now
+        end do
+
+        ! At h = 0.15 the order-4 variational Jacobian is tighter than the
+        ! first-order fallback (measured ratio about 0.89; margin 0.95
+        ! leaves headroom against compiler/library rounding differences).
+        h = 0.15_dp
+        call picard_apriori(rhs, box, h, y, fy, ay, ok)
+        call taylor_lohner_predictor(rhs, xc, y, h, 4, xpred, remainder, &
+            jac_pred, ok, ay=ay, q_jac=qjac)
+        q1 = lohner_step_jacobian(ay, h)
+        call require(width(qjac(1, 1)) < 0.95_dp*width(q1(1, 1)), &
+            "order-4 variational Jacobian is tighter than the first-order "// &
+            "I + h A (1 + eps) enclosure at h = 0.15", nfail)
+    end subroutine check_variational_jacobian
 
     ! ---- harmonic-oscillator event: g(t) = cos(t), root at pi/2 ----
 
