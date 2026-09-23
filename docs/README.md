@@ -28,6 +28,7 @@ measured evidence.
 | [ODE](design/ode.md) | Solver state, events, traces, and sensitivity semantics |
 | [Geometric time](design/geometric_time.md) | Structure-preserving geometric time integration and products |
 | [RNG](design/rng.md) | Explicit state, stream splitting, and reproducibility |
+| [Verified computing](design/verified.md) | Enclosure semantics, inventory, module layout, and migration of the certified-computing layer |
 
 ## Plans and evidence
 
