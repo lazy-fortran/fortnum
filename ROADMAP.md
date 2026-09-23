@@ -534,6 +534,7 @@ the exact neighbours from `nearest`.
 - [x] Complex balls, `fortnum_ball`, implementing the `fortsym` ball runtime
   interface (the interval interface lives in `fortnum_interval`).
 - [x] Interval forward AD, `fortnum_idual`.
+- [x] Complex-box forward AD, `fortnum_cdual`.
 - [x] Radix-2 FFT with certified twiddles and the non-asymptotic Higham
   convolution bound, `fortnum_cfft_rigorous`.
 - [x] Ball Fourier series with l1 tails (1D, 2D sigma-weighted), FFT

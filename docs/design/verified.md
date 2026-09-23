@@ -142,9 +142,14 @@ Conversion in both directions is provided.
 
 `idual_t` carries a fixed-capacity gradient (`idual_max_vars = 8`) and an
 active count `n`. The capacity avoids allocation in hot loops;
-`gc-loss-certificate` uses four and eight variables. A complex dual type
-(`cdual_t`) follows the same pattern and is scheduled with the validated ODE
-module, which is its only consumer.
+`gc-loss-certificate` uses four and eight variables. `fortnum_cdual` follows
+the same pattern for the complex box `cinterval_t`: `cdual_t` carries the
+holomorphic derivative with respect to up to `cdual_max_vars` seeded complex
+variables. It is `fortnum_idual`'s combinators (chain rule, arithmetic
+overloads) with `cinterval_t` in place of `interval_t`, since a holomorphic
+chain rule has the same form regardless of the underlying real or complex
+enclosure. Its first consumer is the validated ODE module's complex-dual
+Taylor coefficients.
 
 ## Module layout
 
@@ -157,6 +162,7 @@ All verified sources live under `src/verified/`.
 | `fortnum_interval_qp` | binary128 intervals for closed-form Gaussian integrals (`kc_qivl`) and certified twiddles | implemented |
 | `fortnum_ball` | `ball_t`; `+ - * /`, real scaling, exact-disc reciprocal, modulus bounds, conversions | implemented |
 | `fortnum_idual` | `idual_t` interval forward AD | implemented |
+| `fortnum_cdual` | `cdual_t` complex-box forward AD (holomorphic derivative) | implemented |
 | `fortnum_cfft_rigorous` | radix-2 FFT with certified twiddles, Higham error factor, 1D/2D convolution error bounds, upper-bound convolution of nonnegative sequences | implemented |
 | `fortnum_fseries` | 1D/2D ball Fourier series with tails: add, scale, product (direct and FFT), derivative, weighted inner products, Wiener reciprocal | implemented |
 | `fortnum_verified_linalg` | matrix balls, rigorous norm bounds, product error bounds, verified inverse, Cholesky-certified eigenvalue bounds (real symmetric, Hermitian by real embedding), interval matrix products | implemented |
