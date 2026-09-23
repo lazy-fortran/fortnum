@@ -439,6 +439,31 @@ reproducible points in the unit cube. The implementation supports dimensions
 through `SOBOL_MAX_DIMENSION`; `SOBOL_TABULATED_DIMENSION` identifies the
 dimensions using the published Joe--Kuo initial direction values.
 
+## Verified computing
+
+The verified modules return enclosures: every result contains the exact real
+or complex result for all inputs in the argument enclosures. They use only
+correctly rounded IEEE operations with outward rounding by the successor
+formula, so no rounding-mode change and no libm accuracy claim enters. The
+[verified design](design/verified.md) states the semantics, trust
+assumptions, and error models.
+
+| Module | Surface |
+| --- | --- |
+| `fortnum_rounding` | `round_up`, `round_down`, directed `add_up`/`mul_up`/`div_up`/`sqrt_up` and their downward forms, `sum_up`, `sum_down`, `gamma_up` |
+| `fortnum_interval` | `interval_t`, `cinterval_t`, arithmetic operators, `sqrt`, `exp`, `log`, `sin`, `cos`, `sinh`, `cosh`, `abs`, `sqr`, `interval_pi`, `hull`, `intersect`, `mid`, `rad`, `width`, `mag`, `mig`, `contains`, `subset`, `disjoint`, `cabs_up`, `cabs_down` |
+| `fortnum_interval_qp` | binary128 `qinterval_t` with `qrat`, `qsqrt`, `qinterval_pi`, `to_interval` |
+| `fortnum_ball` | complex balls `ball_t`: operators, `binv`, `bsqrt`, `bpowi`, modulus and component bounds, box conversions |
+| `fortnum_idual` | `idual_t` interval forward AD with up to `idual_max_vars` seeded variables |
+| `fortnum_cfft_rigorous` | `rigorous_fft_plan_t` with certified twiddles, `rigorous_fft_apply`, `rigorous_fft2_apply`, `conv_error_bound`, `conv_error_bound_2d`, `conv_nonneg`, `conv_nonneg_2d` |
+| `fortnum_fseries` | ball Fourier series with l1 tails: `fseries_t` (1D) and `fseries2d_t` (2D, sigma-weighted) with sums, direct and FFT products, derivatives, weighted inner products, and Wiener reciprocals `fs_inverse`, `fs2_inverse` |
+
+The interval and ball modules also export the runtime interface that
+`fortsym`-emitted rigorous kernels call: `ipoint`, `ienclose`, `iadd`,
+`isub`, `imul`, `idiv`, `ineg`, `iinv`, `isqrt`, `ipowi`, `iscale` for
+`interval_t`, and `bpoint`, `bcpoint`, `benclose`, `badd`, `bsub`, `bmul`,
+`bdiv`, `bneg`, `binv`, `bsqrt`, `bpowi`, `bscale` for `ball_t`.
+
 ## Optimizer-facing interfaces
 
 `fortnum_active_vector` maps named array blocks to one flat active vector:

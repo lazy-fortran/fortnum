@@ -78,12 +78,17 @@ expression is rounded once (fused) or twice, and a fused final addition
 
 ### Trust assumptions
 
-`fortnum` verified modules use only IEEE `+`, `-`, `*`, `/`, and `sqrt`,
-which are correctly rounded. Transcendental functions (`exp`, `log`, `sin`,
+`fortnum` verified modules use only IEEE `+`, `-`, `*`, `/`, and `sqrt`
+(binary64, and binary128 for twiddles and `fortnum_interval_qp`), which are
+correctly rounded. Transcendental functions (`exp`, `log`, `sin`,
 `cos`, `sinh`, `cosh`) and the constant pi are enclosed by Taylor series with
 explicit Lagrange remainders evaluated in interval arithmetic, after exact
-argument reduction against two-word enclosures of `ln 2` and `pi`. No libm
-accuracy claim enters.
+argument reduction against two-word enclosures of `ln 2` and `pi/2`. `log`
+uses the libm value only as a starting guess and verifies it through the
+rigorous `exp` (or evaluates `2 atanh((x - 1)/(x + 1))` near 1). No libm
+accuracy claim enters. Point enclosures of the transcendental functions are
+within 32 ulps; interval arguments add the exact range (extrema of `sin` and
+`cos` are detected against the `pi` enclosure).
 
 The projects currently trust libm in these places, which the migration
 removes:
@@ -147,31 +152,33 @@ All verified sources live under `src/verified/`.
 
 | Module | Content | Stage |
 | --- | --- | --- |
-| `fortnum_rounding` | `round_up`, `round_down` (successor formula), `sum_up`, `gamma_up` (Higham `gamma_k`) | step 2 |
-| `fortnum_interval` | `interval_t`, `cinterval_t`; `+ - * /`, `sqr`, `sqrt`, `pow`, `exp`, `log`, `sin`, `cos`, `sinh`, `cosh`, `pi`; hull, midpoint, width, magnitude, containment | step 2 |
-| `fortnum_ball` | `ball_t`; `+ - * /`, real scaling, exact-disc reciprocal, modulus bounds, conversions | step 2 |
-| `fortnum_idual` | `idual_t` interval forward AD | step 2 |
-| `fortnum_cfft_rigorous` | radix-2 FFT with certified twiddles, Higham error factor, 1D/2D convolution error bounds, upper-bound convolution of nonnegative sequences | step 2 |
-| `fortnum_fseries` | 1D/2D ball Fourier series with tails: add, scale, product (direct and FFT), derivative, weighted inner products, Wiener reciprocal | step 2 |
+| `fortnum_rounding` | `round_up`, `round_down` (successor formula), `sum_up`, `gamma_up` (Higham `gamma_k`) | implemented |
+| `fortnum_interval` | `interval_t`, `cinterval_t`; `+ - * /`, `sqr`, `sqrt`, `pow`, `exp`, `log`, `sin`, `cos`, `sinh`, `cosh`, `pi`; hull, midpoint, width, magnitude, containment | implemented |
+| `fortnum_interval_qp` | binary128 intervals for closed-form Gaussian integrals (`kc_qivl`) and certified twiddles | implemented |
+| `fortnum_ball` | `ball_t`; `+ - * /`, real scaling, exact-disc reciprocal, modulus bounds, conversions | implemented |
+| `fortnum_idual` | `idual_t` interval forward AD | implemented |
+| `fortnum_cfft_rigorous` | radix-2 FFT with certified twiddles, Higham error factor, 1D/2D convolution error bounds, upper-bound convolution of nonnegative sequences | implemented |
+| `fortnum_fseries` | 1D/2D ball Fourier series with tails: add, scale, product (direct and FFT), derivative, weighted inner products, Wiener reciprocal | implemented |
 | `fortnum_verified_linalg` | matrix balls, rigorous norm bounds, product error bounds, verified inverse, Cholesky-certified eigenvalue lower bounds | step 3 |
 | `fortnum_taylor_series` | order-by-order Taylor arithmetic on intervals and complex duals | planned with `validated_ode` |
 | `fortnum_validated_ode` | Lohner QR enclosure and high-order Taylor-Lohner step with an abstract right-hand side (reverse communication or deferred binding), Picard a priori boxes, Gronwall variational bounds, interval Newton event crossings | planned |
 | `fortnum_bernstein` | interval Bernstein evaluation, convex-hull bounds, local re-expansion | planned |
 | `fortnum_stieltjes` | Stieltjes/Pick bounds: Pade-type two-sided bounds for `c^T (A + z B)^-1 c` from moments, convexity and monotonicity certificates | planned after `kinetic-compression` settles the algorithm |
-| `fortnum_interval_qp` | real128 intervals for closed-form Gaussian integrals (`kc_qivl`) | planned |
 
 ### Rigorous twiddle factors
 
 `kc_cfft` trusts libm `cos`/`sin` to four units of roundoff. `fortnum`
 removes the assumption. For `n = 2^p`, each `k` is reduced exactly by the
-eighth-turn symmetries to `0 <= k' <= n/8`, so `theta = 2 pi k'/n` lies in
-`[0, pi/4]`. `cos theta` and `sin theta` are enclosed by their Taylor series
-to degree 26 with a Lagrange remainder bound, in interval arithmetic, with
-`pi` enclosed by `[fl(pi), succ(fl(pi))]`. The stored twiddle is the midpoint
-of the enclosure and the per-twiddle error `mu` is computed as the maximum of
-`abs(w_stored - w_exact)` over all twiddles, bounded from the enclosure
-radii. The FFT error factor then uses this certified `mu` (about `u`)
-instead of the assumed `4u`.
+quarter- and eighth-turn symmetries to `0 <= m <= n/8`, so
+`phi = 2 pi m/n` lies in `[0, pi/4]`. `cos phi` and `sin phi` are enclosed in
+binary128 interval arithmetic by Taylor polynomials of degree 32 and 33 with
+Lagrange remainders, with `pi` enclosed by the binary128 value nearest `pi`
+widened by one ulp. The stored binary64 twiddle is the enclosure midpoint and
+the per-twiddle error `mu` is the maximum of `abs(w_stored - w_exact)`,
+bounded from the enclosure radii: about `0.7 u` for every tested length,
+instead of the assumed `4u`. binary128 `+ - * /` are correctly rounded
+(software IEEE arithmetic); `nearest` is exact. A plan holds the twiddles,
+so the one-time binary128 cost (about 0.3 s for `n = 2^16`) is reused.
 
 ### FFT convolution bound
 
@@ -213,16 +220,31 @@ is generated in the project against a `fortsym` build and linked against
 
 ### Runtime interface for emitted code
 
-Emitted rigorous kernels need, for each of `interval_t` and `ball_t`: a
-constructor from a point value, elemental `+ - * /` with mixed real and
-integer operands, integer powers, `sqrt`, `exp`, `log`, `sin`, `cos`, and
-the constant pi. `fortnum_interval` extends the intrinsic generic names
-`sqrt`, `exp`, `log`, `sin`, `cos`, `sinh`, `cosh`, `abs` so emitted code that
-calls them on interval arguments resolves without renaming. `fortsym` is
-defining its runtime-interface document on its `interval-emit` branch; the
-interface names above are the `fortnum` side and any mismatch is resolved by
-a thin adapter module in `fortnum`, never by weakening the rounding
-semantics.
+`fortsym` (branch `interval-emit`, `doc/rigorous-runtime.md` there) emits a
+rigorous kernel against a runtime descriptor: a module, an enclosure type,
+and one pure elemental procedure per operation (`add`, `sub`, `mul`, `div`,
+`neg`, `inv`, `sqrt`, `powi`, `scale`, `point`, `cpoint`, `enclose`). Its
+reference names are implemented verbatim by `fortnum`, so an emitted kernel
+links against `fortnum` by naming the module only:
+
+| Operation | `fortnum_interval` (`interval_t`) | `fortnum_ball` (`ball_t`) |
+| --- | --- | --- |
+| add, sub, mul, div, neg, inv | `iadd`, `isub`, `imul`, `idiv`, `ineg`, `iinv` | `badd`, `bsub`, `bmul`, `bdiv`, `bneg`, `binv` |
+| sqrt, powi, scale | `isqrt`, `ipowi`, `iscale` | `bsqrt`, `bpowi`, `bscale` |
+| point, cpoint, enclose | `ipoint`, none, `ienclose` | `bpoint`, `bcpoint`, `benclose` |
+
+Differences from the `fortsym` reference runtimes, all on the side of
+rigour or generality: rounding uses `fortnum_rounding` for both types (the
+reference interval runtime uses `nearest`); `bsqrt` accepts every centre off
+the branch cut `(-inf, 0]` with an a posteriori certified centre (the
+reference accepts only positive real centres); `bpowi` uses binary
+powering of balls rather than a centre power with a propagated radius, which
+is wider for large exponents; `bpoint` and `benclose` are generic in real
+and complex arguments. `isqrt` follows the `fortsym` domain rule (entire line
+for an argument with a negative part) while the generic `sqrt` intersects
+the argument with the domain. The intrinsic-extending generic names (`sqrt`,
+`exp`, `log`, `sin`, `cos`, `sinh`, `cosh`, `abs`) and the arithmetic
+operators serve hand-written code.
 
 ## Shared Lean package
 
@@ -264,8 +286,8 @@ than the old bounds plus the documented rounding fixes).
    `test_neo_full`.
 5. `kc_verified_la` -> `fortnum_verified_linalg`. Guard: `test_realeq`,
    `test_ntv_realeq`, `test_linlandau`.
-6. `kc_qivl` and the `kc_linlandau` copy -> `fortnum_interval_qp` once
-   implemented. Guard: `test_linlandau`, `test_landau_capped`.
+6. `kc_qivl` and the `kc_linlandau` copy -> `fortnum_interval_qp`. Guard:
+   `test_linlandau`, `test_landau_capped`.
 7. `kc_boozer_bc` -> `libneo` reader. Guard: `test_boozer_bc`,
    `test_neo_bz3d_bc`.
 
