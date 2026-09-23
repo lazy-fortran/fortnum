@@ -84,6 +84,7 @@ The main public modules are:
 | interpolation | `fortnum_interp`, `fortnum_polynomial`, `fortnum_bspline`, `fortnum_bspline_lsq` |
 | linear algebra | `fortnum_linalg`, `fortnum_cholesky`, `fortnum_krylov`, `fortnum_tensor_product`, `fortnum_toeplitz` |
 | random numbers | `fortnum_rng` |
+| verified computing | `fortnum_rounding`, `fortnum_interval`, `fortnum_interval_qp`, `fortnum_ball`, `fortnum_idual`, `fortnum_cfft_rigorous`, `fortnum_fseries` |
 
 The [API guide](docs/api.md) shows the public families and common call
 patterns. Production module sources remain authoritative for exact signatures.

@@ -521,3 +521,26 @@ deleted. The integrated sequence was verified with 107/107 bounded `fo`
 tests, 118/118 CTest targets, focused `-fno-realloc-lhs` tests, independent
 Radau/GBS/TDRK/RKNG numerical oracles, and `git diff --check`. Repository-wide
 pre-existing formatting drift remains outside this change.
+
+## Verified computing
+
+Contract: [docs/design/verified.md](docs/design/verified.md). Every result
+is an enclosure; tests compare against real128 oracles, exact identities, and
+the exact neighbours from `nearest`.
+
+- [x] Successor-formula directed rounding, `fortnum_rounding`.
+- [x] Real and rectangular complex intervals with libm-free transcendentals,
+  `fortnum_interval`; binary128 intervals, `fortnum_interval_qp`.
+- [x] Complex balls, `fortnum_ball`, implementing the `fortsym` ball runtime
+  interface (the interval interface lives in `fortnum_interval`).
+- [x] Interval forward AD, `fortnum_idual`.
+- [x] Radix-2 FFT with certified twiddles and the non-asymptotic Higham
+  convolution bound, `fortnum_cfft_rigorous`.
+- [x] Ball Fourier series with l1 tails (1D, 2D sigma-weighted), FFT
+  products, weighted inner products, Wiener reciprocals, `fortnum_fseries`.
+- [ ] Verified linear algebra: matrix balls, norm bounds, verified inverse,
+  Cholesky-certified eigenvalue lower bounds.
+- [ ] Taylor-series arithmetic and validated ODE (Lohner) with an abstract
+  right-hand side.
+- [ ] Interval Bernstein evaluation.
+- [ ] Stieltjes/Pick bounds once the kinetic-compression algorithm settles.

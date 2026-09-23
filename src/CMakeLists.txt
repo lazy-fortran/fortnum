@@ -171,6 +171,13 @@ target_sources(fortnum PRIVATE
     special/fortnum_special_spherical.f90
     special/fortnum_special_toroidal.f90
     testing/fortnum_oracle.f90
+    verified/fortnum_ball.f90
+    verified/fortnum_cfft_rigorous.f90
+    verified/fortnum_fseries.f90
+    verified/fortnum_idual.f90
+    verified/fortnum_interval.f90
+    verified/fortnum_interval_qp.f90
+    verified/fortnum_rounding.f90
 )
 
 # NVFortran 26.5 can crash in fort2 when this already-preprocessed source is
