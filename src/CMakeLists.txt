@@ -172,6 +172,7 @@ target_sources(fortnum PRIVATE
     special/fortnum_special_toroidal.f90
     testing/fortnum_oracle.f90
     verified/fortnum_ball.f90
+    verified/fortnum_bernstein.f90
     verified/fortnum_cdual.f90
     verified/fortnum_cfft_rigorous.f90
     verified/fortnum_fseries.f90

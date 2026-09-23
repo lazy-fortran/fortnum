@@ -168,7 +168,7 @@ All verified sources live under `src/verified/`.
 | `fortnum_verified_linalg` | matrix balls, rigorous norm bounds, product error bounds, verified inverse, Cholesky-certified eigenvalue bounds (real symmetric, Hermitian by real embedding), interval matrix products | implemented |
 | `fortnum_taylor_series` | order-by-order Taylor arithmetic over `interval_t`, `idual_t`, `cdual_t` coefficients | implemented |
 | `fortnum_validated_ode` | Lohner QR enclosure and high-order Taylor-Lohner step with an abstract right-hand side (reverse communication or deferred binding), Picard a priori boxes, Gronwall variational bounds, interval Newton event crossings | planned |
-| `fortnum_bernstein` | interval Bernstein evaluation, convex-hull bounds, local re-expansion | planned |
+| `fortnum_bernstein` | interval Bernstein evaluation, convex-hull bounds, local re-expansion, grid caching, least-squares fit | implemented |
 | `fortnum_stieltjes` | Stieltjes/Pick bounds: Pade-type two-sided bounds for `c^T (A + z B)^-1 c` from moments, convexity and monotonicity certificates | planned after `kinetic-compression` settles the algorithm |
 
 ### Rigorous twiddle factors
