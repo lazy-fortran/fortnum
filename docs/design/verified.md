@@ -251,9 +251,13 @@ links against `fortnum` by naming the module only:
 | sqrt, powi, scale | `isqrt`, `ipowi`, `iscale` | `bsqrt`, `bpowi`, `bscale` |
 | point, cpoint, enclose | `ipoint`, none, `ienclose` | `bpoint`, `bcpoint`, `benclose` |
 
+A kernel emitted by that branch with `interval_runtime("fortnum_interval")`
+or `ball_runtime("fortnum_ball")` compiles and links against the `fortnum`
+build unchanged and encloses real128 values of the source expression.
 Differences from the `fortsym` reference runtimes, all on the side of
-rigour or generality: rounding uses `fortnum_rounding` for both types (the
-reference interval runtime uses `nearest`); `bsqrt` accepts every centre off
+rigour or generality: both use the same successor-formula rounding, but
+`fortnum` does not need `-ffp-contract=off` (the enclosure argument holds
+with fused operations, and the tests pass at `-O3 -march=native`); `bsqrt` accepts every centre off
 the branch cut `(-inf, 0]` with an a posteriori certified centre (the
 reference accepts only positive real centres); `bpowi` uses binary
 powering of balls rather than a centre power with a propagated radius, which
