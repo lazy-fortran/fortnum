@@ -159,7 +159,7 @@ All verified sources live under `src/verified/`.
 | `fortnum_idual` | `idual_t` interval forward AD | implemented |
 | `fortnum_cfft_rigorous` | radix-2 FFT with certified twiddles, Higham error factor, 1D/2D convolution error bounds, upper-bound convolution of nonnegative sequences | implemented |
 | `fortnum_fseries` | 1D/2D ball Fourier series with tails: add, scale, product (direct and FFT), derivative, weighted inner products, Wiener reciprocal | implemented |
-| `fortnum_verified_linalg` | matrix balls, rigorous norm bounds, product error bounds, verified inverse, Cholesky-certified eigenvalue lower bounds | step 3 |
+| `fortnum_verified_linalg` | matrix balls, rigorous norm bounds, product error bounds, verified inverse, Cholesky-certified eigenvalue bounds (real symmetric, Hermitian by real embedding), interval matrix products | implemented |
 | `fortnum_taylor_series` | order-by-order Taylor arithmetic on intervals and complex duals | planned with `validated_ode` |
 | `fortnum_validated_ode` | Lohner QR enclosure and high-order Taylor-Lohner step with an abstract right-hand side (reverse communication or deferred binding), Picard a priori boxes, Gronwall variational bounds, interval Newton event crossings | planned |
 | `fortnum_bernstein` | interval Bernstein evaluation, convex-hull bounds, local re-expansion | planned |
@@ -198,6 +198,24 @@ inverse transform, bounds every entry of a computed linear convolution by
 `kappa2 = kappa_m + kappa_n + kappa_m kappa_n`. The derivation is in the
 source header of `fortnum_cfft_rigorous` and is the one from `kc_cfft`, with
 the rounding gaps listed above closed.
+
+### Eigenvalue and inverse certificates
+
+For a symmetric `A` and a trial shift `s` (placed below an untrusted LAPACK
+estimate with growing margins), a completed floating Cholesky factorization
+`R` of `B = fl(A - s I)` satisfies `R^T R = B + dB` with
+`abs(dB) <= gamma_(n+1) abs(R^T) abs(R)` (Higham, Theorem 10.3), hence
+
+```text
+lambda_min(A) >= s - gamma_(n+1) sum r_ij^2 - 2 u max abs(b_ii) - rho,
+```
+
+where the diagonal term covers the rounding of the shift and `rho` the
+radius of a matrix ball. The rigorous Gershgorin bound is the fallback.
+Hermitian matrices use the real embedding `[[X, -Y], [Y, X]]`. A verified
+inverse uses `theta >= norm2(R Z - I)` including the rounding of the
+diagonal subtraction, and returns the ball `(R, norm2(R) q/(1 - q))` for
+`q = theta + norm2(R) (eta + zerr) < 1`.
 
 ## Library split
 

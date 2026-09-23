@@ -538,8 +538,8 @@ the exact neighbours from `nearest`.
   convolution bound, `fortnum_cfft_rigorous`.
 - [x] Ball Fourier series with l1 tails (1D, 2D sigma-weighted), FFT
   products, weighted inner products, Wiener reciprocals, `fortnum_fseries`.
-- [ ] Verified linear algebra: matrix balls, norm bounds, verified inverse,
-  Cholesky-certified eigenvalue lower bounds.
+- [x] Verified linear algebra: matrix balls, norm bounds, verified inverse,
+  Cholesky-certified eigenvalue bounds, `fortnum_verified_linalg`.
 - [ ] Taylor-series arithmetic and validated ODE (Lohner) with an abstract
   right-hand side.
 - [ ] Interval Bernstein evaluation.

@@ -457,6 +457,7 @@ assumptions, and error models.
 | `fortnum_idual` | `idual_t` interval forward AD with up to `idual_max_vars` seeded variables |
 | `fortnum_cfft_rigorous` | `rigorous_fft_plan_t` with certified twiddles, `rigorous_fft_apply`, `rigorous_fft2_apply`, `conv_error_bound`, `conv_error_bound_2d`, `conv_nonneg`, `conv_nonneg_2d` |
 | `fortnum_fseries` | ball Fourier series with l1 tails: `fseries_t` (1D) and `fseries2d_t` (2D, sigma-weighted) with sums, direct and FFT products, derivatives, weighted inner products, and Wiener reciprocals `fs_inverse`, `fs2_inverse` |
+| `fortnum_verified_linalg` | matrix balls `mball_t`, `fro_up`, `norm1_up`, `norminf_up`, `norm2_up`, `norm2_tight_up`, `matmul_err`, `approx_inverse`, `verified_inverse`, Cholesky-certified `sym_lower_bound`, `eig_lower_bound`, `eig_upper_bound` (real symmetric and Hermitian), `interval_matmul`, `interval_matvec` |
 
 The interval and ball modules also export the runtime interface that
 `fortsym`-emitted rigorous kernels call: `ipoint`, `ienclose`, `iadd`,
