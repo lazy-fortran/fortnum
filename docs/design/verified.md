@@ -167,7 +167,7 @@ All verified sources live under `src/verified/`.
 | `fortnum_fseries` | 1D/2D ball Fourier series with tails: add, scale, product (direct and FFT), derivative, weighted inner products, Wiener reciprocal | implemented |
 | `fortnum_verified_linalg` | matrix balls, rigorous norm bounds, product error bounds, verified inverse, Cholesky-certified eigenvalue bounds (real symmetric, Hermitian by real embedding), interval matrix products | implemented |
 | `fortnum_taylor_series` | order-by-order Taylor arithmetic over `interval_t`, `idual_t`, `cdual_t` coefficients | implemented |
-| `fortnum_validated_ode` | Lohner QR enclosure and an order-q Taylor-Lohner predictor with an abstract right-hand side (`ode_rhs_t` deferred binding), Picard a priori boxes, Gronwall variational bounds, order-q variational step Jacobian, interval Newton event crossings, validated first-return section crossing (`section_crossing`) | implemented |
+| `fortnum_validated_ode` | Lohner QR enclosure and an order-q Taylor-Lohner predictor with an abstract right-hand side (`ode_rhs_t` deferred binding), Picard a priori boxes, Gronwall variational bounds, order-q variational step Jacobian, interval Newton event crossings, validated first-return section crossing (`section_crossing`), stopping-function enclosure (`stopping_enclosure`) | implemented |
 | `fortnum_bernstein` | interval Bernstein evaluation, convex-hull bounds, local re-expansion, grid caching, least-squares fit | implemented |
 | `fortnum_stieltjes` | Stieltjes/Pick bounds: Pade-type two-sided bounds for `c^T (A + z B)^-1 c` from moments, convexity and monotonicity certificates | planned after `kinetic-compression` settles the algorithm |
 
@@ -355,8 +355,13 @@ than the old bounds plus the documented rounding fixes).
    box Taylor coefficients at every order, so the returned crossing
    enclosure is rigorous for a genuinely wide `cell0`, not just a
    near-point one (see `section_crossing`'s docstring for the resulting
-   "last point of the box" caveat on tightness). `flow_enclosure`'s
-   remaining physics-specific glue (`wall_box`, `gc_system_t`) and
+   "last point of the box" caveat on tightness). `flow_enclosure::
+   enclose_cell`'s generic core (fixed-step Lohner propagation, an upper
+   bound on m_T = max_{t<=T} g from each step's a priori box, a lower bound
+   from each step's refined grid-time box, crossed/safe/unresolved
+   classification) generalizes to `stopping_enclosure`, an abstract
+   `section_fn_if` in place of `gc_system_t::wall_box`; its remaining
+   physics-specific glue (`wall_box`, `gc_system_t` itself) and
    `lohner_taylor`'s physics-specific drivers stay project-side work.
    Guard: `test_enclosure_slow`, `test_taylor_time_slow`.
 4. Bernstein core of `cheb_field` -> `fortnum_bernstein`; Boozer parts ->

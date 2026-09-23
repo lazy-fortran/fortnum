@@ -48,6 +48,7 @@ module fortnum_validated_ode
     public :: lohner_state_t, lohner_state_init, lohner_step, lohner_integrate
     public :: event_fn_if, event_crossing_newton
     public :: section_fn_if, section_crossing
+    public :: stop_unresolved, stop_crossed, stop_avoided, stopping_enclosure
 
     !> Abstract autonomous right-hand side y' = f(y).
     type, abstract :: ode_rhs_t
@@ -100,6 +101,17 @@ module fortnum_validated_ode
             type(interval_t), intent(out) :: dgdy(:)
         end subroutine section_fn_if
     end interface
+
+    !> `stopping_enclosure` classification of m_T = max_{0<=t<=T} g(y(t))
+    !> for a box of initial conditions: `stop_crossed` when a rigorous
+    !> lower bound on m_T is already > 0 (some trajectory certainly hits
+    !> g > 0 by or before the decisive step); `stop_avoided` when the run
+    !> completes to T with a rigorous upper bound on m_T still < 0 (every
+    !> trajectory from the box stays g < 0 throughout); `stop_unresolved`
+    !> otherwise (the bounds straddle 0, or an a priori box or width-bound
+    !> failure cut the run short before T).
+    integer, parameter :: stop_unresolved = 0, stop_crossed = 1, &
+        stop_avoided = 2
 
     !> Lohner parallelepiped state: x(t) in xc + A (dlt) + B e, dlt fixed at
     !> the initial cell minus its centre.
@@ -832,5 +844,75 @@ contains
         if (present(nsteps)) nsteps = nmax
         if (present(nshrink)) nshrink = nshrink_
     end subroutine section_crossing
+
+    !> Enclosure of m_T = max_{0<=t<=T} g(y(t)) for the flow image of a box
+    !> of initial conditions `cell`, generalizing `flow_enclosure`'s
+    !> `enclose_cell` from a fixed 4D guiding-centre state and a
+    !> `gc_system_t`-specific wall function to an abstract `ode_rhs_t` and
+    !> `section_fn_if`. Steps at fixed size `h` (following `enclose_cell`,
+    !> no adaptivity): each step's a priori box (`lohner_step`'s
+    !> `apriori_y`, a rigorous superset of the trajectory for every t in
+    !> the step) gives an upper bound on g there via `section`, accumulated
+    !> into the running upper bound of m_T; the step-end refined box
+    !> `state%bx` (a tighter enclosure, valid exactly at the grid time)
+    !> gives a lower bound. `status` becomes `stop_crossed` as soon as the
+    !> accumulated lower bound exceeds 0 (returned immediately, without
+    !> completing to `tmax`); otherwise, if the run completes to `tmax`
+    !> with the accumulated upper bound still below 0, `stop_avoided`;
+    !> otherwise `stop_unresolved` (includes the case where `lohner_step`
+    !> fails before `tmax`, `ok = .false.`, still returning the partial
+    !> bounds and step count accumulated so far).
+    subroutine stopping_enclosure(rhs, section, cell, h, tmax, q, status, &
+        m, ok, nsteps)
+        class(ode_rhs_t), intent(in) :: rhs
+        procedure(section_fn_if) :: section
+        type(interval_t), intent(in) :: cell(:)
+        real(dp), intent(in) :: h, tmax
+        integer, intent(in) :: q
+        integer, intent(out) :: status
+        type(interval_t), intent(out) :: m
+        logical, intent(out) :: ok
+        integer, intent(out), optional :: nsteps
+        type(lohner_state_t) :: state
+        type(interval_t) :: y(size(cell))
+        type(interval_t) :: g, dgdy(size(cell))
+        real(dp) :: t, hs
+        integer :: j, nmax
+        logical :: stepok
+
+        call lohner_state_init(state, cell)
+        call section(state%bx, g, dgdy)
+        m = interval(g%lo, -huge(1.0_dp))
+        status = stop_unresolved
+        ok = .true.
+        if (present(nsteps)) nsteps = 0
+        if (g%lo > 0.0_dp) then
+            status = stop_crossed
+            return
+        end if
+        t = 0.0_dp
+        nmax = ceiling(tmax/h) + 1
+        do j = 1, nmax
+            hs = min(h, tmax - t)
+            if (hs <= 0.0_dp) exit
+            call lohner_step(state, rhs, hs, q, stepok, apriori_y=y)
+            if (.not. stepok) then
+                ok = .false.
+                if (present(nsteps)) nsteps = j - 1
+                return
+            end if
+            call section(y, g, dgdy)
+            m%hi = max(m%hi, g%hi)
+            call section(state%bx, g, dgdy)
+            m%lo = max(m%lo, g%lo)
+            t = t + hs
+            if (present(nsteps)) nsteps = j
+            if (m%lo > 0.0_dp) then
+                status = stop_crossed
+                return
+            end if
+        end do
+        if (m%hi < 0.0_dp) status = stop_avoided
+    end subroutine stopping_enclosure
 
 end module fortnum_validated_ode

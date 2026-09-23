@@ -572,7 +572,18 @@ the exact neighbours from `nearest`.
   directions, sampled over the initial box) and nonlinear-pendulum return
   time/velocity against a real128 AGM elliptic-integral reference and exact
   energy conservation.
-- [ ] Port `flow_enclosure`'s remaining physics-specific glue onto
-  `fortnum_validated_ode` in `gc-loss-certificate`.
+- [x] Port `flow_enclosure::enclose_cell`'s generic core (fixed-step Lohner
+  propagation of a box of initial conditions; enclosure of
+  m_T = max_{0<=t<=T} g(y(t)) from a lower bound at each step's refined
+  grid-time box and an upper bound on each step's a priori box) as
+  `stopping_enclosure`, generalized from `gc_system_t::wall_box` to an
+  abstract `ode_rhs_t`/`section_fn_if`, with `stop_crossed`/`stop_avoided`/
+  `stop_unresolved` classification. Oracle: `test_fortnum_validated_ode`'s
+  rotation flow against an exactly solvable half-plane stopping set
+  (y1 > 0.5, exact via y1(t) = r cos(theta0 + t)): immediate crossing,
+  crossing located within the horizon, and avoided over a horizon shorter
+  than the exact crossing time. `flow_enclosure`'s remaining
+  physics-specific glue (`wall_box`, `gc_system_t` itself) stays
+  project-side work.
 - [x] Interval Bernstein evaluation, `fortnum_bernstein`.
 - [ ] Stieltjes/Pick bounds once the kinetic-compression algorithm settles.
