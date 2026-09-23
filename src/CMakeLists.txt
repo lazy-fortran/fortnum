@@ -178,6 +178,7 @@ target_sources(fortnum PRIVATE
     verified/fortnum_interval.f90
     verified/fortnum_interval_qp.f90
     verified/fortnum_rounding.f90
+    verified/fortnum_verified_linalg.f90
 )
 
 # NVFortran 26.5 can crash in fort2 when this already-preprocessed source is

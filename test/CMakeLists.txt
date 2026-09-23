@@ -410,7 +410,7 @@ add_test(NAME concurrency_rng COMMAND test_concurrency_rng)
 
 # --- verified computing ---
 foreach(verified_test IN ITEMS rounding interval interval_qp ball idual
-        cfft_rigorous fseries)
+        cfft_rigorous fseries verified_linalg)
     add_executable(test_fortnum_${verified_test}
         verified/test_fortnum_${verified_test}.f90)
     target_link_libraries(test_fortnum_${verified_test} PRIVATE fortnum)
