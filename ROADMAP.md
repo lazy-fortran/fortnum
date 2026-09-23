@@ -549,10 +549,18 @@ the exact neighbours from `nearest`.
   (reusing `fortnum_verified_linalg`'s general matrix-ball inverse),
   `taylor_lohner_predictor`, `lohner_state_t`/`lohner_step`/
   `lohner_integrate`, `event_crossing_newton`.
-- [ ] Extend `fortnum_validated_ode`'s propagated linear part (frame A, B)
-  to full order-q variational Taylor coefficients; it is currently
-  first-order in h like `lohner7`/`lohner8`, only the centre predictor is
-  order q.
+- [x] Extend `fortnum_validated_ode`'s propagated linear part (frame A, B)
+  to full order-q variational Taylor coefficients, following
+  `lohner_taylor`'s Q = sum_k D y_k(Y) h^k + D y_{q+1}(Y) M h^(q+1):
+  `taylor_lohner_predictor`'s optional `ay`/`q_jac` arguments, and
+  `lohner_step`/`lohner_integrate`'s optional `variational` flag (default
+  true) selecting it over the first-order `lohner_step_jacobian` fallback
+  (`eps_ball_matrix` factors the shared Gronwall eps-ball). Oracle: the
+  logistic equation y' = y - y^2 (nonlinear, closed-form flow and Jacobian)
+  in `test_fortnum_validated_ode`, checking containment of the exact
+  Jacobian at orders 2-4, enclosure width shrinking faster than 0.5 per
+  halving of h at fixed order, and a tighter enclosure than the
+  first-order fallback in the moderately nonlinear regime.
 - [ ] Port `lohner_time`'s section-crossing driver and `flow_enclosure`'s
   remaining physics-specific glue onto `fortnum_validated_ode` in
   `gc-loss-certificate`.
