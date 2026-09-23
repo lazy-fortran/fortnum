@@ -545,5 +545,5 @@ the exact neighbours from `nearest`.
   Cholesky-certified eigenvalue bounds, `fortnum_verified_linalg`.
 - [ ] Validated ODE (Lohner) with an abstract right-hand side,
   `fortnum_validated_ode`.
-- [ ] Interval Bernstein evaluation.
+- [x] Interval Bernstein evaluation, `fortnum_bernstein`.
 - [ ] Stieltjes/Pick bounds once the kinetic-compression algorithm settles.
