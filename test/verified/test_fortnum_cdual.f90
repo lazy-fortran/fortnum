@@ -9,7 +9,8 @@
 program test_fortnum_cdual
     use, intrinsic :: iso_fortran_env, only: dp => real64, qp => real128, &
         error_unit
-    use fortnum_interval, only: cinterval_t, cinterval, real_part, imag_part
+    use fortnum_interval, only: interval_t, interval, cinterval_t, cinterval, &
+        real_part, imag_part
     use fortnum_cdual, only: cdual_t, cdual_var, cdual_const, operator(+), &
         operator(-), operator(*), operator(/), sqrt, exp, sin, cos
     implicit none
@@ -18,7 +19,7 @@ program test_fortnum_cdual
     integer, allocatable :: seed(:)
     real(dp) :: s(4), x1, y1, x2, y2
     complex(qp) :: z1, z2, h, fp, fm, d1, d2
-    type(cdual_t) :: a, b, g
+    type(cdual_t) :: a, b, g, scaled
 
     nfail = 0
     call random_seed(size=seed_size)
@@ -68,7 +69,6 @@ program test_fortnum_cdual
 
     ! Constant has zero derivative.
     block
-        use fortnum_interval, only: interval_t
         type(interval_t) :: dre, dim
         a = cdual_const(cinterval(2.0_dp, -1.0_dp), 2)
         dre = real_part(a%d(1))
@@ -76,6 +76,31 @@ program test_fortnum_cdual
         call require(dre%lo == 0.0_dp .and. dre%hi == 0.0_dp .and. &
             dim%lo == 0.0_dp .and. dim%hi == 0.0_dp, &
             "constant has zero derivative", nfail)
+    end block
+
+    ! Multiplication by a real interval must scale the value and derivative
+    ! enclosures in either operand order.
+    block
+        type(interval_t) :: scale
+        scale = interval(0.25_dp, 0.75_dp)
+        a = cdual_var(cinterval(1.0_dp, 2.0_dp), 1, 1)
+        scaled = a*scale
+        call require(encl_c(scaled%v, cmplx(0.25_qp, 0.5_qp, qp)) .and. &
+            encl_c(scaled%v, cmplx(0.75_qp, 1.5_qp, qp)), &
+            "complex-dual times real interval encloses endpoint values", nfail)
+        call require(scaled%d(1)%re%lo <= 0.25_dp .and. &
+            scaled%d(1)%re%hi >= 0.75_dp .and. &
+            scaled%d(1)%im%lo <= 0.0_dp .and. scaled%d(1)%im%hi >= 0.0_dp, &
+            "complex-dual times real interval encloses derivative", nfail)
+
+        scaled = scale*a
+        call require(encl_c(scaled%v, cmplx(0.25_qp, 0.5_qp, qp)) .and. &
+            encl_c(scaled%v, cmplx(0.75_qp, 1.5_qp, qp)), &
+            "real interval times complex-dual encloses endpoint values", nfail)
+        call require(scaled%d(1)%re%lo <= 0.25_dp .and. &
+            scaled%d(1)%re%hi >= 0.75_dp .and. &
+            scaled%d(1)%im%lo <= 0.0_dp .and. scaled%d(1)%im%hi >= 0.0_dp, &
+            "real interval times complex-dual encloses derivative", nfail)
     end block
 
     deallocate (seed)

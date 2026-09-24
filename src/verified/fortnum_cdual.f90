@@ -16,7 +16,7 @@
 !> by finite differences against the same enclosure.
 module fortnum_cdual
     use, intrinsic :: iso_fortran_env, only: dp => real64
-    use fortnum_interval, only: cinterval_t, cinterval, &
+    use fortnum_interval, only: interval_t, cinterval_t, cinterval, &
         operator(+), operator(-), operator(*), operator(/), sqrt, exp, &
         sin, cos
     implicit none
@@ -43,7 +43,7 @@ module fortnum_cdual
     end interface operator(-)
 
     interface operator(*)
-        module procedure mul_dd, mul_dc, mul_cd, mul_dr, mul_rd
+        module procedure mul_dd, mul_dc, mul_cd, mul_dr, mul_rd, mul_di, mul_id
     end interface operator(*)
 
     interface operator(/)
@@ -93,10 +93,13 @@ contains
         type(cdual_t), intent(in) :: a
         type(cinterval_t), intent(in) :: v, fprime
         type(cdual_t) :: r
+        integer :: k
 
         r%n = a%n
         r%v = v
-        r%d(1:a%n) = fprime*a%d(1:a%n)
+        do k = 1, a%n
+            r%d(k) = fprime*a%d(k)
+        end do
     end function chain
 
     pure elemental function pos_d(a) result(r)
@@ -109,19 +112,25 @@ contains
     pure elemental function neg_d(a) result(r)
         type(cdual_t), intent(in) :: a
         type(cdual_t) :: r
+        integer :: k
 
         r%n = a%n
         r%v = -a%v
-        r%d(1:a%n) = -a%d(1:a%n)
+        do k = 1, a%n
+            r%d(k) = -a%d(k)
+        end do
     end function neg_d
 
     pure elemental function add_dd(a, b) result(r)
         type(cdual_t), intent(in) :: a, b
         type(cdual_t) :: r
+        integer :: k
 
         r%n = max(a%n, b%n)
         r%v = a%v + b%v
-        r%d(1:r%n) = a%d(1:r%n) + b%d(1:r%n)
+        do k = 1, r%n
+            r%d(k) = a%d(k) + b%d(k)
+        end do
     end function add_dd
 
     pure elemental function add_dc(a, b) result(r)
@@ -160,10 +169,13 @@ contains
     pure elemental function sub_dd(a, b) result(r)
         type(cdual_t), intent(in) :: a, b
         type(cdual_t) :: r
+        integer :: k
 
         r%n = max(a%n, b%n)
         r%v = a%v - b%v
-        r%d(1:r%n) = a%d(1:r%n) - b%d(1:r%n)
+        do k = 1, r%n
+            r%d(k) = a%d(k) - b%d(k)
+        end do
     end function sub_dd
 
     pure elemental function sub_dc(a, b) result(r)
@@ -202,10 +214,13 @@ contains
     pure elemental function mul_dd(a, b) result(r)
         type(cdual_t), intent(in) :: a, b
         type(cdual_t) :: r
+        integer :: k
 
         r%n = max(a%n, b%n)
         r%v = a%v*b%v
-        r%d(1:r%n) = a%d(1:r%n)*b%v + a%v*b%d(1:r%n)
+        do k = 1, r%n
+            r%d(k) = a%d(k)*b%v + a%v*b%d(k)
+        end do
     end function mul_dd
 
     pure elemental function mul_dc(a, b) result(r)
@@ -240,24 +255,51 @@ contains
         r = mul_dc(b, cinterval(a, 0.0_dp))
     end function mul_rd
 
+    pure elemental function mul_di(a, b) result(r)
+        type(cdual_t), intent(in) :: a
+        type(interval_t), intent(in) :: b
+        type(cdual_t) :: r
+        integer :: k
+
+        r%n = a%n
+        r%v = a%v*b
+        do k = 1, a%n
+            r%d(k) = a%d(k)*b
+        end do
+    end function mul_di
+
+    pure elemental function mul_id(a, b) result(r)
+        type(interval_t), intent(in) :: a
+        type(cdual_t), intent(in) :: b
+        type(cdual_t) :: r
+
+        r = mul_di(b, a)
+    end function mul_id
+
     !> (a/b)' = (a' - (a/b) b')/b.
     pure elemental function div_dd(a, b) result(r)
         type(cdual_t), intent(in) :: a, b
         type(cdual_t) :: r
+        integer :: k
 
         r%n = max(a%n, b%n)
         r%v = a%v/b%v
-        r%d(1:r%n) = (a%d(1:r%n) - r%v*b%d(1:r%n))/b%v
+        do k = 1, r%n
+            r%d(k) = (a%d(k) - r%v*b%d(k))/b%v
+        end do
     end function div_dd
 
     pure elemental function div_dc(a, b) result(r)
         type(cdual_t), intent(in) :: a
         type(cinterval_t), intent(in) :: b
         type(cdual_t) :: r
+        integer :: k
 
         r%n = a%n
         r%v = a%v/b
-        r%d(1:a%n) = a%d(1:a%n)/b
+        do k = 1, a%n
+            r%d(k) = a%d(k)/b
+        end do
     end function div_dc
 
     pure elemental function div_cd(a, b) result(r)
