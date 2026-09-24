@@ -138,6 +138,15 @@ module fortnum_interval
     integer, parameter :: k_exact = 2**23
     integer, parameter :: exp_degree = 18
     integer, parameter :: trig_degree = 26
+    real(dp), parameter :: sinh_recip_fact(8) = [1.0_dp/6.0_dp, &
+        1.0_dp/120.0_dp, 1.0_dp/5040.0_dp, 1.0_dp/362880.0_dp, &
+        1.0_dp/39916800.0_dp, 1.0_dp/6227020800.0_dp, &
+        1.0_dp/1307674368000.0_dp, 1.0_dp/355687428096000.0_dp]
+    real(dp), parameter :: cosh_recip_fact(9) = [1.0_dp/2.0_dp, &
+        1.0_dp/24.0_dp, 1.0_dp/720.0_dp, 1.0_dp/40320.0_dp, &
+        1.0_dp/3628800.0_dp, 1.0_dp/479001600.0_dp, &
+        1.0_dp/87178291200.0_dp, 1.0_dp/20922789888000.0_dp, &
+        1.0_dp/6402373705728000.0_dp]
 
 contains
 
@@ -889,25 +898,44 @@ contains
         r = trig_range(a, 0.0_dp)
     end function cos_i
 
-    !> sinh at a point: Taylor for abs(x) < 1 (remainder bounded with
-    !> cosh(1) < 1.6), (e - 1/e)/2 otherwise.
+    !> sinh at a point: a scalar Taylor evaluation for abs(x) < 1,
+    !> (e - 1/e)/2 otherwise.
     pure function sinh_point(x) result(r)
         real(dp), intent(in) :: x
-        type(interval_t) :: r, x2, e
-        real(dp) :: t
+        type(interval_t) :: r, e
+        real(dp) :: ax, t, p, v, err, tail
         integer :: j, m
 
-        if (abs(x) < 1.0_dp) then
-            m = trig_degree/2
-            x2 = sqr_i(iv_from_real(x))
-            r = iv_from_real(1.0_dp)
-            do j = m, 1, -1
-                r = add_ri(1.0_dp, div_in(mul_ii(x2, r), (2*j)*(2*j + 1)))
+        ax = abs(x)
+        if (x == 0.0_dp) then
+            r = iv_from_real(0.0_dp)
+        else if (ax < 1.0e-8_dp) then
+            ! |sinh(x)-x| <= 0.267 |x|^3, less than half an ulp here.
+            r%lo = round_down(x)
+            r%hi = round_up(x)
+        else if (ax < 1.0_dp) then
+            m = size(sinh_recip_fact)
+            t = ax*ax
+            p = sinh_recip_fact(m)
+            do j = m - 1, 1, -1
+                p = sinh_recip_fact(j) + t*p
             end do
-            r = mul_ri(x, r)
-            t = term_bound(1.6_dp, abs(x), 2*m + 3)
-            r%lo = round_down(r%lo - t)
-            r%hi = round_up(r%hi + t)
+            p = 1.0_dp + t*p
+            v = ax*p
+            ! For 0 <= t <= 1, the Horner roundoff sum
+            ! sum((2*j+1)*c_j*t**j) is < 1.6, the coefficient-conversion
+            ! sum is < 0.18, and t*P'(t) < 0.2. Including the final product
+            ! by abs(x), these leave the scalar evaluation error below 4u*v;
+            ! 6u*v allows slack for products of the individual error factors.
+            err = round_up(6.0_dp*(0.5_dp*epsilon(1.0_dp))*v)
+            tail = term_bound(1.6_dp, ax, 2*m + 3)
+            if (x > 0.0_dp) then
+                r%lo = round_down(v - err)
+                r%hi = round_up(round_up(v + err) + tail)
+            else
+                r%lo = round_down(-(round_up(v + err) + tail))
+                r%hi = round_up(-(v - err))
+            end if
         else
             e = exp_point(x)
             r = div_in(sub_ii(e, div_ri(1.0_dp, e)), 2)
@@ -917,10 +945,34 @@ contains
     pure function cosh_point(x) result(r)
         real(dp), intent(in) :: x
         type(interval_t) :: r, e
+        real(dp) :: ax, x2, p, err, tail
+        integer, parameter :: m = size(cosh_recip_fact)
+        integer :: j
 
-        e = exp_point(abs(x))
-        r = div_in(add_ii(e, div_ri(1.0_dp, e)), 2)
-        r%lo = max(r%lo, 1.0_dp)
+        ax = abs(x)
+        if (ax < 1.0e-8_dp) then
+            r%lo = 1.0_dp
+            r%hi = round_up(1.0_dp)
+        else if (ax < 1.0_dp) then
+            x2 = ax*ax
+            p = cosh_recip_fact(m)
+            do j = m - 1, 1, -1
+                p = cosh_recip_fact(j) + x2*p
+            end do
+            p = 1.0_dp + x2*p
+            ! For 0 <= t <= 1, the Horner roundoff sum
+            ! sum((2*j+1)*c_j*t**j) is < 2.72, the coefficient-conversion
+            ! sum is < 0.55, and t*P'(t) < 0.59. Thus 6u*p bounds the scalar
+            ! evaluation error with slack for products of the error factors.
+            err = round_up(6.0_dp*(0.5_dp*epsilon(1.0_dp))*p)
+            tail = term_bound(1.6_dp, ax, 2*m + 2)
+            r%lo = max(1.0_dp, round_down(p - err))
+            r%hi = round_up(round_up(p + err) + tail)
+        else
+            e = exp_point(ax)
+            r = div_in(add_ii(e, div_ri(1.0_dp, e)), 2)
+            r%lo = max(r%lo, 1.0_dp)
+        end if
     end function cosh_point
 
     pure elemental function sinh_i(a) result(r)
