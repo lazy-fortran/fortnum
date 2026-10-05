@@ -403,6 +403,16 @@ provides restarted complex GMRES using reorthogonalized modified
 Gram--Schmidt and complex Givens rotations. Structured kernel operators and
 device-resident callbacks are planned consumers of these contracts.
 
+`fortnum_symmetric_eigen` provides real symmetric eigensolvers.
+`symmetric_eigen` returns ascending eigenvalues and orthonormal eigenvectors of
+a dense matrix by Householder tridiagonalization and implicit QL.
+`block_lanczos_lowest` returns the lowest eigenpairs of a matrix-free symmetric
+operator (the `fortnum_krylov` callback contract) by block Lanczos with full
+reorthogonalization and Rayleigh--Ritz; the block size bounds the eigenvalue
+multiplicity it resolves. Reported residual norms are recomputed from operator
+images, so each Ritz value lies within its residual of an eigenvalue; that the
+values are the lowest is a candidate claim without a separate gap argument.
+
 `fortnum_cholesky` provides `cholesky_factorization_t` and the corresponding
 `cholesky_factorize`, `cholesky_solve_vector`, `cholesky_solve_matrix`,
 `cholesky_solve_lower_matrix`, and `cholesky_log_determinant` procedures.
