@@ -103,3 +103,31 @@ Caller tolerances apply after stability or sensitivity amplification. These
 arithmetic enclosures alone do not certify a continuous equation, quadrature
 remainder, unresolved tail, observable accuracy or derivative of an implicit
 solution. No production speedup or universal hardware/backend support is claimed.
+
+## Cellwise verified midpoint work sharing
+
+`bench_verified_midpoint` compares eight scalar calls with one eight-component
+batch on the same 128-cell partition of `[0,1]`. The independent fixture is
+`k*exp(x)`, `k=1..8`, with cellwise strict exponential curvature bounds. Each
+packet is checked against binary128 integrals and a one-percent relative radius
+budget outside the timed loops. Both routes include midpoint evaluation,
+curvature evaluation, strict weighting, remainder and accumulation. Setup and
+validation are excluded from raw timed samples; callback work remains included.
+
+The batch callback evaluates the common interval exponential and its curvature
+once per cell. The scalar baseline repeats it for each component. This is an
+execution-schedule comparison, not an approximate exponential or arbitrary
+roundoff allowance. The local interval expression is emitted from the retained
+FortSym definition, and the caller remains responsible for valid callback bounds.
+The committed generator has its own dependency lock; existing generator locks
+are unchanged. The scalar path uses constant scratch, while batch scratch is
+three component-sized interval arrays created once per invocation. No allocations
+occur within cell loops. Complete-process memory includes runtime and library
+state and is not a measurement of the scratch arrays alone.
+
+Reproduce with the existing validated CMake target `bench_verified_midpoint`.
+The program emits 15 raw samples, each averaging 20 complete eight-component
+calls after three warmups, and consumes checked output packets after timing.
+The benchmark record is [the CPU evidence](reference/verified_midpoint_cpu.json).
+These timings apply to this fixture and accuracy budget; Fermi-EOS stability,
+parameter domains, tails and observable amplification remain consumer contracts.

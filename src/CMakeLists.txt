@@ -127,6 +127,7 @@ target_sources(fortnum PRIVATE
     generated/fortnum_vector_root_residual_jacobian_kernel.f90
     generated/fortnum_vector_root_residual_jvp_kernel.f90
     generated/fortnum_vector_root_residual_vjp_kernel.f90
+    generated/fortnum_verified_midpoint_kernel.f90
     interp/fortnum_bspline.f90
     interp/fortnum_bspline_lsq.f90
     interp/fortnum_interp.f90
@@ -183,6 +184,7 @@ target_sources(fortnum PRIVATE
     verified/fortnum_taylor_series.f90
     verified/fortnum_validated_ode.f90
     verified/fortnum_verified_linalg.f90
+    verified/fortnum_verified_quadrature.f90
 )
 
 # NVFortran 26.5 can crash in fort2 when this already-preprocessed source is

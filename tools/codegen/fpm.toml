@@ -84,3 +84,8 @@ main = "gen_rk54_cpu_tableau.f90"
 name = "gen_dop853_tableau"
 source-dir = "app"
 main = "gen_dop853_tableau.f90"
+
+[[executable]]
+name = "gen_verified_midpoint"
+source-dir = "app"
+main = "gen_verified_midpoint.f90"

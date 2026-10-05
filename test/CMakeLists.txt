@@ -2,6 +2,15 @@
 # executable, link fortnum, register with add_test. Downstream agents append
 # one block per new test below.
 
+add_executable(test_fortnum_verified_quadrature
+    verified/test_fortnum_verified_quadrature.f90)
+target_link_libraries(test_fortnum_verified_quadrature PRIVATE fortnum)
+add_test(NAME fortnum_verified_quadrature COMMAND test_fortnum_verified_quadrature)
+
+add_executable(bench_verified_midpoint
+    "${PROJECT_SOURCE_DIR}/benchmark/bench_verified_midpoint.f90")
+target_link_libraries(bench_verified_midpoint PRIVATE fortnum)
+
 # OpenMP is required only by the M5 concurrency tests (thread-safety checks).
 find_package(OpenMP REQUIRED COMPONENTS Fortran)
 
