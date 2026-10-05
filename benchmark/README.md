@@ -10,6 +10,11 @@
 
 Generated figures stay outside the repository.
 
+The [certified reduction experiment](certified_reductions.md) compares strict
+interval sum/dot baselines with experimental floating-point centers and proved
+aggregate roundoff budgets, and records existing interval `exp` costs. It emits
+raw CPU samples without requiring Python or changing production selection.
+
 ## Primal microbenchmarks
 
 Build the standalone harness in Release mode:

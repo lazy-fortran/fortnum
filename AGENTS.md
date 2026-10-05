@@ -6,6 +6,12 @@
   of doing it.
 - Tests need an independent behavioral oracle. Checks that repository state
   matches the patch are not tests.
+- Verified primitive optimizations need an explicit mathematical enclosure
+  argument and independent behavioral oracles, alongside raw performance samples.
+  Compare fast floating-point centers with rigorous error budgets against strict
+  enclosure arithmetic; retain explicit failure/fallback behavior. Budget error
+  after the caller's stability or sensitivity amplification, and target the
+  requested accuracy rather than requiring unnecessarily tight last-bit bounds.
 - For differentiation work, use `autodiff`, `analytical`, and `hybrid` as the
   public terminology defined in `docs/design/ad.md`.
 - Treat derivative mechanisms as competing candidates for each derivative
