@@ -16,7 +16,7 @@
 module fortnum_interval
     use, intrinsic :: iso_fortran_env, only: dp => real64, int64
     use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_positive_inf, &
-        ieee_is_nan
+        ieee_is_nan, ieee_is_finite, ieee_quiet_nan
     use fortnum_rounding, only: round_up, round_down, sqrt_up, sqrt_down
     implicit none
     private
@@ -30,6 +30,7 @@ module fortnum_interval
     ! Runtime interface called by fortsym-emitted rigorous kernels.
     public :: ipoint, ienclose, iadd, isub, imul, idiv, ineg, iinv, isqrt
     public :: ipowi, iscale
+    public :: linear_interpolation_remainder
 
     type :: interval_t
         real(dp) :: lo = 0.0_dp
@@ -419,6 +420,40 @@ contains
         end if
         r%lo = max(r%lo, 0.0_dp)
     end function sqr_i
+
+    !> Enclose M*(x_right-x_left)**2/8 for the C2 chord error theorem.
+    !> Inputs must be finite, nonempty and ordered; M must be nonnegative.
+    !> Invalid inputs or nonfinite arithmetic return an empty NaN interval.
+    pure elemental function linear_interpolation_remainder(x_left, x_right, &
+                                                           curvature_bound) result(r)
+        type(interval_t), intent(in) :: x_left, x_right, curvature_bound
+        type(interval_t) :: r
+
+        r%lo = ieee_value(1.0_dp, ieee_quiet_nan)
+        r%hi = r%lo
+        if (is_empty(x_left) .or. is_empty(x_right) .or. &
+            is_empty(curvature_bound)) return
+        if (.not. ieee_is_finite(x_left%lo) .or. &
+            .not. ieee_is_finite(x_left%hi) .or. &
+            .not. ieee_is_finite(x_right%lo) .or. &
+            .not. ieee_is_finite(x_right%hi) .or. &
+            .not. ieee_is_finite(curvature_bound%lo) .or. &
+            .not. ieee_is_finite(curvature_bound%hi)) return
+        if (x_left%hi > x_right%lo .or. curvature_bound%lo < 0.0_dp) return
+        if (curvature_bound%hi == 0.0_dp .or. &
+            x_left%lo == x_right%hi) then
+            r = interval(0.0_dp)
+            return
+        end if
+        r = curvature_bound*sqr(x_right - x_left)/8.0_dp
+        if (is_empty(r) .or. .not. ieee_is_finite(r%lo) .or. &
+            .not. ieee_is_finite(r%hi)) then
+            r%lo = ieee_value(1.0_dp, ieee_quiet_nan)
+            r%hi = r%lo
+            return
+        end if
+        r%lo = max(0.0_dp, r%lo)
+    end function linear_interpolation_remainder
 
     !> x^n for x >= 0 rounded toward direction s (+1 up, -1 down).
     pure elemental function pow_nonneg(x, n, s) result(y)

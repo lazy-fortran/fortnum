@@ -102,6 +102,34 @@ Uncertain extremum membership widens the range safely. Empty, NaN/nonfinite,
 very large and sufficiently wide arguments retain the conservative `[-1,1]`
 fallback. Both outputs remain separate ranges; no joint correlation is claimed.
 
+`linear_interpolation_remainder(x_left, x_right, curvature_bound)` is a pure
+elemental real-interval function enclosing `M*(x_right-x_left)**2/8`. Inputs
+must be finite nonempty intervals, with `x_left%hi <= x_right%lo` and a
+nonnegative curvature interval. Invalid inputs and nonfinite intermediate or
+final arithmetic return quiet-NaN endpoints, hence `is_empty(result)` is true.
+Exact zero curvature or equal point endpoints return `[0,0]`. Overflow may
+reject an otherwise mathematically finite remainder; callers must check the
+result before using its upper endpoint as a radius.
+
+For a function `g` in `C2([a,b])` with `abs(g'') <= M`, the linear chord `L`
+through its endpoint values satisfies
+`abs(g(x)-L(x)) <= M*(x-a)*(b-x)/2 <= M*(b-a)**2/8`.
+One proof compares `g-L` with both signs of the quadratic
+`M*(x-a)*(b-x)/2`: the resulting convex/concave functions vanish at both
+endpoints and have the required sign throughout the interval. A quadratic
+with constant second derivative of magnitude `M` attains the bound at the
+midpoint. The helper only encloses this arithmetic expression; the caller
+supplies and justifies the curvature bound and the C2 hypothesis.
+
+Subtraction, dependency-aware square, multiplication, and division use the
+existing outward interval operations, so the result encloses every permitted
+endpoint and curvature value, including gradual underflow. Clamping its lower
+endpoint to zero preserves the nonnegative exact expression. Rounded endpoint
+enclosures may be interpolated and widened by this remainder, but endpoint
+interpolation rounding must also be enclosed. If `g` is a numerical candidate,
+this bounds the candidate's chord error; a bound on its difference from an
+unknown solution remains a separate obligation and must be added separately.
+
 The projects currently trust libm in these places, which the migration
 removes:
 
