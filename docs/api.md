@@ -451,7 +451,7 @@ assumptions, and error models.
 | Module | Surface |
 | --- | --- |
 | `fortnum_rounding` | `round_up`, `round_down`, directed `add_up`/`mul_up`/`div_up`/`sqrt_up` and their downward forms, `sum_up`, `sum_down`, `gamma_up` |
-| `fortnum_interval` | `interval_t`, `cinterval_t`, arithmetic operators, `sqrt`, `exp`, `log`, `sin`, `cos`, `sinh`, `cosh`, `abs`, `sqr`, `interval_pi`, `hull`, `intersect`, `mid`, `rad`, `width`, `mag`, `mig`, `contains`, `subset`, `disjoint`, `cabs_up`, `cabs_down` |
+| `fortnum_interval` | `interval_t`, `cinterval_t`, arithmetic operators, `sqrt`, `exp`, `log`, `sin`, `cos`, `sincos`, `sinh`, `cosh`, `abs`, `sqr`, `interval_pi`, `hull`, `intersect`, `mid`, `rad`, `width`, `mag`, `mig`, `contains`, `subset`, `disjoint`, `cabs_up`, `cabs_down` |
 | `fortnum_interval_qp` | binary128 `qinterval_t` with `qrat`, `qsqrt`, `qinterval_pi`, `to_interval` |
 | `fortnum_ball` | complex balls `ball_t`: operators, `binv`, `bsqrt`, `bpowi`, modulus and component bounds, box conversions |
 | `fortnum_idual` | `idual_t` interval forward AD with up to `idual_max_vars` seeded variables |

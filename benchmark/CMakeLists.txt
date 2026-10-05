@@ -129,6 +129,9 @@ add_executable(bench_certified_reductions bench_certified_reductions.f90)
 target_link_libraries(bench_certified_reductions PRIVATE bench_certified_core)
 add_test(NAME certified_reductions_validation
     COMMAND bench_certified_reductions validate)
+add_executable(bench_interval_sincos bench_interval_sincos.f90)
+target_link_libraries(bench_interval_sincos PRIVATE bench_certified_core)
+add_test(NAME interval_sincos_validation COMMAND bench_interval_sincos validate)
 
 # RK54 offload has no BLAS/LAPACK dependency. Keep it in a small target so a
 # threaded system BLAS cannot pull libgomp into an NVHPC OpenACC executable.

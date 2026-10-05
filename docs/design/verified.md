@@ -90,6 +90,18 @@ accuracy claim enters. Point enclosures of the transcendental functions are
 within 32 ulps; interval arguments add the exact range (extrema of `sin` and
 `cos` are detected against the `pi` enclosure).
 
+`call sincos(a, s, c)` is a pure elemental paired real-interval operation.
+It reuses the existing certified endpoint argument reductions and Taylor
+polynomials, then includes sine and cosine interior extrema separately.
+Each output has the same enclosure as its separate `sin(a)` or `cos(a)` call;
+pairing changes the schedule, not the rounding or remainder argument. The
+endpoint hull contains a continuous trigonometric function unless its derivative
+vanishes inside the argument interval. Including every extremum whose certified
+pi interval may intersect the argument therefore closes each range enclosure.
+Uncertain extremum membership widens the range safely. Empty, NaN/nonfinite,
+very large and sufficiently wide arguments retain the conservative `[-1,1]`
+fallback. Both outputs remain separate ranges; no joint correlation is claimed.
+
 The projects currently trust libm in these places, which the migration
 removes:
 

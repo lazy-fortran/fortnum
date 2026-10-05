@@ -15,6 +15,24 @@ interval sum/dot baselines with experimental floating-point centers and proved
 aggregate roundoff budgets, and records existing interval `exp` costs. It emits
 raw CPU samples without requiring Python or changing production selection.
 
+The paired interval trigonometric benchmark compares `call sincos(x,s,c)`
+with separate `sin(x)` and `cos(x)` evaluations of the same 192 exactly represented
+intervals. Both return identical endpoint enclosures. Validation uses independent
+binary128 samples outside timing; the registered primitive test also exercises
+exact quadrant values, interior extrema and conservative fallback cases.
+
+```sh
+cmake --build build-bench --target bench_interval_sincos
+ctest --test-dir build-bench -R '^interval_sincos_validation$' -V
+build-bench/bin/bench_interval_sincos separate
+build-bench/bin/bench_interval_sincos paired
+```
+
+Each process uses three warmups and emits fifteen raw wall-clock samples with
+100 repetitions per sample and an observable sink. Timings include both returned
+ranges and output stores. Record compiler/flags, host/affinity and source identity;
+this primitive comparison does not establish an application speedup.
+
 ## Primal microbenchmarks
 
 Build the standalone harness in Release mode:
