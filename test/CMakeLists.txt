@@ -409,7 +409,7 @@ target_link_libraries(test_concurrency_rng PRIVATE fortnum OpenMP::OpenMP_Fortra
 add_test(NAME concurrency_rng COMMAND test_concurrency_rng)
 
 # --- verified computing ---
-foreach(verified_test IN ITEMS rounding interval sincos interval_qp ball idual
+foreach(verified_test IN ITEMS rounding interval sincos chord interval_qp ball idual
         cdual bernstein cfft_rigorous fseries taylor_series validated_ode
         verified_linalg)
     add_executable(test_fortnum_${verified_test}
