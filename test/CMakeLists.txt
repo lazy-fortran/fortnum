@@ -126,6 +126,12 @@ add_executable(test_fortnum_special_legendre special/test_fortnum_special_legend
 target_link_libraries(test_fortnum_special_legendre PRIVATE fortnum)
 add_test(NAME fortnum_special_legendre COMMAND test_fortnum_special_legendre)
 
+add_executable(test_fortnum_special_legendre_normalized
+    special/test_fortnum_special_legendre_normalized.f90)
+target_link_libraries(test_fortnum_special_legendre_normalized PRIVATE fortnum)
+add_test(NAME fortnum_special_legendre_normalized
+    COMMAND test_fortnum_special_legendre_normalized)
+
 add_executable(test_fortnum_special_second_derivatives
     special/test_fortnum_special_second_derivatives.f90)
 target_link_libraries(test_fortnum_special_second_derivatives PRIVATE fortnum)
@@ -168,6 +174,10 @@ add_test(NAME fortnum_integrate_gk_oracle
 add_executable(test_fortnum_quadrature quadrature/test_fortnum_quadrature.f90)
 target_link_libraries(test_fortnum_quadrature PRIVATE fortnum)
 add_test(NAME fortnum_quadrature COMMAND test_fortnum_quadrature)
+
+add_executable(test_fortnum_gauss_lobatto quadrature/test_fortnum_gauss_lobatto.f90)
+target_link_libraries(test_fortnum_gauss_lobatto PRIVATE fortnum)
+add_test(NAME fortnum_gauss_lobatto COMMAND test_fortnum_gauss_lobatto)
 
 add_executable(test_fortnum_quadrature_oracle oracle/test_fortnum_quadrature_oracle.f90)
 target_link_libraries(test_fortnum_quadrature_oracle PRIVATE fortnum)

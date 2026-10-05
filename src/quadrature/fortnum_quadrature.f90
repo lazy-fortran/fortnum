@@ -20,12 +20,17 @@ module fortnum_quadrature
     !   G. H. Golub, J. H. Welsch, Math. Comp. 23 (1969) 221-230.
     !   DLMF 18.9.8 (three-term recurrence), DLMF 18.9.17 (derivative),
     !   A&S 22.16.6 (asymptotic initial estimate), A&S 25.4.29 (weight formula).
+    ! Gauss-Lobatto-Legendre: interior nodes are the zeros of P_N' (A&S 25.4.32);
+    !   Newton on P_N' with P_N'' from the Legendre equation (DLMF 14.2.2) and
+    !   the Jacobi P^(1,1)_{N-1} zero estimate (k + 1/4)*pi/(N + 1/2)
+    !   (Szego, Orthogonal Polynomials, Thm 8.9.1).
     use fortnum_kinds, only: dp
     implicit none
     private
 
     public :: gauss_legendre
     public :: gauss_legendre_ab
+    public :: gauss_lobatto_legendre
     public :: gauss_legendre_jvp
     public :: gauss_legendre_vjp
     public :: gauss_legendre_grad
@@ -110,6 +115,80 @@ contains
         x = midpoint + half_length*x
         w = half_length*w
     end subroutine gauss_legendre_ab
+
+    ! Gauss-Lobatto-Legendre nodes and weights on [-1, 1] with n >= 2 points.
+    ! x(n) receives ascending nodes with x(1) = -1 and x(n) = 1; the interior
+    ! nodes are the zeros of P_N', N = n - 1.  w(n) receives the weights
+    ! 2/(N*(N+1)*P_N(x)^2) (A&S 25.4.32).  The rule integrates polynomials of
+    ! degree <= 2n - 3 exactly.  Nodes are exactly antisymmetric, weights
+    ! symmetric, and the centre node of an odd rule is exactly zero.  Only the
+    ! nonnegative half is solved.  Rule parameters are inactive; the
+    ! integration map f -> sum w f has the same linear products as
+    ! gauss_legendre (gauss_legendre_jvp/vjp/grad accept these weights).
+    pure subroutine gauss_lobatto_legendre(n, x, w)
+        integer,  intent(in)  :: n
+        real(dp), intent(out) :: x(n), w(n)
+
+        real(dp), parameter :: pi = 3.14159265358979324_dp
+        integer,  parameter :: max_iter = 16
+
+        integer  :: deg, nh, k, it
+        real(dp) :: xh(max(1, (n - 1)/2)), p(max(1, (n - 1)/2))
+        real(dp) :: pm(max(1, (n - 1)/2)), dx(max(1, (n - 1)/2))
+        real(dp) :: dp1(max(1, (n - 1)/2)), c
+
+        if (n < 2) error stop "fortnum_quadrature: Lobatto n must be >= 2"
+        deg = n - 1
+        nh  = deg/2
+        c   = real(deg, dp)*real(deg + 1, dp)
+        do k = 1, nh
+            xh(k) = cos(pi*(real(k, dp) + 0.25_dp)/(real(deg, dp) + 0.5_dp))
+        end do
+        if (nh > 0) then
+            do it = 1, max_iter
+                call legendre_pair(deg, nh, xh, p, pm)
+                ! P_N' = N (x P_N - P_{N-1})/(x^2 - 1);  Newton step on P_N'
+                ! uses (1 - x^2) P_N'' = 2 x P_N' - N (N + 1) P_N.
+                dp1 = real(deg, dp)*(xh(1:nh)*p(1:nh) - pm(1:nh)) &
+                      /(xh(1:nh)*xh(1:nh) - 1.0_dp)
+                dx(1:nh) = (1.0_dp - xh(1:nh)*xh(1:nh))*dp1(1:nh) &
+                           /(2.0_dp*xh(1:nh)*dp1(1:nh) - c*p(1:nh))
+                xh(1:nh) = xh(1:nh) - dx(1:nh)
+                if (maxval(abs(dx(1:nh))) <= 4.0_dp*epsilon(1.0_dp)) exit
+            end do
+            if (mod(deg, 2) == 0) xh(nh) = 0.0_dp
+            call legendre_pair(deg, nh, xh, p, pm)
+        end if
+        x(1) = -1.0_dp
+        x(n) =  1.0_dp
+        w(1) = 2.0_dp/c
+        w(n) = w(1)
+        do k = 1, nh
+            x(n - k) =  xh(k)
+            x(1 + k) = -xh(k)
+            w(n - k) = 2.0_dp/(c*p(k)*p(k))
+            w(1 + k) = w(n - k)
+        end do
+    end subroutine gauss_lobatto_legendre
+
+    ! P_n and P_{n-1} at m points by the three-term recurrence (DLMF 18.9.8).
+    pure subroutine legendre_pair(n, m, x, p, p_prev)
+        integer,  intent(in)  :: n, m
+        real(dp), intent(in)  :: x(:)
+        real(dp), intent(out) :: p(:), p_prev(:)
+
+        real(dp) :: p_next(m)
+        integer  :: k
+
+        p_prev(1:m) = 1.0_dp
+        p(1:m)      = x(1:m)
+        do k = 1, n - 1
+            p_next = (real(2*k + 1, dp)*x(1:m)*p(1:m) - real(k, dp)*p_prev(1:m)) &
+                     /real(k + 1, dp)
+            p_prev(1:m) = p(1:m)
+            p(1:m)      = p_next
+        end do
+    end subroutine legendre_pair
 
     ! Forward product for the linear map f -> I = sum_i w_i f_i.
     ! Active inputs: f (sampled integrand values at the rule nodes), tangent v.

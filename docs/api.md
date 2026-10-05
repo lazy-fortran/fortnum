@@ -47,6 +47,7 @@ contract. They do not use mutable global error state.
 | confluent hypergeometric | `hyperg_1f1`, `hyperg_1f1_a1` | `hyperg_1f1_a1_jvp`, `hyperg_1f1_a1_vjp` |
 | Jacobi/simplex polynomials | `jacobi_p`, `scaled_jacobi_p`, `triangle_dubiner`, `tetrahedron_koornwinder` | `jacobi_p_derivative` |
 | Ferrers associated Legendre | `legendre_p` | `legendre_p_derivative` |
+| normalized Legendre table | `legendre_p_normalized_table` | none |
 | ordinary Legendre second kind | `legendre_q` | `legendre_q_derivative` |
 | complex spherical harmonics | `spherical_harmonic` | angular derivatives, `spherical_harmonic_product_coefficient` |
 | toroidal associated Legendre | `toroidal_p`, `toroidal_q` | `toroidal_p_derivative`, `toroidal_q_derivative` |
@@ -124,6 +125,22 @@ Logarithmic factorial scaling is intended for moderate degrees and avoids the
 pointwise Legendre evaluator, so products can be checked against an
 independent angular-quadrature oracle.
 
+`legendre_p_normalized_table(lmax,mmax,x,p,condon_shortley)` fills the
+caller array `p(0:lmax,0:mmax)` with fully normalized functions
+\[
+\bar P_l^m(x)=\sqrt{\tfrac{2l+1}{2}\tfrac{(l-m)!}{(l+m)!}}\,P_l^m(x),
+\qquad \int_{-1}^{1}\bar P_l^m\bar P_k^m\,dx=\delta_{lk},
+\]
+with zeros for \(l<m\). Without the optional flag the Condon-Shortley phase
+is omitted; with `condon_shortley=.true.`,
+\(Y_l^m=\bar P_l^m(\cos\theta)e^{im\phi}/\sqrt{2\pi}\) equals
+`spherical_harmonic`. The seed and degree recurrence follow Holmes and
+Featherstone (2002) on values carried with a separate binary exponent, so
+\(l_{\max}\) of several thousand neither overflows nor loses the
+underflowing diagonal seed. The tested sum-rule residual is below
+\(25\,l_{\max}\,\epsilon\) for \(l_{\max}=2000\). The routine allocates
+nothing; \(|x|>1\) yields NaN.
+
 `toroidal_p(n,m,x)` and `toroidal_q(n,m,x)` use degree \(n-\tfrac12\), not
 \(n+\tfrac12\), and return Hobson-normalized functions. They are therefore
 directly compatible with the conventional toroidal harmonics used after
@@ -160,10 +177,19 @@ generated source banners.
 
 - `gauss_legendre`
 - `gauss_legendre_ab`
+- `gauss_lobatto_legendre`
 - `gauss_gen_laguerre`
 - `gauss_legendre_jvp`
 - `gauss_legendre_vjp`
 - `gauss_legendre_grad`
+
+`gauss_lobatto_legendre(n,x,w)` returns the \(n\ge2\) point
+Gauss-Lobatto-Legendre rule on \([-1,1]\): ascending nodes including
+\(\pm1\), the zeros of \(P_{n-1}'\) inside, and weights
+\(2/(n(n-1)P_{n-1}(x_i)^2)\). It is exact through degree \(2n-3\); nodes
+are exactly antisymmetric and agree with a quad-precision reference to
+\(4\epsilon\) up to \(n=201\), and weights to \(8n\epsilon\) relative.
+The linear products of `gauss_legendre` apply to these weights.
 
 `fortnum_integrate_gk` provides one Gauss-Kronrod panel through `gk_apply` and
 a finite-interval driver through `integrate_gk`.
@@ -395,6 +421,12 @@ crossings.
 - sampled values
 - support nodes
 - evaluation point and sampled values together
+
+It also exports `barycentric_weights(n,xp,bw)`, for the second-kind
+barycentric interpolation formula (weights scaled to \(\max|bw|=1\)), and
+`lagrange_differentiation_matrix(n,xp,d)`, the nodal matrix
+\(d_{ij}=L_j'(x_i)\) with negative-row-sum diagonal. With
+`gauss_lobatto_legendre` nodes these give the spectral-element/DVR basis.
 
 `fortnum_bspline` exports:
 

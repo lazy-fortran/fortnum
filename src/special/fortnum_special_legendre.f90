@@ -8,6 +8,13 @@ module fortnum_special_legendre
     ! from DLMF 14.10.3 and 14.10.5. Derivatives are defined for -1 < x < 1.
     ! The Q seed and its recurrence follow DLMF 14.3.7 and 14.10.3; this
     ! real branch is intentionally restricted to x > 1.
+    !
+    ! legendre_p_normalized_table fills fully normalized functions
+    ! Pbar_l^m(x) for 0 <= m <= l <= lmax with int_{-1}^{1} Pbar^2 dx = 1, by
+    ! the diagonal seed and the stable upward degree recurrence of Holmes and
+    ! Featherstone, J. Geodesy 76 (2002) 279-299, eqs. 11-13, carried in a
+    ! (mantissa, binary exponent) form so that large orders neither underflow
+    ! the seed nor overflow the recurrence.
     use, intrinsic :: ieee_arithmetic, only: ieee_quiet_nan, ieee_value
     use fortnum_kinds, only: dp
     use fortnum_legendre_recurrence_kernel, only: &
@@ -19,6 +26,7 @@ module fortnum_special_legendre
     public :: legendre_p_second_derivative
     public :: legendre_q, legendre_q_derivative
     public :: legendre_q_second_derivative
+    public :: legendre_p_normalized_table
 
 contains
 
@@ -210,5 +218,82 @@ contains
             factor = factor/real(k, dp)
         end do
     end function negative_order_factor
+
+    ! Fully normalized associated Legendre table on -1 <= x <= 1:
+    !   p(l, m) = Pbar_l^m(x) = s_m sqrt((2l+1)/2 (l-m)!/(l+m)!) P_l^m(x),
+    ! for 0 <= l <= lmax, 0 <= m <= mmax, with p(l, m) = 0 for l < m.  P_l^m
+    ! is the Ferrers function without the Condon-Shortley phase, and
+    ! s_m = (-1)^m when condon_shortley is present and true, else 1.  Then
+    ! int_{-1}^{1} Pbar_l^m Pbar_k^m dx = delta_lk, and with the phase,
+    ! Y_l^m(theta, phi) = Pbar_l^m(cos theta) exp(i m phi)/sqrt(2 pi)
+    ! is the DLMF 14.30 spherical harmonic returned by spherical_harmonic.
+    ! The seed Pbar_m^m = sqrt(1/2) prod_{k=1}^{m} sqrt((2k+1)/(2k)) s^m,
+    ! s = sqrt((1-x)(1+x)), and the degree recurrence
+    !   Pbar_l^m = a_lm (x Pbar_{l-1}^m - Pbar_{l-2}^m/a_{l-1,m}),
+    !   a_lm = sqrt((4l^2 - 1)/(l^2 - m^2)),
+    ! run on scaled values with an integer binary exponent, so the table is
+    ! finite and accurate for lmax of several thousand; only true values
+    ! below the normal range are flushed.  x outside [-1, 1] yields NaN.
+    ! The routine allocates nothing.  Derivative products are not provided.
+    pure subroutine legendre_p_normalized_table(lmax, mmax, x, p, &
+                                                condon_shortley)
+        integer,  intent(in)  :: lmax, mmax
+        real(dp), intent(in)  :: x
+        real(dp), intent(out) :: p(0:lmax, 0:mmax)
+        logical,  intent(in), optional :: condon_shortley
+
+        integer,  parameter :: shift = 400
+        real(dp), parameter :: big = 2.0_dp**shift, small = 2.0_dp**(-shift)
+        real(dp) :: s, seed, a, a_prev, p_2, p_1, p_0, sign_m
+        integer  :: l, m, seed_exp, e
+        logical  :: phase
+
+        if (lmax < 0 .or. mmax < 0) error stop &
+            "fortnum_special_legendre: lmax and mmax must be >= 0"
+        if (.not. (abs(x) <= 1.0_dp)) then
+            p = ieee_value(x, ieee_quiet_nan)
+            return
+        end if
+        phase = .false.
+        if (present(condon_shortley)) phase = condon_shortley
+        p = 0.0_dp
+        s = sqrt((1.0_dp - x)*(1.0_dp + x))
+        seed = sqrt(0.5_dp)
+        seed_exp = 0
+        sign_m = 1.0_dp
+        do m = 0, min(lmax, mmax)
+            if (m > 0) then
+                seed = seed*(sqrt(real(2*m + 1, dp)/real(2*m, dp))*s)
+                if (seed == 0.0_dp) exit
+                if (seed < small) then
+                    seed = seed*big
+                    seed_exp = seed_exp - shift
+                end if
+                if (phase) sign_m = -sign_m
+            end if
+            ! Column m: scaled values p_* with true value p_* * 2**e.
+            e = seed_exp
+            p_1 = seed
+            p(m, m) = sign_m*scale(p_1, e)
+            if (m == lmax) cycle
+            a_prev = sqrt(real(2*m + 3, dp))
+            p_0 = a_prev*x*p_1
+            p(m + 1, m) = sign_m*scale(p_0, e)
+            do l = m + 2, lmax
+                a = sqrt(real(2*l - 1, dp)*real(2*l + 1, dp) &
+                         /(real(l - m, dp)*real(l + m, dp)))
+                p_2 = p_1
+                p_1 = p_0
+                p_0 = a*(x*p_1 - p_2/a_prev)
+                a_prev = a
+                if (abs(p_0) > big) then
+                    p_0 = p_0*small
+                    p_1 = p_1*small
+                    e = e + shift
+                end if
+                p(l, m) = sign_m*scale(p_0, e)
+            end do
+        end do
+    end subroutine legendre_p_normalized_table
 
 end module fortnum_special_legendre
