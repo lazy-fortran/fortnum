@@ -23,7 +23,7 @@ module fortnum_interval
 
     public :: interval_t, cinterval_t, interval, cinterval
     public :: operator(+), operator(-), operator(*), operator(/), operator(**)
-    public :: sqrt, exp, log, sin, cos, sinh, cosh, abs
+    public :: sqrt, exp, log, sin, cos, sincos, sinh, cosh, abs
     public :: sqr, interval_pi, hull, intersect, mid, rad, width, mag, mig
     public :: contains, contains_zero, subset, disjoint, entire, is_empty
     public :: real_part, imag_part, conjg, cabs_up, cabs_down
@@ -92,6 +92,10 @@ module fortnum_interval
     interface cos
         module procedure cos_i, cos_c
     end interface cos
+
+    interface sincos
+        module procedure sincos_i
+    end interface sincos
 
     interface sinh
         module procedure sinh_i
@@ -857,8 +861,7 @@ contains
     pure function trig_range(a, shift) result(r)
         type(interval_t), intent(in) :: a
         real(dp), intent(in) :: shift
-        type(interval_t) :: r, s1, c1, s2, c2, pi_iv, pj
-        integer(int64) :: j, jlo, jhi
+        type(interval_t) :: r, s1, c1, s2, c2
 
         r = interval(-1.0_dp, 1.0_dp)
         if (is_empty(a) .or. max(abs(a%lo), abs(a%hi)) > 1.0e15_dp) return
@@ -870,6 +873,39 @@ contains
         else
             r = hull(c1, c2)
         end if
+        call trig_extrema(a, shift, r)
+    end function trig_range
+
+    !> Paired ranges share both endpoint reductions and Taylor evaluations.
+    !> Each range still includes its own interior extrema. Empty, nonfinite,
+    !> very large or wide arguments conservatively return [-1,1] for both.
+    pure elemental subroutine sincos_i(a, s, c)
+        type(interval_t), intent(in) :: a
+        type(interval_t), intent(out) :: s, c
+        type(interval_t) :: s1, c1, s2, c2
+
+        s = interval(-1.0_dp, 1.0_dp)
+        c = s
+        if (is_empty(a) .or. max(abs(a%lo), abs(a%hi)) > 1.0e15_dp) return
+        if (a%hi - a%lo >= 6.5_dp) return
+        call sincos_point(a%lo, s1, c1)
+        call sincos_point(a%hi, s2, c2)
+        s = hull(s1, s2)
+        c = hull(c1, c2)
+        call trig_extrema(a, 0.5_dp, s)
+        call trig_extrema(a, 0.0_dp, c)
+    end subroutine sincos_i
+
+    ! Endpoint hulls enclose a continuous trig function unless its derivative
+    ! vanishes inside a. Add every extremum whose certified pi interval can
+    ! intersect a; uncertain membership safely widens the corresponding range.
+    pure subroutine trig_extrema(a, shift, r)
+        type(interval_t), intent(in) :: a
+        real(dp), intent(in) :: shift
+        type(interval_t), intent(inout) :: r
+        type(interval_t) :: pi_iv, pj
+        integer(int64) :: j, jlo, jhi
+
         pi_iv = interval_pi()
         jlo = floor(a%lo/pi_hi - shift, int64) - 1
         jhi = ceiling(a%hi/pi_hi - shift, int64) + 1
@@ -882,7 +918,7 @@ contains
                 r%lo = -1.0_dp
             end if
         end do
-    end function trig_range
+    end subroutine trig_extrema
 
     pure elemental function sin_i(a) result(r)
         type(interval_t), intent(in) :: a
