@@ -115,6 +115,21 @@ add_library(bench_core STATIC
 )
 target_link_libraries(bench_core PUBLIC fortnum_gpu_backend LAPACK::LAPACK)
 
+# Small independent certified-arithmetic benchmark; no production selection.
+add_library(bench_certified_core STATIC
+    ${FORTNUM_CORE_DIR}/verified/fortnum_rounding.f90
+    ${FORTNUM_CORE_DIR}/verified/fortnum_interval.f90
+    fortnum_certified_reductions.f90
+    fortnum_reduction_fixtures.f90)
+if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(bench_certified_core PRIVATE
+        -fno-fast-math -ffp-contract=off)
+endif()
+add_executable(bench_certified_reductions bench_certified_reductions.f90)
+target_link_libraries(bench_certified_reductions PRIVATE bench_certified_core)
+add_test(NAME certified_reductions_validation
+    COMMAND bench_certified_reductions validate)
+
 # RK54 offload has no BLAS/LAPACK dependency. Keep it in a small target so a
 # threaded system BLAS cannot pull libgomp into an NVHPC OpenACC executable.
 add_library(bench_rk54_core STATIC
