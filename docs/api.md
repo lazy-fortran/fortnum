@@ -462,6 +462,7 @@ assumptions, and error models.
 | `fortnum_cfft_rigorous` | `rigorous_fft_plan_t` with certified twiddles, `rigorous_fft_apply`, `rigorous_fft2_apply`, `conv_error_bound`, `conv_error_bound_2d`, `conv_nonneg`, `conv_nonneg_2d` |
 | `fortnum_fseries` | ball Fourier series with l1 tails: `fseries_t` (1D) and `fseries2d_t` (2D, sigma-weighted) with sums, direct and FFT products, derivatives, weighted inner products, and Wiener reciprocals `fs_inverse`, `fs2_inverse` |
 | `fortnum_verified_linalg` | matrix balls `mball_t`, `fro_up`, `norm1_up`, `norminf_up`, `norm2_up`, `norm2_tight_up`, `matmul_err`, `approx_inverse`, `verified_inverse`, Cholesky-certified `sym_lower_bound`, `eig_lower_bound`, `eig_upper_bound` (real symmetric and Hermitian), `interval_matmul`, `interval_matvec` |
+| `fortnum_ode_residual_certificate` | a posteriori trajectory certificate for stored ODE candidates: `hermite_cubic_enclosure`, `linear_residual_bound` (interval action callback `residual_action_if`, optional cubic forcing), `nonlinear_residual_bound` (box callback `residual_rhs_box_if`, first order), `residual_radius_step` (log-norm stability model), `certify_linear_trajectory`, `certify_nonlinear_trajectory` |
 | `fortnum_verified_quadrature` | `composite_midpoint(callback, edges, integral, ok)` and `composite_midpoint_batch` with cellwise rigorous second-derivative bounds |
 
 Verified midpoint quadrature accepts strictly increasing finite binary64 edges
@@ -479,6 +480,16 @@ the cell loop or chooses a hidden tolerance/refinement schedule. Invalid inputs,
 callback failure or nonfinite results return `ok=.false.` and an empty packet.
 The caller owns the truth of its value/derivative bounds, refinement, improper
 tails and root-bracket schedules. See [the verified design](design/verified.md).
+
+The ODE residual certificate checks an untrusted stored trace: strictly
+increasing binary64 nodes, values and slopes define an exact C1 cubic Hermite
+reconstruction. Each cell's residual `p'/h - f(p)` is bounded over the whole
+cell by interval Bernstein controls, and the Euclidean error radius is
+accumulated with the caller's bound `mu` on the logarithmic 2-norm
+(`mu <= 0`: amplification 1). Complex states use the real/imaginary split.
+Callers supply scratch; the cell loop does not allocate. Failures return a
+nonzero `fortnum_status_t` and infinite radii. See
+[the verified design](design/verified.md).
 
 The interval and ball modules also export the runtime interface that
 `fortsym`-emitted rigorous kernels call: `ipoint`, `ienclose`, `iadd`,
