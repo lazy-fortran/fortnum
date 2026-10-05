@@ -44,7 +44,8 @@ module fortnum_special
         legendre_p, &
         legendre_p_derivative, &
         legendre_q, &
-        legendre_q_derivative
+        legendre_q_derivative, &
+        legendre_p_normalized_table
     use fortnum_special_spherical, only: &
         spherical_harmonic, &
         spherical_harmonic_theta_derivative, &
@@ -99,6 +100,10 @@ module fortnum_special
     ! Real ordinary Legendre Q_l(x) on the x > 1 branch.
     ! Derivative policy: analytic_rule. Active argument: x.
     public :: legendre_q, legendre_q_derivative
+
+    ! Fully normalized Legendre table Pbar_l^m(x), 0 <= m <= l <= lmax,
+    ! optional Condon-Shortley phase; overflow-free to large lmax.
+    public :: legendre_p_normalized_table
 
     ! Standard orthonormal complex spherical harmonics on 0 <= theta <= pi.
     ! Angular derivatives are analytical products away from the poles.

@@ -44,6 +44,8 @@ module fortnum_polynomial
     public :: lagrange_nodes_vjp
     public :: lagrange_combined_jvp
     public :: lagrange_combined_vjp
+    public :: barycentric_weights
+    public :: lagrange_differentiation_matrix
 
 contains
 
@@ -290,5 +292,66 @@ contains
         xbar = u*dot_product(f, dcoef)
         fbar = u*coef
     end subroutine lagrange_combined_vjp
+
+    ! Barycentric weights bw(j) = c / prod_{k /= j} (xp(j) - xp(k)) for the
+    ! second-kind barycentric formula (Berrut & Trefethen, SIAM Rev. 46 (2004)
+    ! 501-517, eq. 4.2):
+    !   p(x) = [sum_j bw(j) f(j)/(x - xp(j))] / [sum_j bw(j)/(x - xp(j))].
+    ! The common factor c > 0 is irrelevant to that formula and to
+    ! lagrange_differentiation_matrix.  Differences are scaled by
+    ! 4/(max(xp) - min(xp)) to keep the products in range for large n
+    ! (Berrut & Trefethen, Sec. 7), and the result is normalized to
+    ! max |bw| = 1.  Nodes must be distinct.
+    pure subroutine barycentric_weights(n, xp, bw)
+        integer,  intent(in)  :: n
+        real(dp), intent(in)  :: xp(n)
+        real(dp), intent(out) :: bw(n)
+
+        integer  :: j, k
+        real(dp) :: scale
+
+        if (n < 1) error stop "fortnum_polynomial: n must be >= 1"
+        bw = 1.0_dp
+        if (n == 1) return
+        scale = 4.0_dp/(maxval(xp) - minval(xp))
+        do j = 1, n
+            do k = 1, n
+                if (k /= j) bw(j) = bw(j)*(scale*(xp(j) - xp(k)))
+            end do
+        end do
+        bw = 1.0_dp/bw
+        bw = bw/maxval(abs(bw))
+    end subroutine barycentric_weights
+
+    ! Nodal differentiation matrix d(i, j) = L_j'(xp(i)) of the Lagrange basis
+    ! on distinct nodes xp(1:n), so that (d f)(i) = p'(xp(i)) for the
+    ! interpolant p of f.  Off-diagonal entries are
+    !   d(i, j) = (bw(j)/bw(i)) / (xp(i) - xp(j)),
+    ! and the diagonal is the negative row sum, which makes constants
+    ! differentiate to zero exactly (Berrut & Trefethen 2004, eq. 9.4;
+    ! Baltensperger & Trummer, SIAM J. Sci. Comput. 24 (2003) 1465-1487).
+    ! Nodes are inactive rule parameters; d is applied linearly to nodal data.
+    pure subroutine lagrange_differentiation_matrix(n, xp, d)
+        integer,  intent(in)  :: n
+        real(dp), intent(in)  :: xp(n)
+        real(dp), intent(out) :: d(n, n)
+
+        integer  :: i, j
+        real(dp) :: bw(n)
+
+        call barycentric_weights(n, xp, bw)
+        do j = 1, n
+            do i = 1, n
+                if (i /= j) then
+                    d(i, j) = (bw(j)/bw(i))/(xp(i) - xp(j))
+                else
+                    d(i, j) = 0.0_dp
+                end if
+            end do
+        end do
+        do i = 1, n
+            d(i, i) = -sum(d(i, :))
+        end do
+    end subroutine lagrange_differentiation_matrix
 
 end module fortnum_polynomial
