@@ -420,6 +420,7 @@ add_test(NAME concurrency_rng COMMAND test_concurrency_rng)
 # --- verified computing ---
 foreach(verified_test IN ITEMS rounding interval sincos chord interval_qp ball idual
         cdual bernstein cfft_rigorous fseries taylor_series validated_ode
+        ode_residual_certificate
         verified_linalg)
     add_executable(test_fortnum_${verified_test}
         verified/test_fortnum_${verified_test}.f90)

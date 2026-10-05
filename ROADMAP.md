@@ -586,4 +586,6 @@ the exact neighbours from `nearest`.
   physics-specific glue (`wall_box`, `gc_system_t` itself) stays
   project-side work.
 - [x] Interval Bernstein evaluation, `fortnum_bernstein`.
+- [x] A posteriori cubic-Hermite residual certificate for stored ODE
+  candidates, `fortnum_ode_residual_certificate`.
 - [ ] Stieltjes/Pick bounds once the kinetic-compression algorithm settles.

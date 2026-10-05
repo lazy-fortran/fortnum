@@ -432,3 +432,60 @@ an arbitrary callback's mathematical enclosure contract. Improper tails,
 refinement and certified residual/root decisions belong to the caller; solver
 estimates alone do not establish a derivative bound. Independent polynomial,
 nonuniform-cell, binary128, cancellation and fail-closed fixtures cover this API.
+
+## A posteriori ODE residual certificate
+
+`fortnum_ode_residual_certificate` certifies a stored candidate trajectory of
+`y' = f(t, y)` without trusting the integrator that produced it and without an
+exact solution. Strictly increasing finite binary64 nodes `t_k` are exact cell
+endpoints. Values `y_k` and slopes `f_k` (normally the candidate's right-hand
+side at the nodes; any finite data are admitted) define on each cell of exact
+length `h` the cubic Hermite `p(s)`, `s in [0, 1]`, with power coefficients
+`y_k`, `h f_k`, `3(y_{k+1} - y_k) - h(2 f_k + f_{k+1})` and
+`2(y_k - y_{k+1}) + h(f_k + f_{k+1})`, enclosed in outward interval arithmetic.
+The reconstruction is C1 across nodes, so it is absolutely continuous and the
+error `e = y - p` satisfies `e' = f(y) - f(p) - r` with defect
+`r(s) = p'(s)/h - f(t_k + h s, p(s))`.
+
+For `f = A y + b(s)` with a cubic forcing `b`, `r` is a cubic vector
+polynomial. The caller encloses `A x` for interval vectors `x`; the checker
+forms the four residual power coefficient vectors, converts them exactly in
+interval arithmetic to Bernstein controls `R_j`, and returns
+`max_j ||R_j||_2` with upward rounding. Since `r(s)` is a convex combination
+of the controls, this bounds `sup_s ||r(s)||_2` over the complete closed cell.
+For a smooth solution the bound is `O(h^3)`, so the accumulated radius is
+`O(h^3)`; the test confirms the factor eight on halving `h`.
+
+For general `f`, the cell is split into `nsub` parts. On each part the
+Bernstein hulls of `p` and `p'` give boxes `X` and `D`; the caller encloses
+`f` on the time box and `X`; the bound is `max ||D/h - f(T, X)||_2`. This is
+valid but only first order, roughly `L h ||y'|| / nsub`, because box
+evaluation loses the cancellation between `p'/h` and `f(p)`. A mean-value or
+Taylor-model residual would restore higher order when a consumer needs it.
+
+The stability model is an upper bound `mu` (the upper endpoint of an
+interval) on the logarithmic 2-norm of `f_y`, i.e. a one-sided Lipschitz
+constant on a convex set containing both the exact and the reconstructed
+trajectories. The caller owns this premise; for nonlinear `f` it is typically
+closed a posteriori by checking that the certified tube stays inside the set.
+Duhamel and Gronwall give `||e(t_k + tau)|| <= exp(mu tau) e_k + R phi(tau)`
+with `phi(tau) = (exp(mu tau) - 1)/mu`. For `mu <= 0` (unitary, skew-adjoint
+or contractive generators) the checker uses amplification one,
+`e_{k+1} = e_k + h R_k`, without exploiting contraction. For `mu > 0` it uses
+the rigorous `exp` upper bound and `phi(h) <= h min(exp(z), (exp(z) - 1)/z)`,
+`z = mu h`. Both bounds are nondecreasing in `tau`, so `e_{k+1}` covers the
+whole closed cell, not only its right endpoint. The initial radius is the
+caller's bound on the initial-data mismatch.
+
+Complex systems use the real/imaginary split of length `2n`, whose Euclidean
+norm is the Hilbert norm. The per-cell routines and drivers use caller
+scratch, keep no module state and do not allocate. Corrupted finite data yield
+a large radius rather than a false small one. Nonfinite data, nonincreasing
+nodes, invalid stability or initial radius, callback failure and nonfinite
+bounds return `FORTNUM_DOMAIN_ERROR` with infinite radii. The test oracles are
+binary128 matrix exponentials (a complex Hermitian generator and a non-normal
+dissipative matrix with `mu > 0`), the closed-form harmonic oscillator and
+logistic solutions, evaluated at nodes and interior points of every cell,
+plus refinement-order, corruption and fail-closed checks. The cost per cell is
+four caller actions plus `O(n)` interval work; a dense interval action makes
+it `O(n^2)`.
