@@ -1,0 +1,163 @@
+{
+  "samples": 15,
+  "cells": 128,
+  "components": 8,
+  "repeats": 20,
+  "scalar_median_seconds": 0.0047300288,
+  "batch_median_seconds": 0.0009457135,
+  "scalar_min_max": [
+    0.00467095045,
+    0.00479930485
+  ],
+  "batch_min_max": [
+    0.0009245441,
+    0.00098578955
+  ],
+  "median_speedup": 5.001545182552644,
+  "benchmark_process_rss_kib": 5156,
+  "workload": "k*exp(x),k=1..8,exact stored edges on[0,1]",
+  "certified_relative_radius_limit": 0.01,
+  "oracle": "independent binary128 k*(exp(1)-1), validation outside timing",
+  "compiler": "GNU Fortran16.2.1",
+  "hardware": "AMD Ryzen9 5950X",
+  "flags": "-O3 -funroll-loops -fno-fast-math -ffp-contract=off",
+  "timing": "system_clock, three warmups; complete callback+enclosure evaluation, setup excluded",
+  "memory_scope": "complete benchmark process RSS; batch local scratch3*components intervals, no cell-loop allocations",
+  "raw_samples": [
+    {
+      "sample": "1",
+      "cells": "128",
+      "components": "8",
+      "repeats": "20",
+      "scalar_seconds": "  4.6709504500000000E-03",
+      "batch_seconds": "  9.4571350000000000E-04",
+      "checksum": "  2.4743195404562340E+02"
+    },
+    {
+      "sample": "2",
+      "cells": "128",
+      "components": "8",
+      "repeats": "20",
+      "scalar_seconds": "  4.7436549500000005E-03",
+      "batch_seconds": "  9.2984409999999991E-04",
+      "checksum": "  4.9486390809124680E+02"
+    },
+    {
+      "sample": "3",
+      "cells": "128",
+      "components": "8",
+      "repeats": "20",
+      "scalar_seconds": "  4.7300798500000000E-03",
+      "batch_seconds": "  9.4817665000000001E-04",
+      "checksum": "  7.4229586213687014E+02"
+    },
+    {
+      "sample": "4",
+      "cells": "128",
+      "components": "8",
+      "repeats": "20",
+      "scalar_seconds": "  4.7231918999999997E-03",
+      "batch_seconds": "  9.2901205000000002E-04",
+      "checksum": "  9.8972781618249348E+02"
+    },
+    {
+      "sample": "5",
+      "cells": "128",
+      "components": "8",
+      "repeats": "20",
+      "scalar_seconds": "  4.7401674000000001E-03",
+      "batch_seconds": "  9.5236755000000005E-04",
+      "checksum": "  1.2371597702281172E+03"
+    },
+    {
+      "sample": "6",
+      "cells": "128",
+      "components": "8",
+      "repeats": "20",
+      "scalar_seconds": "  4.7187835499999994E-03",
+      "batch_seconds": "  9.2686695000000004E-04",
+      "checksum": "  1.4845917242737407E+03"
+    },
+    {
+      "sample": "7",
+      "cells": "128",
+      "components": "8",
+      "repeats": "20",
+      "scalar_seconds": "  4.7026877500000001E-03",
+      "batch_seconds": "  9.5002614999999992E-04",
+      "checksum": "  1.7320236783193643E+03"
+    },
+    {
+      "sample": "8",
+      "cells": "128",
+      "components": "8",
+      "repeats": "20",
+      "scalar_seconds": "  4.7133398499999996E-03",
+      "batch_seconds": "  9.2454410000000005E-04",
+      "checksum": "  1.9794556323649879E+03"
+    },
+    {
+      "sample": "9",
+      "cells": "128",
+      "components": "8",
+      "repeats": "20",
+      "scalar_seconds": "  4.7294332000000000E-03",
+      "batch_seconds": "  9.5314049999999995E-04",
+      "checksum": "  2.2268875864106112E+03"
+    },
+    {
+      "sample": "10",
+      "cells": "128",
+      "components": "8",
+      "repeats": "20",
+      "scalar_seconds": "  4.6941095500000005E-03",
+      "batch_seconds": "  9.2822705000000002E-04",
+      "checksum": "  2.4743195404562348E+03"
+    },
+    {
+      "sample": "11",
+      "cells": "128",
+      "components": "8",
+      "repeats": "20",
+      "scalar_seconds": "  4.7734311000000003E-03",
+      "batch_seconds": "  9.7959789999999989E-04",
+      "checksum": "  2.7217514945018584E+03"
+    },
+    {
+      "sample": "12",
+      "cells": "128",
+      "components": "8",
+      "repeats": "20",
+      "scalar_seconds": "  4.7993048500000000E-03",
+      "batch_seconds": "  9.4086884999999994E-04",
+      "checksum": "  2.9691834485474819E+03"
+    },
+    {
+      "sample": "13",
+      "cells": "128",
+      "components": "8",
+      "repeats": "20",
+      "scalar_seconds": "  4.7891376999999995E-03",
+      "batch_seconds": "  9.8578954999999991E-04",
+      "checksum": "  3.2166154025931055E+03"
+    },
+    {
+      "sample": "14",
+      "cells": "128",
+      "components": "8",
+      "repeats": "20",
+      "scalar_seconds": "  4.7300288000000001E-03",
+      "batch_seconds": "  9.3649560000000007E-04",
+      "checksum": "  3.4640473566387291E+03"
+    },
+    {
+      "sample": "15",
+      "cells": "128",
+      "components": "8",
+      "repeats": "20",
+      "scalar_seconds": "  4.7870743000000002E-03",
+      "batch_seconds": "  9.6074235000000001E-04",
+      "checksum": "  3.7114793106843526E+03"
+    }
+  ]
+}

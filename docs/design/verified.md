@@ -406,3 +406,29 @@ than the old bounds plus the documented rounding fixes).
    Guard: `test_enclosure_slow`, `test_taylor_time_slow`.
 4. Bernstein core of `cheb_field` -> `fortnum_bernstein`; Boozer parts ->
    `libneo`. Guard: `test_bern`, `test_boozer`.
+
+## Cellwise verified midpoint quadrature
+
+`fortnum_verified_quadrature` integrates a scalar callback over exact stored,
+strictly increasing finite binary64 cell endpoints. The callback must enclose
+its integrand at the mathematical midpoint and return a nonnegative bound `M2`
+on `abs(f'')` throughout the cell. An absolutely continuous first derivative
+with essentially bounded second derivative suffices; derivative jumps must be
+separated by the caller's cell endpoints. Parameter uncertainty may remain in
+the callback's value and derivative packets.
+
+For a cell of width `h`, Taylor's integral remainder about its midpoint bounds
+`abs(f(x)-f(mid)-f'(mid)*(x-mid)) <= M2*(x-mid)^2/2`. The linear term integrates
+to zero, giving `abs(integral(f)-h*f(mid)) <= M2*h^3/24`. Summing this enclosure
+cellwise is valid for nonuniform partitions and uses local curvature rather
+than a global maximum. The retained FortSym generator emits midpoint geometry
+and the outward accumulated lower/upper expressions. Geometry, callback value,
+weight multiplication, remainder and accumulation rounding are included.
+
+The execution loop does not allocate or select an adaptive tolerance. It rejects
+invalid or nonfinite inputs, callback failures, negative curvature bounds and
+nonfinite arithmetic with an empty result and false status. It cannot verify
+an arbitrary callback's mathematical enclosure contract. Improper tails,
+refinement and certified residual/root decisions belong to the caller; solver
+estimates alone do not establish a derivative bound. Independent polynomial,
+nonuniform-cell, binary128, cancellation and fail-closed fixtures cover this API.

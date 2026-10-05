@@ -13,10 +13,12 @@ cp "${source_root}/README.md" "${source_root}/CONTRIBUTING.md" \
 cp -a "${source_root}/docs" "${source_root}/src" "${source_root}/scripts" \
     "${source_root}/.github" "${source_root}/include" "${base}/"
 cp "${source_root}/benchmark/README.md" "${base}/benchmark/"
+cp "${source_root}/benchmark/certified_reductions.md" "${base}/benchmark/"
 cp -a "${source_root}/benchmark/reference" "${base}/benchmark/"
 cp -a "${source_root}/benchmark/report/data" "${base}/benchmark/report/"
 cp "${source_root}/tools/codegen/fortsym.lock" "${base}/tools/codegen/"
 cp "${source_root}/tools/codegen/fortsym-rk54.lock" "${base}/tools/codegen/"
+cp "${source_root}/tools/codegen/fortsym-verified-midpoint.lock" "${base}/tools/codegen/"
 cp "${source_root}/tools/codegen/app/gen_enzyme_scalar_wrappers.f90" \
     "${base}/tools/codegen/app/"
 

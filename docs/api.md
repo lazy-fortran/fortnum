@@ -462,6 +462,23 @@ assumptions, and error models.
 | `fortnum_cfft_rigorous` | `rigorous_fft_plan_t` with certified twiddles, `rigorous_fft_apply`, `rigorous_fft2_apply`, `conv_error_bound`, `conv_error_bound_2d`, `conv_nonneg`, `conv_nonneg_2d` |
 | `fortnum_fseries` | ball Fourier series with l1 tails: `fseries_t` (1D) and `fseries2d_t` (2D, sigma-weighted) with sums, direct and FFT products, derivatives, weighted inner products, and Wiener reciprocals `fs_inverse`, `fs2_inverse` |
 | `fortnum_verified_linalg` | matrix balls `mball_t`, `fro_up`, `norm1_up`, `norminf_up`, `norm2_up`, `norm2_tight_up`, `matmul_err`, `approx_inverse`, `verified_inverse`, Cholesky-certified `sym_lower_bound`, `eig_lower_bound`, `eig_upper_bound` (real symmetric and Hermitian), `interval_matmul`, `interval_matvec` |
+| `fortnum_verified_quadrature` | `composite_midpoint(callback, edges, integral, ok)` and `composite_midpoint_batch` with cellwise rigorous second-derivative bounds |
+
+Verified midpoint quadrature accepts strictly increasing finite binary64 edges
+as exact real endpoints. The callback receives the whole cell and an outward
+enclosure of its mathematical midpoint, then returns an interval integrand value,
+a nonnegative interval bounding the magnitude of its second derivative throughout
+that cell, and success status. Each cell must have an absolutely continuous first
+derivative and an essentially bounded second derivative; place nonsmooth knots
+among the edges. The integral packet includes midpoint remainders and evaluation,
+geometry, weighting and accumulation rounding. Nonuniform cells are supported.
+The batch companion accepts an output interval array and a callback returning
+matching value/curvature arrays, sharing integrand work across components.
+Its scratch arrays exist once per call; neither interface allocates within
+the cell loop or chooses a hidden tolerance/refinement schedule. Invalid inputs,
+callback failure or nonfinite results return `ok=.false.` and an empty packet.
+The caller owns the truth of its value/derivative bounds, refinement, improper
+tails and root-bracket schedules. See [the verified design](design/verified.md).
 
 The interval and ball modules also export the runtime interface that
 `fortsym`-emitted rigorous kernels call: `ipoint`, `ienclose`, `iadd`,

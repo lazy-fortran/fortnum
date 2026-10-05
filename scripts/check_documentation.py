@@ -247,10 +247,21 @@ def check_generated_revision(root: Path) -> list[str]:
                 "Generator: gen_rk54_cpu_tableau",
             )
         )
-        path_revision = rk54_revision if rk54_generator else revision
+        midpoint_generator = "Generator: gen_verified_midpoint" in text
+        if midpoint_generator:
+            midpoint_lock = root / "tools/codegen/fortsym-verified-midpoint.lock"
+            path_revision = midpoint_lock.read_text(encoding="utf-8").strip()
+            if re.fullmatch(r"[0-9a-f]{40}", path_revision) is None:
+                errors.append("fortsym-verified-midpoint.lock is not one full SHA")
+                continue
+        else:
+            path_revision = rk54_revision if rk54_generator else revision
         expected = f"Generator revision: fortsym@{path_revision}"
         if expected not in text:
-            lock_name = "fortsym-rk54.lock" if rk54_generator else "fortsym.lock"
+            if midpoint_generator:
+                lock_name = "fortsym-verified-midpoint.lock"
+            else:
+                lock_name = "fortsym-rk54.lock" if rk54_generator else "fortsym.lock"
             errors.append(
                 f"{path.relative_to(root)} does not match tools/codegen/{lock_name}"
             )
