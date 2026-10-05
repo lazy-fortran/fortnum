@@ -134,6 +134,7 @@ target_sources(fortnum PRIVATE
     interp/fortnum_polynomial.f90
     linalg/fortnum_cholesky.f90
     linalg/fortnum_krylov.f90
+    linalg/fortnum_symmetric_eigen.f90
     linalg/fortnum_linalg.f90
     linalg/fortnum_tensor_product.f90
     linalg/fortnum_toeplitz.f90

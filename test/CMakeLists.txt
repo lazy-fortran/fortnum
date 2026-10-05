@@ -325,6 +325,10 @@ add_executable(test_fortnum_krylov linalg/test_fortnum_krylov.f90)
 target_link_libraries(test_fortnum_krylov PRIVATE fortnum)
 add_test(NAME fortnum_krylov COMMAND test_fortnum_krylov)
 
+add_executable(test_fortnum_symmetric_eigen linalg/test_fortnum_symmetric_eigen.f90)
+target_link_libraries(test_fortnum_symmetric_eigen PRIVATE fortnum)
+add_test(NAME fortnum_symmetric_eigen COMMAND test_fortnum_symmetric_eigen)
+
 add_executable(test_fortnum_tensor_product linalg/test_fortnum_tensor_product.f90)
 target_link_libraries(test_fortnum_tensor_product PRIVATE fortnum)
 add_test(NAME fortnum_tensor_product COMMAND test_fortnum_tensor_product)

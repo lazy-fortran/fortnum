@@ -82,7 +82,7 @@ The main public modules are:
 | ODEs | `fortnum_ode` and method modules |
 | roots | `fortnum_roots`, `fortnum_multiroot`, `fortnum_roots_complex` |
 | interpolation | `fortnum_interp`, `fortnum_polynomial`, `fortnum_bspline`, `fortnum_bspline_lsq` |
-| linear algebra | `fortnum_linalg`, `fortnum_cholesky`, `fortnum_krylov`, `fortnum_tensor_product`, `fortnum_toeplitz` |
+| linear algebra | `fortnum_linalg`, `fortnum_cholesky`, `fortnum_krylov`, `fortnum_symmetric_eigen`, `fortnum_tensor_product`, `fortnum_toeplitz` |
 | random numbers | `fortnum_rng` |
 | verified computing | `fortnum_rounding`, `fortnum_interval`, `fortnum_interval_qp`, `fortnum_ball`, `fortnum_idual`, `fortnum_cfft_rigorous`, `fortnum_fseries`, `fortnum_verified_linalg` |
 
