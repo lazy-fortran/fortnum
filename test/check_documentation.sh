@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Portable in-place edit (GNU and BSD sed).
+sed_inplace() { local file="${@: -1}"; sed -i.bak "$@" && rm -f "$file.bak"; }
+
 source_root=${1:?repository root is required}
 temp_dir=$(mktemp -d)
 trap 'rm -rf "${temp_dir}"' EXIT
@@ -58,23 +61,23 @@ expect_failure "a stale future-tense claim" "${case_root}"
 
 case_root="${temp_dir}/api-module"
 cp -a "${base}" "${case_root}"
-sed -i 's/`fortnum_fft`/`transform_module`/g' "${case_root}/docs/api.md"
+sed_inplace 's/`fortnum_fft`/`transform_module`/g' "${case_root}/docs/api.md"
 expect_failure "an undocumented production module" "${case_root}"
 
 case_root="${temp_dir}/report-count"
 cp -a "${base}" "${case_root}"
-sed -i 's/contains [0-9][0-9]* derivative/contains 0 derivative/' \
+sed_inplace 's/contains [0-9][0-9]* derivative/contains 0 derivative/' \
     "${case_root}/docs/design/differentiation_report.md"
 expect_failure "stale aggregate benchmark statistics" "${case_root}"
 
 case_root="${temp_dir}/generator-lock"
 cp -a "${base}" "${case_root}"
-sed -i 's/Generator revision: fortsym@[0-9a-f]*/Generator revision: fortsym@0000000000000000000000000000000000000000/' \
+sed_inplace 's/Generator revision: fortsym@[0-9a-f]*/Generator revision: fortsym@0000000000000000000000000000000000000000/' \
     "${case_root}/src/generated/fortnum_dawson_outer_kernel.f90"
 expect_failure "a generated revision mismatch" "${case_root}"
 
 case_root="${temp_dir}/docs-map"
 cp -a "${base}" "${case_root}"
-sed -i '/performance_optimal_differentiation/d' \
+sed_inplace '/performance_optimal_differentiation/d' \
     "${case_root}/docs/README.md"
 expect_failure "an unindexed maintained document" "${case_root}"

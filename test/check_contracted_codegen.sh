@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Portable in-place edit (GNU and BSD sed).
+sed_inplace() { local file="${@: -1}"; sed -i.bak "$@" && rm -f "$file.bak"; }
+
 source_root=${1:?repository root is required}
 checker="${source_root}/scripts/check_contracted_codegen.py"
 python3 "${checker}" "${source_root}"
@@ -22,17 +25,17 @@ if python3 "${temp_dir}/scripts/check_contracted_codegen.py" \
     echo "contracted-codegen checker accepted Jacobian materialization" >&2
     exit 1
 fi
-sed -i '$d' "${temp_dir}/tools/codegen/app/gen_erf_products.f90"
-sed -i 's/Generator: gen_erf_products/Generator: absent_generator/' \
+sed_inplace '$d' "${temp_dir}/tools/codegen/app/gen_erf_products.f90"
+sed_inplace 's/Generator: gen_erf_products/Generator: absent_generator/' \
     "${temp_dir}/src/generated/fortnum_erf_jvp_kernel.f90"
 if python3 "${temp_dir}/scripts/check_contracted_codegen.py" \
         "${temp_dir}" >/dev/null 2>&1; then
     echo "contracted-codegen checker accepted an absent generator" >&2
     exit 1
 fi
-sed -i 's/Generator: absent_generator/Generator: gen_erf_products/' \
+sed_inplace 's/Generator: absent_generator/Generator: gen_erf_products/' \
     "${temp_dir}/src/generated/fortnum_erf_jvp_kernel.f90"
-sed -i 's/vjp(/not_vjp(/g' \
+sed_inplace 's/vjp(/not_vjp(/g' \
     "${temp_dir}/tools/codegen/app/gen_erf_products.f90"
 if python3 "${temp_dir}/scripts/check_contracted_codegen.py" \
         "${temp_dir}" >/dev/null 2>&1; then
