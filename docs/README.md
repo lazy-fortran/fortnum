@@ -23,6 +23,7 @@ measured evidence.
 | [Array temporaries](design/array_temporaries.md) | Compiler-warning baseline and drift check |
 | [Downstream active kernels](design/downstream_ad.md) | Packing and composing downstream differentiable kernels |
 | [Enzyme toolchain](design/enzyme_toolchain.md) | Enzyme as a correctness oracle for testing, not a user backend |
+| [Error-control primitives](design/error-control-primitives.md) | Point-matrix actions on interval data with aggregate rounding bounds; sampled norm upper bounds with a declared probability law |
 | [CPU/GPU contract](design/gpu.md) | Device leaves, supported mechanisms, and offload gates |
 | [Adaptive integration](design/integrate.md) | Integration state, status, traces, and derivative semantics |
 | [ODE](design/ode.md) | Solver state, events, traces, and sensitivity semantics |
