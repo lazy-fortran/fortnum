@@ -126,6 +126,12 @@ add_executable(test_fortnum_special_legendre special/test_fortnum_special_legend
 target_link_libraries(test_fortnum_special_legendre PRIVATE fortnum)
 add_test(NAME fortnum_special_legendre COMMAND test_fortnum_special_legendre)
 
+add_executable(test_fortnum_special_legendre_q_large_degree
+    special/test_fortnum_special_legendre_q_large_degree.f90)
+target_link_libraries(test_fortnum_special_legendre_q_large_degree PRIVATE fortnum)
+add_test(NAME fortnum_special_legendre_q_large_degree
+    COMMAND test_fortnum_special_legendre_q_large_degree)
+
 add_executable(test_fortnum_special_legendre_normalized
     special/test_fortnum_special_legendre_normalized.f90)
 target_link_libraries(test_fortnum_special_legendre_normalized PRIVATE fortnum)

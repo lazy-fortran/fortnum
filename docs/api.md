@@ -101,9 +101,13 @@ Q_0(x)=\tfrac12\log\frac{x+1}{x-1},\qquad
 (l+1)Q_{l+1}(x)=(2l+1)xQ_l(x)-lQ_{l-1}(x).
 \]
 `legendre_q_derivative` uses the corresponding DLMF derivative recurrence.
-Invalid degrees or \(x\le1\) return NaN. The present upward recurrence is
-intended for moderate degrees; a uniform large-degree continuation remains a
-separate roadmap item.
+Invalid degrees or \(x\le1\) return NaN. Because \(Q_l\) is the minimal
+solution of the recurrence on \(x>1\), degrees with
+\((l+1)\operatorname{arccosh}x>1\) use the backward ratio continued fraction
+anchored at \(Q_0\); smaller degrees use the upward recurrence, whose
+amplification is modest there. Close to the cut both directions are nearly
+neutral and rounding grows like \(l^{3/2}\varepsilon\) (about \(3\times
+10^{-12}\) relative at \(l=2000\)).
 
 `spherical_harmonic(l,m,theta,phi)` uses the Condon-Shortley phase and the
 orthonormal convention of DLMF 14.30. The azimuth is periodic; the polar
