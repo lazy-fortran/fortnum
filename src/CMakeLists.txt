@@ -185,9 +185,11 @@ target_sources(fortnum PRIVATE
     verified/fortnum_interval_qp.f90
     verified/fortnum_ode_residual_certificate.f90
     verified/fortnum_rounding.f90
+    verified/fortnum_sampled_norm.f90
     verified/fortnum_taylor_series.f90
     verified/fortnum_validated_ode.f90
     verified/fortnum_verified_linalg.f90
+    verified/fortnum_verified_matvec.f90
     verified/fortnum_verified_quadrature.f90
 )
 

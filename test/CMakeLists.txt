@@ -490,3 +490,9 @@ add_test(
     COMMAND ${CMAKE_COMMAND}
         -DFORTNUM_SOURCE_DIR=${CMAKE_SOURCE_DIR}
         -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/test_benchmark_selection.cmake)
+
+foreach(fixture verified_matvec sampled_norm)
+    add_executable(test_${fixture} test_${fixture}.f90)
+    target_link_libraries(test_${fixture} PRIVATE fortnum)
+    add_test(NAME ${fixture} COMMAND test_${fixture})
+endforeach()
