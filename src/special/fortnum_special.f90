@@ -22,10 +22,16 @@ module fortnum_special
         dawson, &
         dawson_jvp, &
         dawson_grad
+    use fortnum_special_faddeeva, only: &
+        faddeeva_w, &
+        plasma_dispersion_z, &
+        plasma_dispersion_z_derivative
     use fortnum_special_gamma, only: &
         gamma_lower, &
         gamma_reg_p, &
-        gamma_lower_jvp
+        gamma_lower_jvp, &
+        digamma_complex, &
+        trigamma_complex
     use fortnum_special_hypergeometric_1f1, only: &
         hyperg_1f1, &
         hyperg_1f1_a1, &
@@ -46,6 +52,8 @@ module fortnum_special
         legendre_q, &
         legendre_q_derivative, &
         legendre_p_normalized_table
+    use fortnum_special_riccati_bessel, only: &
+        riccati_bessel
     use fortnum_special_spherical, only: &
         spherical_harmonic, &
         spherical_harmonic_theta_derivative, &
@@ -72,6 +80,9 @@ module fortnum_special
     public :: dawson
     public :: dawson_jvp, dawson_grad
 
+    ! Faddeeva w(z) and plasma dispersion Z(zeta), with Z' (analytical).
+    public :: faddeeva_w, plasma_dispersion_z, plasma_dispersion_z_derivative
+
     ! Incomplete gamma functions
     ! Derivative policy: analytic_rule.
     ! Active arguments: a (shape), x (integration limit).
@@ -80,6 +91,8 @@ module fortnum_special
     public :: gamma_lower, gamma_reg_p
     ! d/dx only; d/da deferred (requires digamma, see gamma_lower module header).
     public :: gamma_lower_jvp
+    ! Complex digamma and its analytical derivative, trigamma.
+    public :: digamma_complex, trigamma_complex
 
     ! Confluent hypergeometric 1F1(a;b;z) (Kummer M), complex a, b, z.
     ! Derivative policy: analytic_rule; d/dz M = (a/b) M(a+1,b+1,z).
@@ -104,6 +117,9 @@ module fortnum_special
     ! Fully normalized Legendre table Pbar_l^m(x), 0 <= m <= l <= lmax,
     ! optional Condon-Shortley phase; overflow-free to large lmax.
     public :: legendre_p_normalized_table
+
+    ! Riccati-Bessel x j_l(x), x y_l(x) tables for real x > 0.
+    public :: riccati_bessel
 
     ! Standard orthonormal complex spherical harmonics on 0 <= theta <= pi.
     ! Angular derivatives are analytical products away from the poles.
