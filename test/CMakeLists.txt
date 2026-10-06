@@ -132,6 +132,24 @@ target_link_libraries(test_fortnum_special_legendre_q_large_degree PRIVATE fortn
 add_test(NAME fortnum_special_legendre_q_large_degree
     COMMAND test_fortnum_special_legendre_q_large_degree)
 
+add_executable(test_fortnum_special_digamma_complex
+    special/test_fortnum_special_digamma_complex.f90)
+target_link_libraries(test_fortnum_special_digamma_complex PRIVATE fortnum)
+add_test(NAME fortnum_special_digamma_complex
+    COMMAND test_fortnum_special_digamma_complex)
+
+add_executable(test_fortnum_special_faddeeva
+    special/test_fortnum_special_faddeeva.f90)
+target_link_libraries(test_fortnum_special_faddeeva PRIVATE fortnum)
+add_test(NAME fortnum_special_faddeeva
+    COMMAND test_fortnum_special_faddeeva)
+
+add_executable(test_fortnum_special_riccati_bessel
+    special/test_fortnum_special_riccati_bessel.f90)
+target_link_libraries(test_fortnum_special_riccati_bessel PRIVATE fortnum)
+add_test(NAME fortnum_special_riccati_bessel
+    COMMAND test_fortnum_special_riccati_bessel)
+
 add_executable(test_fortnum_special_legendre_normalized
     special/test_fortnum_special_legendre_normalized.f90)
 target_link_libraries(test_fortnum_special_legendre_normalized PRIVATE fortnum)

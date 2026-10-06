@@ -166,9 +166,11 @@ target_sources(fortnum PRIVATE
     special/fortnum_special_complex_bessel.f90
     special/fortnum_special_dawson.f90
     special/fortnum_special_erf_cbind.f90
+    special/fortnum_special_faddeeva.f90
     special/fortnum_special_gamma.f90
     special/fortnum_special_hypergeometric_1f1.f90
     special/fortnum_special_legendre.f90
+    special/fortnum_special_riccati_bessel.f90
     special/fortnum_special_jacobi.f90
     special/fortnum_special_spherical.f90
     special/fortnum_special_toroidal.f90

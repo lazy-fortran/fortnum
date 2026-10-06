@@ -43,12 +43,15 @@ contract. They do not use mutable global error state.
 | --- | --- | --- |
 | modified Bessel | `bessel_in`, `bessel_in_array`, `bessel_kn` | `bessel_in_jvp`, `bessel_kn_jvp` |
 | Dawson | `dawson` | `dawson_jvp`, `dawson_grad` |
+| Faddeeva and plasma dispersion | `faddeeva_w`, `plasma_dispersion_z` | `plasma_dispersion_z_derivative` |
 | incomplete gamma | `gamma_lower`, `gamma_reg_p` | `gamma_lower_jvp` |
+| complex digamma | `digamma_complex` | `trigamma_complex` |
 | confluent hypergeometric | `hyperg_1f1`, `hyperg_1f1_a1` | `hyperg_1f1_a1_jvp`, `hyperg_1f1_a1_vjp` |
 | Jacobi/simplex polynomials | `jacobi_p`, `scaled_jacobi_p`, `triangle_dubiner`, `tetrahedron_koornwinder` | `jacobi_p_derivative` |
 | Ferrers associated Legendre | `legendre_p` | `legendre_p_derivative` |
 | normalized Legendre table | `legendre_p_normalized_table` | none |
 | ordinary Legendre second kind | `legendre_q` | `legendre_q_derivative` |
+| Riccati-Bessel tables | `riccati_bessel` | none |
 | complex spherical harmonics | `spherical_harmonic` | angular derivatives, `spherical_harmonic_product_coefficient` |
 | toroidal associated Legendre | `toroidal_p`, `toroidal_q` | `toroidal_p_derivative`, `toroidal_q_derivative` |
 
@@ -58,7 +61,11 @@ Domain modules expose additional products:
 - `fortnum_special_complex_bessel`: complex `J`, `I`, and `K`, including
   scaled variants and JVPs
 - `fortnum_special_dawson`: primal, generated outer product, JVP, and gradient
-- `fortnum_special_gamma`: argument and parameter JVPs plus gradients
+- `fortnum_special_faddeeva`: \(w(z)=e^{-z^2}\operatorname{erfc}(-iz)\) and
+  the Fried-Conte \(Z(\zeta)=i\sqrt\pi\,w(\zeta)\) on the whole complex
+  plane, with \(Z'=-2(1+\zeta Z)\)
+- `fortnum_special_gamma`: argument and parameter JVPs plus gradients, and
+  complex \(\psi(z)\), \(\psi'(z)\)
 - `fortnum_special_hypergeometric_1f1`: `1F1`, specialized `a=1`, and
   `1F1M`
 - `fortnum_special_jacobi`: Jacobi \(P_n^{(\alpha,\beta)}(x)\), its
@@ -67,6 +74,8 @@ Domain modules expose additional products:
 - `fortnum_special_legendre`: Ferrers \(P_\ell^m(x)\) for integer degree and
   order on \([-1,1]\), with the Condon-Shortley phase, and real ordinary
   \(Q_\ell(x)\) on the \(x>1\) branch
+- `fortnum_special_riccati_bessel`: \(\hat j_l(x)=xj_l(x)\) and
+  \(\hat y_l(x)=xy_l(x)\) for \(0\le l\le l_{\max}\), real \(x>0\)
 - `fortnum_special_spherical`: standard orthonormal complex \(Y_\ell^m\) on
   \(0\le\theta\le\pi\), with analytical theta and phi derivatives
 - `fortnum_special_toroidal`: Hobson \(P_{n-1/2}^m(x)\) and
@@ -174,6 +183,29 @@ continued-fraction and uniform-asymptotic literature is
 The recurrence coefficients and series-term update are emitted by fortsym;
 the exact generator revisions and regeneration commands are recorded in the
 generated source banners.
+
+### Plasma dispersion, digamma and Riccati-Bessel conventions
+
+`faddeeva_w(z)` and `plasma_dispersion_z(zeta)` are elemental and entire.
+\(Z(\zeta)=\pi^{-1/2}\int e^{-t^2}/(t-\zeta)\,dt\) for \(\operatorname{Im}\zeta>0\),
+so the same call is the Landau continuation for \(\operatorname{Im}\zeta\le0\);
+\(Z(0)=i\sqrt\pi\). The algorithm is Gautschi's, with the Poppe-Wijers
+(TOMS 680) regions, at about \(10^{-14}\) relative accuracy. In the lower half
+plane \(2e^{-z^2}\) overflows to IEEE infinity once
+\(\operatorname{Im}(z)^2-\operatorname{Re}(z)^2\gtrsim709\).
+
+`digamma_complex(z)` and `trigamma_complex(z)` are elemental on the whole
+plane: reflection for \(\operatorname{Re}z<1/2\), upward shift to \(|z|\ge16\)
+and the Bernoulli series through \(B_{14}\). Poles \(z=0,-1,\dots\) return
+\(+\infty\). \(\operatorname{Re}\psi(1+i\eta)\) is
+`real(digamma_complex(cmplx(1, eta, dp)))`.
+
+`call riccati_bessel(lmax, x, jhat, yhat)` fills `jhat(0:lmax)` and
+`yhat(0:lmax)` without allocation, with \(\hat j_0=\sin x\) and
+\(\hat y_0=-\cos x\). `yhat` uses the stable upward recurrence; for
+\(l_{\max}>x\), `jhat` uses Miller's backward recurrence normalized by the
+Wronskian \(\hat j_1\hat y_0-\hat j_0\hat y_1=1\). Invalid arguments fill both
+arrays with NaN.
 
 ## Quadrature and integration
 
