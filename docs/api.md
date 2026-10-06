@@ -541,6 +541,8 @@ assumptions, and error models.
 | `fortnum_fseries` | ball Fourier series with l1 tails: `fseries_t` (1D) and `fseries2d_t` (2D, sigma-weighted) with sums, direct and FFT products, derivatives, weighted inner products, and Wiener reciprocals `fs_inverse`, `fs2_inverse` |
 | `fortnum_verified_linalg` | matrix balls `mball_t`, `fro_up`, `norm1_up`, `norminf_up`, `norm2_up`, `norm2_tight_up`, `matmul_err`, `approx_inverse`, `verified_inverse`, Cholesky-certified `sym_lower_bound`, `eig_lower_bound`, `eig_upper_bound` (real symmetric and Hermitian), `interval_matmul`, `interval_matvec` |
 | `fortnum_ode_residual_certificate` | a posteriori trajectory certificate for stored ODE candidates: `hermite_cubic_enclosure`, `linear_residual_bound` (interval action callback `residual_action_if`, optional cubic forcing), `nonlinear_residual_bound` (box callback `residual_rhs_box_if`, first order), `residual_radius_step` (log-norm stability model), `certify_linear_trajectory`, `certify_nonlinear_trajectory` |
+| `fortnum_verified_matvec` | immutable binary64 matrix acting on interval vectors with a proved aggregate rounding bound: `matvec_bound_t`, `prepare_matvec_bound`, `enclose_matvec`, `matvec_row_bound` |
+| `fortnum_sampled_norm` | sampled vector-norm upper bound valid with a declared probability law: `sampled_norm_upper` |
 | `fortnum_verified_quadrature` | `composite_midpoint(callback, edges, integral, ok)` and `composite_midpoint_batch` with cellwise rigorous second-derivative bounds |
 
 Verified midpoint quadrature accepts strictly increasing finite binary64 edges
