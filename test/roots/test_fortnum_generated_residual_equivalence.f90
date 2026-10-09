@@ -238,15 +238,15 @@ contains
         fd = (vector_residual(i, xp) - vector_residual(i, xm))/(2.0_dp*h)
     end function vector_residual_fd
 
-    !> Compare generated value against both the analytic and finite-difference
-    !> oracles; fail only if it differs from BOTH by more than the tolerance.
+    !> The generated value must match the analytic derivative; the
+    !> finite-difference value is reported to diagnose a wrong analytic oracle.
     subroutine check_abs(label, got, analytic, fd, nfail)
         character(*), intent(in) :: label
         real(dp), intent(in) :: got, analytic, fd
         integer, intent(inout) :: nfail
         real(dp) :: tol
         tol = 1.0e-9_dp
-        if (abs(got - analytic) > tol .and. abs(got - fd) > tol) then
+        if (abs(got - analytic) > tol) then
             write (error_unit, "(a,a,es12.4,a,es12.4,a,es12.4)") &
                 "FAIL ", label, " got=", got, " analytic=", analytic, &
                 " fd=", fd
