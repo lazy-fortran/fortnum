@@ -1,5 +1,4 @@
 module fortnum_codegen_provenance
-    use, intrinsic :: iso_fortran_env, only: int64
     use fortsym_string, only: chars
     use fortsym_arena, only: arena_t, NK_FUNC
     use fortsym_expr, only: expr_t
