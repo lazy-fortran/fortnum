@@ -217,6 +217,14 @@ composition with at least one analytical rule.
   structural operation counts in relevant benchmark records.
 - [x] Generate fused value/JVP, fused value/VJP, separate JVP/VJP, and
   contracted products from one symbolic DAG.
+- [x] Count `N_machine` floating-point instructions from disassembly per
+  target (`objdump -d` for CPU, `cuobjdump`/`nvdisasm` SASS for CUDA),
+  reporting instruction count and FLOP count separately, spill loads and
+  stores apart from ordinary memory traffic, and register count where the
+  tool reports it; absent tools leave the manifest field absent.
+- [x] Demonstrate `N_emit` and `N_machine` side by side on one generated
+  kernel, with FMA fusion visible as an instruction reduction and the FLOP
+  count preserved across it.
 
 ## Reliable performance-portable GPU execution
 

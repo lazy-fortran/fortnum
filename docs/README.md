@@ -25,6 +25,7 @@ measured evidence.
 | [Enzyme toolchain](design/enzyme_toolchain.md) | Enzyme as a correctness oracle for testing, not a user backend |
 | [Error-control primitives](design/error-control-primitives.md) | Point-matrix actions on interval data with aggregate rounding bounds; sampled norm upper bounds with a declared probability law |
 | [CPU/GPU contract](design/gpu.md) | Device leaves, supported mechanisms, and offload gates |
+| [Machine counts](design/machine_count.md) | `N_machine` floating-point instruction counts from disassembly |
 | [Adaptive integration](design/integrate.md) | Integration state, status, traces, and derivative semantics |
 | [ODE](design/ode.md) | Solver state, events, traces, and sensitivity semantics |
 | [Geometric time](design/geometric_time.md) | Structure-preserving geometric time integration and products |
