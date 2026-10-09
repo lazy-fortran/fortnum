@@ -9,7 +9,7 @@ program gen_dawson_jvp_variants
     use fortsym_engine, only: engine_result_t, VERDICT_TRUE
     use fortsym_engine_symengine, only: symengine_engine_t, make_symengine_engine
     use fortnum_codegen_provenance, only: codegen_log, codegen_log_count, &
-        fortsym_revision, generated_path
+        fortsym_revision, generated_path, cost_block_text, insert_cost_block
     implicit none
 
     type(arena_t), target :: arena
@@ -122,6 +122,7 @@ contains
         open (newunit=unit, file=path, status="replace", action="write", iostat=ios)
         if (ios /= 0) error stop "cannot write "//path
         code = chars(emit_kernel([expression], spec))
+        code = insert_cost_block(code, cost_block_text([expression], [expression]))
         write (unit, "(a)") code(:len(code) - 1)
         close (unit)
 

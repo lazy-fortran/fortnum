@@ -10,7 +10,7 @@ program gen_erf_products
     use fortsym_engine, only: engine_result_t
     use fortsym_engine_symengine, only: symengine_engine_t, make_symengine_engine
     use fortnum_codegen_provenance, only: codegen_log, fortsym_revision, &
-        generated_path
+        generated_path, cost_block_text, insert_cost_block
     implicit none
 
     type(arena_t), target :: arena
@@ -98,6 +98,7 @@ contains
             action="write", iostat=ios)
         if (ios /= 0) error stop "cannot write "//filename
         code = chars(emit_kernel(product, spec))
+        code = insert_cost_block(code, cost_block_text(product, product))
         write (unit, "(a)") code(:len(code) - 1)
         close (unit)
         call codegen_log("wrote "//generated_path(filename))

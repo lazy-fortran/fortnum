@@ -5,7 +5,7 @@ program gen_jacobi_recurrence
     use fortsym_kernel, only: emit_kernel, kernel_spec_t, KERNEL_SUBROUTINE
     use fortsym_string, only: chars, str, str_t
     use fortnum_codegen_provenance, only: codegen_log, fortsym_revision, &
-        generated_path
+        generated_path, cost_block_text, insert_cost_block
     implicit none
 
     type(arena_t), target :: arena
@@ -72,6 +72,7 @@ program gen_jacobi_recurrence
         iostat=ios)
     if (ios /= 0) error stop "cannot write "//filename
     code = chars(emit_kernel(roots(:1), spec))
+    code = insert_cost_block(code, cost_block_text(roots(:1), roots(:1)))
     write (unit, "(a)") code(:len(code) - 1)
     close (unit)
     call codegen_log("wrote "//filename)
@@ -94,6 +95,7 @@ program gen_jacobi_recurrence
         iostat=ios)
     if (ios /= 0) error stop "cannot write "//filename
     code = chars(emit_kernel(roots(:1), spec))
+    code = insert_cost_block(code, cost_block_text(roots(:1), roots(:1)))
     write (unit, "(a)") code(:len(code) - 1)
     close (unit)
     call codegen_log("wrote "//filename)
@@ -128,6 +130,7 @@ program gen_jacobi_recurrence
         iostat=ios)
     if (ios /= 0) error stop "cannot write "//filename
     code = chars(emit_kernel(roots(:3), spec))
+    code = insert_cost_block(code, cost_block_text(roots(:3), roots(:3)))
     write (unit, "(a)") code(:len(code) - 1)
     close (unit)
     call codegen_log("wrote "//filename)
@@ -164,6 +167,7 @@ program gen_jacobi_recurrence
         iostat=ios)
     if (ios /= 0) error stop "cannot write "//filename
     code = chars(emit_kernel(roots, spec))
+    code = insert_cost_block(code, cost_block_text(roots, roots))
     write (unit, "(a)") code(:len(code) - 1)
     close (unit)
     call codegen_log("wrote "//filename)

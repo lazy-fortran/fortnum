@@ -2,6 +2,11 @@
 ! Generator: gen_special_outer
 ! Generator revision: fortsym@1176dc1c0054c3363c648898abd68dbc252ee024
 ! Regenerate with: cd tools/codegen && fo exec gen_special_outer
+! cost: {
+!   "n_sym": {"flops": 9, "adds": 2, "muls": 6, "divs": 0, "transcendental": {"cos": 1},
+!   "n_emit": {"flops": 9, "instructions": 9},
+!   "gaps": {"generator": 0}
+! }
 
 module fortnum_generated_dawson_outer_vjp
     implicit none

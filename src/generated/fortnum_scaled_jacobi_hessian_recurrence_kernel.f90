@@ -2,6 +2,11 @@
 ! Generator: gen_jacobi_recurrence
 ! Generator revision: fortsym@1176dc1c0054c3363c648898abd68dbc252ee024
 ! Regenerate with: cd tools/codegen && fo exec gen_jacobi_recurrence
+! cost: {
+!   "n_sym": {"flops": 123, "adds": 32, "muls": 90, "divs": 1, "transcendental": {},
+!   "n_emit": {"flops": 123, "instructions": 123},
+!   "gaps": {"generator": 0}
+! }
 
 module fortnum_generated_scaled_jacobi_hessian_recurrence
     implicit none
