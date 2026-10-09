@@ -324,7 +324,7 @@ contains
         integer,  intent(in), optional     :: max_iter
 
         real(dp) :: xa, xb, xc, fa, fb, fc
-        real(dp) :: s, p, q, r, d, e, xt, ft, tol1
+        real(dp) :: s, p, q, r, ratio, d, e, xt, ft, tol1
         integer  :: it, max_it
 
         call status_set(status, FORTNUM_OK, "")
@@ -385,19 +385,21 @@ contains
             ! Decide: try interpolation or fall back to bisection.
             if (abs(e) >= tol1 .and. abs(fa) > abs(fb)) then
                 ! Attempt IQI if all three points are distinct, else secant.
+                ratio = fb / fa
                 if (abs(xa - xc) < epsilon(1.0_dp) * (abs(xa) + abs(xc) + 1.0_dp)) then
                     ! xa == xc (numerically): only two distinct points -> secant.
-                    p = fb * (xb - xa) / (fa - fb)
-                    q = 1.0_dp
+                    p = 2.0_dp * s * ratio
+                    q = 1.0_dp - ratio
                 else
                     ! Inverse quadratic interpolation (Brent 1973, eq. 4.3).
                     q = fa / fc
                     r = fb / fc
-                    p = r * (2.0_dp * s * q * (q - r) - (xb - xa) * (r - 1.0_dp))
-                    q = (q - 1.0_dp) * (r - 1.0_dp) * (fa / fb - 1.0_dp)
+                    p = ratio * (2.0_dp * s * q * (q - r) &
+                        - (xb - xa) * (r - 1.0_dp))
+                    q = (q - 1.0_dp) * (r - 1.0_dp) * (ratio - 1.0_dp)
                 end if
 
-                ! Ensure p/q > 0 (step direction consistent with bracket).
+                ! Normalize p positive; q retains the direction towards xc.
                 if (p > 0.0_dp) then
                     q = -q
                 else
@@ -436,6 +438,8 @@ contains
             if (fb * fc > 0.0_dp) then
                 xc = xa
                 fc = fa
+                d = xb - xa
+                e = d
             end if
         end do
 

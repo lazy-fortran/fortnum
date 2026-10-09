@@ -386,6 +386,11 @@ See [design/ode.md](design/ode.md) for continuous and discrete semantics.
 - `root_jvp`, `root_vjp`, `root_grad`
 - `root_implicit_jvp`, `root_implicit_vjp`
 
+Brent's method combines secant and inverse-quadratic interpolation with a
+bracket-preserving bisection fallback. Its regression tests bound iteration
+work on linear and smooth nonlinear residuals as well as checking root accuracy;
+falling back to bisection on every step is a performance defect.
+
 The generic implicit products accept caller callbacks for residual products.
 They differentiate the residual equation at the converged root.
 

@@ -22,6 +22,7 @@ program test_fortnum_roots_brent
     call test_brent_no_bracket(nfail)
     call test_brent_max_iter(nfail)
     call test_brent_ftol(nfail)
+    call test_brent_interpolation_work(nfail)
 
     if (nfail > 0) then
         write (error_unit, "(i0,a)") nfail, " test(s) failed"
@@ -31,6 +32,34 @@ program test_fortnum_roots_brent
     stop 0
 
 contains
+
+    subroutine test_brent_interpolation_work(nfail)
+        integer, intent(inout) :: nfail
+        type(fortnum_status_t) :: status
+        real(dp) :: x
+        ! A linear residual needs one secant step. Two iterations allow that
+        ! step and the termination check (three function evaluations total).
+        call root_brent(f_linear, 0.0_dp, 1.0_dp, x, status, max_iter=2)
+        call check_code('linear interpolation work', status%code, FORTNUM_OK, nfail)
+        call check('linear root', x, 1.0_dp/3, 2.0e-15_dp, nfail)
+        call root_brent(f_linear, 1.0_dp, 0.0_dp, x, status, max_iter=2)
+        call check_code('reversed linear work', status%code, FORTNUM_OK, nfail)
+        call check('reversed linear root', x, 1.0_dp/3, 2.0e-15_dp, nfail)
+        ! Smooth simple roots must use interpolation, not spend the roughly
+        ! fifty bisections required to reach this accuracy on a unit bracket.
+        call root_brent(f_cubic, 1.0_dp, 2.0_dp, x, status, max_iter=12)
+        call check_code('cubic interpolation work', status%code, FORTNUM_OK, nfail)
+        call check('cubic work root', x, 1.5213797068045676_dp, 2.0e-15_dp, nfail)
+        call root_brent(f_cosxx, 0.5_dp, 1.0_dp, x, status, max_iter=12)
+        call check_code('cosine interpolation work', status%code, FORTNUM_OK, nfail)
+        call check('cosine work root', x, 0.7390851332151607_dp, 2.0e-15_dp, nfail)
+    end subroutine test_brent_interpolation_work
+
+    pure function f_linear(x) result(y)
+        real(dp), intent(in) :: x
+        real(dp) :: y
+        y = 3*x - 1
+    end function f_linear
 
     ! ------------------------------------------------------------------ helpers
 
