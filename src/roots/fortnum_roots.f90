@@ -365,7 +365,9 @@ contains
         d  = xb - xa ! most-recent interpolation step (seed with bracket width)
         e  = d ! step before that; bisection guard uses |e|
 
-        do it = 1, max_it
+        ! Check the initial bracket and every completed update, including
+        ! the last permitted one. The limit counts updates, not checks.
+        do it = 0, max_it
             ! Ensure xb is the current best approximation (|fb| <= |fc|).
             if (abs(fb) > abs(fc)) then
                 xa = xb; fa = fb
@@ -381,6 +383,7 @@ contains
                 x = xb
                 return
             end if
+            if (it == max_it) exit
 
             ! Decide: try interpolation or fall back to bisection.
             if (abs(e) >= tol1 .and. abs(fa) > abs(fb)) then
