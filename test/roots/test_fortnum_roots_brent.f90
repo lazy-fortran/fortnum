@@ -37,12 +37,12 @@ contains
         integer, intent(inout) :: nfail
         type(fortnum_status_t) :: status
         real(dp) :: x
-        ! A linear residual needs one secant step. Two iterations allow that
-        ! step and the termination check (three function evaluations total).
-        call root_brent(f_linear, 0.0_dp, 1.0_dp, x, status, max_iter=2)
+        ! A linear residual needs one secant step (three function evaluations).
+        ! An exact root reached by the final allowed update must be accepted.
+        call root_brent(f_linear, 0.0_dp, 1.0_dp, x, status, max_iter=1)
         call check_code('linear interpolation work', status%code, FORTNUM_OK, nfail)
         call check('linear root', x, 1.0_dp/3, 2.0e-15_dp, nfail)
-        call root_brent(f_linear, 1.0_dp, 0.0_dp, x, status, max_iter=2)
+        call root_brent(f_linear, 1.0_dp, 0.0_dp, x, status, max_iter=1)
         call check_code('reversed linear work', status%code, FORTNUM_OK, nfail)
         call check('reversed linear root', x, 1.0_dp/3, 2.0e-15_dp, nfail)
         ! Smooth simple roots must use interpolation, not spend the roughly
