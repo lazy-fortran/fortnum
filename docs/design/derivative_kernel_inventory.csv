@@ -64,6 +64,7 @@ src/special/fortnum_special_bessel.f90,bessel_in_jvp;bessel_kn_jvp;bessel_in_arr
 src/special/fortnum_special_complex_bessel.f90,bessel_j_complex_jvp;bessel_i_complex_jvp;bessel_k_complex_jvp,hand-written stable recurrence,analytical,neighbor identities preserve scaled and unscaled primal regimes
 src/special/fortnum_special_dawson.f90,dawson_outer_jvp,fortsym-generated,analytical,public adapter around generated fused outer product
 src/special/fortnum_special_dawson.f90,dawson_jvp,hand-written stable recurrence,analytical,stable Dawson identity uses the selected primal
+src/special/fortnum_special_elliptic.f90,ellip_k_jvp;ellip_k_vjp;ellip_e_jvp;ellip_e_vjp,hand-written stable recurrence,analytical,closed-form derivatives from the stable primal split and Carlson R_D
 src/generated/fortnum_erf_jvp_kernel.f90,fortnum_erf_jvp,fortsym-generated,analytical,contracted product generated from the intrinsic expression
 src/generated/fortnum_erf_vjp_kernel.f90,fortnum_erf_vjp,fortsym-generated,analytical,contracted product generated from the intrinsic expression
 src/generated/fortnum_erfc_jvp_kernel.f90,fortnum_erfc_jvp,fortsym-generated,analytical,contracted product generated from the intrinsic expression

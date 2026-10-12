@@ -59,6 +59,12 @@ module fortnum_special
         spherical_harmonic_theta_derivative, &
         spherical_harmonic_phi_derivative, &
         spherical_harmonic_product_coefficient
+    use fortnum_special_elliptic, only: &
+        ellip_k, ellip_e, &
+        ellip_k_from_complement, ellip_e_from_complement, &
+        ellip_k_log_a, ellip_k_log_b, ellip_e_log_a, ellip_e_log_b, &
+        ellip_k_derivative, ellip_e_derivative, &
+        ellip_k_jvp, ellip_k_vjp, ellip_e_jvp, ellip_e_vjp
     use fortnum_special_toroidal, only: &
         toroidal_p, &
         toroidal_q, &
@@ -127,6 +133,13 @@ module fortnum_special
     public :: spherical_harmonic_theta_derivative
     public :: spherical_harmonic_phi_derivative
     public :: spherical_harmonic_product_coefficient
+
+    ! Complete elliptic integrals K(m), E(m) and their log-singular split.
+    public :: ellip_k, ellip_e
+    public :: ellip_k_from_complement, ellip_e_from_complement
+    public :: ellip_k_log_a, ellip_k_log_b, ellip_e_log_a, ellip_e_log_b
+    public :: ellip_k_derivative, ellip_e_derivative
+    public :: ellip_k_jvp, ellip_k_vjp, ellip_e_jvp, ellip_e_vjp
 
     ! Hobson-normalized half-integer Legendre functions for toroidal harmonics.
     public :: toroidal_p, toroidal_q
