@@ -353,6 +353,10 @@ add_executable(test_fortnum_krylov linalg/test_fortnum_krylov.f90)
 target_link_libraries(test_fortnum_krylov PRIVATE fortnum)
 add_test(NAME fortnum_krylov COMMAND test_fortnum_krylov)
 
+add_executable(test_fortnum_bvls linalg/test_fortnum_bvls.f90)
+target_link_libraries(test_fortnum_bvls PRIVATE fortnum)
+add_test(NAME fortnum_bvls COMMAND test_fortnum_bvls)
+
 add_executable(test_fortnum_symmetric_eigen linalg/test_fortnum_symmetric_eigen.f90)
 target_link_libraries(test_fortnum_symmetric_eigen PRIVATE fortnum)
 add_test(NAME fortnum_symmetric_eigen COMMAND test_fortnum_symmetric_eigen)
