@@ -47,6 +47,7 @@ Useful CMake options:
 | `FORTNUM_USE_BENCHMARK_SELECTION` | on | Read committed derivative selections |
 | `FORTNUM_ENABLE_ENZYME` | off | Build supported CPU Enzyme tests |
 | `FORTNUM_ENZYME_REQUIRED` | off | Fail if the requested Enzyme toolchain is unavailable |
+| `FORTNUM_ENABLE_OPENMP` | on | Link host OpenMP for the Krylov vector kernels when available |
 | `FORTNUM_GPU_BACKEND` | `NONE` | Select `NONE`, `OPENACC`, or `OPENMP` |
 
 Selecting an unavailable GPU backend fails configuration. GPU execution never

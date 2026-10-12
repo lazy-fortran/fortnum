@@ -450,6 +450,17 @@ one matrix-matrix callback. `complex_gmres_operator`
 provides restarted complex GMRES using reorthogonalized modified
 Gram--Schmidt and complex Givens rotations. Structured kernel operators and
 device-resident callbacks are planned consumers of these contracts.
+`real_gmres_operator` uses classical Gram--Schmidt with one reorthogonalization.
+
+`fortnum_parallel_vector` provides the OpenMP vector kernels behind the real
+CG and GMRES solvers: `parallel_vector_axpy`, `_xpay`, `_sub`, `_scale`,
+`_dot`, `_norm2`, and the basis products `_gemv_t` and `_gemv_n`. Reductions
+sum fixed 8192-element chunks and combine the chunk partials in order, so
+results are bitwise identical at any thread count and with or without OpenMP.
+`parallel_vector_set_fast(.true.)`, or the optional `fast` argument of `_dot`
+and `_norm2`, selects an OpenMP `reduction(+)` that is faster to combine but
+only reproducible to roundoff. The CMake OpenMP option (on by default; see the README) and the fpm
+`openmp` dependency enable the threading.
 
 `fortnum_symmetric_eigen` provides real symmetric eigensolvers.
 `symmetric_eigen` returns ascending eigenvalues and orthonormal eigenvectors of

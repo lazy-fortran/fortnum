@@ -136,6 +136,7 @@ target_sources(fortnum PRIVATE
     linalg/fortnum_cholesky.f90
     linalg/fortnum_gsvd.f90
     linalg/fortnum_krylov.f90
+    linalg/fortnum_parallel_vector.f90
     linalg/fortnum_symmetric_eigen.f90
     linalg/fortnum_linalg.f90
     linalg/fortnum_tensor_product.f90
@@ -225,6 +226,18 @@ endif()
 # roots/fortnum_roots_complex.f90 calls LAPACK ZGGEV; link LAPACK (with BLAS)
 # into the library so every consumer resolves the symbol.
 target_link_libraries(fortnum PUBLIC LAPACK::LAPACK fortnum_gpu_backend)
+
+# Host OpenMP for the Krylov vector kernels (fortnum_parallel_vector).  The
+# deterministic reductions give the same bits with and without OpenMP.
+option(FORTNUM_ENABLE_OPENMP "Build host OpenMP vector kernels" ON)
+if(FORTNUM_ENABLE_OPENMP)
+    find_package(OpenMP COMPONENTS Fortran)
+    if(OpenMP_Fortran_FOUND)
+        target_link_libraries(fortnum PUBLIC OpenMP::OpenMP_Fortran)
+    else()
+        message(STATUS "fortnum: OpenMP not found; building serial kernels")
+    endif()
+endif()
 
 # Install the hand-written C ABI header so C/C++ consumers find it.
 install(FILES ${PROJECT_SOURCE_DIR}/include/fortnum.h DESTINATION include)
