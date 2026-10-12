@@ -339,7 +339,129 @@ contains
         end do
     end subroutine q_sequence_core
 
-    pure subroutine toroidal_q_log_split(nmax, x, p, r)
+    pure subroutine toroidal_q_log_split(nmax, x, p, r, dpdx, drdx)
+        !! Logarithmic split Q_(n-1/2)(x) = L(x) p_n(x) + r_n(x) near the cut,
+        !! L = -ln((x-1)/2)/2, n = 0..nmax, with optional x derivatives
+        !! dpdx = dp_n/dx and drdx = dr_n/dx (see q_log_split_values for
+        !! p, r).  p and r are identical whether or not derivatives are asked.
+        !!
+        !! For t = (x-1)/2 < min(0.2, 2/(nmax+1)^2) the derivatives are
+        !! summed from the Taylor series of p and r in t, whose coefficients
+        !! follow from the Legendre equation t(1+t) y'' + (1+2t) y' = lam y,
+        !! lam = n^2 - 1/4:
+        !!   c_0 = 1,  c_(k+1) = c_k (lam - k(k+1))/(k+1)^2,
+        !!   e_0 = r_n(1) = 2 ln 2 - sum_(j<=n) 2/(2j-1),
+        !!   (k+1)^2 e_(k+1) = (k+1) c_(k+1) + (k+1/2) c_k
+        !!                     + (lam - k(k+1)) e_k,
+        !! p = sum c_k t^k, r = sum e_k t^k.  This stays accurate down to the
+        !! smallest representable x - 1 = 2.2e-16, where difference formulas
+        !! lose every digit.  Beyond the limit they follow from DLMF 14.10.4
+        !! with the logarithm removed (nu = n-1/2, n >= 1):
+        !!   (x^2-1) p_n' = nu (x p_n - p_(n-1)),
+        !!   (x^2-1) r_n' = nu (x r_n - r_(n-1)) + (x+1) p_n/2,
+        !! and, for n = 0, the same with nu+1: (x^2-1) y_0' =
+        !! (1/2)(y_1 - x y_0) (+ (x+1) p_0/2 for r).  x <= 1 or NaN gives NaN.
+        integer, intent(in) :: nmax
+        real(dp), intent(in) :: x
+        real(dp), intent(out) :: p(0:nmax), r(0:nmax)
+        real(dp), intent(out), optional :: dpdx(0:nmax), drdx(0:nmax)
+        real(dp) :: t, gap, nu, pe, pt, re, rt
+        real(dp) :: dpv(0:nmax), drv(0:nmax), p1, r1
+        real(dp) :: pp(0:1), rr(0:1)
+        integer :: n
+
+        if (nmax < 0) return
+        call q_log_split_values(nmax, x, p, r)
+        if (.not. (present(dpdx) .or. present(drdx))) return
+        if (.not. (x > 1.0_dp)) then
+            dpv = ieee_value(x, ieee_quiet_nan)
+            drv = dpv
+        else
+            t = 0.5_dp*(x - 1.0_dp)
+            if (t < series_t_limit(nmax)) then
+                do n = 0, nmax
+                    call log_split_series(n, t, pe, pt, re, rt)
+                    dpv(n) = 0.5_dp*pt
+                    drv(n) = 0.5_dp*rt
+                end do
+            else
+                gap = (x - 1.0_dp)*(x + 1.0_dp)
+                do n = 1, nmax
+                    nu = real(n, dp) - 0.5_dp
+                    dpv(n) = nu*(x*p(n) - p(n - 1))/gap
+                    drv(n) = (nu*(x*r(n) - r(n - 1)) &
+                        + 0.5_dp*(x + 1.0_dp)*p(n))/gap
+                end do
+                if (nmax >= 1) then
+                    p1 = p(1)
+                    r1 = r(1)
+                else
+                    call q_log_split_values(1, x, pp, rr)
+                    p1 = pp(1)
+                    r1 = rr(1)
+                end if
+                dpv(0) = 0.5_dp*(p1 - x*p(0))/gap
+                drv(0) = (0.5_dp*(r1 - x*r(0)) + 0.5_dp*(x + 1.0_dp)*p(0))/gap
+            end if
+        end if
+        if (present(dpdx)) dpdx = dpv
+        if (present(drdx)) drdx = drv
+    end subroutine toroidal_q_log_split
+
+    pure function series_t_limit(nmax) result(ts)
+        !! Upper end of t = (x-1)/2 for the Taylor series; the alternating
+        !! series loses about exp(2 sqrt(lam t)) digits.
+        integer, intent(in) :: nmax
+        real(dp) :: ts
+
+        ts = min(0.2_dp, 2.0_dp/real(nmax + 1, dp)**2)
+    end function series_t_limit
+
+    pure subroutine log_split_series(m, t, p, pt, r, rt)
+        !! Taylor sums p_m(t) = P_(m-1/2)(1+2t), the analytic part r_m(t) of
+        !! Q_(m-1/2)(1+2t) = -ln(t) p_m/2 + r_m and their t derivatives.
+        integer, intent(in) :: m
+        real(dp), intent(in) :: t
+        real(dp), intent(out) :: p, pt, r, rt
+        real(dp), parameter :: ln2 = 0.693147180559945309417232121458176568_dp
+        real(dp) :: lam, c, cn, e, en, tk, kk, a, d1, d2, ratio
+        integer :: k, j
+
+        lam = real(m, dp)**2 - 0.25_dp
+        c = 1.0_dp
+        e = 2.0_dp*ln2
+        do j = 1, m
+            e = e - 2.0_dp/real(2*j - 1, dp)
+        end do
+        tk = 1.0_dp
+        p = 0.0_dp
+        pt = 0.0_dp
+        r = 0.0_dp
+        rt = 0.0_dp
+        do k = 0, 300
+            kk = real(k, dp)
+            a = lam - kk*(kk + 1.0_dp)
+            cn = c*a/(kk + 1.0_dp)**2
+            en = ((kk + 1.0_dp)*cn + (kk + 0.5_dp)*c + a*e)/(kk + 1.0_dp)**2
+            p = p + c*tk
+            r = r + e*tk
+            d1 = (kk + 1.0_dp)*cn*tk
+            d2 = (kk + 1.0_dp)*en*tk
+            pt = pt + d1
+            rt = rt + d2
+            ratio = abs(a)*t/(kk + 1.0_dp)**2
+            tk = tk*t
+            c = cn
+            e = en
+            if (ratio < 0.5_dp .and. k >= 2) then
+                if (abs(d1) <= 1.0e-18_dp*abs(pt) .and. &
+                    abs(d2) <= 1.0e-18_dp*abs(rt) .and. &
+                    abs(c*tk) <= 1.0e-18_dp*abs(p)) exit
+            end if
+        end do
+    end subroutine log_split_series
+
+    pure subroutine q_log_split_values(nmax, x, p, r)
         !! Logarithmic split near the cut x = 1,
         !!   Q_(n-1/2)(x) = L(x) p_n(x) + r_n(x),  L = -ln((x-1)/2)/2,
         !! n = 0..nmax.  The coefficient is p_n = P_(n-1/2)(x) (Hobson P of
@@ -406,7 +528,7 @@ contains
             call q_sequence_core(nmax, x, q)
             r = q - log_factor*p
         end if
-    end subroutine toroidal_q_log_split
+    end subroutine q_log_split_values
 
     subroutine toroidal_q_sequence_batch(nmax, x, q, dq)
         !! toroidal_q_sequence for many x, parallel over the points with
@@ -432,18 +554,34 @@ contains
         end if
     end subroutine toroidal_q_sequence_batch
 
-    subroutine toroidal_q_log_split_batch(nmax, x, p, r)
-        !! toroidal_q_log_split for many x with OpenMP over the points.
+    subroutine toroidal_q_log_split_batch(nmax, x, p, r, dpdx, drdx)
+        !! toroidal_q_log_split for many x with OpenMP over the points;
+        !! dpdx, drdx are the optional derivatives of the scalar routine.
         integer, intent(in) :: nmax
         real(dp), intent(in) :: x(:)
         real(dp), intent(out) :: p(0:nmax, size(x)), r(0:nmax, size(x))
+        real(dp), intent(out), optional :: dpdx(0:nmax, size(x))
+        real(dp), intent(out), optional :: drdx(0:nmax, size(x))
+        real(dp) :: dpi(0:nmax), dri(0:nmax)
         integer :: i
 
-        !$omp parallel do schedule(dynamic, 16) default(shared) private(i)
-        do i = 1, size(x)
-            call toroidal_q_log_split(nmax, x(i), p(:, i), r(:, i))
-        end do
-        !$omp end parallel do
+        if (present(dpdx) .or. present(drdx)) then
+            !$omp parallel do schedule(dynamic, 16) default(shared) &
+            !$omp private(i, dpi, dri)
+            do i = 1, size(x)
+                call toroidal_q_log_split(nmax, x(i), p(:, i), r(:, i), &
+                    dpi, dri)
+                if (present(dpdx)) dpdx(:, i) = dpi
+                if (present(drdx)) drdx(:, i) = dri
+            end do
+            !$omp end parallel do
+        else
+            !$omp parallel do schedule(dynamic, 16) default(shared) private(i)
+            do i = 1, size(x)
+                call toroidal_q_log_split(nmax, x(i), p(:, i), r(:, i))
+            end do
+            !$omp end parallel do
+        end if
     end subroutine toroidal_q_log_split_batch
 
     pure elemental function associated_q_direct( &
