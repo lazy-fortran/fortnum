@@ -132,7 +132,9 @@ target_sources(fortnum PRIVATE
     interp/fortnum_bspline_lsq.f90
     interp/fortnum_interp.f90
     interp/fortnum_polynomial.f90
+    linalg/fortnum_bvls.f90
     linalg/fortnum_cholesky.f90
+    linalg/fortnum_gsvd.f90
     linalg/fortnum_krylov.f90
     linalg/fortnum_symmetric_eigen.f90
     linalg/fortnum_linalg.f90
