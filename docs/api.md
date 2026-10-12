@@ -169,10 +169,13 @@ or \(x\) is reported as NaN.
 `toroidal_q_sequence(nmax,x,q[,dq])` returns \(Q_{n-1/2}(x)\) for
 \(n=0..n_{\max}\) and every \(x>1\) (forward recurrence near the cut,
 Miller's backward recurrence on \(x^nQ_n\) elsewhere; no overflow for large
-\(x\)) and, optionally, \(dQ/dx\). `toroidal_q_log_split(nmax,x,p,r)`
+\(x\)) and, optionally, \(dQ/dx\). `toroidal_q_log_split(nmax,x,p,r[,dpdx,drdx])`
 returns \(Q_{n-1/2}=L\,p_n+r_n\) with \(L=-\tfrac12\ln((x-1)/2)\),
 \(p_n=P_{n-1/2}(x)\) and \(r_n\) analytic at \(x=1\), for singular
-quadrature (\(p_n\sim x^n\) must stay finite). The `_batch` forms take
+quadrature (\(p_n\sim x^n\) must stay finite). The optional \(dp_n/dx\),
+\(dr_n/dx\) are summed from the Taylor series in \(t=(x-1)/2\) near the cut
+(accurate down to \(x-1=2\times10^{-16}\)) and follow from DLMF 14.10.4
+elsewhere. The `_batch` forms take
 `x(:)` and fill `q(0:nmax,size(x))` with OpenMP over the points. The order-0
 `toroidal_q` for \(n\ge2\) uses the same sequence kernel.
 
