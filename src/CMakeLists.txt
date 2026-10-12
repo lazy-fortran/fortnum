@@ -173,6 +173,7 @@ target_sources(fortnum PRIVATE
     special/fortnum_special_riccati_bessel.f90
     special/fortnum_special_jacobi.f90
     special/fortnum_special_spherical.f90
+    special/fortnum_special_elliptic.f90
     special/fortnum_special_toroidal.f90
     testing/fortnum_oracle.f90
     verified/fortnum_ball.f90

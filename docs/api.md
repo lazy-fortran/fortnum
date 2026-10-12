@@ -53,6 +53,7 @@ contract. They do not use mutable global error state.
 | ordinary Legendre second kind | `legendre_q` | `legendre_q_derivative` |
 | Riccati-Bessel tables | `riccati_bessel` | none |
 | complex spherical harmonics | `spherical_harmonic` | angular derivatives, `spherical_harmonic_product_coefficient` |
+| complete elliptic integrals | `ellip_k`, `ellip_e` | `ellip_k_derivative`, `ellip_e_derivative`, `ellip_k_jvp`, `ellip_k_vjp`, `ellip_e_jvp`, `ellip_e_vjp` |
 | toroidal associated Legendre | `toroidal_p`, `toroidal_q` | `toroidal_p_derivative`, `toroidal_q_derivative` |
 
 Domain modules expose additional products:
@@ -61,6 +62,11 @@ Domain modules expose additional products:
 - `fortnum_special_complex_bessel`: complex `J`, `I`, and `K`, including
   scaled variants and JVPs
 - `fortnum_special_dawson`: primal, generated outer product, JVP, and gradient
+- `fortnum_special_elliptic`: \(K(m)\), \(E(m)\) for \(m\in[0,1)\)
+  (\(K(1)=\infty\), \(E(1)=1\), NaN outside). `*_from_complement(q)` take
+  \(q=1-m\) exactly, and `ellip_{k,e}_log_{a,b}(q)` return the pieces of
+  \(K=-\tfrac12\ln q\,A_K(q)+B_K(q)\) and the analogous \(E\) split,
+  accurate as \(q\to0\)
 - `fortnum_special_faddeeva`: \(w(z)=e^{-z^2}\operatorname{erfc}(-iz)\) and
   the Fried-Conte \(Z(\zeta)=i\sqrt\pi\,w(\zeta)\) on the whole complex
   plane, with \(Z'=-2(1+\zeta Z)\)
