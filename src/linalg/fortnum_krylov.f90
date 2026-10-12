@@ -60,6 +60,10 @@ contains
         !! The callback must represent a symmetric positive-definite operator.
         !! An optional preconditioner applies M^{-1} to a residual.  The
         !! solution is used as the initial guess and is updated in place.
+        !!
+        !! The true residual b - A x is checked every 100 iterations.  If the
+        !! iteration stalls or reaches max_iterations, the best true-residual
+        !! iterate is returned with KRYLOV_MAX_ITERATIONS.
         procedure(real_matvec_t) :: matvec
         real(dp), intent(in) :: right_hand_side(:)
         real(dp), intent(inout) :: solution(:)
@@ -70,9 +74,12 @@ contains
         procedure(real_preconditioner_t), optional :: preconditioner
 
         real(dp), allocatable :: residual(:), direction(:), preconditioned(:)
-        real(dp), allocatable :: operator_direction(:), work(:)
+        real(dp), allocatable :: operator_direction(:), work(:), best_solution(:)
         real(dp) :: right_hand_side_norm, target, rho, next_rho
-        real(dp) :: denominator, step, beta
+        real(dp) :: denominator, step, beta, best_residual_norm
+        integer :: last_gain, stall_iterations
+        integer, parameter :: check_every = 100
+        real(dp), parameter :: gain_factor = 0.9_dp
 
         info = KRYLOV_INVALID_ARGUMENT
         iterations = 0
@@ -84,7 +91,7 @@ contains
         allocate( &
             residual(size(solution)), direction(size(solution)), &
             preconditioned(size(solution)), operator_direction(size(solution)), &
-            work(size(solution)))
+            work(size(solution)), best_solution(size(solution)))
         right_hand_side_norm = norm2(right_hand_side)
         target = tolerance*max(right_hand_side_norm, 1.0_dp)
         if (right_hand_side_norm == 0.0_dp) then
@@ -101,6 +108,10 @@ contains
             info = KRYLOV_OK
             return
         end if
+        best_solution = solution
+        best_residual_norm = residual_norm
+        last_gain = 0
+        stall_iterations = max(1000, max_iterations/10)
 
         if (present(preconditioner)) then
             call preconditioner(residual, preconditioned)
@@ -144,7 +155,35 @@ contains
                     info = KRYLOV_OK
                     return
                 end if
+                if (residual_norm < gain_factor*best_residual_norm) &
+                    last_gain = iterations
+                if (residual_norm < best_residual_norm) then
+                    best_solution = solution
+                    best_residual_norm = residual_norm
+                end if
                 residual = right_hand_side - work
+            end if
+
+            if (mod(iterations, check_every) == 0 .or. &
+                iterations == max_iterations) then
+                ! Periodic true-residual check: replace the recurrence
+                ! residual, keep the best iterate, and stop on convergence,
+                ! on a stall, or at the iteration cap.
+                call matvec(solution, work)
+                residual = right_hand_side - work
+                residual_norm = norm2(residual)
+                if (residual_norm <= target) then
+                    info = KRYLOV_OK
+                    return
+                end if
+                if (residual_norm < gain_factor*best_residual_norm) &
+                    last_gain = iterations
+                if (residual_norm < best_residual_norm) then
+                    best_solution = solution
+                    best_residual_norm = residual_norm
+                end if
+                if (iterations >= max_iterations .or. &
+                    iterations - last_gain >= stall_iterations) exit
             end if
 
             if (present(preconditioner)) then
@@ -166,13 +205,10 @@ contains
             rho = next_rho
         end do
 
-        call matvec(solution, work)
-        residual_norm = norm2(right_hand_side - work)
-        if (residual_norm <= target) then
-            info = KRYLOV_OK
-        else
-            info = KRYLOV_MAX_ITERATIONS
-        end if
+        ! Stalled or capped: return the best true-residual iterate.
+        solution = best_solution
+        residual_norm = best_residual_norm
+        info = KRYLOV_MAX_ITERATIONS
     end subroutine real_conjugate_gradient_operator
 
     subroutine real_conjugate_gradient_matmat_operator( &

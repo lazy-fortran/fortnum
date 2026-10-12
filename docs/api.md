@@ -436,7 +436,8 @@ vector and matrix solves and a log-determinant operation.
 `fortnum_krylov` provides matrix-free Krylov products. The caller supplies a
 stateless matrix-vector procedure; `real_conjugate_gradient_operator` solves
 real symmetric positive-definite systems with an optional preconditioner and
-reports iterations plus the true final residual. The
+reports iterations plus the true residual of the returned iterate. On a stall
+or at the iteration cap that iterate is the best true-residual iterate seen. The
 `real_conjugate_gradient_matmat_operator` variant applies independent CG
 recurrences to multiple right-hand sides while batching active directions in
 one matrix-matrix callback. `complex_gmres_operator`

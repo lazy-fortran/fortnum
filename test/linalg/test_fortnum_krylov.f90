@@ -3,7 +3,7 @@ program test_fortnum_krylov
     use fortnum_krylov, only: complex_gmres_operator, real_gmres_operator, &
         real_conjugate_gradient_operator, &
         real_conjugate_gradient_matmat_operator, KRYLOV_BREAKDOWN, &
-        KRYLOV_OK, KRYLOV_INVALID_ARGUMENT
+        KRYLOV_OK, KRYLOV_INVALID_ARGUMENT, KRYLOV_MAX_ITERATIONS
     use fortnum_linalg, only: dense_solve, LINALG_OK
     implicit none
 
@@ -15,7 +15,12 @@ program test_fortnum_krylov
     real(dp) :: multi_rhs(5, 2), multi_solution(5, 2)
     real(dp) :: multi_dense_solution(5, 2), multi_residual_norm(2)
     real(dp) :: residual_norm
-    integer :: column, info, iterations, row
+    integer, parameter :: stall_size = 2000
+    real(dp), allocatable :: stall_coupling(:), stall_diagonal(:)
+    real(dp), allocatable :: stall_rhs(:), stall_solution(:)
+    real(dp), allocatable :: stall_matrix(:, :), stall_residual(:)
+    real(dp), allocatable :: stall_applied(:)
+    integer :: column, info, iterations, row, site
     integer :: multi_info(2), multi_iterations(2)
 
     matrix = cmplx(0.0_dp, 0.0_dp, dp)
@@ -131,6 +136,47 @@ program test_fortnum_krylov
         iterations, residual_norm)
     call require(info == KRYLOV_INVALID_ARGUMENT, "CG rejects negative tolerance")
 
+    allocate(stall_coupling(0:stall_size), stall_diagonal(stall_size))
+    allocate(stall_rhs(stall_size), stall_solution(stall_size))
+    allocate(stall_matrix(stall_size, stall_size), stall_residual(stall_size))
+    allocate(stall_applied(stall_size))
+    do site = 0, stall_size
+        stall_coupling(site) = exp(2.0_dp*sin(0.37_dp*site)**2)
+    end do
+    do site = 1, stall_size
+        stall_diagonal(site) = stall_coupling(site - 1) + &
+            stall_coupling(site) + 1.0e-6_dp
+        stall_rhs(site) = 1.0_dp + sin(real(site, dp))
+    end do
+    stall_matrix = 0.0_dp
+    do site = 1, stall_size
+        stall_matrix(site, site) = stall_diagonal(site)
+        if (site < stall_size) then
+            stall_matrix(site, site + 1) = -stall_coupling(site)
+            stall_matrix(site + 1, site) = -stall_coupling(site)
+        end if
+    end do
+    stall_solution = 0.0_dp
+    call real_conjugate_gradient_operator( &
+        apply_stall_operator, stall_rhs, stall_solution, 1.0e-14_dp, &
+        50000, info, iterations, residual_norm)
+    ! The dense matrix is an independent oracle for the true residual.  At the
+    ! stall floor the residual is at the roundoff level of the matvec, so the
+    ! norm agrees with the operator's own evaluation to rounding only.  The
+    ! reported norm is therefore compared with the same operator's recomputed
+    ! residual, and the dense oracle checks the relative residual.
+    call apply_stall_operator(stall_solution, stall_applied)
+    stall_residual = stall_rhs - matmul(stall_matrix, stall_solution)
+    call require(info == KRYLOV_MAX_ITERATIONS, &
+        "CG below the roundoff floor reports the iteration cap or stall")
+    call require(iterations < 50000/2, &
+        "CG stops well before the cap once the true residual stalls")
+    call require(abs(residual_norm - norm2(stall_rhs - stall_applied)) <= &
+        1.0e-10_dp*norm2(stall_rhs - stall_applied), &
+        "CG reports the true residual of the returned iterate")
+    call require(norm2(stall_residual)/norm2(stall_rhs) < 1.0e-9_dp, &
+        "CG returns the best iterate rather than the drifted final iterate")
+
 contains
 
     subroutine apply_matrix(input, output)
@@ -167,6 +213,20 @@ contains
 
         output = matmul(indefinite_matrix, input)
     end subroutine apply_indefinite_matrix
+
+    subroutine apply_stall_operator(input, output)
+        !! Matrix-free action of the SPD tridiagonal stall_matrix.
+        real(dp), intent(in) :: input(:)
+        real(dp), intent(out) :: output(:)
+        integer :: last
+
+        last = size(input)
+        output = stall_diagonal*input
+        output(1:last - 1) = output(1:last - 1) - &
+            stall_coupling(1:last - 1)*input(2:last)
+        output(2:last) = output(2:last) - &
+            stall_coupling(1:last - 1)*input(1:last - 1)
+    end subroutine apply_stall_operator
 
     subroutine diagonal_preconditioner(input, output)
         real(dp), intent(in) :: input(:)
