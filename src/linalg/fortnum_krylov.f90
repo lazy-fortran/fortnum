@@ -5,6 +5,10 @@ module fortnum_krylov
     !! Complex Givens rotations update the Hessenberg least-squares problem
     !! without forming normal equations.
     use fortnum_kinds, only: dp
+    use fortnum_parallel_vector, only: parallel_vector_axpy, &
+        parallel_vector_dot, parallel_vector_gemv_n, parallel_vector_gemv_t, &
+        parallel_vector_norm2, parallel_vector_scale, parallel_vector_sub, &
+        parallel_vector_xpay
     use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
     implicit none
 
@@ -92,7 +96,7 @@ contains
             residual(size(solution)), direction(size(solution)), &
             preconditioned(size(solution)), operator_direction(size(solution)), &
             work(size(solution)), best_solution(size(solution)))
-        right_hand_side_norm = norm2(right_hand_side)
+        right_hand_side_norm = parallel_vector_norm2(right_hand_side)
         target = tolerance*max(right_hand_side_norm, 1.0_dp)
         if (right_hand_side_norm == 0.0_dp) then
             solution = 0.0_dp
@@ -102,8 +106,8 @@ contains
         end if
 
         call matvec(solution, work)
-        residual = right_hand_side - work
-        residual_norm = norm2(residual)
+        call parallel_vector_sub(right_hand_side, work, residual)
+        residual_norm = parallel_vector_norm2(residual)
         if (residual_norm <= target) then
             info = KRYLOV_OK
             return
@@ -116,9 +120,9 @@ contains
         if (present(preconditioner)) then
             call preconditioner(residual, preconditioned)
         else
-            preconditioned = residual
+            call parallel_vector_scale(1.0_dp, residual, preconditioned)
         end if
-        rho = dot_product(residual, preconditioned)
+        rho = parallel_vector_dot(residual, preconditioned)
         if (rho <= 0.0_dp) then
             info = KRYLOV_BREAKDOWN
             return
@@ -127,11 +131,11 @@ contains
             info = KRYLOV_BREAKDOWN
             return
         end if
-        direction = preconditioned
+        call parallel_vector_scale(1.0_dp, preconditioned, direction)
 
         do while (iterations < max_iterations)
             call matvec(direction, operator_direction)
-            denominator = dot_product(direction, operator_direction)
+            denominator = parallel_vector_dot(direction, operator_direction)
             if (denominator <= 0.0_dp) then
                 info = KRYLOV_BREAKDOWN
                 return
@@ -141,16 +145,17 @@ contains
                 return
             end if
             step = rho/denominator
-            solution = solution + step*direction
-            residual = residual - step*operator_direction
+            call parallel_vector_axpy(step, direction, solution)
+            call parallel_vector_axpy(-step, operator_direction, residual)
             iterations = iterations + 1
-            residual_norm = norm2(residual)
+            residual_norm = parallel_vector_norm2(residual)
             if (residual_norm <= target) then
                 ! Recompute the residual from the operator before accepting
                 ! recurrence-based convergence; this catches loss of
                 ! orthogonality and inaccurate device callbacks.
                 call matvec(solution, work)
-                residual_norm = norm2(right_hand_side - work)
+                call parallel_vector_sub(right_hand_side, work, residual)
+                residual_norm = parallel_vector_norm2(residual)
                 if (residual_norm <= target) then
                     info = KRYLOV_OK
                     return
@@ -161,7 +166,7 @@ contains
                     best_solution = solution
                     best_residual_norm = residual_norm
                 end if
-                residual = right_hand_side - work
+                call parallel_vector_sub(right_hand_side, work, residual)
             end if
 
             if (mod(iterations, check_every) == 0 .or. &
@@ -170,8 +175,8 @@ contains
                 ! residual, keep the best iterate, and stop on convergence,
                 ! on a stall, or at the iteration cap.
                 call matvec(solution, work)
-                residual = right_hand_side - work
-                residual_norm = norm2(residual)
+                call parallel_vector_sub(right_hand_side, work, residual)
+                residual_norm = parallel_vector_norm2(residual)
                 if (residual_norm <= target) then
                     info = KRYLOV_OK
                     return
@@ -189,9 +194,9 @@ contains
             if (present(preconditioner)) then
                 call preconditioner(residual, preconditioned)
             else
-                preconditioned = residual
+                call parallel_vector_scale(1.0_dp, residual, preconditioned)
             end if
-            next_rho = dot_product(residual, preconditioned)
+            next_rho = parallel_vector_dot(residual, preconditioned)
             if (next_rho <= 0.0_dp) then
                 info = KRYLOV_BREAKDOWN
                 return
@@ -201,7 +206,7 @@ contains
                 return
             end if
             beta = next_rho/rho
-            direction = preconditioned + beta*direction
+            call parallel_vector_xpay(preconditioned, beta, direction)
             rho = next_rho
         end do
 
@@ -262,7 +267,8 @@ contains
         active = .false.
         candidate = .false.
         do column = 1, n_rhs
-            right_hand_side_norm(column) = norm2(right_hand_side(:, column))
+            right_hand_side_norm(column) = &
+                parallel_vector_norm2(right_hand_side(:, column))
             target_norm(column) = tolerance*max( &
                 right_hand_side_norm(column), 1.0_dp)
             if (right_hand_side_norm(column) == 0.0_dp) then
@@ -278,11 +284,11 @@ contains
             preconditioned = residual
         end if
         do column = 1, n_rhs
-            residual_norm(column) = norm2(residual(:, column))
+            residual_norm(column) = parallel_vector_norm2(residual(:, column))
             if (residual_norm(column) <= target_norm(column)) then
                 info(column) = KRYLOV_OK
             else
-                rho(column) = dot_product( &
+                rho(column) = parallel_vector_dot( &
                     residual(:, column), preconditioned(:, column))
                 if (rho(column) <= 0.0_dp .or. &
                     .not. ieee_is_finite(rho(column))) then
@@ -299,7 +305,7 @@ contains
             candidate = .false.
             do column = 1, n_rhs
                 if (active(column)) then
-                    denominator(column) = dot_product( &
+                    denominator(column) = parallel_vector_dot( &
                         direction(:, column), operator_direction(:, column))
                     if (denominator(column) <= 0.0_dp .or. &
                         .not. ieee_is_finite(denominator(column))) then
@@ -307,12 +313,14 @@ contains
                         active(column) = .false.
                     else
                         step = rho(column)/denominator(column)
-                        solution(:, column) = solution(:, column) + &
-                            step*direction(:, column)
-                        residual(:, column) = residual(:, column) - &
-                            step*operator_direction(:, column)
+                        call parallel_vector_axpy( &
+                            step, direction(:, column), solution(:, column))
+                        call parallel_vector_axpy( &
+                            -step, operator_direction(:, column), &
+                            residual(:, column))
                         iterations(column) = iterations(column) + 1
-                        residual_norm(column) = norm2(residual(:, column))
+                        residual_norm(column) = &
+                            parallel_vector_norm2(residual(:, column))
                         if (residual_norm(column) <= target_norm(column) .or. &
                             iterations(column) >= max_iterations) then
                             candidate(column) = .true.
@@ -325,9 +333,11 @@ contains
                 call matmat(solution, work)
                 do column = 1, n_rhs
                     if (candidate(column)) then
-                        residual(:, column) = right_hand_side(:, column) - &
-                            work(:, column)
-                        residual_norm(column) = norm2(residual(:, column))
+                        call parallel_vector_sub( &
+                            right_hand_side(:, column), work(:, column), &
+                            residual(:, column))
+                        residual_norm(column) = &
+                            parallel_vector_norm2(residual(:, column))
                         if (residual_norm(column) <= target_norm(column)) then
                             info(column) = KRYLOV_OK
                             active(column) = .false.
@@ -350,7 +360,7 @@ contains
             end if
             do column = 1, n_rhs
                 if (active(column)) then
-                    next_rho(column) = dot_product( &
+                    next_rho(column) = parallel_vector_dot( &
                         residual(:, column), preconditioned(:, column))
                     if (next_rho(column) <= 0.0_dp .or. &
                         .not. ieee_is_finite(next_rho(column))) then
@@ -358,8 +368,8 @@ contains
                         active(column) = .false.
                     else
                         beta = next_rho(column)/rho(column)
-                        direction(:, column) = preconditioned(:, column) + &
-                            beta*direction(:, column)
+                        call parallel_vector_xpay( &
+                            preconditioned(:, column), beta, direction(:, column))
                         rho(column) = next_rho(column)
                     end if
                 end if
@@ -368,21 +378,13 @@ contains
 
         call matmat(solution, work)
         do column = 1, n_rhs
-            residual(:, column) = right_hand_side(:, column) - work(:, column)
-            residual_norm(column) = norm2(residual(:, column))
+            call parallel_vector_sub( &
+                right_hand_side(:, column), work(:, column), residual(:, column))
+            residual_norm(column) = parallel_vector_norm2(residual(:, column))
             if (residual_norm(column) <= target_norm(column)) then
                 info(column) = KRYLOV_OK
             end if
         end do
-
-    contains
-
-        function norm2(vector) result(value)
-            real(dp), intent(in) :: vector(:)
-            real(dp) :: value
-
-            value = sqrt(dot_product(vector, vector))
-        end function norm2
 
     end subroutine real_conjugate_gradient_matmat_operator
 
@@ -400,7 +402,8 @@ contains
         real(dp), allocatable :: basis(:, :), givens_cosine(:)
         real(dp), allocatable :: givens_sine(:), hessenberg(:, :)
         real(dp), allocatable :: residual(:), rotated_rhs(:), work(:), y(:)
-        real(dp) :: coefficient, temporary
+        real(dp), allocatable :: correction(:)
+        real(dp) :: temporary
         real(dp) :: basis_norm, right_hand_side_norm, target
         integer :: cycle_size, inner, previous, used
         logical :: arnoldi_breakdown
@@ -417,8 +420,9 @@ contains
             basis(size(solution), restart + 1), &
             hessenberg(restart + 1, restart), residual(size(solution)), &
             work(size(solution)), y(restart), rotated_rhs(restart + 1), &
+            correction(restart + 1), &
             givens_cosine(restart), givens_sine(restart))
-        right_hand_side_norm = norm2(right_hand_side)
+        right_hand_side_norm = parallel_vector_norm2(right_hand_side)
         target = tolerance*max(right_hand_side_norm, 1.0_dp)
         if (right_hand_side_norm == 0.0_dp) then
             solution = 0.0_dp
@@ -429,8 +433,8 @@ contains
 
         do while (iterations < max_iterations)
             call matvec(solution, work)
-            residual = right_hand_side - work
-            residual_norm = norm2(residual)
+            call parallel_vector_sub(right_hand_side, work, residual)
+            residual_norm = parallel_vector_norm2(residual)
             if (residual_norm <= target) then
                 info = KRYLOV_OK
                 return
@@ -440,28 +444,28 @@ contains
             hessenberg = 0.0_dp
             rotated_rhs = 0.0_dp
             rotated_rhs(1) = residual_norm
-            basis(:, 1) = residual/residual_norm
+            call parallel_vector_scale(1.0_dp/residual_norm, residual, basis(:, 1))
             cycle_size = min(restart, max_iterations - iterations)
             used = 0
             arnoldi_breakdown = .false.
 
             do inner = 1, cycle_size
                 call matvec(basis(:, inner), work)
-                do previous = 1, inner
-                    coefficient = dot_product(basis(:, previous), work)
-                    hessenberg(previous, inner) = coefficient
-                    work = work - coefficient*basis(:, previous)
-                end do
-                do previous = 1, inner
-                    coefficient = dot_product(basis(:, previous), work)
-                    hessenberg(previous, inner) = &
-                        hessenberg(previous, inner) + coefficient
-                    work = work - coefficient*basis(:, previous)
-                end do
-                basis_norm = norm2(work)
+                ! Classical Gram-Schmidt with one reorthogonalisation (CGS2).
+                call parallel_vector_gemv_t( &
+                    basis, inner, work, hessenberg(:, inner))
+                call parallel_vector_gemv_n( &
+                    -1.0_dp, basis, inner, hessenberg(:, inner), work)
+                call parallel_vector_gemv_t(basis, inner, work, correction)
+                call parallel_vector_gemv_n( &
+                    -1.0_dp, basis, inner, correction, work)
+                hessenberg(1:inner, inner) = &
+                    hessenberg(1:inner, inner) + correction(1:inner)
+                basis_norm = parallel_vector_norm2(work)
                 hessenberg(inner + 1, inner) = basis_norm
                 if (basis_norm > 64.0_dp*epsilon(1.0_dp)) then
-                    basis(:, inner + 1) = work/basis_norm
+                    call parallel_vector_scale( &
+                        1.0_dp/basis_norm, work, basis(:, inner + 1))
                 else
                     arnoldi_breakdown = .true.
                 end if
@@ -500,9 +504,10 @@ contains
                 info = KRYLOV_BREAKDOWN
                 return
             end if
-            solution = solution + matmul(basis(:, :used), y(:used))
+            call parallel_vector_gemv_n(1.0_dp, basis, used, y, solution)
             call matvec(solution, work)
-            residual_norm = norm2(right_hand_side - work)
+            call parallel_vector_sub(right_hand_side, work, residual)
+            residual_norm = parallel_vector_norm2(residual)
             if (residual_norm <= target) then
                 info = KRYLOV_OK
                 return
