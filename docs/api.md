@@ -54,7 +54,7 @@ contract. They do not use mutable global error state.
 | Riccati-Bessel tables | `riccati_bessel` | none |
 | complex spherical harmonics | `spherical_harmonic` | angular derivatives, `spherical_harmonic_product_coefficient` |
 | complete elliptic integrals | `ellip_k`, `ellip_e` | `ellip_k_derivative`, `ellip_e_derivative`, `ellip_k_jvp`, `ellip_k_vjp`, `ellip_e_jvp`, `ellip_e_vjp` |
-| toroidal associated Legendre | `toroidal_p`, `toroidal_q` | `toroidal_p_derivative`, `toroidal_q_derivative` |
+| toroidal associated Legendre | `toroidal_p`, `toroidal_q` | `toroidal_p_derivative`, `toroidal_q_derivative`; sequences `toroidal_q_sequence` (with optional \(dQ/dx\)), `toroidal_q_log_split`, and OpenMP batches `toroidal_q_sequence_batch`, `toroidal_q_log_split_batch` |
 
 Domain modules expose additional products:
 
@@ -165,6 +165,16 @@ nothing; \(|x|>1\) yields NaN.
 directly compatible with the conventional toroidal harmonics used after
 separating Laplace's equation in toroidal coordinates. Invalid degree, order,
 or \(x\) is reported as NaN.
+
+`toroidal_q_sequence(nmax,x,q[,dq])` returns \(Q_{n-1/2}(x)\) for
+\(n=0..n_{\max}\) and every \(x>1\) (forward recurrence near the cut,
+Miller's backward recurrence on \(x^nQ_n\) elsewhere; no overflow for large
+\(x\)) and, optionally, \(dQ/dx\). `toroidal_q_log_split(nmax,x,p,r)`
+returns \(Q_{n-1/2}=L\,p_n+r_n\) with \(L=-\tfrac12\ln((x-1)/2)\),
+\(p_n=P_{n-1/2}(x)\) and \(r_n\) analytic at \(x=1\), for singular
+quadrature (\(p_n\sim x^n\) must stay finite). The `_batch` forms take
+`x(:)` and fill `q(0:nmax,size(x))` with OpenMP over the points. The order-0
+`toroidal_q` for \(n\ge2\) uses the same sequence kernel.
 
 The implementation follows
 [DLMF 14.3](https://dlmf.nist.gov/14.3) for the hypergeometric definitions,

@@ -69,7 +69,11 @@ module fortnum_special
         toroidal_p, &
         toroidal_q, &
         toroidal_p_derivative, &
-        toroidal_q_derivative
+        toroidal_q_derivative, &
+        toroidal_q_sequence, &
+        toroidal_q_log_split, &
+        toroidal_q_sequence_batch, &
+        toroidal_q_log_split_batch
 
     implicit none
     private
@@ -144,5 +148,7 @@ module fortnum_special
     ! Hobson-normalized half-integer Legendre functions for toroidal harmonics.
     public :: toroidal_p, toroidal_q
     public :: toroidal_p_derivative, toroidal_q_derivative
+    public :: toroidal_q_sequence, toroidal_q_log_split
+    public :: toroidal_q_sequence_batch, toroidal_q_log_split_batch
 
 end module fortnum_special
