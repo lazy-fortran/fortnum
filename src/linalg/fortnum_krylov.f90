@@ -1,5 +1,5 @@
 module fortnum_krylov
-    !! Restarted matrix-free GMRES for complex host-side linear operators.
+    !! Restarted matrix-free GMRES and flexible GMRES for real and complex host-side linear operators.
     !!
     !! Modified Gram--Schmidt is followed by a reorthogonalization pass.
     !! Complex Givens rotations update the Hessenberg least-squares problem
@@ -17,6 +17,7 @@ module fortnum_krylov
     integer, parameter, public :: KRYLOV_OK = 0
     integer, parameter, public :: KRYLOV_MAX_ITERATIONS = 1
     integer, parameter, public :: KRYLOV_BREAKDOWN = 2
+    integer, parameter, public :: KRYLOV_STAGNATION = 3
     integer, parameter, public :: KRYLOV_INVALID_ARGUMENT = -1
 
     abstract interface
@@ -43,9 +44,18 @@ module fortnum_krylov
             real(dp), intent(in) :: input(:)
             real(dp), intent(out) :: output(:)
         end subroutine real_preconditioner_t
+
+        subroutine complex_preconditioner_t(input, output)
+            import :: dp
+            complex(dp), intent(in) :: input(:)
+            complex(dp), intent(out) :: output(:)
+        end subroutine complex_preconditioner_t
     end interface
 
+    public :: complex_fgmres_operator
     public :: complex_gmres_operator
+    public :: complex_preconditioner_t
+    public :: real_fgmres_operator
     public :: complex_matvec_t
     public :: real_conjugate_gradient_operator
     public :: real_conjugate_gradient_matmat_operator
@@ -690,6 +700,328 @@ contains
         end do
         info = KRYLOV_MAX_ITERATIONS
     end subroutine complex_gmres_operator
+
+    subroutine real_fgmres_operator( &
+            matvec, preconditioner, right_hand_side, solution, tolerance, &
+            max_iterations, restart, info, iterations, residual_norm, &
+            stagnation_ratio)
+        !! Restarted flexible GMRES with right preconditioning.
+        !!
+        !! Solves A x = b through A M_j^{-1} u_j = v_j, x += M_j^{-1} u_j,
+        !! where the callback may apply a different M_j^{-1} each iteration
+        !! (for example an inner Krylov solve).  The preconditioned basis is
+        !! stored, so the cost is one extra vector per iteration.
+        !!
+        !! solution is the initial guess and is updated in place.  After each
+        !! restart cycle the true residual is compared with the one at the
+        !! start of the cycle; if it fell by less than the factor
+        !! stagnation_ratio (default 0.99) the routine returns
+        !! KRYLOV_STAGNATION instead of looping, keeping the improved iterate.
+        procedure(real_matvec_t) :: matvec
+        procedure(real_preconditioner_t) :: preconditioner
+        real(dp), intent(in) :: right_hand_side(:)
+        real(dp), intent(inout) :: solution(:)
+        real(dp), intent(in) :: tolerance
+        integer, intent(in) :: max_iterations, restart
+        integer, intent(out) :: info, iterations
+        real(dp), intent(out) :: residual_norm
+        real(dp), intent(in), optional :: stagnation_ratio
+
+        real(dp), allocatable :: basis(:, :), preconditioned(:, :)
+        real(dp), allocatable :: givens_cosine(:), givens_sine(:)
+        real(dp), allocatable :: hessenberg(:, :), residual(:)
+        real(dp), allocatable :: rotated_rhs(:), work(:), y(:), correction(:)
+        real(dp) :: temporary, basis_norm, right_hand_side_norm, target
+        real(dp) :: previous_norm, ratio
+        integer :: cycle_size, inner, previous, used
+        logical :: arnoldi_breakdown
+
+        info = KRYLOV_INVALID_ARGUMENT
+        iterations = 0
+        residual_norm = huge(1.0_dp)
+        if (size(right_hand_side) < 1) return
+        if (size(solution) /= size(right_hand_side)) return
+        if (tolerance <= 0.0_dp .or. max_iterations < 1) return
+        if (restart < 1 .or. restart > max_iterations) return
+        ratio = 0.99_dp
+        if (present(stagnation_ratio)) ratio = stagnation_ratio
+        if (ratio <= 0.0_dp) return
+
+        allocate( &
+            basis(size(solution), restart + 1), &
+            preconditioned(size(solution), restart), &
+            hessenberg(restart + 1, restart), residual(size(solution)), &
+            work(size(solution)), y(restart), rotated_rhs(restart + 1), &
+            correction(restart + 1), &
+            givens_cosine(restart), givens_sine(restart))
+        right_hand_side_norm = parallel_vector_norm2(right_hand_side)
+        target = tolerance*max(right_hand_side_norm, 1.0_dp)
+        if (right_hand_side_norm == 0.0_dp) then
+            solution = 0.0_dp
+            residual_norm = 0.0_dp
+            info = KRYLOV_OK
+            return
+        end if
+
+        call matvec(solution, work)
+        call parallel_vector_sub(right_hand_side, work, residual)
+        residual_norm = parallel_vector_norm2(residual)
+        do while (iterations < max_iterations)
+            if (residual_norm <= target) then
+                info = KRYLOV_OK
+                return
+            end if
+            previous_norm = residual_norm
+
+            basis = 0.0_dp
+            hessenberg = 0.0_dp
+            rotated_rhs = 0.0_dp
+            rotated_rhs(1) = residual_norm
+            call parallel_vector_scale(1.0_dp/residual_norm, residual, basis(:, 1))
+            cycle_size = min(restart, max_iterations - iterations)
+            used = 0
+            arnoldi_breakdown = .false.
+
+            do inner = 1, cycle_size
+                call preconditioner(basis(:, inner), preconditioned(:, inner))
+                call matvec(preconditioned(:, inner), work)
+                ! Classical Gram-Schmidt with one reorthogonalisation (CGS2).
+                call parallel_vector_gemv_t( &
+                    basis, inner, work, hessenberg(:, inner))
+                call parallel_vector_gemv_n( &
+                    -1.0_dp, basis, inner, hessenberg(:, inner), work)
+                call parallel_vector_gemv_t(basis, inner, work, correction)
+                call parallel_vector_gemv_n( &
+                    -1.0_dp, basis, inner, correction, work)
+                hessenberg(1:inner, inner) = &
+                    hessenberg(1:inner, inner) + correction(1:inner)
+                basis_norm = parallel_vector_norm2(work)
+                hessenberg(inner + 1, inner) = basis_norm
+                if (basis_norm > 64.0_dp*epsilon(1.0_dp)) then
+                    call parallel_vector_scale( &
+                        1.0_dp/basis_norm, work, basis(:, inner + 1))
+                else
+                    arnoldi_breakdown = .true.
+                end if
+
+                do previous = 1, inner - 1
+                    temporary = &
+                        givens_cosine(previous)*hessenberg(previous, inner) + &
+                        givens_sine(previous)*hessenberg(previous + 1, inner)
+                    hessenberg(previous + 1, inner) = &
+                        -givens_sine(previous)*hessenberg(previous, inner) + &
+                        givens_cosine(previous)* &
+                        hessenberg(previous + 1, inner)
+                    hessenberg(previous, inner) = temporary
+                end do
+                call real_givens( &
+                    hessenberg(inner, inner), &
+                    hessenberg(inner + 1, inner), givens_cosine(inner), &
+                    givens_sine(inner), hessenberg(inner, inner))
+                hessenberg(inner + 1, inner) = 0.0_dp
+                temporary = &
+                    givens_cosine(inner)*rotated_rhs(inner) + &
+                    givens_sine(inner)*rotated_rhs(inner + 1)
+                rotated_rhs(inner + 1) = &
+                    -givens_sine(inner)*rotated_rhs(inner) + &
+                    givens_cosine(inner)*rotated_rhs(inner + 1)
+                rotated_rhs(inner) = temporary
+                iterations = iterations + 1
+                used = inner
+                if (abs(rotated_rhs(inner + 1)) <= target) exit
+                if (arnoldi_breakdown) exit
+            end do
+
+            call real_upper_triangular_solve( &
+                hessenberg, rotated_rhs, used, y, info)
+            if (info /= KRYLOV_OK) then
+                info = KRYLOV_BREAKDOWN
+                return
+            end if
+            call parallel_vector_gemv_n(1.0_dp, preconditioned, used, y, solution)
+            call matvec(solution, work)
+            call parallel_vector_sub(right_hand_side, work, residual)
+            residual_norm = parallel_vector_norm2(residual)
+            if (residual_norm <= target) then
+                info = KRYLOV_OK
+                return
+            end if
+            if (arnoldi_breakdown) then
+                info = KRYLOV_BREAKDOWN
+                return
+            end if
+            if (residual_norm > ratio*previous_norm) then
+                info = KRYLOV_STAGNATION
+                return
+            end if
+        end do
+        info = KRYLOV_MAX_ITERATIONS
+    end subroutine real_fgmres_operator
+
+    subroutine complex_fgmres_operator( &
+            matvec, preconditioner, right_hand_side, solution, tolerance, &
+            max_iterations, restart, info, iterations, residual_norm, &
+            stagnation_ratio)
+        !! Complex counterpart of real_fgmres_operator (same contract).
+        procedure(complex_matvec_t) :: matvec
+        procedure(complex_preconditioner_t) :: preconditioner
+        complex(dp), intent(in) :: right_hand_side(:)
+        complex(dp), intent(inout) :: solution(:)
+        real(dp), intent(in) :: tolerance
+        integer, intent(in) :: max_iterations, restart
+        integer, intent(out) :: info, iterations
+        real(dp), intent(out) :: residual_norm
+        real(dp), intent(in), optional :: stagnation_ratio
+
+        complex(dp), allocatable :: basis(:, :), preconditioned(:, :)
+        complex(dp), allocatable :: givens_sine(:), hessenberg(:, :)
+        complex(dp), allocatable :: residual(:), rotated_rhs(:), work(:), y(:)
+        complex(dp), allocatable :: coefficients(:)
+        real(dp), allocatable :: givens_cosine(:)
+        complex(dp) :: temporary
+        real(dp) :: basis_norm, right_hand_side_norm, target
+        real(dp) :: previous_norm, ratio
+        integer :: cycle_size, inner, previous, used, row, pass
+        logical :: arnoldi_breakdown
+
+        info = KRYLOV_INVALID_ARGUMENT
+        iterations = 0
+        residual_norm = huge(1.0_dp)
+        if (size(right_hand_side) < 1) return
+        if (size(solution) /= size(right_hand_side)) return
+        if (tolerance <= 0.0_dp .or. max_iterations < 1) return
+        if (restart < 1 .or. restart > max_iterations) return
+        ratio = 0.99_dp
+        if (present(stagnation_ratio)) ratio = stagnation_ratio
+        if (ratio <= 0.0_dp) return
+
+        allocate( &
+            basis(size(solution), restart + 1), &
+            preconditioned(size(solution), restart), &
+            hessenberg(restart + 1, restart), residual(size(solution)), &
+            work(size(solution)), y(restart), rotated_rhs(restart + 1), &
+            coefficients(restart + 1), &
+            givens_cosine(restart), givens_sine(restart))
+        right_hand_side_norm = norm2(abs(right_hand_side))
+        target = tolerance*max(right_hand_side_norm, 1.0_dp)
+        if (right_hand_side_norm == 0.0_dp) then
+            solution = cmplx(0.0_dp, 0.0_dp, dp)
+            residual_norm = 0.0_dp
+            info = KRYLOV_OK
+            return
+        end if
+
+        call matvec(solution, work)
+        residual = right_hand_side - work
+        residual_norm = norm2(abs(residual))
+        do while (iterations < max_iterations)
+            if (residual_norm <= target) then
+                info = KRYLOV_OK
+                return
+            end if
+            previous_norm = residual_norm
+
+            basis = cmplx(0.0_dp, 0.0_dp, dp)
+            hessenberg = cmplx(0.0_dp, 0.0_dp, dp)
+            rotated_rhs = cmplx(0.0_dp, 0.0_dp, dp)
+            rotated_rhs(1) = cmplx(residual_norm, 0.0_dp, dp)
+            basis(:, 1) = residual/residual_norm
+            cycle_size = min(restart, max_iterations - iterations)
+            used = 0
+            arnoldi_breakdown = .false.
+
+            do inner = 1, cycle_size
+                call preconditioner(basis(:, inner), preconditioned(:, inner))
+                call matvec(preconditioned(:, inner), work)
+                ! Classical Gram-Schmidt with one reorthogonalisation (CGS2),
+                ! parallel over basis columns (dots) and rows (updates).
+                do pass = 1, 2
+                    !$omp parallel do default(shared) private(previous) &
+                    !$omp& if(size(work)*inner > 20000)
+                    do previous = 1, inner
+                        coefficients(previous) = &
+                            dot_product(basis(:, previous), work)
+                    end do
+                    !$omp end parallel do
+                    !$omp parallel do default(shared) private(row, previous) &
+                    !$omp& if(size(work)*inner > 20000)
+                    do row = 1, size(work)
+                        do previous = 1, inner
+                            work(row) = work(row) - &
+                                coefficients(previous)*basis(row, previous)
+                        end do
+                    end do
+                    !$omp end parallel do
+                    if (pass == 1) then
+                        hessenberg(1:inner, inner) = coefficients(1:inner)
+                    else
+                        hessenberg(1:inner, inner) = &
+                            hessenberg(1:inner, inner) + coefficients(1:inner)
+                    end if
+                end do
+                basis_norm = norm2(abs(work))
+                hessenberg(inner + 1, inner) = &
+                    cmplx(basis_norm, 0.0_dp, dp)
+                if (basis_norm > 64.0_dp*epsilon(1.0_dp)) then
+                    basis(:, inner + 1) = work/basis_norm
+                else
+                    arnoldi_breakdown = .true.
+                end if
+
+                do previous = 1, inner - 1
+                    temporary = &
+                        givens_cosine(previous)*hessenberg(previous, inner) + &
+                        givens_sine(previous)*hessenberg(previous + 1, inner)
+                    hessenberg(previous + 1, inner) = &
+                        -conjg(givens_sine(previous))* &
+                        hessenberg(previous, inner) + &
+                        givens_cosine(previous)* &
+                        hessenberg(previous + 1, inner)
+                    hessenberg(previous, inner) = temporary
+                end do
+                call complex_givens( &
+                    hessenberg(inner, inner), &
+                    hessenberg(inner + 1, inner), givens_cosine(inner), &
+                    givens_sine(inner), hessenberg(inner, inner))
+                hessenberg(inner + 1, inner) = cmplx(0.0_dp, 0.0_dp, dp)
+                temporary = &
+                    givens_cosine(inner)*rotated_rhs(inner) + &
+                    givens_sine(inner)*rotated_rhs(inner + 1)
+                rotated_rhs(inner + 1) = &
+                    -conjg(givens_sine(inner))*rotated_rhs(inner) + &
+                    givens_cosine(inner)*rotated_rhs(inner + 1)
+                rotated_rhs(inner) = temporary
+                iterations = iterations + 1
+                used = inner
+                if (abs(rotated_rhs(inner + 1)) <= target) exit
+                if (arnoldi_breakdown) exit
+            end do
+
+            call upper_triangular_solve( &
+                hessenberg, rotated_rhs, used, y, info)
+            if (info /= KRYLOV_OK) then
+                info = KRYLOV_BREAKDOWN
+                return
+            end if
+            solution = solution + matmul(preconditioned(:, :used), y(:used))
+            call matvec(solution, work)
+            residual = right_hand_side - work
+            residual_norm = norm2(abs(residual))
+            if (residual_norm <= target) then
+                info = KRYLOV_OK
+                return
+            end if
+            if (arnoldi_breakdown) then
+                info = KRYLOV_BREAKDOWN
+                return
+            end if
+            if (residual_norm > ratio*previous_norm) then
+                info = KRYLOV_STAGNATION
+                return
+            end if
+        end do
+        info = KRYLOV_MAX_ITERATIONS
+    end subroutine complex_fgmres_operator
 
     pure subroutine complex_givens(first, second, cosine, sine, rotated)
         complex(dp), intent(in) :: first, second
