@@ -7,7 +7,7 @@ module fortnum_fft8_kernel
 
 contains
 
-    pure subroutine fft_c2c8(z1, z2, z3, z4, z5, z6, z7, z8, sign)
+    pure recursive subroutine fft_c2c8(z1, z2, z3, z4, z5, z6, z7, z8, sign)
         !$omp declare target
         !$acc routine seq
         complex(dp), intent(inout) :: z1, z2, z3, z4, z5, z6, z7, z8

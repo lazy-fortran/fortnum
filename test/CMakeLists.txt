@@ -518,3 +518,26 @@ foreach(fixture verified_matvec sampled_norm)
     target_link_libraries(test_${fixture} PRIVATE fortnum)
     add_test(NAME ${fixture} COMMAND test_${fixture})
 endforeach()
+
+# Exercise a consumer that compiles FFT without OpenMP but calls it in parallel.
+add_library(fft_consumer_reentrant STATIC
+    ${PROJECT_SOURCE_DIR}/src/fortnum_kinds.f90
+    ${PROJECT_SOURCE_DIR}/src/fft/fortnum_fft8_kernel.f90
+    ${PROJECT_SOURCE_DIR}/src/fft/fortnum_fft.f90)
+set_target_properties(fft_consumer_reentrant PROPERTIES
+    Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/fft_consumer_modules)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/fft_consumer_modules)
+target_include_directories(fft_consumer_reentrant PUBLIC
+    ${CMAKE_CURRENT_BINARY_DIR}/fft_consumer_modules)
+if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(fft_consumer_reentrant PRIVATE -fcheck=all)
+endif()
+add_executable(test_fft_shared_workspace concurrency/test_fft_shared_workspace.f90)
+target_link_libraries(test_fft_shared_workspace PRIVATE
+    fft_consumer_reentrant OpenMP::OpenMP_Fortran)
+add_test(NAME fft_shared_plan_private_workspace COMMAND test_fft_shared_workspace)
+set_tests_properties(fft_shared_plan_private_workspace PROPERTIES
+    ENVIRONMENT "OMP_NUM_THREADS=4;OMP_WAIT_POLICY=passive" PROCESSORS 4 TIMEOUT 30)
+add_test(NAME fft_shared_plan_legacy_scratch COMMAND test_fft_shared_workspace legacy)
+set_tests_properties(fft_shared_plan_legacy_scratch PROPERTIES
+    ENVIRONMENT "OMP_NUM_THREADS=4;OMP_WAIT_POLICY=passive" PROCESSORS 4 TIMEOUT 30)

@@ -299,10 +299,20 @@ replay the accepted subdivision stored in `integrate_result_t`.
 - `fortnum_fft_plan_t`
 - `fft_plan_init`
 - `fft_c2c_plan_init`
-- `fft_c2c` (optionally with a caller-owned complex-transform plan)
+- `fft_c2c` (optionally with a caller-owned complex-transform plan and workspace)
+- `fortnum_fft_workspace_t`, `fft_workspace_init`
 - `fft_r2c`
 - `fft_c2c_jvp`, `fft_c2c_vjp`
 - `fft_r2c_jvp`, `fft_r2c_vjp`
+
+Complex transform plans are read-only and may be shared across threads.
+Initialize one `fortnum_fft_workspace_t` per concurrent transform with
+`fft_workspace_init(workspace, plan)`, then pass it as the fourth argument of
+`fft_c2c`. The workspace retains the mixed-radix/Bluestein buffers, so those
+calls allocate no scratch. A workspace must match the plan length and algorithm;
+plan construction and workspace allocation are inactive. Existing calls without
+workspace retain their local scratch behavior. The stored-grid JVP/VJP remains
+the same linear DFT/adjoint; scratch ownership changes no numerical semantics.
 
 `sign=-1` applies the unnormalized forward transform and `sign=+1` applies the
 unnormalized inverse transform. The JVP uses the same sign. The VJP uses the
