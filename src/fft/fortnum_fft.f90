@@ -30,6 +30,7 @@ module fortnum_fft
 
     public :: fft_r2c, fft_c2c, fortnum_fft_plan_t, fft_plan_init, &
         fft_c2c_plan_init
+    public :: fortnum_fft_workspace_t, fft_workspace_init
     public :: fft_c2c_jvp, fft_c2c_vjp, fft_r2c_jvp, fft_r2c_vjp
 
     real(dp), parameter :: pi = 3.141592653589793238462643383279502884_dp
@@ -58,9 +59,28 @@ module fortnum_fft
         complex(dp), allocatable :: bfft(:)
     end type fortnum_fft_plan_t
 
+    ! Scratch is mutable and must be private to one concurrent transform.
+    ! Plans remain read-only and may be shared across threads.
+    type :: fortnum_fft_workspace_t
+        private
+        integer :: n = 0, ncpx = 0
+        complex(dp), allocatable :: a(:), work(:)
+    end type fortnum_fft_workspace_t
+
 contains
 
-    subroutine fft_plan_init(plan, n)
+    recursive subroutine fft_workspace_init(workspace, plan)
+        type(fortnum_fft_workspace_t), intent(out) :: workspace
+        type(fortnum_fft_plan_t), intent(in) :: plan
+        integer :: n
+        n = plan%ncpx
+        if (plan%bluestein) n = plan%m
+        if (n < 1) error stop 'fft_workspace_init: uninitialized plan'
+        workspace%n = n; workspace%ncpx = plan%ncpx
+        allocate (workspace%a(0:n - 1), workspace%work(0:n - 1))
+    end subroutine fft_workspace_init
+
+    recursive subroutine fft_plan_init(plan, n)
         ! Initialize a reusable plan for transforms of length n.
         type(fortnum_fft_plan_t), intent(out) :: plan
         integer, intent(in) :: n
@@ -82,7 +102,7 @@ contains
         call init_core(plan, plan%ncpx)
     end subroutine fft_plan_init
 
-    subroutine fft_c2c_plan_init(plan, n)
+    recursive subroutine fft_c2c_plan_init(plan, n)
         ! Initialize a reusable plan for complex transforms of length n.
         type(fortnum_fft_plan_t), intent(out) :: plan
         integer, intent(in) :: n
@@ -94,7 +114,7 @@ contains
         call init_core(plan, n)
     end subroutine fft_c2c_plan_init
 
-    subroutine fft_r2c(x, c, plan)
+    recursive subroutine fft_r2c(x, c, plan)
         ! Real-to-complex DFT. c has size n/2+1; c(k+1) is the k-th bin.
         ! If plan is supplied it must have been built for size(x).
         real(dp), intent(in) :: x(:)
@@ -115,13 +135,14 @@ contains
         end if
     end subroutine fft_r2c
 
-    subroutine fft_c2c(z, sign, plan)
+    recursive subroutine fft_c2c(z, sign, plan, workspace)
         ! In-place complex-to-complex DFT.
         ! sign = -1: forward (exp(-2 pi i j k / n), FFTW / numpy convention).
         ! sign = +1: inverse (exp(+2 pi i j k / n)), unnormalized.
         complex(dp), intent(inout) :: z(:)
         integer, intent(in) :: sign
         type(fortnum_fft_plan_t), intent(in), optional :: plan
+        type(fortnum_fft_workspace_t), intent(inout), optional :: workspace
         type(fortnum_fft_plan_t) :: local_plan
 
         if (size(z) < 1) error stop "fft_c2c: empty input"
@@ -140,7 +161,7 @@ contains
         end if
         if (present(plan)) then
             if (sign == 1) z = conjg(z)
-            call c2c_forward(plan, z)
+            call c2c_forward(plan, z, workspace)
             if (sign == 1) z = conjg(z)
             return
         end if
@@ -149,7 +170,7 @@ contains
         call init_core(local_plan, local_plan%ncpx)
         ! Inverse via conj(forward(conj(.))): conjugate, forward, conjugate.
         if (sign == 1) z = conjg(z)
-        call c2c_forward(local_plan, z)
+        call c2c_forward(local_plan, z, workspace)
         if (sign == 1) z = conjg(z)
     end subroutine fft_c2c
 
@@ -168,7 +189,7 @@ contains
     ! (ad.md sec 3). HVP is deferred: the map is linear, so the Hessian is zero
     ! and fft_*_hvp would carry no information.
 
-    subroutine fft_c2c_jvp(dz, sign)
+    recursive subroutine fft_c2c_jvp(dz, sign)
         ! Forward product J(z) dz for the in-place complex DFT. J = F is the
         ! transform, so the JVP is fft_c2c applied to the tangent dz.
         complex(dp), intent(inout) :: dz(:)
@@ -176,7 +197,7 @@ contains
         call fft_c2c(dz, sign)
     end subroutine fft_c2c_jvp
 
-    subroutine fft_c2c_vjp(u, sign)
+    recursive subroutine fft_c2c_vjp(u, sign)
         ! Reverse product J(z)^H u = F^H u. F^H is the conjugate-transpose, the
         ! transform with the opposite sign (conjugate kernel, unnormalized).
         complex(dp), intent(inout) :: u(:)
@@ -184,7 +205,7 @@ contains
         call fft_c2c(u, -sign)
     end subroutine fft_c2c_vjp
 
-    subroutine fft_r2c_jvp(dx, dc, plan)
+    recursive subroutine fft_r2c_jvp(dx, dc, plan)
         ! Forward product for the real-to-complex DFT. The map x -> c is
         ! R-linear with the same coefficients as the primal, so the JVP is
         ! fft_r2c applied to the tangent dx.
@@ -198,7 +219,7 @@ contains
         end if
     end subroutine fft_r2c_jvp
 
-    subroutine fft_r2c_vjp(u, xbar, plan)
+    recursive subroutine fft_r2c_vjp(u, xbar, plan)
         ! Reverse product for the real-to-complex DFT. The primal is the real
         ! map (R x)(k) = sum_j x(j) exp(-2 pi i j k / n), k = 0..n/2, with x
         ! real. Under <p,q>_R on the complex output and the ordinary real inner
@@ -237,7 +258,7 @@ contains
 
     ! --- private implementation below ----------------------------------------
 
-    subroutine r2c_planned(p, x, c)
+    recursive subroutine r2c_planned(p, x, c)
         type(fortnum_fft_plan_t), intent(in) :: p
         real(dp), intent(in) :: x(:)
         complex(dp), intent(out) :: c(:)
@@ -249,7 +270,7 @@ contains
         end if
     end subroutine r2c_planned
 
-    subroutine r2c_even(p, x, c)
+    recursive subroutine r2c_even(p, x, c)
         type(fortnum_fft_plan_t), intent(in) :: p
         real(dp), intent(in) :: x(:)
         complex(dp), intent(out) :: c(:)
@@ -273,7 +294,7 @@ contains
         end do
     end subroutine r2c_even
 
-    subroutine r2c_odd(p, x, c)
+    recursive subroutine r2c_odd(p, x, c)
         type(fortnum_fft_plan_t), intent(in) :: p
         real(dp), intent(in) :: x(:)
         complex(dp), intent(out) :: c(:)
@@ -289,19 +310,36 @@ contains
         end do
     end subroutine r2c_odd
 
-    subroutine c2c_forward(p, z)
+    recursive subroutine c2c_forward(p, z, workspace)
         type(fortnum_fft_plan_t), intent(in) :: p
         complex(dp), intent(inout) :: z(0:)
-        complex(dp) :: work(0:p%ncpx - 1)
-
-        if (p%bluestein) then
+        type(fortnum_fft_workspace_t), intent(inout), optional :: workspace
+        integer :: n
+        if (present(workspace)) then
+            n = p%ncpx
+            if (p%bluestein) n = p%m
+            if (workspace%ncpx /= p%ncpx .or. workspace%n /= n) &
+                error stop 'fft_c2c: workspace built for different plan'
+            if (p%bluestein) then
+                call bluestein_buffers(p, z, workspace%a, workspace%work)
+            else
+                call stockham_forward(p%ncpx, p%nfac, p%fac, p%w, z, workspace%work)
+            end if
+        else if (p%bluestein) then
             call bluestein_forward(p, z)
         else
-            call stockham_forward(p%ncpx, p%nfac, p%fac, p%w, z, work)
+            call stockham_local(p, z)
         end if
     end subroutine c2c_forward
 
-    subroutine init_core(plan, nc)
+    recursive subroutine stockham_local(p, z)
+        type(fortnum_fft_plan_t), intent(in) :: p
+        complex(dp), intent(inout) :: z(0:)
+        complex(dp) :: work(0:p%ncpx - 1)
+        call stockham_forward(p%ncpx, p%nfac, p%fac, p%w, z, work)
+    end subroutine stockham_local
+
+    recursive subroutine init_core(plan, nc)
         type(fortnum_fft_plan_t), intent(inout) :: plan
         integer, intent(in) :: nc
         integer :: rem, k
@@ -318,7 +356,7 @@ contains
         end if
     end subroutine init_core
 
-    subroutine init_bluestein(plan, nc)
+    recursive subroutine init_bluestein(plan, nc)
         type(fortnum_fft_plan_t), intent(inout) :: plan
         integer, intent(in) :: nc
         complex(dp), allocatable :: work(:)
@@ -348,15 +386,19 @@ contains
         plan%bfft = plan%bfft/real(m, dp)
     end subroutine init_bluestein
 
-    subroutine bluestein_forward(p, z)
+    recursive subroutine bluestein_forward(p, z)
         type(fortnum_fft_plan_t), intent(in) :: p
         complex(dp), intent(inout) :: z(0:)
         complex(dp), allocatable :: a(:), work(:)
-        integer :: nc, m, k
+        allocate (a(0:p%m - 1), work(0:p%m - 1))
+        call bluestein_buffers(p, z, a, work)
+    end subroutine bluestein_forward
 
-        nc = p%ncpx
-        m = p%m
-        allocate (a(0:m - 1), work(0:m - 1))
+    recursive subroutine bluestein_buffers(p, z, a, work)
+        type(fortnum_fft_plan_t), intent(in) :: p
+        complex(dp), intent(inout) :: z(0:), a(0:), work(0:)
+        integer :: nc, m, k
+        nc = p%ncpx; m = p%m
         do k = 0, nc - 1
             a(k) = z(k)*p%chirp(k)
         end do
@@ -368,9 +410,9 @@ contains
         do k = 0, nc - 1
             z(k) = p%chirp(k)*conjg(a(k))
         end do
-    end subroutine bluestein_forward
+    end subroutine bluestein_buffers
 
-    subroutine stockham_forward(nc, nfac, fac, w, a, work)
+    recursive subroutine stockham_forward(nc, nfac, fac, w, a, work)
         integer, intent(in) :: nc, nfac
         integer, intent(in) :: fac(:)
         complex(dp), intent(in) :: w(0:nc - 1)
@@ -394,7 +436,7 @@ contains
         if (.not. in_a) a = work
     end subroutine stockham_forward
 
-    subroutine radix_pass(r, la, lrem, nc, w, src, dst)
+    recursive subroutine radix_pass(r, la, lrem, nc, w, src, dst)
         integer, intent(in) :: r, la, lrem, nc
         complex(dp), intent(in) :: w(0:nc - 1), src(0:nc - 1)
         complex(dp), intent(out) :: dst(0:nc - 1)
@@ -413,7 +455,7 @@ contains
         end select
     end subroutine radix_pass
 
-    subroutine pass2(la, lrem, nc, w, src, dst)
+    recursive subroutine pass2(la, lrem, nc, w, src, dst)
         integer, intent(in) :: la, lrem, nc
         complex(dp), intent(in) :: w(0:nc - 1), src(0:nc - 1)
         complex(dp), intent(out) :: dst(0:nc - 1)
@@ -442,7 +484,7 @@ contains
         end do
     end subroutine pass2
 
-    subroutine pass3(la, lrem, nc, w, src, dst)
+    recursive subroutine pass3(la, lrem, nc, w, src, dst)
         integer, intent(in) :: la, lrem, nc
         complex(dp), intent(in) :: w(0:nc - 1), src(0:nc - 1)
         complex(dp), intent(out) :: dst(0:nc - 1)
@@ -469,7 +511,7 @@ contains
         end do
     end subroutine pass3
 
-    subroutine pass4(la, lrem, nc, w, src, dst)
+    recursive subroutine pass4(la, lrem, nc, w, src, dst)
         integer, intent(in) :: la, lrem, nc
         complex(dp), intent(in) :: w(0:nc - 1), src(0:nc - 1)
         complex(dp), intent(out) :: dst(0:nc - 1)
@@ -518,7 +560,7 @@ contains
         end do
     end subroutine pass4
 
-    subroutine pass5(la, lrem, nc, w, src, dst)
+    recursive subroutine pass5(la, lrem, nc, w, src, dst)
         integer, intent(in) :: la, lrem, nc
         complex(dp), intent(in) :: w(0:nc - 1), src(0:nc - 1)
         complex(dp), intent(out) :: dst(0:nc - 1)
@@ -554,7 +596,7 @@ contains
         end do
     end subroutine pass5
 
-    pure subroutine butterfly5(u0, u1, u2, u3, u4, d0, d1, d2, d3, d4)
+    pure recursive subroutine butterfly5(u0, u1, u2, u3, u4, d0, d1, d2, d3, d4)
         complex(dp), intent(in) :: u0, u1, u2, u3, u4
         complex(dp), intent(out) :: d0, d1, d2, d3, d4
         complex(dp) :: t1, t2, t3, t4, m1, m2, m3, m4
@@ -576,7 +618,7 @@ contains
         d4 = m1 - m3
     end subroutine butterfly5
 
-    subroutine factorize(nc, fac, nfac, rem)
+    recursive subroutine factorize(nc, fac, nfac, rem)
         integer, intent(in) :: nc
         integer, intent(out) :: fac(:)
         integer, intent(out) :: nfac, rem
@@ -606,7 +648,7 @@ contains
         end do
     end subroutine factorize
 
-    pure function twiddle(j, n) result(wj)
+    pure recursive function twiddle(j, n) result(wj)
         integer, intent(in) :: j, n
         complex(dp) :: wj
         real(dp) :: angle
@@ -615,7 +657,7 @@ contains
         wj = cmplx(cos(angle), sin(angle), dp)
     end function twiddle
 
-    pure function chirp_factor(j, n) result(ch)
+    pure recursive function chirp_factor(j, n) result(ch)
         integer, intent(in) :: j, n
         complex(dp) :: ch
         real(dp) :: angle
