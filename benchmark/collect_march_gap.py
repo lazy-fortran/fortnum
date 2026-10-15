@@ -43,7 +43,8 @@ O3 = "-O3"
 # to show an FMA/vector-width gap.  Transcendental-heavy kernels (dawson,
 # multi-input) are dominated by sin/cos and do not expose one.
 LINALG3_WORKLOAD = ("det", "jvp", "65536", "resident")
-LINALG3_REPETITIONS = 3
+# Interleaved rounds; each round runs both workloads once per march level.
+ROUNDS = 3
 
 DAWSON_WORKLOAD = ("fused", "jvp")
 
@@ -69,6 +70,13 @@ def compiler_version() -> str:
 
 def source_revision(repo: Path) -> str:
     return run(["git", "-C", str(repo), "rev-parse", "HEAD"]).stdout.strip()
+
+
+def source_dirty(repo: Path) -> bool:
+    """Whether the measured tree differs from ``source_revision``."""
+    status = run(["git", "-C", str(repo), "status", "--porcelain",
+                  "--untracked-files=normal"])
+    return bool(status.stdout.strip())
 
 
 def medians(samples: list[float]) -> dict[str, float]:
@@ -164,7 +172,7 @@ def main() -> None:
         "x86-64-v2": {"linalg3": [], "dawson": []},
         "native": {"linalg3": [], "dawson": []},
     }
-    for _ in range(LINALG3_REPETITIONS):
+    for _ in range(ROUNDS):
         for march in MARCH_LEVELS:
             linalg3 = measure_linalg3(executables[march]["bench_linalg3_cpu"])
             records[march]["linalg3"].extend(linalg3["samples"])
@@ -219,6 +227,7 @@ def main() -> None:
     record = {
         "schema_version": 1,
         "source_revision": source_revision(repo),
+        "source_dirty": source_dirty(repo),
         "operation": "CPU microarchitecture gap for generated kernels",
         "workload": "per-kernel complete-workload wall clock at two -march levels",
         "question": "does -march=native beat -O3 -march=x86-64-v2 enough to "
@@ -234,8 +243,8 @@ def main() -> None:
         },
         "sampling": {
             "samples_per_run": SAMPLES_PER_RUN,
-            "linalg3_repetitions": LINALG3_REPETITIONS,
-            "dawson_runs": 1,
+            "linalg3_repetitions": ROUNDS,
+            "dawson_runs": ROUNDS,
         },
         "validation": {
             "dawson": "independent central-difference JVP and JVP/VJP "
