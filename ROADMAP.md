@@ -204,16 +204,17 @@ composition with at least one analytical rule.
 The derivation half of the synthesis pilot (the derived DOP853 tableau) is
 delivered; see `docs/design/fortran_synthesis_pilot.md` for the evaluation.
 
-- [x] Prove the generated root-residual JVP/VJP/Jacobian kernels equal the
-  hand-written analytic derivatives of the symbolic residual, with a
-  finite-difference secondary oracle.
-- [x] Prove the generated DOP853 tableau satisfies the order-8 Butcher order
+- [x] Check the generated root-residual JVP/VJP/Jacobian kernels against the
+  hand-written analytic derivatives of the symbolic residual and, independently,
+  a finite-difference oracle.
+- [x] Check that the generated DOP853 tableau satisfies the order-8 Butcher order
   conditions and the stage/weight consistency identities, with the tree
   enumeration validated against A000081.
 - [x] Add a spec-derived invariant check (order conditions) that catches a
   generated-tableau error before integration runs.
-- [x] Express shape, range and precondition contracts on the DOP853 step API
-  in Why3 and provide a discharge script.
+- [x] State the exact DOP853 tableau identities (explicitness, stage
+  consistency, bushy-tree order conditions, error-estimator moments) in Why3,
+  generated from the committed tableau, with a discharge script.
 - [x] Document which tests proofs replaced and which remain necessary, and
   record the hand-written versus generated comparison.
 
