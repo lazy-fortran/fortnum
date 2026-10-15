@@ -245,6 +245,8 @@ def check_generated_revision(root: Path) -> list[str]:
             for marker in (
                 "Generator: gen_rk54_device",
                 "Generator: gen_rk54_cpu_tableau",
+                # gen_dop853_tableau records fortsym-rk54.lock as well.
+                "Generator: gen_dop853_tableau",
             )
         )
         midpoint_generator = "Generator: gen_verified_midpoint" in text
