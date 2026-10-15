@@ -58,7 +58,8 @@ module fortnum_special_hypergeometric_1f1
     ! Distance from a non-positive integer within which b is treated as a pole.
     real(dp), parameter :: pole_guard = 1.0e-12_dp
 
-    integer,  parameter :: series_max_terms = 5000
+    integer,  parameter :: series_initial_terms = 5000
+    integer,  parameter :: series_max_terms = 1000000
     integer,  parameter :: asy_max_terms    = 60
 
 contains
@@ -151,37 +152,58 @@ contains
 
     ! Taylor series M(a,b,z) = sum_k (a)_k/(b)_k z^k/k! via the term ratio
     !   term_{k+1} = term_k * (a+k) z / ((b+k)(k+1))   (DLMF 13.2.2).
-    ! Converges absolutely; the loop stops when the running term is below the
-    ! float64 epsilon relative to the partial sum and at least two further
-    ! terms are negligible, guarding the alternating-sign transient.
+    ! For n >= k with k + Re(b) > 0, every subsequent term ratio is bounded by
+    ! q = |z|/(k+Re(b)) * max(1, (k+|a|)/(k+1)). Thus q < 1 bounds the
+    ! remaining absolute tail by |term_k| q/(1-q). Stop on this tail rather
+    ! than the last term: near b=z the significant width grows as sqrt(|z|),
+    ! and many individually small terms remain. Extend the initial work
+    ! budget geometrically only as needed, retaining an explicit hard limit
+    ! and failure status for inputs that cannot converge within that limit.
     subroutine series_1f1(a, b, z, m, ok)
         complex(dp), intent(in)  :: a, b, z
         complex(dp), intent(out) :: m
         logical,     intent(out) :: ok
 
         complex(dp) :: term, total
-        real(dp)    :: tol
-        integer     :: k, small_run
+        real(dp)    :: tol, ratio_bound, tail_bound, denominator
+        integer     :: k, budget
 
         term      = cmplx(1.0_dp, 0.0_dp, dp)
         total     = term
         ok        = .false.
-        small_run = 0
         tol       = epsilon(1.0_dp)
+        budget    = series_initial_terms
+        k         = 0
 
-        do k = 0, series_max_terms - 1
+        if (z == cmplx(0.0_dp, 0.0_dp, dp)) then
+            m = total
+            ok = .true.
+            return
+        end if
+        do while (k < budget)
+            ! A non-positive integer a terminates the polynomial exactly,
+            ! independently of the sufficient bound for an infinite tail.
+            if (a + real(k, dp) == cmplx(0.0_dp, 0.0_dp, dp)) then
+                ok = .true.
+                exit
+            end if
             term  = term * (a + real(k, dp)) * z &
                 / ((b + real(k, dp)) * real(k + 1, dp))
             total = total + term
-            if (abs(term) <= tol * abs(total)) then
-                small_run = small_run + 1
-                if (small_run >= 2) then
-                    ok = .true.
-                    exit
+            k = k + 1
+            denominator = real(k, dp) + real(b, dp)
+            if (denominator > 0.0_dp) then
+                ratio_bound = abs(z) / denominator &
+                    * max(1.0_dp, (real(k, dp) + abs(a)) / real(k + 1, dp))
+                if (ratio_bound < 1.0_dp) then
+                    tail_bound = abs(term) * ratio_bound / (1.0_dp - ratio_bound)
+                    if (tail_bound <= tol * abs(total)) then
+                        ok = .true.
+                        exit
+                    end if
                 end if
-            else
-                small_run = 0
             end if
+            if (k == budget) budget = min(2 * budget, series_max_terms)
         end do
 
         m = total
