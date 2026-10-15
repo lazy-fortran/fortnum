@@ -5,11 +5,11 @@ program test_fortnum_generated_residual_equivalence
     ! src/generated/fortnum_{scalar,vector}_root_residual_*_kernel.f90 and
     ! src/generated/fortnum_implicit_root_residual_kernel.f90 are produced by
     ! the fortsym generator tools/codegen/app/gen_implicit_root_residual.f90
-    ! from symbolic residuals. This test proves the generated kernels equal
-    ! the hand-written analytic derivatives of the same residuals, evaluated
-    ! at many points. The hand-written expressions here are the independent
-    ! oracle; they are transcribed once from the symbolic definition and are
-    ! deliberately NOT the same code path the generator emits.
+    ! from symbolic residuals. This test checks, in floating point at many
+    ! points, that the generated kernels equal the hand-written analytic
+    ! derivatives of the same residuals. The hand-written expressions here
+    ! are the independent oracle; they are transcribed once from the symbolic
+    ! definition and are deliberately NOT the code path the generator emits.
     !
     ! The two residual families:
     !   scalar:  r(x, p1, p2)   = x^3 + p1*x - p2
@@ -22,8 +22,9 @@ program test_fortnum_generated_residual_equivalence
     !   dF/dx = [[2 x1, 1], [1, 2 x2]],  dF/dp tangent = [-tp1, -tp2]
     !   r(x,p)=x^2-p: dr/dx = 2x, dr/dp = -1.
     !
-    ! A finite-difference check runs alongside as a second, independent
-    ! oracle that does not share the analytic expression either.
+    ! A central finite difference of the hand-written residual is a second,
+    ! independent oracle that does not share the analytic expression. Every
+    ! derivative must agree with both oracles.
 
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
     use fortnum_generated_scalar_root_residual_jvp, only: &
@@ -89,7 +90,7 @@ contains
     subroutine check_scalar_vjp(nfail)
         integer, intent(inout) :: nfail
         real(dp) :: x, p1, u, fx_gen, fp1, fp2
-        real(dp) :: fx_exp, fp1_exp, fp2_exp
+        real(dp) :: fx_exp, fp1_exp, fp2_exp, h
         integer :: k
         real(dp), parameter :: pts(4) = [ -0.9_dp, 1.2_dp, 3.3_dp, -6.0_dp ]
         do k = 1, size(pts)
@@ -101,10 +102,16 @@ contains
             fx_exp = 3.0_dp*x*x + p1
             fp1_exp = u*x
             fp2_exp = -u
+            h = 1.0e-6_dp
             call check_abs("scalar VJP f_x", fx_gen, fx_exp, &
-                huge(1.0_dp), nfail)
-            call check_abs("scalar VJP f_p1", fp1, fp1_exp, huge(1.0_dp), nfail)
-            call check_abs("scalar VJP f_p2", fp2, fp2_exp, huge(1.0_dp), nfail)
+                (scalar_residual(x + h, p1, 0.0_dp) &
+                - scalar_residual(x - h, p1, 0.0_dp))/(2.0_dp*h), nfail)
+            call check_abs("scalar VJP f_p1", fp1, fp1_exp, &
+                u*(scalar_residual(x, p1 + h, 0.0_dp) &
+                - scalar_residual(x, p1 - h, 0.0_dp))/(2.0_dp*h), nfail)
+            call check_abs("scalar VJP f_p2", fp2, fp2_exp, &
+                u*(scalar_residual(x, p1, h) &
+                - scalar_residual(x, p1, -h))/(2.0_dp*h), nfail)
         end do
     end subroutine check_scalar_vjp
 
@@ -138,7 +145,7 @@ contains
         integer, intent(inout) :: nfail
         real(dp) :: x(2), tp(2), jac(2,2), fptp(2)
         real(dp) :: fptp_exp(2), h
-        integer :: k
+        integer :: k, i
         real(dp), parameter :: pts(2, 4) = reshape([ &
             1.0_dp, 1.0_dp, -2.0_dp, 0.5_dp, 3.0_dp, -4.0_dp, 0.0_dp, 0.0_dp ], &
             [2, 4])
@@ -148,29 +155,45 @@ contains
             call fortnum_vector_root_residual_jvp_kernel(x, tp, jac, fptp)
             fptp_exp = [-tp(1), -tp(2)]
             h = 1.0e-6_dp
-            call check_abs("vector JVP f_p_tp(1)", fptp(1), fptp_exp(1), &
-                (vector_residual(1, x + h*tp) - vector_residual(1, x - h*tp)) &
-                /(2.0_dp*h), nfail)
-            call check_abs("vector JVP f_p_tp(2)", fptp(2), fptp_exp(2), &
-                (vector_residual(2, x + h*tp) - vector_residual(2, x - h*tp)) &
-                /(2.0_dp*h), nfail)
+            call check_abs("vector JVP jac_x(1,1)", jac(1, 1), 2.0_dp*x(1), &
+                vector_residual_fd(1, 1, x, h), nfail)
+            call check_abs("vector JVP jac_x(1,2)", jac(1, 2), 1.0_dp, &
+                vector_residual_fd(1, 2, x, h), nfail)
+            call check_abs("vector JVP jac_x(2,1)", jac(2, 1), 1.0_dp, &
+                vector_residual_fd(2, 1, x, h), nfail)
+            call check_abs("vector JVP jac_x(2,2)", jac(2, 2), 2.0_dp*x(2), &
+                vector_residual_fd(2, 2, x, h), nfail)
+            do i = 1, 2
+                ! dF_i/dp applied to tp, differenced in p at fixed x
+                call check_abs("vector JVP f_p_tp", fptp(i), fptp_exp(i), &
+                    (vector_residual(i, x, h*tp) &
+                    - vector_residual(i, x, -h*tp))/(2.0_dp*h), nfail)
+            end do
         end do
     end subroutine check_vector_jvp
 
     subroutine check_vector_vjp(nfail)
         integer, intent(inout) :: nfail
-        real(dp) :: u(2), fptu(2), fptu_exp(2)
-        integer :: k
+        real(dp) :: u(2), fptu(2), fptu_exp(2), h, dp_j(2)
+        integer :: k, j
+        real(dp), parameter :: x(2) = [0.6_dp, -1.4_dp]
         real(dp), parameter :: uvals(2, 3) = reshape([ &
             1.0_dp, 0.0_dp, 0.0_dp, 1.0_dp, -2.0_dp, 3.0_dp ], [2, 3])
         do k = 1, size(uvals, 2)
             u = uvals(:, k)
             call fortnum_vector_root_residual_vjp_kernel(u, fptu)
             fptu_exp = [-u(1), -u(2)]
-            call check_abs("vector VJP f_p_t_u(1)", fptu(1), fptu_exp(1), &
-                huge(1.0_dp), nfail)
-            call check_abs("vector VJP f_p_t_u(2)", fptu(2), fptu_exp(2), &
-                huge(1.0_dp), nfail)
+            h = 1.0e-6_dp
+            do j = 1, 2
+                ! (u^T dF/dp)_j as a difference of u^T F along p_j
+                dp_j = 0.0_dp
+                dp_j(j) = h
+                call check_abs("vector VJP f_p_t_u", fptu(j), fptu_exp(j), &
+                    (u(1)*vector_residual(1, x, dp_j) &
+                    + u(2)*vector_residual(2, x, dp_j) &
+                    - u(1)*vector_residual(1, x, -dp_j) &
+                    - u(2)*vector_residual(2, x, -dp_j))/(2.0_dp*h), nfail)
+            end do
         end do
     end subroutine check_vector_vjp
 
@@ -190,8 +213,7 @@ contains
             fx_exp = 2.0_dp*x
             fptp_exp = -tp
             h = 1.0e-6_dp
-            call check_abs("implicit residual", residual, residual_exp, &
-                huge(1.0_dp), nfail)
+            call check_value("implicit residual", residual, residual_exp, nfail)
             call check_abs("implicit f_x", fx, fx_exp, &
                 (residual_fn(x + h, p) - residual_fn(x - h, p))/(2.0_dp*h), nfail)
             call check_abs("implicit f_p_tp", fptp, fptp_exp, &
@@ -214,15 +236,15 @@ contains
         r = x*x - p
     end function residual_fn
 
-    !> Vector residual component F_i(x) (hand-written), with p = 0.
-    pure function vector_residual(i, x) result(r)
+    !> Vector residual component F_i(x, p) (hand-written).
+    pure function vector_residual(i, x, p) result(r)
         integer, intent(in) :: i
-        real(dp), intent(in) :: x(2)
+        real(dp), intent(in) :: x(2), p(2)
         real(dp) :: r
         if (i == 1) then
-            r = x(1)*x(1) + x(2)
+            r = x(1)*x(1) + x(2) - p(1)
         else
-            r = x(1) + x(2)*x(2)
+            r = x(1) + x(2)*x(2) - p(2)
         end if
     end function vector_residual
 
@@ -235,23 +257,45 @@ contains
         xm = x
         xp(j) = x(j) + h
         xm(j) = x(j) - h
-        fd = (vector_residual(i, xp) - vector_residual(i, xm))/(2.0_dp*h)
+        fd = (vector_residual(i, xp, [0.0_dp, 0.0_dp]) &
+            - vector_residual(i, xm, [0.0_dp, 0.0_dp]))/(2.0_dp*h)
     end function vector_residual_fd
 
-    !> The generated value must match the analytic derivative; the
-    !> finite-difference value is reported to diagnose a wrong analytic oracle.
+    !> The generated derivative must match the analytic derivative to
+    !> rounding and, independently, the central finite difference to its
+    !> truncation and cancellation error (h = 1e-6: below 1e-6 relative to
+    !> the derivative scale for these low-degree residuals).
     subroutine check_abs(label, got, analytic, fd, nfail)
         character(*), intent(in) :: label
         real(dp), intent(in) :: got, analytic, fd
         integer, intent(inout) :: nfail
-        real(dp) :: tol
-        tol = 1.0e-9_dp
-        if (abs(got - analytic) > tol) then
-            write (error_unit, "(a,a,es12.4,a,es12.4,a,es12.4)") &
-                "FAIL ", label, " got=", got, " analytic=", analytic, &
-                " fd=", fd
+        real(dp), parameter :: analytic_tol = 1.0e-9_dp
+        real(dp), parameter :: fd_rtol = 1.0e-6_dp
+        logical :: analytic_bad, fd_bad
+        analytic_bad = abs(got - analytic) > analytic_tol
+        fd_bad = abs(got - fd) > fd_rtol*max(1.0_dp, abs(analytic))
+        if (analytic_bad) then
+            write (error_unit, "(a,a,es12.4,a,es12.4)") &
+                "FAIL analytic ", label, " got=", got, " analytic=", analytic
+            nfail = nfail + 1
+        end if
+        if (fd_bad) then
+            write (error_unit, "(a,a,es12.4,a,es12.4)") &
+                "FAIL finite difference ", label, " got=", got, " fd=", fd
             nfail = nfail + 1
         end if
     end subroutine check_abs
+
+    !> A generated value (not a derivative) against the hand-written one.
+    subroutine check_value(label, got, expected, nfail)
+        character(*), intent(in) :: label
+        real(dp), intent(in) :: got, expected
+        integer, intent(inout) :: nfail
+        if (abs(got - expected) > 1.0e-9_dp) then
+            write (error_unit, "(a,a,es12.4,a,es12.4)") &
+                "FAIL ", label, " got=", got, " expected=", expected
+            nfail = nfail + 1
+        end if
+    end subroutine check_value
 
 end program test_fortnum_generated_residual_equivalence
