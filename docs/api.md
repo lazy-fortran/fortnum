@@ -90,6 +90,14 @@ Domain modules expose additional products:
 - `fortnum_special_erf_cbind`: C-interoperable `erf`, `erfc`, JVPs, and
   gradients
 
+The `1F1` Taylor evaluator supports the large-order transition `b` near `z`,
+where the number of significant terms grows with `sqrt(abs(z))`. Its work
+budget grows from 5000 to at most 1000000 terms; success requires a bound on
+the remaining absolute tail, or an exactly terminating polynomial. Exhausting
+the budget returns `FORTNUM_CONVERGENCE_ERROR`. Callers must inspect status
+before using the returned partial sum. The specialized modified value is
+`hyperg_1f1m_a1(b,z) = M(1,b+2,z)-1`, with the same status contract.
+
 Example:
 
 ```fortran
