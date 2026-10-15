@@ -1,6 +1,8 @@
 {
   "schema_version": 1,
   "source_revision": "1e0765a57feb8dcd981192ebc0210683b5b32cf0",
+  "source_dirty": true,
+  "provenance_note": "Collected before collect_march_gap.py was committed: the tree was 1e0765a plus this script uncommitted, so the record predates source_dirty and the field is set from that fact, not measured.",
   "operation": "CPU microarchitecture gap for generated kernels",
   "workload": "per-kernel complete-workload wall clock at two -march levels",
   "question": "does -march=native beat -O3 -march=x86-64-v2 enough to justify per-microarchitecture variants + runtime dispatch?",
@@ -19,7 +21,7 @@
   "sampling": {
     "samples_per_run": 31,
     "linalg3_repetitions": 3,
-    "dawson_runs": 1
+    "dawson_runs": 3
   },
   "validation": {
     "dawson": "independent central-difference JVP and JVP/VJP adjoint identity (passed before timing)"
