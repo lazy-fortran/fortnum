@@ -3,7 +3,7 @@
 ! Generator revision: fortsym@4cec36a2f446c8aeade737733293c4f83469b861
 ! Regenerate with: cd tools/codegen && fo exec gen_implicit_root_residual
 ! cost: {
-!   "n_sym": {"flops": 2, "adds": 0, "muls": 2, "divs": 0, "transcendental": {},
+!   "n_sym": {"flops": 2, "adds": 0, "muls": 2, "divs": 0, "transcendental": {}},
 !   "n_emit": {"flops": 4, "instructions": 4},
 !   "gaps": {"generator": 2}
 ! }

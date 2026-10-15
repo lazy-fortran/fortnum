@@ -3,7 +3,7 @@
 ! Generator revision: fortsym@4cec36a2f446c8aeade737733293c4f83469b861
 ! Regenerate with: cd tools/codegen && fo exec gen_jacobi_recurrence
 ! cost: {
-!   "n_sym": {"flops": 70, "adds": 22, "muls": 47, "divs": 1, "transcendental": {},
+!   "n_sym": {"flops": 70, "adds": 22, "muls": 47, "divs": 1, "transcendental": {}},
 !   "n_emit": {"flops": 70, "instructions": 70},
 !   "gaps": {"generator": 0}
 ! }

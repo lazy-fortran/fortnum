@@ -3,7 +3,7 @@
 ! Generator revision: fortsym@bff765e663d82b4e174a0641d3cd651b4be8446b
 ! Regenerate with: cd tools/codegen && fo exec gen_rk54_device
 ! cost: {
-!   "n_sym": {"flops": 5, "adds": 2, "muls": 3, "divs": 0, "transcendental": {},
+!   "n_sym": {"flops": 5, "adds": 2, "muls": 3, "divs": 0, "transcendental": {}},
 !   "n_emit": {"flops": 5, "instructions": 5},
 !   "gaps": {"generator": 0}
 ! }

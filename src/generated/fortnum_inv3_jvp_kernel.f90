@@ -3,7 +3,7 @@
 ! Generator revision: fortsym@4cec36a2f446c8aeade737733293c4f83469b861
 ! Regenerate with: cd tools/codegen && fo exec gen_inverse_products
 ! cost: {
-!   "n_sym": {"flops": 315, "adds": 72, "muls": 243, "divs": 0, "transcendental": {},
+!   "n_sym": {"flops": 315, "adds": 72, "muls": 243, "divs": 0, "transcendental": {}},
 !   "n_emit": {"flops": 315, "instructions": 315},
 !   "gaps": {"generator": 0}
 ! }

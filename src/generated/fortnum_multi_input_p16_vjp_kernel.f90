@@ -3,7 +3,7 @@
 ! Generator revision: fortsym@4cec36a2f446c8aeade737733293c4f83469b861
 ! Regenerate with: cd tools/codegen && fo exec gen_multi_input_scalar
 ! cost: {
-!   "n_sym": {"flops": 120, "adds": 48, "muls": 37, "divs": 1, "transcendental": {"sin": 16, "cos": 16},
+!   "n_sym": {"flops": 120, "adds": 48, "muls": 37, "divs": 1, "transcendental": {"sin": 16, "cos": 16}},
 !   "n_emit": {"flops": 99, "instructions": 99},
 !   "gaps": {"generator": -21}
 ! }

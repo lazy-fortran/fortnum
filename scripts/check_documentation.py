@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import math
 import re
 import statistics
@@ -281,22 +282,36 @@ def check_generated_cost(root: Path) -> list[str]:
                 if row["classification"].strip() == "fortad-generated":
                     fortad.add(row["path"].strip())
     generators = {p.stem for p in (root / "tools/codegen/app").glob("*.f90")}
-    for path in sorted((root / "src/generated").glob("*.f90")):
+    sources = sorted((root / "src/generated").glob("*.f90"))
+    sources += sorted((root / "src/generated").glob("*.cu"))
+    for path in sources:
         if str(path.relative_to(root)) in fortad:
             continue
+        comment = "//" if path.suffix == ".cu" else "!"
         text = path.read_text(encoding="utf-8")
-        match = re.search(r"^!\s*Generator:\s*(\S+)\s*$", text, re.M)
+        match = re.search(
+            rf"^{re.escape(comment)}\s*Generator:\s*(\S+)\s*$", text, re.M
+        )
         if match is None or match.group(1) not in generators:
             # Only sources this checkout can regenerate are byte-gated by
             # check_generated.sh; generators outside tools/codegen/app (and
             # fortad) are not reproducible here.
             continue
-        if "! cost: {" not in text:
+        if f"{comment} cost: {{" not in text:
             errors.append(f"{path.relative_to(root)} is missing its cost block")
             continue
-        block = text.split("! cost: {", 1)[1]
-        for key in ('"n_sym"', '"n_emit"', '"gaps"'):
-            if key not in block.split("! }", 1)[0]:
+        block = text.split(f"{comment} cost: ", 1)[1]
+        block = block.split(f"\n{comment} }}", 1)[0] + "\n}"
+        body = "\n".join(
+            line.removeprefix(comment) for line in block.splitlines()
+        )
+        try:
+            cost = json.loads(body)
+        except json.JSONDecodeError as error:
+            errors.append(f"{path.relative_to(root)} cost block is not JSON: {error}")
+            continue
+        for key in ("n_sym", "n_emit", "gaps"):
+            if not isinstance(cost.get(key), dict):
                 errors.append(f"{path.relative_to(root)} cost block lacks {key}")
     return errors
 
