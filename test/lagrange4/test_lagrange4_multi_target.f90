@@ -41,12 +41,12 @@ program test_lagrange4_multi_target
         error stop 1
     end if
 
-    ! The OpenMP offload, OpenACC, and CUDA artifacts are emitted and
-    ! committed, but the runner lacks an offload-capable compiler and CUDA
-    ! toolkit, so their comparisons are recorded as not run.
+    ! The OpenMP offload and OpenACC artifacts are emitted and committed, but
+    ! this test has no offload-capable compiler, so their comparisons are
+    ! recorded as not run. The CUDA leaf is checked by lagrange4_cuda_leaf.
     print "(a)", "fortran_openmp_target: not run (no offload-capable compiler)"
     print "(a)", "fortran_openacc:       not run (no OpenACC device compiler)"
-    print "(a)", "cuda:                  not run (no CUDA toolkit)"
+    print "(a)", "cuda:                  see the lagrange4_cuda_leaf test"
 
 contains
 

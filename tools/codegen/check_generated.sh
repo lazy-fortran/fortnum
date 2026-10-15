@@ -22,7 +22,7 @@ python3 "$repository_dir/scripts/check_contracted_codegen.py" "$repository_dir"
     done
 )
 
-for generated in "$temporary_dir"/fortnum_*.f90; do
+for generated in "$temporary_dir"/fortnum_*.f90 "$temporary_dir"/fortnum_*.cu; do
     cmp -- "$repository_dir/src/generated/$(basename "$generated")" "$generated"
 done
 

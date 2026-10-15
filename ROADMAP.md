@@ -304,6 +304,12 @@ derivatives. CPU Enzyme remains the `autodiff` backend and supplies CPU
   candidates from end-to-end wall clock and peak memory rather than isolated
   kernel latency.
 
+- [x] Emit one existing kernel (Lagrange-4 JVP) from one lowered kernel IR
+  to four targets: Fortran CPU, OpenMP target, OpenACC and CUDA (issues #72,
+  #74). The CPU spelling and the CUDA leaf are checked against independent
+  oracles in CTest. The CUDA leaf still needs a backend-owned `__global__`
+  launcher before it composes with the offload wrappers.
+
 ### GPU source ownership and exclusions
 
 The symbolic input, selected generated leaf, provenance, regeneration test, and

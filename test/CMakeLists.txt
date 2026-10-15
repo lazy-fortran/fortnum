@@ -521,14 +521,14 @@ endforeach()
 
 # Multi-target Lagrange-4 JVP kernel: one expression, four artifacts. The
 # fortran_cpu artifact is compiled and checked against the independent
-# oracle; the OpenMP-offload, OpenACC, and CUDA artifacts are emitted and
-# committed but recorded as not run on runners without those toolchains.
+# oracle; the OpenMP-offload and OpenACC artifacts are emitted and committed
+# but recorded as not run on runners without those toolchains. The CUDA leaf
+# is host-compiled with g++ against the same oracle, and compiled and run
+# with nvcc when a toolkit and device are present.
 add_executable(
     test_lagrange4_multi_target
     "${PROJECT_SOURCE_DIR}/test/lagrange4/test_lagrange4_multi_target.f90"
     "${PROJECT_SOURCE_DIR}/src/generated/fortnum_lagrange4_jvp_kernel_cpu.f90")
-# The emitter does not wrap long assignment lines.
-target_compile_options(
-    test_lagrange4_multi_target
-    PRIVATE $<$<Fortran_COMPILER_ID:GNU>:-ffree-line-length-none>)
 add_test(NAME lagrange4_multi_target COMMAND test_lagrange4_multi_target)
+add_test(NAME lagrange4_cuda_leaf
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/lagrange4/check_cuda_leaf.sh)

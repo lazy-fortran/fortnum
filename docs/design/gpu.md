@@ -24,6 +24,18 @@ GPU support separates three concerns:
 OpenACC and OpenMP target call the same numerical leaf. The mathematical body
 contains no backend branch.
 
+`fortsym` can also spell one lowered kernel IR for several targets. The
+Lagrange-4 JVP kernel is committed four times from one expression:
+`fortnum_lagrange4_jvp_kernel_cpu.f90`, `_openmp_target.f90` (`declare
+target`), `_openacc.f90` (`acc routine seq`) and `_cuda.cu`. The CUDA spelling
+is a bare `extern "C" __device__ __forceinline__` function; `fortsym` emits no
+launch geometry, residency or streams, so a backend-owned `__global__` wrapper
+must call it. `fortnum` has no such CUDA launch layer (the GPU backend choices
+are `NONE|OPENACC|OPENMP`), so the CUDA leaf does not compose with the existing
+offload batch wrappers. CTest checks the CPU spelling against an independent
+closed-form oracle, and the CUDA leaf against the same cubic oracle by a g++
+host compile and, where `nvcc` and a device exist, a device run.
+
 This is the useful part of a Kokkos-like design without a container library,
 execution-space framework, task graph, memory manager, or runtime scheduler.
 
@@ -167,7 +179,9 @@ The supported design excludes:
 - Enzyme differentiation of GPU kernels or offload regions
 - Enzyme integration into `nvfortran`
 - custom MLIR or LLVM lowering
-- CUDA-specific derivative source
+- CUDA-specific derivative source (a CUDA *spelling* of a shared leaf is
+  emitted by `fortsym`; a hand-written CUDA-only derivative branch is not
+  added)
 - a replacement for Kokkos
 - a CPU Enzyme callback that launches an analytical GPU rule
 
