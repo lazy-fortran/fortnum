@@ -307,10 +307,18 @@ replay the accepted subdivision stored in `integrate_result_t`.
 - `fortnum_fft_plan_t`
 - `fft_plan_init`
 - `fft_c2c_plan_init`
-- `fft_c2c` (optionally with a caller-owned complex-transform plan)
+- `fortnum_fft_workspace_t`, `fft_workspace_init`
+- `fft_c2c` (optional caller-owned complex-transform plan and workspace)
 - `fft_r2c`
 - `fft_c2c_jvp`, `fft_c2c_vjp`
 - `fft_r2c_jvp`, `fft_r2c_vjp`
+
+Initialize mutable scratch with `call fft_workspace_init(workspace, plan)` and
+pass it as the fourth argument to `fft_c2c`. This avoids per-transform scratch
+allocation for mixed-radix and Bluestein transforms. The plan remains read-only;
+each concurrent transform needs a separate workspace. Reinitialize the workspace
+when the plan's transform or convolution length changes. Existing calls without
+scratch retain their behavior.
 
 `sign=-1` applies the unnormalized forward transform and `sign=+1` applies the
 unnormalized inverse transform. The JVP uses the same sign. The VJP uses the

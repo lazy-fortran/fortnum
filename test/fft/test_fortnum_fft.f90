@@ -4,11 +4,12 @@ program test_fortnum_fft
     use, intrinsic :: iso_fortran_env, only: error_unit
     use fortnum_kinds, only: dp
     use fortnum_fft, only: fft_c2c, fft_r2c, fortnum_fft_plan_t, &
-        fft_c2c_plan_init
+        fft_c2c_plan_init, fortnum_fft_workspace_t, fft_workspace_init
     implicit none
 
     real(dp), parameter :: tol = 1.0e-11_dp
 
+    call test_workspace()
     call test_dc_bin()
     call test_single_tone()
     call test_roundtrip_battery()
@@ -19,6 +20,54 @@ program test_fortnum_fft
     stop 0
 
 contains
+
+    subroutine test_workspace()
+        ! An independent O(n^2) DFT checks both signs, prime/mixed-radix
+        ! lengths, repeated workspace reuse, and concurrent read-only plans.
+        integer, parameter :: lengths(5) = [1, 8, 12, 17, 25], batch = 8
+        type(fortnum_fft_plan_t) :: plan
+        type(fortnum_fft_workspace_t) :: work(batch)
+        complex(dp), allocatable :: input(:, :), actual(:, :), expected(:, :)
+        real(dp), parameter :: pi = acos(-1.0_dp)
+        integer :: n, k, j, b, sgn, trial, length
+
+        do length = 1, size(lengths)
+            n = lengths(length)
+            call fft_c2c_plan_init(plan, n)
+            do b = 1, batch
+                call fft_workspace_init(work(b), plan)
+            end do
+            allocate (input(n, batch), actual(n, batch), expected(n, batch))
+            do b = 1, batch
+                do j = 1, n
+                    input(j, b) = cmplx(sin(real(j*b, dp)), &
+                        cos(real(2*j + b, dp)), dp)
+                end do
+            end do
+            do sgn = -1, 1, 2
+                expected = 0
+                do b = 1, batch
+                    do k = 1, n
+                        do j = 1, n
+                            expected(k, b) = expected(k, b) + input(j, b) &
+                                *exp(cmplx(0.0_dp, sgn*2*pi*(j - 1)*(k - 1)/n, dp))
+                        end do
+                    end do
+                end do
+                do trial = 1, 3
+                    actual = input
+                    !$omp parallel do schedule(static)
+                    do b = 1, batch
+                        call fft_c2c(actual(:, b), sgn, plan, work(b))
+                    end do
+                    !$omp end parallel do
+                    if (maxval(abs(actual - expected)) > tol*n) &
+                        error stop 'FFT workspace disagrees with direct DFT'
+                end do
+            end do
+            deallocate (input, actual, expected)
+        end do
+    end subroutine test_workspace
 
     ! DC input: all elements equal a -> forward bin 0 = n*a, rest zero.
     subroutine test_dc_bin()
