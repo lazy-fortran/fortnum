@@ -30,7 +30,10 @@ the compiled artifact, per target:
 
 - **CPU**: `objdump -d` on the object file
 - **CUDA**: `cuobjdump -sass` / `nvdisasm` for SASS. SASS, not PTX: PTX is not
-  the machine code and ptxas changes it substantially.
+  the machine code and ptxas changes it substantially. Both single-precision
+  (`FADD`, `FFMA`, ...) and double-precision (`DADD`, `DMUL`, `DFMA`, `DMNMX`)
+  opcodes are counted, matched without modifiers such as `.FTZ` or `.RM`;
+  fortnum's `real64` kernels compile to the `D*` forms.
 
 ```bash
 python3 benchmark/collect_machine_count.py \

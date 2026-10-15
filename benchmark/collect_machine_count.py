@@ -93,15 +93,20 @@ X86_FP_MOVE_PREFIXES = (
     "movq", "vmovq", "movdqa", "vmovdqa", "movdqu", "vmovdqu",
 )
 
-# SASS (NVIDIA) floating-point instructions.  FFMA is the fused multiply-add:
-# one instruction, two FLOPs.  The rest are one FLOP each.
+# SASS (NVIDIA) floating-point instructions, single (F*) and double (D*)
+# precision; fortnum's real64 kernels compile to the D* forms.  FFMA and DFMA
+# are fused multiply-adds: one instruction, two FLOPs.  The rest are one FLOP
+# each.  Opcodes are matched without their modifiers (FADD.FTZ, DADD.RM, ...).
 SASS_FP_OPS = {
     "FADD": 1, "FSUB": 1, "FMUL": 1, "FMNMX": 1,
     "FDIV": 1, "FSQRT": 1, "FRND": 1,
     "FADD32I": 1, "FMUL32I": 1,
     "FFMA": 2, "FFMA32I": 2,
     "FMNMX32I": 1,
+    "DADD": 1, "DMUL": 1, "DMNMX": 1,
+    "DFMA": 2,
 }
+SASS_FMA_OPS = ("FFMA", "FFMA32I", "DFMA")
 
 # SASS local-memory loads and stores are the spill traffic: the compiler
 # places register spills in local (stack) memory.  LDL/STL are therefore
@@ -278,11 +283,12 @@ def count_sass(text: str, tool_name: str) -> dict[str, int]:
         for token in tokens:
             if token.startswith("/*"):
                 continue
-            candidate = token.rstrip(";")
-            if candidate.isupper() and candidate in SASS_FP_OPS:
+            # Drop modifiers: FADD.FTZ -> FADD, LDL.64 -> LDL.
+            candidate = token.rstrip(";").split(".", 1)[0]
+            if candidate in SASS_FP_OPS:
                 opcode = candidate
                 break
-            if candidate in ("LDL", "LDLU", "STL", "STLU"):
+            if candidate in SASS_SPILL_LOADS + SASS_SPILL_STORES:
                 opcode = candidate
                 break
         if opcode is None:
@@ -290,7 +296,7 @@ def count_sass(text: str, tool_name: str) -> dict[str, int]:
         if opcode in SASS_FP_OPS:
             fp_instructions += 1
             flops += SASS_FP_OPS[opcode]
-            if opcode.startswith("FFMA"):
+            if opcode in SASS_FMA_OPS:
                 fma_count += 1
         elif opcode in SASS_SPILL_LOADS:
             spill_loads += 1
