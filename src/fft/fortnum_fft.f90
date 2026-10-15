@@ -29,7 +29,7 @@ module fortnum_fft
     private
 
     public :: fft_r2c, fft_c2c, fortnum_fft_plan_t, fft_plan_init, &
-        fft_c2c_plan_init
+        fft_c2c_plan_init, fortnum_fft_workspace_t, fft_workspace_init
     public :: fft_c2c_jvp, fft_c2c_vjp, fft_r2c_jvp, fft_r2c_vjp
 
     real(dp), parameter :: pi = 3.141592653589793238462643383279502884_dp
@@ -57,6 +57,13 @@ module fortnum_fft
         complex(dp), allocatable :: chirp(:)
         complex(dp), allocatable :: bfft(:)
     end type fortnum_fft_plan_t
+
+    ! Mutable scratch is separate from the read-only plan. Each concurrent
+    ! transform owns one workspace, initialized once before the hot loop.
+    type :: fortnum_fft_workspace_t
+        private
+        complex(dp), allocatable :: a(:), work(:)
+    end type fortnum_fft_workspace_t
 
 contains
 
@@ -115,13 +122,14 @@ contains
         end if
     end subroutine fft_r2c
 
-    subroutine fft_c2c(z, sign, plan)
+    subroutine fft_c2c(z, sign, plan, workspace)
         ! In-place complex-to-complex DFT.
         ! sign = -1: forward (exp(-2 pi i j k / n), FFTW / numpy convention).
         ! sign = +1: inverse (exp(+2 pi i j k / n)), unnormalized.
         complex(dp), intent(inout) :: z(:)
         integer, intent(in) :: sign
         type(fortnum_fft_plan_t), intent(in), optional :: plan
+        type(fortnum_fft_workspace_t), intent(inout), optional :: workspace
         type(fortnum_fft_plan_t) :: local_plan
 
         if (size(z) < 1) error stop "fft_c2c: empty input"
@@ -140,7 +148,7 @@ contains
         end if
         if (present(plan)) then
             if (sign == 1) z = conjg(z)
-            call c2c_forward(plan, z)
+            call c2c_forward(plan, z, workspace)
             if (sign == 1) z = conjg(z)
             return
         end if
@@ -149,7 +157,7 @@ contains
         call init_core(local_plan, local_plan%ncpx)
         ! Inverse via conj(forward(conj(.))): conjugate, forward, conjugate.
         if (sign == 1) z = conjg(z)
-        call c2c_forward(local_plan, z)
+        call c2c_forward(local_plan, z, workspace)
         if (sign == 1) z = conjg(z)
     end subroutine fft_c2c
 
@@ -289,17 +297,57 @@ contains
         end do
     end subroutine r2c_odd
 
-    subroutine c2c_forward(p, z)
+    subroutine fft_workspace_init(workspace, plan)
+        type(fortnum_fft_workspace_t), intent(out) :: workspace
+        type(fortnum_fft_plan_t), intent(in) :: plan
+        integer :: n, na
+
+        if (plan%ncpx < 1) error stop "fft_workspace_init: uninitialized plan"
+        n = plan%ncpx
+        na = 1
+        if (plan%bluestein) then
+            n = plan%m
+            na = n
+        end if
+        allocate (workspace%a(0:na - 1), workspace%work(0:n - 1))
+    end subroutine fft_workspace_init
+
+    subroutine c2c_forward(p, z, workspace)
         type(fortnum_fft_plan_t), intent(in) :: p
         complex(dp), intent(inout) :: z(0:)
-        complex(dp) :: work(0:p%ncpx - 1)
+        type(fortnum_fft_workspace_t), intent(inout), optional :: workspace
+        type(fortnum_fft_workspace_t) :: local_work
 
-        if (p%bluestein) then
-            call bluestein_forward(p, z)
+        if (present(workspace)) then
+            call c2c_workspace_forward(p, z, workspace)
         else
-            call stockham_forward(p%ncpx, p%nfac, p%fac, p%w, z, work)
+            call fft_workspace_init(local_work, p)
+            call c2c_workspace_forward(p, z, local_work)
         end if
     end subroutine c2c_forward
+
+    subroutine c2c_workspace_forward(p, z, workspace)
+        type(fortnum_fft_plan_t), intent(in) :: p
+        complex(dp), intent(inout) :: z(0:)
+        type(fortnum_fft_workspace_t), intent(inout) :: workspace
+        integer :: n
+
+        n = p%ncpx
+        if (p%bluestein) n = p%m
+        if (.not. allocated(workspace%work)) &
+            error stop "fft_c2c: workspace not initialized"
+        if (size(workspace%work) /= n) &
+            error stop "fft_c2c: workspace built for different length"
+        if (p%bluestein) then
+            if (.not. allocated(workspace%a)) &
+                error stop "fft_c2c: chirp workspace not initialized"
+            if (size(workspace%a) /= n) &
+                error stop "fft_c2c: chirp workspace built for different length"
+            call bluestein_forward(p, z, workspace%a, workspace%work)
+        else
+            call stockham_forward(p%ncpx, p%nfac, p%fac, p%w, z, workspace%work)
+        end if
+    end subroutine c2c_workspace_forward
 
     subroutine init_core(plan, nc)
         type(fortnum_fft_plan_t), intent(inout) :: plan
@@ -348,15 +396,14 @@ contains
         plan%bfft = plan%bfft/real(m, dp)
     end subroutine init_bluestein
 
-    subroutine bluestein_forward(p, z)
+    subroutine bluestein_forward(p, z, a, work)
         type(fortnum_fft_plan_t), intent(in) :: p
         complex(dp), intent(inout) :: z(0:)
-        complex(dp), allocatable :: a(:), work(:)
+        complex(dp), intent(inout) :: a(0:), work(0:)
         integer :: nc, m, k
 
         nc = p%ncpx
         m = p%m
-        allocate (a(0:m - 1), work(0:m - 1))
         do k = 0, nc - 1
             a(k) = z(k)*p%chirp(k)
         end do
