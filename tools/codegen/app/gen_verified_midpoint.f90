@@ -5,7 +5,7 @@ program gen_verified_midpoint
     use fortsym_string, only: str, chars
     use fortsym_rigorous_emit, only: rigorous_kernel_spec_t, interval_runtime, &
         emit_rigorous_kernel
-    use fortnum_codegen_provenance, only: generated_path
+    use fortnum_codegen_provenance, only: generated_path, cost_block_text
     implicit none
 
     type(arena_t), target :: arena
@@ -31,6 +31,14 @@ program gen_verified_midpoint
           status='replace', action='write')
     write (unit, '(a)') '! Generator: gen_verified_midpoint; do not edit.'
     write (unit, '(a)') '! Generator revision: fortsym@'//revision
+    block
+        character(:), allocatable :: cost
+        cost = cost_block_text([left + (right - left)/2, right - left, &
+                                center - remainder, center + remainder], &
+                               [left + (right - left)/2, right - left, &
+                                center - remainder, center + remainder])
+        write (unit, '(a)') cost(:len(cost) - 1)
+    end block
     write (unit, '(a)') '! Ordered finite point endpoints; curvature bounds |f''''|.'
     write (unit, '(a)') '! Midpoint theorem: integral error <= width**3*M2/24.'
     write (unit, '(a)') 'module fortnum_generated_verified_midpoint'

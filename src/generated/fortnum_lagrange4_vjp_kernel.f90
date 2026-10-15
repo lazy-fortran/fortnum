@@ -3,7 +3,7 @@
 ! Generator revision: fortsym@0cb3349222b90c949da1c4a09e8c177f3dec9097
 ! Regenerate with: cd tools/codegen && fo exec gen_lagrange4_interpolation
 ! cost: {
-!   "n_sym": {"flops": 83, "adds": 16, "muls": 59, "divs": 7, "transcendental": {},
+!   "n_sym": {"flops": 83, "adds": 16, "muls": 59, "divs": 7, "transcendental": {}},
 !   "n_emit": {"flops": 83, "instructions": 83},
 !   "gaps": {"generator": 0}
 ! }

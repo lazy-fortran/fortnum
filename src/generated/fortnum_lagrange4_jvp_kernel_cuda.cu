@@ -2,6 +2,11 @@
 // Generator: gen_lagrange4_interpolation
 // Generator revision: fortsym@0cb3349222b90c949da1c4a09e8c177f3dec9097
 // Regenerate with: cd tools/codegen && fo exec gen_lagrange4_interpolation
+// cost: {
+//   "n_sym": {"flops": 101, "adds": 28, "muls": 64, "divs": 7, "transcendental": {}},
+//   "n_emit": {"flops": 101, "instructions": 101},
+//   "gaps": {"generator": 0}
+// }
 
 #include <math.h>
 extern "C" __device__ __forceinline__

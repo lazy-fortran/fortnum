@@ -3,7 +3,7 @@
 ! Generator revision: fortsym@0cb3349222b90c949da1c4a09e8c177f3dec9097
 ! Regenerate with: cd tools/codegen && fo exec gen_special_outer
 ! cost: {
-!   "n_sym": {"flops": 12, "adds": 3, "muls": 6, "divs": 0, "transcendental": {"sin": 1, "cos": 1},
+!   "n_sym": {"flops": 12, "adds": 3, "muls": 6, "divs": 0, "transcendental": {"sin": 1, "cos": 1}},
 !   "n_emit": {"flops": 12, "instructions": 12},
 !   "gaps": {"generator": 0}
 ! }

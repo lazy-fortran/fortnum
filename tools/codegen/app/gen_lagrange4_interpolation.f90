@@ -163,21 +163,22 @@ contains
         if (.not. ok) error stop "cannot lower kernel IR: "//message
 
         call write_fortran_target("_cpu", "fortran_cpu", &
-            TARGET_FORTRAN_CPU, stem, arguments, outputs, ir)
+            TARGET_FORTRAN_CPU, stem, arguments, outputs, ir, roots)
         call write_fortran_target("_openmp_target", "fortran_openmp_target", &
-            TARGET_FORTRAN_OPENMP_TARGET, stem, arguments, outputs, ir)
+            TARGET_FORTRAN_OPENMP_TARGET, stem, arguments, outputs, ir, roots)
         call write_fortran_target("_openacc", "fortran_openacc", &
-            TARGET_FORTRAN_OPENACC, stem, arguments, outputs, ir)
-        call write_cuda_target(stem, arguments, outputs, ir)
+            TARGET_FORTRAN_OPENACC, stem, arguments, outputs, ir, roots)
+        call write_cuda_target(stem, arguments, outputs, ir, roots)
     end subroutine write_kernel_targets
 
     subroutine write_fortran_target(suffix, target_tag, target, stem, &
-            arguments, outputs, ir)
+            arguments, outputs, ir, roots)
         character(*), intent(in) :: suffix, target_tag
         integer, intent(in) :: target
         character(*), intent(in) :: stem
         type(str_t), intent(in) :: arguments(:), outputs(:)
         type(kernel_ir_t), intent(in) :: ir
+        type(expr_t), intent(in) :: roots(:)
 
         type(kernel_emit_spec_t) :: spec
         type(str_t) :: source
@@ -212,13 +213,15 @@ contains
             "contains"//new_line("a")// &
             chars(source)// &
             "end module "//module_name//new_line("a")
+        code = insert_cost_block(code, cost_block_text(roots, roots))
         call write_artifact(filename, code)
     end subroutine write_fortran_target
 
-    subroutine write_cuda_target(stem, arguments, outputs, ir)
+    subroutine write_cuda_target(stem, arguments, outputs, ir, roots)
         character(*), intent(in) :: stem
         type(str_t), intent(in) :: arguments(:), outputs(:)
         type(kernel_ir_t), intent(in) :: ir
+        type(expr_t), intent(in) :: roots(:)
 
         type(kernel_emit_spec_t) :: spec
         type(str_t) :: source
@@ -238,7 +241,8 @@ contains
         source = emit_cuda_device_ir(ir, spec, ok, message)
         if (.not. ok) error stop "cannot emit CUDA leaf: "//message
 
-        code = chars(source)
+        code = insert_cost_block(chars(source), &
+            cost_block_text(roots, roots, "//"), "//")
         call write_artifact("fortnum_"//stem//"_cuda.cu", code)
     end subroutine write_cuda_target
 

@@ -3,7 +3,7 @@
 ! Generator revision: fortsym@0cb3349222b90c949da1c4a09e8c177f3dec9097
 ! Regenerate with: cd tools/codegen && fo exec gen_special_region_candidates
 ! cost: {
-!   "n_sym": {"flops": 17, "adds": 2, "muls": 11, "divs": 1, "transcendental": {"exp": 1},
+!   "n_sym": {"flops": 17, "adds": 2, "muls": 11, "divs": 1, "transcendental": {"exp": 1}},
 !   "n_emit": {"flops": 17, "instructions": 17},
 !   "gaps": {"generator": 0}
 ! }

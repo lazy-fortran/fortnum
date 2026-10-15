@@ -84,30 +84,35 @@ contains
     !> neither was measured here, and an absent level is not a zero.
     !>
     !> The text is a JSON object comment block, emitted byte-for-byte so
-    !> check_generated.sh stays a plain `cmp`.
-    function cost_block_text(symbolic_roots, emitted_roots) result(text)
+    !> check_generated.sh stays a plain `cmp`. `comment` is the line-comment
+    !> marker of the target language, "!" unless given (CUDA uses "//").
+    function cost_block_text(symbolic_roots, emitted_roots, comment) result(text)
         type(expr_t), intent(in) :: symbolic_roots(:), emitted_roots(:)
+        character(*), intent(in), optional :: comment
         character(:), allocatable :: text
+        character(:), allocatable :: c
         type(operation_count_t) :: sym_ops, emit_ops
         character(len=32), allocatable :: func_names(:)
         integer, allocatable :: func_counts(:)
         character(len=16) :: buffer
         integer :: nfunc, k, gap
 
+        c = "!"
+        if (present(comment)) c = comment
         sym_ops = count_operations(symbolic_roots)
         emit_ops = count_operations(emitted_roots)
         gap = emit_ops%total - sym_ops%total
 
         call transcendental_breakdown(symbolic_roots, func_names, func_counts, nfunc)
 
-        text = "! cost: {"//NL
-        text = text//'!   "n_sym": {"flops": '//integer_text(sym_ops%total)// &
+        text = c//" cost: {"//NL
+        text = text//c//'   "n_sym": {"flops": '//integer_text(sym_ops%total)// &
             ', "adds": '//integer_text(sym_ops%additions)// &
             ', "muls": '//integer_text(sym_ops%multiplications)// &
             ', "divs": '//integer_text(sym_ops%divisions)// &
             ', "transcendental": '
         if (nfunc == 0) then
-            text = text//"{}"//","//NL
+            text = text//"{}},"//NL
         else
             text = text//"{"
             do k = 1, nfunc
@@ -115,22 +120,27 @@ contains
                 if (k > 1) text = text//", "
                 text = text//'"'//trim(func_names(k))//'": '//trim(buffer)
             end do
-            text = text//"}"//","//NL
+            text = text//"}},"//NL
         end if
-        text = text//'!   "n_emit": {"flops": '//integer_text(emit_ops%total)// &
+        text = text//c//'   "n_emit": {"flops": '//integer_text(emit_ops%total)// &
             ', "instructions": '//integer_text(emit_ops%total)//"}"//","//NL
-        text = text//'!   "gaps": {"generator": '//integer_text(gap)//"}"//NL
-        text = text//"! }"//NL
+        text = text//c//'   "gaps": {"generator": '//integer_text(gap)//"}"//NL
+        text = text//c//" }"//NL
     end function cost_block_text
 
-    !> Insert a cost-block comment block into an emit_kernel banner, directly
-    !> after the "! Regenerate with:" line so the manifest stays one block.
-    function insert_cost_block(code, cost_text) result(new_code)
+    !> Insert a cost-block comment block into an emitted banner, directly
+    !> after its "Regenerate with:" line so the manifest stays one block.
+    function insert_cost_block(code, cost_text, comment) result(new_code)
         character(*), intent(in) :: code, cost_text
+        character(*), intent(in), optional :: comment
         character(:), allocatable :: new_code
         integer :: pos, line_end
 
-        pos = index(code, "! Regenerate with:")
+        if (present(comment)) then
+            pos = index(code, comment//" Regenerate with:")
+        else
+            pos = index(code, "! Regenerate with:")
+        end if
         if (pos == 0) then
             new_code = code
             return

@@ -1,5 +1,10 @@
 ! Generator: gen_verified_midpoint; do not edit.
 ! Generator revision: fortsym@a6142712af998b727c245fb6cfbb3745b296ec24
+! cost: {
+!   "n_sym": {"flops": 17, "adds": 6, "muls": 8, "divs": 2, "transcendental": {}},
+!   "n_emit": {"flops": 17, "instructions": 17},
+!   "gaps": {"generator": 0}
+! }
 ! Ordered finite point endpoints; curvature bounds |f''|.
 ! Midpoint theorem: integral error <= width**3*M2/24.
 module fortnum_generated_verified_midpoint

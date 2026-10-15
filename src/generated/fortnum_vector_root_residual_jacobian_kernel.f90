@@ -3,9 +3,9 @@
 ! Generator revision: fortsym@0cb3349222b90c949da1c4a09e8c177f3dec9097
 ! Regenerate with: cd tools/codegen && fo exec gen_implicit_root_residual
 ! cost: {
-!   "n_sym": {"flops": 31, "adds": 17, "muls": 12, "divs": 0, "transcendental": {},
+!   "n_sym": {"flops": 8, "adds": 1, "muls": 5, "divs": 0, "transcendental": {}},
 !   "n_emit": {"flops": 4, "instructions": 4},
-!   "gaps": {"generator": -27}
+!   "gaps": {"generator": -4}
 ! }
 
 module fortnum_generated_vector_root_residual_jacobian
