@@ -413,6 +413,11 @@ target_link_libraries(test_fortnum_toeplitz PRIVATE fortnum)
 add_test(NAME fortnum_toeplitz COMMAND test_fortnum_toeplitz)
 
 # --- M3 interp ---
+add_executable(test_fortnum_bicubic interp/test_fortnum_bicubic.f90)
+target_link_libraries(test_fortnum_bicubic PRIVATE fortnum)
+add_test(NAME fortnum_bicubic COMMAND test_fortnum_bicubic)
+set_tests_properties(fortnum_bicubic PROPERTIES LABELS "interp;fast" TIMEOUT 1)
+
 add_executable(test_fortnum_polynomial interp/test_fortnum_polynomial.f90)
 target_link_libraries(test_fortnum_polynomial PRIVATE fortnum)
 add_test(NAME fortnum_polynomial COMMAND test_fortnum_polynomial)

@@ -251,11 +251,18 @@ def check_generated_revision(root: Path) -> list[str]:
             )
         )
         midpoint_generator = "Generator: gen_verified_midpoint" in text
+        bicubic_generator = "Generator: gen_bicubic" in text
         if midpoint_generator:
             midpoint_lock = root / "tools/codegen/fortsym-verified-midpoint.lock"
             path_revision = midpoint_lock.read_text(encoding="utf-8").strip()
             if re.fullmatch(r"[0-9a-f]{40}", path_revision) is None:
                 errors.append("fortsym-verified-midpoint.lock is not one full SHA")
+                continue
+        elif bicubic_generator:
+            bicubic_lock = root / "tools/codegen/fortsym-bicubic.lock"
+            path_revision = bicubic_lock.read_text(encoding="utf-8").strip()
+            if re.fullmatch(r"[0-9a-f]{40}", path_revision) is None:
+                errors.append("fortsym-bicubic.lock is not one full SHA")
                 continue
         else:
             path_revision = rk54_revision if rk54_generator else revision
@@ -263,6 +270,8 @@ def check_generated_revision(root: Path) -> list[str]:
         if expected not in text:
             if midpoint_generator:
                 lock_name = "fortsym-verified-midpoint.lock"
+            elif bicubic_generator:
+                lock_name = "fortsym-bicubic.lock"
             else:
                 lock_name = "fortsym-rk54.lock" if rk54_generator else "fortsym.lock"
             errors.append(

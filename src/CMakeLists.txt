@@ -78,6 +78,7 @@ target_sources(fortnum PRIVATE
     generated/fortad/sqrt1pm1_stable.f90
     generated/fortad/toroidal_order.f90
     generated/fortnum_bessel_outer_jvp_kernel.f90
+    generated/fortnum_bicubic_kernel.f90
     generated/fortnum_dawson_outer_kernel.f90
     generated/fortnum_dawson_outer_jvp_kernel.f90
     generated/fortnum_dawson_outer_value_kernel.f90
@@ -128,6 +129,7 @@ target_sources(fortnum PRIVATE
     generated/fortnum_vector_root_residual_jvp_kernel.f90
     generated/fortnum_vector_root_residual_vjp_kernel.f90
     generated/fortnum_verified_midpoint_kernel.f90
+    interp/fortnum_bicubic.f90
     interp/fortnum_bspline.f90
     interp/fortnum_bspline_lsq.f90
     interp/fortnum_interp.f90
