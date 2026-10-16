@@ -524,6 +524,10 @@ calculations that need `L^-1 b` without a second triangular solve.
 `fortnum_interp` exports grid search and a directional status check for cell
 crossings.
 
+`fortnum_bicubic` provides `bicubic_jet`, `bicubic_jet_jvp`, and
+`bicubic_jet_vjp` for a fixed 4-by-4 coefficient polynomial, with all
+coefficients and both coordinates active. See [the contract](bicubic.md).
+
 `fortnum_polynomial` exports Lagrange weights and products for active:
 
 - evaluation point
