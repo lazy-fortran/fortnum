@@ -54,6 +54,13 @@ Selecting an unavailable GPU backend fails configuration. GPU execution never
 falls back silently to the host. OpenMP GPU builds currently require the
 validated NVIDIA HPC SDK `nvfortran` compiler.
 
+Quad precision is optional. CMake probes `selected_real_kind(33, 4931)`
+(`FORTNUM_HAVE_REAL128`); without it (`nvfortran`) configuration warns and
+`fortnum_interval_qp`, `fortnum_cfft_rigorous` and `fortnum_fseries` are not
+built, and the tests with `real128` oracles are reported by CTest as Disabled.
+gfortran and ifx keep the full library. fpm has no per-compiler source
+selection and is unchanged.
+
 ## Use
 
 Each numerical area has its own module:

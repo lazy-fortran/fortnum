@@ -2,6 +2,28 @@
 # executable, link fortnum, register with add_test. Downstream agents append
 # one block per new test below.
 
+# Tests whose oracle or subject needs binary128 (real128). NVHPC's nvfortran has
+# no quad precision (FORTNUM_HAVE_REAL128, top-level CMakeLists.txt); there they
+# are excluded from the build and reported by CTest as Disabled, not dropped.
+function(fortnum_require_real128)
+    if(FORTNUM_HAVE_REAL128)
+        return()
+    endif()
+    foreach(spec IN LISTS ARGN)
+        string(REPLACE ":" ";" pair "${spec}")
+        list(GET pair 0 target)
+        list(LENGTH pair npair)
+        set(test_name "")
+        if(npair GREATER 1)
+            list(GET pair 1 test_name)
+        endif()
+        set_target_properties(${target} PROPERTIES EXCLUDE_FROM_ALL TRUE)
+        if(test_name)
+            set_tests_properties(${test_name} PROPERTIES DISABLED TRUE)
+        endif()
+    endforeach()
+endfunction()
+
 add_executable(test_fortnum_verified_quadrature
     verified/test_fortnum_verified_quadrature.f90)
 target_link_libraries(test_fortnum_verified_quadrature PRIVATE fortnum)
@@ -557,3 +579,31 @@ add_executable(
 add_test(NAME lagrange4_multi_target COMMAND test_lagrange4_multi_target)
 add_test(NAME lagrange4_cuda_leaf
     COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/lagrange4/check_cuda_leaf.sh)
+
+fortnum_require_real128(
+    test_fortnum_ball:fortnum_ball
+    test_fortnum_bernstein:fortnum_bernstein
+    test_fortnum_cdual:fortnum_cdual
+    test_fortnum_chord:fortnum_chord
+    test_fortnum_idual:fortnum_idual
+    test_fortnum_interval:fortnum_interval
+    test_fortnum_interval_qp:fortnum_interval_qp
+    test_fortnum_ode_residual_certificate:fortnum_ode_residual_certificate
+    test_fortnum_rounding:fortnum_rounding
+    test_fortnum_sincos:fortnum_sincos
+    test_fortnum_taylor_series:fortnum_taylor_series
+    test_fortnum_validated_ode:fortnum_validated_ode
+    test_fortnum_verified_linalg:fortnum_verified_linalg
+    test_fortnum_verified_quadrature:fortnum_verified_quadrature
+    test_fortnum_cfft_rigorous:fortnum_cfft_rigorous
+    test_fortnum_fseries:fortnum_fseries
+    test_fortnum_gauss_lobatto:fortnum_gauss_lobatto
+    test_fortnum_parallel_vector:fortnum_parallel_vector
+    test_fortnum_special_digamma_complex:fortnum_special_digamma_complex
+    test_fortnum_special_faddeeva:fortnum_special_faddeeva
+    test_fortnum_special_legendre_q_large_degree:fortnum_special_legendre_q_large_degree
+    test_fortnum_special_riccati_bessel:fortnum_special_riccati_bessel
+    test_sampled_norm:sampled_norm
+    test_verified_matvec:verified_matvec
+    bench_verified_midpoint:
+)

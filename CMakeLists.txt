@@ -134,6 +134,28 @@ if(FORTNUM_GPU_BACKEND STREQUAL "OPENACC"
 endif()
 find_package(LAPACK REQUIRED)
 
+# Quad precision (binary128) is optional: NVHPC's nvfortran has no real128 and
+# rejects the kind at compile time. Without it the binary128 interval, rigorous
+# FFT and Fourier-series modules are not built (fortnum_interval_qp,
+# fortnum_cfft_rigorous, fortnum_fseries) and the tests that use real128
+# oracles are not registered. Never silent: see the warning below.
+include(CheckFortranSourceCompiles)
+check_fortran_source_compiles("
+program probe_real128
+    integer, parameter :: qp = selected_real_kind(33, 4931)
+    real(qp) :: x
+    x = 1.0_qp
+    if (x < 0.0_qp) stop 1
+end program probe_real128
+" FORTNUM_HAVE_REAL128 SRC_EXT f90)
+if(NOT FORTNUM_HAVE_REAL128)
+    message(WARNING
+        "Fortran compiler ${CMAKE_Fortran_COMPILER_ID} has no quad precision "
+        "(selected_real_kind(33, 4931) is negative): fortnum_interval_qp, "
+        "fortnum_cfft_rigorous and fortnum_fseries are NOT built and real128 "
+        "tests are skipped. Use gfortran or ifx for binary128 support.")
+endif()
+
 add_subdirectory(src)
 
 if(FORTNUM_BUILD_TESTING)
