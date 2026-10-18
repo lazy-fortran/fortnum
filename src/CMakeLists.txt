@@ -182,11 +182,8 @@ target_sources(fortnum PRIVATE
     verified/fortnum_ball.f90
     verified/fortnum_bernstein.f90
     verified/fortnum_cdual.f90
-    verified/fortnum_cfft_rigorous.f90
-    verified/fortnum_fseries.f90
     verified/fortnum_idual.f90
     verified/fortnum_interval.f90
-    verified/fortnum_interval_qp.f90
     verified/fortnum_ode_residual_certificate.f90
     verified/fortnum_rounding.f90
     verified/fortnum_sampled_norm.f90
@@ -196,6 +193,14 @@ target_sources(fortnum PRIVATE
     verified/fortnum_verified_matvec.f90
     verified/fortnum_verified_quadrature.f90
 )
+
+# Binary128 modules need real128; see FORTNUM_HAVE_REAL128 in the top-level file.
+if(FORTNUM_HAVE_REAL128)
+    target_sources(fortnum PRIVATE
+        verified/fortnum_cfft_rigorous.f90
+        verified/fortnum_fseries.f90
+        verified/fortnum_interval_qp.f90)
+endif()
 
 # NVFortran 26.5 can crash in fort2 when this already-preprocessed source is
 # passed through -Mpreprocess a second time by an embedding project.  The file
