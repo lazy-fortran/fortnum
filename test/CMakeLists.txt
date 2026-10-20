@@ -607,3 +607,8 @@ fortnum_require_real128(
     test_verified_matvec:verified_matvec
     bench_verified_midpoint:
 )
+
+add_executable(test_fortnum_coulomb test_fortnum_coulomb.f90)
+target_link_libraries(test_fortnum_coulomb PRIVATE fortnum)
+add_test(NAME fortnum_coulomb COMMAND test_fortnum_coulomb
+    ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/coulomb_fg0.dat)

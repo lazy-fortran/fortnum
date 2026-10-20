@@ -6,6 +6,8 @@ add_library(fortnum STATIC)
 target_sources(fortnum PRIVATE
     ${FORTNUM_BUILD_SELECTION_SOURCE}
     # module sources (alphabetical, one per line; append here)
+    generated/fortnum_coulomb_series_kernel.f90
+    special/fortnum_special_coulomb.f90
     ad/fortnum_active_vector.f90
     ad/fortnum_ad_interfaces.f90
     ad/fortnum_derivative_registry.f90
