@@ -33,13 +33,13 @@ Definitions: [NIST DLMF 33.2](https://dlmf.nist.gov/33.2) and
 remain available; full eta products for this bounded Coulomb evaluator are
 currently unavailable. fp/gp provide the rho derivative without differencing.
 
-Regenerate using a FortSym build at 7e8ef7abdd90c49bb5f75e2c119e7d181656bcc6:
+Regenerate using the [codegen locks](../tools/codegen/fortsym.lock) and
+[checkout contract](../tools/codegen/checkout_fortsym.sh):
 
 ```sh
-gfortran -I "$FORTSYM_BUILD/include" tools/codegen/app/gen_coulomb_series.f90 \
-  -L "$FORTSYM_BUILD/lib" -Wl,-rpath,"$FORTSYM_BUILD/lib" -lfortsym \
-  -o /tmp/gen_coulomb_series
-/tmp/gen_coulomb_series
+cd tools/codegen
+fo exec gen_coulomb_series
+cd ../..
 python test/oracle/gen_coulomb.py  # optional oracle only, mpmath 1.4.1
 fo test fortnum_coulomb
 ```

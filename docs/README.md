@@ -9,6 +9,7 @@ measured evidence.
 | Document | Scope |
 | --- | --- |
 | [README](../README.md) | Build, package scope, derivative model, and entry points |
+| [Coulomb functions](coulomb.md) | Bounded real S-wave F/G, normalization and oracle |
 | [API guide](api.md) | Public module families and common call patterns |
 | [libneo migration](migration_libneo.md) | Primal API mapping |
 | [libneo derivative migration](migration_libneo_ad.md) | Derivative-product mapping |

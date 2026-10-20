@@ -70,6 +70,8 @@ Domain modules expose additional products:
 - `fortnum_special_faddeeva`: \(w(z)=e^{-z^2}\operatorname{erfc}(-iz)\) and
   the Fried-Conte \(Z(\zeta)=i\sqrt\pi\,w(\zeta)\) on the whole complex
   plane, with \(Z'=-2(1+\zeta Z)\)
+- `fortnum_special_coulomb`: `coulomb_fg0`, `coulomb_c0_squared`, `coulomb_h`;
+  bounded real S-wave functions with rho derivatives, see [Coulomb guide](coulomb.md)
 - `fortnum_special_gamma`: argument and parameter JVPs plus gradients, and
   complex \(\psi(z)\), \(\psi'(z)\)
 - `fortnum_special_hypergeometric_1f1`: `1F1`, specialized `a=1`, and
