@@ -72,3 +72,5 @@ test_fortnum_integrate_singular_oracle = [
     "test/oracle/data/integrate_qagiu_infinite.csv",
 ]
 test_fortnum_levin_oracle = ["test/oracle/data/levin_u.csv"]
+
+test_fortnum_coulomb = ["test/oracle/data/coulomb_fg0.dat"]
