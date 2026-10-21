@@ -103,10 +103,6 @@ jobs:
   gfortran:
     name: gfortran ubuntu-latest
     runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || (github.event_name == 'schedule' || contains(github.event.pull_request.labels.*.name, 'full-ci')) && fromJSON('["self-hosted","itp-slurm"]') || fromJSON('["self-hosted","itp-build"]') }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -119,12 +115,12 @@ jobs:
         run: |-
           ci/run.sh ci-gfortran
         env:
-          SCI_MATRIX_OS: ${{ matrix.os }}
+          SCI_MATRIX_OS: ubuntu-latest
       - name: Bundle exact sources for Slurm
         if: ${{ !github.event.pull_request.head.repo.fork && (github.event_name == 'schedule' || contains(github.event.pull_request.labels.*.name, 'full-ci')) }}
         env:
           SCI_TIER: ci-gfortran
-          SCI_MATRIX_OS: ${{ matrix.os }}
+          SCI_MATRIX_OS: ubuntu-latest
         run: |-
           TMPDIR="$RUNNER_TEMP" ci/bundle.sh "$RUNNER_TEMP/ci.tar.zst"
       - name: Run native checks on sCluster
