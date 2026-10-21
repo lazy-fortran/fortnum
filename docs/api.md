@@ -700,6 +700,23 @@ and fp32/fp64 loads. `fortnum_refinement` supplies the original-operator fp64
 defect-correction controller with a selectable inner correction callback.
 See [precision APIs](precision.md) for arguments, failure statuses and limits.
 
+### Verified vector reductions
+
+`fortnum_verified_linalg` exports `dot_enclosure(x,y)` and
+`weighted_norm2_enclosure(w,x)`, returning `interval_t`, and a rank-one
+`norm2_up(x)` overload returning a Euclidean norm upper bound. Inputs are exact
+represented binary64 reals. Weighted squared norms require finite nonnegative
+weights. Equal-length empty inputs give exact zero. Invalid dimensions,
+nonfinite inputs or negative weights return the entire line for enclosures and
+positive infinity for the norm. Overflow returns conservative, possibly
+uninformative bounds. The weighted enclosure has a nonnegative lower endpoint
+for valid inputs.
+
+These O(n) operations use no allocated workspace or mutable rounding-mode
+state. Large vectors use OpenMP with outward-rounded interval combination;
+thread count may change enclosure width while preserving containment. They
+inherit the IEEE/compiler assumptions in [verified computing](design/verified.md).
+
 ## Matrix-free eigenproblems
 
 `fortnum_eigen` exports real/complex FP32/FP64 `krylov_schur`, `lanczos`,

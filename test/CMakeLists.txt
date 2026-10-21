@@ -617,6 +617,13 @@ add_executable(test_fortnum_precision linalg/test_fortnum_precision.f90)
 target_link_libraries(test_fortnum_precision PRIVATE fortnum)
 add_test(NAME fortnum_precision COMMAND test_fortnum_precision)
 
+if(FORTNUM_HAVE_REAL128)
+    add_executable(test_fortnum_verified_reductions
+        verified/test_fortnum_verified_reductions.f90)
+    target_link_libraries(test_fortnum_verified_reductions PRIVATE fortnum)
+    add_test(NAME fortnum_verified_reductions COMMAND test_fortnum_verified_reductions)
+endif()
+
 add_executable(test_fortnum_eigen linalg/test_fortnum_eigen.f90)
 target_link_libraries(test_fortnum_eigen PRIVATE fortnum)
 add_test(NAME fortnum_eigen COMMAND test_fortnum_eigen)
