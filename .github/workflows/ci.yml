@@ -29,8 +29,8 @@ jobs:
       - name: Run native checks in the build container
         if: ${{ !github.event.pull_request.head.repo.fork }}
         env:
-          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+          SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
         run: |-
           ci/run.sh ci-generated
       - name: Install system dependencies
@@ -92,9 +92,11 @@ jobs:
 
   # Primal (non-derivative) build and test with gfortran. Required.
         if: ${{ github.event.pull_request.head.repo.fork }}
+    if: >-
+      github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci'))
   gfortran:
-    name: gfortran ${{ matrix.os }}
-    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || (github.event_name == 'merge_group' || github.event_name == 'schedule' || contains(github.event.pull_request.labels.*.name, 'full-ci')) && fromJSON('["self-hosted","itp-slurm"]') || fromJSON('["self-hosted","itp-build"]') }}
+    name: gfortran ubuntu-latest
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || (github.event_name == 'schedule' || contains(github.event.pull_request.labels.*.name, 'full-ci')) && fromJSON('["self-hosted","itp-slurm"]') || fromJSON('["self-hosted","itp-build"]') }}
     strategy:
       fail-fast: false
       matrix:
@@ -107,20 +109,20 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Run native checks in the build container
-        if: ${{ !github.event.pull_request.head.repo.fork && !(github.event_name == 'merge_group' || github.event_name == 'schedule' || contains(github.event.pull_request.labels.*.name, 'full-ci')) }}
+        if: ${{ !github.event.pull_request.head.repo.fork && !(github.event_name == 'schedule' || contains(github.event.pull_request.labels.*.name, 'full-ci')) }}
         run: |-
           ci/run.sh ci-gfortran
         env:
           SCI_MATRIX_OS: ${{ matrix.os }}
       - name: Bundle exact sources for Slurm
-        if: ${{ !github.event.pull_request.head.repo.fork && (github.event_name == 'merge_group' || github.event_name == 'schedule' || contains(github.event.pull_request.labels.*.name, 'full-ci')) }}
+        if: ${{ !github.event.pull_request.head.repo.fork && (github.event_name == 'schedule' || contains(github.event.pull_request.labels.*.name, 'full-ci')) }}
         env:
           SCI_TIER: ci-gfortran
           SCI_MATRIX_OS: ${{ matrix.os }}
         run: |-
           TMPDIR="$RUNNER_TEMP" ci/bundle.sh "$RUNNER_TEMP/ci.tar.zst"
       - name: Run native checks on sCluster
-        if: ${{ !github.event.pull_request.head.repo.fork && (github.event_name == 'merge_group' || github.event_name == 'schedule' || contains(github.event.pull_request.labels.*.name, 'full-ci')) }}
+        if: ${{ !github.event.pull_request.head.repo.fork && (github.event_name == 'schedule' || contains(github.event.pull_request.labels.*.name, 'full-ci')) }}
         run: |-
           sci-dispatch native "$RUNNER_TEMP/ci.tar.zst"
       - name: Install system dependencies
@@ -153,6 +155,8 @@ jobs:
   # (NumPy/SciPy). Non-required: stays green until the generator from #4 lands,
   # then runs it once to refresh the checked-in reference tables.
         if: ${{ github.event.pull_request.head.repo.fork }}
+    if: >-
+      github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci'))
   oracle:
     name: oracle reference tables
     runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON('["self-hosted","itp-build"]') }}
@@ -167,14 +171,14 @@ jobs:
       - name: Run native checks in the build container
         if: ${{ !github.event.pull_request.head.repo.fork }}
         env:
-          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+          SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
         run: |-
           ci/run.sh ci-oracle
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: '3.12'
 
         if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Install Python dependencies
@@ -215,6 +219,8 @@ jobs:
   # GitHub-hosted runners are noisy, so the factor is generous (4x): the gate
   # catches order-of-magnitude regressions, not micro-noise.
         if: ${{ github.event.pull_request.head.repo.fork }}
+    if: >-
+      github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci'))
   benchmark:
     name: benchmark regression gate
     runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON('["self-hosted","itp-build"]') }}
@@ -228,8 +234,8 @@ jobs:
       - name: Run native checks in the build container
         if: ${{ !github.event.pull_request.head.repo.fork }}
         env:
-          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+          SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
         run: |-
           ci/run.sh ci-benchmark
       - name: Install system dependencies
@@ -247,7 +253,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: '3.12'
 
         if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Configure benchmark
@@ -290,11 +296,13 @@ jobs:
             new-target-host.txt
           retention-days: 30
 
+    if: >-
+      github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci'))
   enzyme:
     name: released Flang 22 + pinned Enzyme
     runs-on: ubuntu-24.04
     env:
-      LLVM_MAJOR: "22"
+      LLVM_MAJOR: '22'
       ENZYME_REVISION: c96508349d9f121957292308c646b4a1fd53c507
     steps:
       - name: Checkout
@@ -389,3 +397,5 @@ jobs:
 
       - name: Test real Enzyme pipelines
         run: ctest --test-dir build-enzyme --output-on-failure -R enzyme
+    if: >-
+      github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci'))
