@@ -161,8 +161,63 @@ program test_fortnum_eigen
     call check(info == EIGEN_OK, 'FP32 complex Arnoldi')
     call eigen_bounds(0.125_sp, 1.0_sp, 1.0_sp, srad, info)
     call check(info == EIGEN_OK .and. srad == 0.125_sp, 'FP32 bounds')
+    call large_complex_projection()
     print *, 'matrix-free eigen: analytic spectra, pencils, restarts and failures PASS'
 contains
+    subroutine large_complex_projection()
+        ! Three distinct complex diagonal roots span the full Krylov space.
+        ! This size exercises the threaded conjugate projections in both kinds.
+        integer, parameter :: large_n = 8192
+        complex(dp), allocatable :: v64(:), x64(:, :), r64(:)
+        complex(sp), allocatable :: v32(:), x32(:, :), r32(:)
+        complex(dp) :: lambda64(2)
+        complex(sp) :: lambda32(2)
+        real(dp) :: residual64(2)
+        real(sp) :: residual32(2)
+        integer :: k, mode
+
+        allocate (v64(large_n), x64(large_n, 2), r64(large_n), &
+                  v32(large_n), x32(large_n, 2), r32(large_n))
+        v64 = [(cmplx(1.0_dp, sin(real(k, dp)), dp), k=1, large_n)]
+        v32 = cmplx(v64, kind=sp)
+        opt = eigen_options_t(max_basis=3, retain=2, max_restarts=0)
+        call krylov_schur(three_roots_dp, v64, lambda64, x64, residual64, &
+                         1.e-10_dp, opt, info, stats)
+        call check(info == EIGEN_OK, 'large complex FP64 projection')
+        call krylov_schur(three_roots_sp, v32, lambda32, x32, residual32, &
+                         1.e-4_sp, opt, info, stats)
+        call check(info == EIGEN_OK, 'large complex FP32 projection')
+        do mode = 1, 2
+            call check(abs(lambda64(mode) - cmplx(mode, 0.2_dp*mode, dp)) &
+                       < 1.e-9_dp, 'large FP64 exact diagonal spectrum')
+            call check(abs(lambda32(mode) - cmplx(mode, 0.2_sp*mode, sp)) &
+                       < 1.e-3_sp, 'large FP32 exact diagonal spectrum')
+            call three_roots_dp(x64(:, mode), r64)
+            call three_roots_sp(x32(:, mode), r32)
+            call check(norm2(abs(r64 - lambda64(mode)*x64(:, mode))) &
+                       < 1.e-9_dp, 'large FP64 independent residual')
+            call check(norm2(abs(r32 - lambda32(mode)*x32(:, mode))) &
+                       < 1.e-3_sp, 'large FP32 independent residual')
+        end do
+    end subroutine
+    subroutine three_roots_dp(x, y)
+        complex(dp), intent(in) :: x(:)
+        complex(dp), intent(out) :: y(:)
+        integer :: k, root
+        do k = 1, size(x)
+            root = 1 + mod(k - 1, 3)
+            y(k) = cmplx(root, 0.2_dp*root, dp)*x(k)
+        end do
+    end subroutine
+    subroutine three_roots_sp(x, y)
+        complex(sp), intent(in) :: x(:)
+        complex(sp), intent(out) :: y(:)
+        integer :: k, root
+        do k = 1, size(x)
+            root = 1 + mod(k - 1, 3)
+            y(k) = cmplx(root, 0.2_sp*root, sp)*x(k)
+        end do
+    end subroutine
     subroutine check(ok, label)
         logical, intent(in) :: ok
         character(*), intent(in) :: label
