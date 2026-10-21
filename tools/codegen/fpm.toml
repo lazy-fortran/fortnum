@@ -89,3 +89,8 @@ main = "gen_dop853_tableau.f90"
 name = "gen_verified_midpoint"
 source-dir = "app"
 main = "gen_verified_midpoint.f90"
+
+[[executable]]
+name = "gen_eigen_bounds"
+source-dir = "app"
+main = "gen_eigen_bounds.f90"
