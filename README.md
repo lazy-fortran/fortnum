@@ -159,3 +159,5 @@ evidence. This keeps implementation history out of the README.
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+CPU precision/storage support is described in [precision APIs](docs/precision.md).
