@@ -26,6 +26,9 @@ cp "${source_root}/tools/codegen/fortsym-verified-midpoint.lock" "${base}/tools/
 cp "${source_root}/tools/codegen/app/gen_enzyme_scalar_wrappers.f90" \
     "${base}/tools/codegen/app/"
 
+# Mutations below apply only to disposable copies, including immutable sources.
+chmod -R u+w "${base}"
+
 checker="${base}/scripts/check_documentation.py"
 python3 "${checker}" "${base}"
 

@@ -18,6 +18,9 @@ cp "${source_root}"/src/generated/*_jvp_kernel.f90 \
     "${source_root}"/src/generated/*_vjp_kernel.f90 \
     "${temp_dir}/src/generated/"
 
+# Fixture copies can inherit read-only modes from immutable source archives.
+chmod -R u+w "${temp_dir}"
+
 printf '\ncall jacobian(x)\n' >> \
     "${temp_dir}/tools/codegen/app/gen_erf_products.f90"
 if python3 "${temp_dir}/scripts/check_contracted_codegen.py" \
