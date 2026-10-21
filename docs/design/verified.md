@@ -489,3 +489,23 @@ logistic solutions, evaluated at nodes and interior points of every cell,
 plus refinement-order, corruption and fail-closed checks. The cost per cell is
 four caller actions plus `O(n)` interval work; a dense interval action makes
 it `O(n^2)`.
+
+## Vector post-processing reductions
+
+`dot_enclosure` encloses the exact sum of products of represented finite
+binary64 vector inputs. `weighted_norm2_enclosure` encloses the sum of
+nonnegative point weights times squared vector entries. The vector `norm2_up`
+overload bounds the exact Euclidean norm. Empty inputs return exact zero.
+Invalid inputs return the entire line or positive infinity, as specified in
+[the API](../api.md#verified-vector-reductions).
+
+Each primitive multiplication, square, sum and final square root uses the
+existing outward-rounded interval/rounding runtime. OpenMP combines partial
+interval sums with the same outward operation; its unspecified tree cannot
+invalidate containment. An indeterminate infinite endpoint fails closed to
+the entire line. Nonnegative energies may then intersect that enclosure with
+[0,infinity). The implementation has constant per-thread scratch, no allocated
+array of intervals, and no global rounding-mode changes. The existing strict
+IEEE, gradual-underflow, no-fast-math and no-contraction compilation contract
+is required. Independent binary128 dyadic oracles cover cancellation, mixed
+scales, subnormal products, overflow, invalid input and parallel reductions.
