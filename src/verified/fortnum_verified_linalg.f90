@@ -31,9 +31,12 @@
 !> Cholesky certificate).
 module fortnum_verified_linalg
     use, intrinsic :: iso_fortran_env, only: dp => real64
+    use, intrinsic :: ieee_arithmetic, only: ieee_is_finite, ieee_is_nan, &
+        ieee_value, ieee_positive_inf
     use fortnum_rounding, only: add_up, mul_up, div_up, &
         sub_down, sqrt_up, gamma_up, unit_roundoff
-    use fortnum_interval, only: interval_t, interval, operator(+), operator(*)
+    use fortnum_interval, only: interval_t, interval, entire, sqr, &
+        operator(+), operator(*)
     implicit none
     private
 
@@ -41,6 +44,7 @@ module fortnum_verified_linalg
     public :: matmul_err, verified_inverse, approx_inverse
     public :: sym_lower_bound, eig_lower_bound, eig_upper_bound
     public :: interval_matmul, interval_matvec
+    public :: dot_enclosure, weighted_norm2_enclosure
 
     !> Matrix ball {C + E : norm2(E) <= rho}.
     type :: mball_t
@@ -61,7 +65,7 @@ module fortnum_verified_linalg
     end interface norminf_up
 
     interface norm2_up
-        module procedure norm2_up_r, norm2_up_c
+        module procedure norm2_up_r, norm2_up_c, norm2_up_vector
     end interface norm2_up
 
     interface norm2_tight_up
@@ -91,9 +95,76 @@ module fortnum_verified_linalg
         end subroutine dsyev
     end interface
 
+    !$omp declare reduction(verified_sum : interval_t : &
+    !$omp& omp_out = reduction_add(omp_out, omp_in)) &
+    !$omp& initializer(omp_priv = interval_t(0.0_dp, 0.0_dp))
+
     real(dp), parameter :: u = unit_roundoff
 
 contains
+
+    pure function reduction_add(a, b) result(c)
+        type(interval_t), intent(in) :: a, b
+        type(interval_t) :: c
+        c = a + b
+        if (ieee_is_nan(c%lo) .or. ieee_is_nan(c%hi)) c = entire()
+    end function
+
+    function dot_enclosure(x, y) result(total)
+        !! Inputs are exact represented binary64 reals. Invalid input fails
+        !! closed to the entire line; every sum/product is outward rounded.
+        real(dp), intent(in) :: x(:), y(:)
+        type(interval_t) :: total
+        integer :: i
+        total = entire()
+        if (size(x) /= size(y)) return
+        if (.not. all(ieee_is_finite(x))) return
+        if (.not. all(ieee_is_finite(y))) return
+        total = interval(0.0_dp)
+        if (size(x) == 0) return
+        !$omp parallel do reduction(verified_sum:total) if(size(x) >= 8192)
+        do i = 1, size(x)
+            total = reduction_add(total, interval(x(i))*interval(y(i)))
+        end do
+    end function
+
+    function weighted_norm2_enclosure(w, x) result(total)
+        !! Enclose sum(w*x**2), for finite nonnegative point weights.
+        real(dp), intent(in) :: w(:), x(:)
+        type(interval_t) :: total
+        integer :: i
+        total = entire()
+        if (size(w) /= size(x)) return
+        if (.not. all(ieee_is_finite(w))) return
+        if (.not. all(ieee_is_finite(x))) return
+        if (any(w < 0.0_dp)) return
+        total = interval(0.0_dp)
+        if (size(x) == 0) return
+        !$omp parallel do reduction(verified_sum:total) if(size(x) >= 8192)
+        do i = 1, size(x)
+            total = reduction_add(total, interval(w(i))*sqr(interval(x(i))))
+        end do
+        total%lo = max(0.0_dp, total%lo)
+    end function
+
+    function norm2_up_vector(x) result(bound)
+        real(dp), intent(in) :: x(:)
+        real(dp) :: bound
+        type(interval_t) :: total
+        integer :: i
+        bound = ieee_value(1.0_dp, ieee_positive_inf)
+        if (.not. all(ieee_is_finite(x))) return
+        if (size(x) == 0) then
+            bound = 0.0_dp
+            return
+        end if
+        total = interval(0.0_dp)
+        !$omp parallel do reduction(verified_sum:total) if(size(x) >= 8192)
+        do i = 1, size(x)
+            total = reduction_add(total, sqr(interval(x(i))))
+        end do
+        bound = sqrt_up(max(0.0_dp, total%hi))
+    end function
 
     !> Upper bound on abs(z) with upward rounding (no hypot).
     pure elemental function cabs_up(z) result(a)
