@@ -68,5 +68,108 @@ ctest --test-dir build --output-on-failure
     )
     load_job_environment
     ;;
+  ci-generated)
+    echo 'Checkout locked fortsym revision'
+    (
+set -euo pipefail
+git clone https://github.com/lazy-fortran/fortsym.git \
+  ../fortsym
+tools/codegen/checkout_fortsym.sh ../fortsym
+
+    )
+    load_job_environment
+    echo 'Register and run CTest drift check'
+    (
+set -euo pipefail
+export PATH="$HOME/.local/bin:$PATH"
+# A drift failure should arrive with evidence. The generators log
+# which stages each kernel takes and why, which is what distinguishes
+# a real change from an environment-dependent classification.
+export FORTNUM_CODEGEN_VERBOSE=1
+cmake -S . -B build-generated -G Ninja \
+  -DFORTNUM_BUILD_TESTING=OFF \
+  -DFORTNUM_BUILD_EXAMPLES=OFF \
+  -DFORTNUM_CHECK_GENERATED=ON
+ctest --test-dir build-generated --output-on-failure \
+  -R generated_sources_current
+
+    )
+    load_job_environment
+    ;;
+  ci-oracle)
+    python3 -m venv "$root/venv"
+    . "$root/venv/bin/activate"
+    echo 'Install Python dependencies'
+    (
+set -euo pipefail
+python -m pip install --upgrade pip
+python -m pip install numpy scipy
+
+    )
+    load_job_environment
+    echo 'Generate oracle tables'
+    (
+set -euo pipefail
+# The generator is introduced by #4. Until then, skip cleanly so this
+# job is informational only. Search the conventional locations.
+gen=""
+for cand in \
+  tools/oracle/generate.py \
+  tools/generate_oracle.py \
+  test/oracle/generate.py \
+  scripts/generate_oracle.py; do
+  if [ -f "$cand" ]; then
+    gen="$cand"
+    break
+  fi
+done
+if [ -z "$gen" ]; then
+  echo "No oracle generator found yet (issue #4); skipping."
+  exit 0
+fi
+echo "Running oracle generator: $gen"
+python "$gen"
+
+    )
+    load_job_environment
+    ;;
+  ci-benchmark)
+    echo 'Configure benchmark'
+    (
+cmake -S benchmark -B build-bench -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release
+
+    )
+    load_job_environment
+    echo 'Build benchmark'
+    (
+cmake --build build-bench -j "${SCI_CPUS:-8}"
+    )
+    load_job_environment
+    echo 'Run benchmark'
+    (
+./build-bench/bin/bench_main --json | tee bench-run.json
+    )
+    load_job_environment
+    echo 'Gate against baseline'
+    (
+python3 benchmark/gate.py \
+  --baseline benchmark/baseline.json \
+  --run bench-run.json \
+  --factor 4.0
+
+    )
+    load_job_environment
+    echo 'Re-select Dawson candidates on hosted hardware'
+    (
+set -euo pipefail
+lscpu > new-target-host.txt
+python3 benchmark/collect_dawson_family.py \
+  --executable build-bench/bin/bench_dawson_generated_family \
+  --output new-target-dawson-family.json
+
+    )
+    load_job_environment
+    ;;
   *) echo "unknown CI tier: $tier" >&2; exit 2 ;;
 esac

@@ -18,11 +18,21 @@ concurrency:
 jobs:
   generated:
     name: generated sources are current
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON('["self-hosted","itp-build"]') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Run native checks in the build container
+        if: ${{ !github.event.pull_request.head.repo.fork }}
+        env:
+          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |-
+          ci/run.sh ci-generated
       - name: Install system dependencies
         run: |
           set -euo pipefail
@@ -38,9 +48,11 @@ jobs:
             libmpfr-dev \
             ninja-build
 
+        if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Install pinned SymEngine
         run: scripts/ci/install_symengine.sh
 
+        if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Install fpm and fo
         run: |
           set -euo pipefail
@@ -54,6 +66,7 @@ jobs:
           )
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
+        if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Checkout locked fortsym revision
         run: |
           set -euo pipefail
@@ -61,6 +74,7 @@ jobs:
             ../fortsym
           tools/codegen/checkout_fortsym.sh ../fortsym
 
+        if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Register and run CTest drift check
         run: |
           set -euo pipefail
@@ -77,6 +91,7 @@ jobs:
             -R generated_sources_current
 
   # Primal (non-derivative) build and test with gfortran. Required.
+        if: ${{ github.event.pull_request.head.repo.fork }}
   gfortran:
     name: gfortran ${{ matrix.os }}
     runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || (github.event_name == 'merge_group' || github.event_name == 'schedule' || contains(github.event.pull_request.labels.*.name, 'full-ci')) && fromJSON('["self-hosted","itp-slurm"]') || fromJSON('["self-hosted","itp-build"]') }}
@@ -140,23 +155,35 @@ jobs:
         if: ${{ github.event.pull_request.head.repo.fork }}
   oracle:
     name: oracle reference tables
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON('["self-hosted","itp-build"]') }}
     continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Run native checks in the build container
+        if: ${{ !github.event.pull_request.head.repo.fork }}
+        env:
+          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |-
+          ci/run.sh ci-oracle
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
+        if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Install Python dependencies
         run: |
           set -euo pipefail
           python -m pip install --upgrade pip
           python -m pip install numpy scipy
 
+        if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Generate oracle tables
         run: |
           set -euo pipefail
@@ -187,13 +214,24 @@ jobs:
   # characterized; see benchmark/README.md and gate.py --gate-derivative.
   # GitHub-hosted runners are noisy, so the factor is generous (4x): the gate
   # catches order-of-magnitude regressions, not micro-noise.
+        if: ${{ github.event.pull_request.head.repo.fork }}
   benchmark:
     name: benchmark regression gate
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON('["self-hosted","itp-build"]') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Run native checks in the build container
+        if: ${{ !github.event.pull_request.head.repo.fork }}
+        env:
+          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |-
+          ci/run.sh ci-benchmark
       - name: Install system dependencies
         run: |
           set -euo pipefail
@@ -205,22 +243,27 @@ jobs:
             liblapack-dev \
             libblas-dev
 
+        if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
+        if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Configure benchmark
         run: |
           cmake -S benchmark -B build-bench -G Ninja \
             -DCMAKE_BUILD_TYPE=Release
 
+        if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Build benchmark
         run: cmake --build build-bench -j
 
+        if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Run benchmark
         run: ./build-bench/bin/bench_main --json | tee bench-run.json
 
+        if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Gate against baseline
         run: |
           python3 benchmark/gate.py \
@@ -228,6 +271,7 @@ jobs:
             --run bench-run.json \
             --factor 4.0
 
+        if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Re-select Dawson candidates on hosted hardware
         run: |
           set -euo pipefail
@@ -236,6 +280,7 @@ jobs:
             --executable build-bench/bin/bench_dawson_generated_family \
             --output new-target-dawson-family.json
 
+        if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Upload hosted-hardware selection
         uses: actions/upload-artifact@v4
         with:
