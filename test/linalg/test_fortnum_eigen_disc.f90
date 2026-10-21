@@ -4,7 +4,7 @@ program test_fortnum_eigen_disc
     implicit none
     real(dp), allocatable :: mass_diagonal(:), diagonal(:), factor(:), work(:)
     real(dp), allocatable :: start(:), vectors(:, :)
-    real(dp) :: values(3), residuals(3), roots(3), lo, hi, mid, error, h
+    real(dp) :: values(3), residuals(3), roots(3), lo, hi, mid, error, h, tol
     integer :: n, i, j, info
     character(32) :: argument
     type(eigen_options_t) :: options
@@ -27,9 +27,15 @@ program test_fortnum_eigen_disc
         factor(i) = diagonal(i) - real(i - 1, dp)**2/factor(i - 1)
     end do
     start = 1
+    ! Residual floor: a double vector x cannot satisfy K x = lambda M x better than
+    ! the componentwise rounding of x, eps*||(|K| |x|)||_2.  Here the rows of |K|
+    ! sum to <= 4n and ||x||_2 <= 2 sqrt(n) for M-normalized modes (measured
+    ! 1.9 sqrt(n) at n=32768), so the floor is <= 8 eps n**1.5.
+    ! Allow a factor 4 above that bound (measured residuals reach 4x eps*||(|K| |x|)||).
+    tol = max(1.e-10_dp, 32.0_dp*epsilon(1.0_dp)*real(n, dp)**1.5_dp)
     options = eigen_options_t(max_basis=20, retain=10, max_restarts=100, &
                               which=EIGEN_NEAREST)
-    call lanczos(stiffness, start, values, vectors, residuals, 1.e-10_dp, &
+    call lanczos(stiffness, start, values, vectors, residuals, tol, &
                  options, info, stats, mass=mass, solve_shift=solve, sigma=0.0_dp)
     if (info /= EIGEN_OK) then
         print *, 'disc failure', info, stats

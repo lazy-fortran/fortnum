@@ -336,10 +336,16 @@ def _parse_sass_register_count(text: str) -> int | None:
 # ---------------------------------------------------------------------------
 
 def source_revision(repo: Path) -> str:
-    return subprocess.run(
-        ["git", "-C", str(repo), "rev-parse", "HEAD"],
-        check=True, text=True, capture_output=True,
-    ).stdout.strip()
+    """Commit of ``repo``, or ``"unknown"`` outside a git checkout (tarball)."""
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo), "rev-parse", "HEAD"],
+            check=False, text=True, capture_output=True,
+        )
+    except OSError:
+        return "unknown"
+    revision = result.stdout.strip()
+    return revision if result.returncode == 0 and revision else "unknown"
 
 
 def compiler_version() -> str:
