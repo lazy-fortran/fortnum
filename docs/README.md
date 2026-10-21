@@ -66,3 +66,5 @@ statistics, unindexed derivative ownership, and committed report PNGs.
 
 CTest also rejects generated JVP or VJP paths that call a Jacobian constructor,
 use the wrong product construction, or lose their generator ownership.
+
+- [Stage precision, scaled vectors and mixed refinement](precision.md).

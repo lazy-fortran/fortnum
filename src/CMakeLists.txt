@@ -2,6 +2,11 @@
 # under the "module sources" block below, kept alphabetical and one-per-line
 # to minimise merge conflicts.
 add_library(fortnum STATIC)
+target_sources(fortnum PRIVATE
+    linalg/fortnum_precision.f90
+    linalg/fortnum_precision_vector.f90
+    linalg/fortnum_refinement.f90)
+target_link_libraries(fortnum PUBLIC fortgen_runtime)
 
 target_sources(fortnum PRIVATE
     ${FORTNUM_BUILD_SELECTION_SOURCE}
