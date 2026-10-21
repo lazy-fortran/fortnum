@@ -3,6 +3,16 @@
 # to minimise merge conflicts.
 add_library(fortnum STATIC)
 target_sources(fortnum PRIVATE
+    generated/fortnum_eigen_radius_sp.f90
+    generated/fortnum_eigen_radius_dp.f90
+    generated/fortnum_eigen_temple_sp.f90
+    generated/fortnum_eigen_temple_dp.f90
+    generated/fortnum_eigen_temple_products_sp.f90
+    generated/fortnum_eigen_temple_products_dp.f90
+    linalg/fortnum_eigen_types.f90
+    linalg/fortnum_eigen_sp.F90
+    linalg/fortnum_eigen_dp.F90
+    linalg/fortnum_eigen.f90
     linalg/fortnum_precision.f90
     linalg/fortnum_precision_vector.f90
     linalg/fortnum_refinement.f90)
