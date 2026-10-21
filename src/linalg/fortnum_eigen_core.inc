@@ -621,6 +621,7 @@ contains
             if (code /= 0) return
             call mass_solve_call(xi, yi, second)
             code = second
+            if (code /= 0) return
             y = cmplx(yr, yi, rk)
         end subroutine
         subroutine cshift(x, y, code)
@@ -634,6 +635,7 @@ contains
             if (code /= 0) return
             call shift_call(xi, yi, second)
             code = second
+            if (code /= 0) return
             y = cmplx(yr, yi, rk)
         end subroutine
     end subroutine
