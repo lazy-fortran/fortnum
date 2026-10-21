@@ -27,12 +27,7 @@ program test_fortnum_eigen_disc
         factor(i) = diagonal(i) - real(i - 1, dp)**2/factor(i - 1)
     end do
     start = 1
-    ! Residual floor: a double vector x cannot satisfy K x = lambda M x better than
-    ! the componentwise rounding of x, eps*||(|K| |x|)||_2.  Here the rows of |K|
-    ! sum to <= 4n and ||x||_2 <= 2 sqrt(n) for M-normalized modes (measured
-    ! 1.9 sqrt(n) at n=32768), so the floor is <= 8 eps n**1.5.
-    ! Allow a factor 4 above that bound (measured residuals reach 4x eps*||(|K| |x|)||).
-    tol = max(1.e-10_dp, 32.0_dp*epsilon(1.0_dp)*real(n, dp)**1.5_dp)
+    tol = 1.e-10_dp
     options = eigen_options_t(max_basis=20, retain=10, max_restarts=100, &
                               which=EIGEN_NEAREST)
     call lanczos(stiffness, start, values, vectors, residuals, tol, &
@@ -41,6 +36,13 @@ program test_fortnum_eigen_disc
         print *, 'disc failure', info, stats
         error stop 1
     end if
+    ! Independent symmetric row-sum bounds: ||K||_2 <= 4n, ||M||_2 <= 1/n.
+    do j = 1, 3
+        call stiffness(vectors(:, j), work)
+        error = norm2(work - values(j)*mass_diagonal*vectors(:, j))
+        if (error > tol*(4*n + abs(values(j))/n)*norm2(vectors(:, j))) &
+            error stop 'disc backward error exceeds analytic norm bound'
+    end do
     ! Independent roots of the exact entire J0 series, bracketed per radial mode.
     do j = 1, 3
         lo = real(3*j - 1, dp)

@@ -1,4 +1,5 @@
 module fortnum_eigen_types
+    use fortnum_kinds, only: dp
     implicit none
     private
     integer, parameter, public :: EIGEN_OK = 0, EIGEN_NOT_CONVERGED = 1, &
@@ -9,6 +10,8 @@ module fortnum_eigen_types
     type, public :: eigen_options_t
         integer :: max_basis = 32, max_restarts = 100, retain = 0
         integer :: which = EIGEN_SMALLEST
+        ! Zero selects an observed lower estimate of the original operator norm.
+        real(dp) :: operator_scale = 0.0_dp, mass_scale = 0.0_dp
     end type
     type, public :: eigen_stats_t
         integer :: restarts = 0, applications = 0, converged = 0, locked = 0
