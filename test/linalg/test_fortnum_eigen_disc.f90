@@ -36,6 +36,13 @@ program test_fortnum_eigen_disc
         print *, 'disc failure', info, stats
         error stop 1
     end if
+    ! Independent symmetric row-sum bounds: ||K||_2 <= 4n, ||M||_2 <= 1/n.
+    do j = 1, 3
+        call stiffness(vectors(:, j), work)
+        error = norm2(work - values(j)*mass_diagonal*vectors(:, j))
+        if (error > tol*(4*n + abs(values(j))/n)*norm2(vectors(:, j))) &
+            error stop 'disc backward error exceeds analytic norm bound'
+    end do
     ! Independent roots of the exact entire J0 series, bracketed per radial mode.
     do j = 1, 3
         lo = real(3*j - 1, dp)
