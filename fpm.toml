@@ -25,6 +25,7 @@ auto-tests = true
 # magnitude under the tolerance, and passes on either library.
 
 [dependencies]
+fortgen = { git = "https://github.com/lazy-fortran/fortgen.git", rev = "68a38f1a2fc71e6a35c79653392687875dad7e7b" }
 blas = "*"
 openmp = "*"
 
