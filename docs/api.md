@@ -699,3 +699,12 @@ locks. `fortnum_precision_vector` owns independently typed compressed storage
 and fp32/fp64 loads. `fortnum_refinement` supplies the original-operator fp64
 defect-correction controller with a selectable inner correction callback.
 See [precision APIs](precision.md) for arguments, failure statuses and limits.
+
+## Matrix-free eigenproblems
+
+`fortnum_eigen` exports real/complex FP32/FP64 `krylov_schur`, `lanczos`,
+`eigen_bounds` and `inertia_count`. `fortnum_eigen_types` owns options, counters
+and statuses. Standard and SPD generalized pencils support supplied solves,
+shift-invert and matrix-free JVP actions, with original-pencil residual checks.
+See [eigenproblem contracts](eigen.md) for callbacks, soft locking, conditional
+bounds, memory, precision and failure semantics.

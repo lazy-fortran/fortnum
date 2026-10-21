@@ -616,3 +616,11 @@ add_test(NAME fortnum_coulomb COMMAND test_fortnum_coulomb
 add_executable(test_fortnum_precision linalg/test_fortnum_precision.f90)
 target_link_libraries(test_fortnum_precision PRIVATE fortnum)
 add_test(NAME fortnum_precision COMMAND test_fortnum_precision)
+
+add_executable(test_fortnum_eigen linalg/test_fortnum_eigen.f90)
+target_link_libraries(test_fortnum_eigen PRIVATE fortnum)
+add_test(NAME fortnum_eigen COMMAND test_fortnum_eigen)
+
+add_executable(test_fortnum_eigen_disc linalg/test_fortnum_eigen_disc.f90)
+target_link_libraries(test_fortnum_eigen_disc PRIVATE fortnum)
+add_test(NAME fortnum_eigen_disc COMMAND test_fortnum_eigen_disc)
