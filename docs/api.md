@@ -716,3 +716,12 @@ These O(n) operations use no allocated workspace or mutable rounding-mode
 state. Large vectors use OpenMP with outward-rounded interval combination;
 thread count may change enclosure width while preserving containment. They
 inherit the IEEE/compiler assumptions in [verified computing](design/verified.md).
+
+## Matrix-free eigenproblems
+
+`fortnum_eigen` exports real/complex FP32/FP64 `krylov_schur`, `lanczos`,
+`eigen_bounds` and `inertia_count`. `fortnum_eigen_types` owns options, counters
+and statuses. Standard and SPD generalized pencils support supplied solves,
+shift-invert and matrix-free JVP actions, with original-pencil residual checks.
+See [eigenproblem contracts](eigen.md) for callbacks, soft locking, conditional
+bounds, memory, precision and failure semantics.

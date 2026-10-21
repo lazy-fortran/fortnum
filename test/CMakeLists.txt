@@ -623,3 +623,11 @@ if(FORTNUM_HAVE_REAL128)
     target_link_libraries(test_fortnum_verified_reductions PRIVATE fortnum)
     add_test(NAME fortnum_verified_reductions COMMAND test_fortnum_verified_reductions)
 endif()
+
+add_executable(test_fortnum_eigen linalg/test_fortnum_eigen.f90)
+target_link_libraries(test_fortnum_eigen PRIVATE fortnum)
+add_test(NAME fortnum_eigen COMMAND test_fortnum_eigen)
+
+add_executable(test_fortnum_eigen_disc linalg/test_fortnum_eigen_disc.f90)
+target_link_libraries(test_fortnum_eigen_disc PRIVATE fortnum)
+add_test(NAME fortnum_eigen_disc COMMAND test_fortnum_eigen_disc)
