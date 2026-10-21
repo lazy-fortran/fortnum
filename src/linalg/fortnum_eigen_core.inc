@@ -485,14 +485,27 @@ contains
             do pass = 1, 2
                 call metric(x, mx)
                 if (info < 0) return
+                ! Keep one team for the dependent projection/update sequence.
+                ! Every thread advances j in order; worksharing barriers make
+                ! the reduced coefficient and updated vectors visible to all.
+                !$omp parallel if(n >= 8192) private(j, l)
                 do j = 1, k
-                    c = dot_product(q(:, j), mx)
-                    !$omp parallel do simd if(n >= 8192)
+                    !$omp single
+                    c = 0
+                    !$omp end single
+                    !$omp do simd reduction(+:c)
+                    do l = 1, n
+                        c = c + conjg(q(l, j))*mx(l)
+                    end do
+                    !$omp end do simd
+                    !$omp do simd
                     do l = 1, n
                         x(l) = x(l) - c*q(l, j)
                         mx(l) = mx(l) - c*mq(l, j)
                     end do
+                    !$omp end do simd
                 end do
+                !$omp end parallel
             end do
             ! Recompute the metric after cancellation; recursively subtracting
             ! Mq images can lose positivity near an invariant subspace.
@@ -543,12 +556,23 @@ contains
         complex(rk), intent(in) :: x(:)
         finite = all(ieee_is_finite(real(x, rk))) .and. all(ieee_is_finite(aimag(x)))
     end function
-    pure real(rk) function cnorm(x) result(v)
+    real(rk) function cnorm(x) result(v)
         complex(rk), intent(in) :: x(:)
         real(rk) :: scale
-        scale = maxval(abs(x))
+        integer :: i
+        scale = 0
+        !$omp parallel do simd if(size(x) >= 8192) reduction(max:scale)
+        do i = 1, size(x)
+            scale = max(scale, abs(x(i)))
+        end do
         v = 0
-        if (scale > 0) v = scale*sqrt(sum(abs(x/scale)**2))
+        if (scale > 0) then
+            !$omp parallel do simd if(size(x) >= 8192) reduction(+:v)
+            do i = 1, size(x)
+                v = v + abs(x(i)/scale)**2
+            end do
+            v = scale*sqrt(v)
+        end if
     end function
     logical function unused_select(z)
         complex(rk), intent(in) :: z
