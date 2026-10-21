@@ -632,5 +632,5 @@ add_executable(test_fortnum_eigen_disc linalg/test_fortnum_eigen_disc.f90)
 target_link_libraries(test_fortnum_eigen_disc PRIVATE fortnum)
 add_test(NAME fortnum_eigen_disc COMMAND test_fortnum_eigen_disc)
 add_test(NAME fortnum_eigen_disc_large COMMAND test_fortnum_eigen_disc 32768)
-set_tests_properties(fortnum_eigen_disc_large PROPERTIES
+set_tests_properties(fortnum_eigen_disc_large PROPERTIES PROCESSORS 2
     ENVIRONMENT "OMP_NUM_THREADS=2;OPENBLAS_NUM_THREADS=1")
