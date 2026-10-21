@@ -76,7 +76,24 @@ and the leading soft-locked subspace size. Callback action counts refer to
 complex actions; a real bridge can invoke two underlying real actions.
 
 Acceptance recomputes r = Kx - lambda Mx with ||x||_M = 1, and requires
-||r||_2 <= tolerance max(1, ||Kx||_2 + |lambda| ||Mx||_2).
+||r||_2 <= tolerance (k_scale + |lambda| m_scale) ||x||_2.
+This is the normwise backward-error test for perturbations of K and M when
+`k_scale = ||K||_2` and `m_scale = ||M||_2`. Known norm bounds can be supplied
+as the nonnegative FP64 options `operator_scale` and `mass_scale`, including
+for FP32 solves (they must be representable in the working kind). Negative
+or nonfinite scales are invalid. Each zero option independently selects an
+automatic estimate: the largest observed ||Kq||_2/||q||_2 or
+||Mq||_2/||q||_2 over basis vectors and checked Ritz vectors; M=I uses one.
+These are lower estimates, not certified matrix norms, so automatic stopping
+can be stricter than stopping with exact norms. Unseen directions need not
+be represented. No absolute unit floor is imposed, preserving scaling for
+small operators as well as highly cancelling Kx and lambda Mx.
+
+Original K images are reused on the ordinary path. Shift-invert and custom
+transforms evaluate K once more on each new basis vector when
+`operator_scale=0`; these actions are included in `stats%applications`.
+Supplying `operator_scale` avoids these extra actions. Workspace is reused;
+no matrix entries or assembled operators are needed.
 `residuals` always reports the original Euclidean residual, including after
 shift-invert. It is a floating-point estimate, without an outward rounding
 certificate. The returned vector and residual kind follows the input kind;
@@ -137,8 +154,11 @@ Native tests cover restarted Toeplitz sine spectra, congruent SPD pencils,
 real/complex nonnormal triangular spectra, real/complex Hermitian cases,
 shift-invert ordering, custom maps, multiplicities, callback failures,
 nonconvergence, inertia endpoints, both kinds, and a radial disc finite-volume
-limit against roots of the exact J0 power series. The disc tolerance includes
-discretization error. Run `ctest -R fortnum_eigen --output-on-failure` or
+limit against roots of the exact J0 power series. The n=32768 disc regression
+uses backward-error tolerance 1e-10; the separate eigenvalue comparison allows
+1% spatial discretization error. A scaled Toeplitz regression checks that a
+small unresolved operator still fails, and verifies supplied-scale acceptance
+against the analytic norm bound and sine spectrum. Run `ctest -R fortnum_eigen --output-on-failure` or
 `fo test 'test_fortnum_eigen*'`. Regenerate with
 `cd tools/codegen && fo exec gen_eigen_bounds`; the registered generated-source
 check byte-compares its output.

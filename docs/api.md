@@ -723,5 +723,9 @@ inherit the IEEE/compiler assumptions in [verified computing](design/verified.md
 `eigen_bounds` and `inertia_count`. `fortnum_eigen_types` owns options, counters
 and statuses. Standard and SPD generalized pencils support supplied solves,
 shift-invert and matrix-free JVP actions, with original-pencil residual checks.
-See [eigenproblem contracts](eigen.md) for callbacks, soft locking, conditional
+Stopping uses the normwise backward error
+`||Kx-lambda Mx|| <= tolerance*(k_scale+abs(lambda)*m_scale)*||x||`.
+`eigen_options_t%operator_scale` and `%mass_scale` optionally supply norm
+bounds; zero selects observed matrix-free norm estimates.
+See [eigenproblem contracts](eigen.md) for callbacks, scale estimation, soft locking, conditional
 bounds, memory, precision and failure semantics.

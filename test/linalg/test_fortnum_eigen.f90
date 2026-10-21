@@ -6,7 +6,7 @@ program test_fortnum_eigen
     implicit none
     integer, parameter :: n = 24, nev = 3
     real(dp) :: start(n), val(nev), vec(n, nev), res(nev), s(n), exact(nev), z(n)
-    real(dp) :: radius, lower, upper, theta, rho, shift, gram(nev, nev)
+    real(dp) :: radius, lower, upper, theta, rho, shift, gram(nev, nev), scale
     complex(dp) :: cstart(n), cv(nev), cx(n, nev), cz(n)
     real(dp) :: tl,tu,ar,at,al,ab
     real(sp) :: ss(8), sv(2), sx(8, 2), sr(2), srad
@@ -99,6 +99,33 @@ program test_fortnum_eigen
     opt%max_restarts = 0
     call lanczos(toeplitz, start, val, vec, res, 1.e-15_dp, opt, info, stats)
     call check(info == EIGEN_NOT_CONVERGED, 'nonconvergence explicit')
+    ! A tiny operator must not make an unresolved Ritz pair pass an absolute test.
+    scale = 1.e-12_dp
+    call lanczos(scaled_toeplitz, start, val, vec, res, 1.e-10_dp, opt, info, stats)
+    call check(info == EIGEN_NOT_CONVERGED, 'small operator remains unconverged')
+    call check(any(res > 1.e-10_dp*(4*scale + abs(val))), &
+               'independent Toeplitz norm bound rejects unresolved Ritz pairs')
+    opt%operator_scale = 4*scale
+    opt%mass_scale = 1
+    call lanczos(scaled_toeplitz, start, val, vec, res, 1.e-10_dp, opt, info, stats)
+    call check(info == EIGEN_NOT_CONVERGED, 'supplied norm rejects unresolved pairs')
+    opt%max_basis = n
+    call lanczos(scaled_toeplitz, start, val, vec, res, 1.e-10_dp, opt, info, stats)
+    call check(info == EIGEN_OK, 'small operator full basis converges')
+    call check(maxval(abs(val/scale - exact)) < 1.e-10_dp, 'scaled sine spectrum')
+    do j = 1, nev
+        call scaled_toeplitz(vec(:, j), z)
+        call check(norm2(z - val(j)*vec(:, j)) <= &
+                   1.e-10_dp*(4*scale + abs(val(j)))*norm2(vec(:, j)), &
+                   'independent supplied-scale backward error')
+    end do
+    opt%operator_scale = -1
+    call lanczos(toeplitz, start, val, vec, res, 1.e-10_dp, opt, info, stats)
+    call check(info == EIGEN_INVALID, 'negative operator scale rejected')
+    opt%operator_scale = 0
+    opt%mass_scale = ieee_value(1.0_dp, ieee_quiet_nan)
+    call lanczos(toeplitz, start, val, vec, res, 1.e-10_dp, opt, info, stats)
+    call check(info == EIGEN_INVALID, 'nonfinite mass scale rejected')
     ! Exact 2x2 Hermitian Rayleigh quotient: eigenvalues 1 and 3.
     theta = 1.02_dp
     rho = sqrt(0.0396_dp)
@@ -153,6 +180,12 @@ contains
             y(k) = y(k) - x(k + 1)
             y(k + 1) = y(k + 1) - x(k)
         end do
+    end subroutine
+    subroutine scaled_toeplitz(x, y)
+        real(dp), intent(in) :: x(:)
+        real(dp), intent(out) :: y(:)
+        call toeplitz(x, y)
+        y = scale*y
     end subroutine
     subroutine pencil(x, y)
         real(dp), intent(in) :: x(:)
