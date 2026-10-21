@@ -23,7 +23,7 @@ while read -r slug; do
     cp -a "$mirror" "$stage/mirrors/$slug.git"
     exec {lock}>&-
 done < "$src/ci/dependencies.txt"
-git clone -q --no-hardlinks "$src" "$stage/src"
+git clone -q --no-hardlinks --dissociate "$src" "$stage/src"
 git -C "$stage/src" remote set-url origin "https://github.com/${GITHUB_REPOSITORY:?GITHUB_REPOSITORY missing}.git"
 git -C "$src" rev-parse HEAD > "$stage/revision.txt"
 printf '%s\n' "${SCI_TIER:?SCI_TIER missing}" > "$stage/tier.txt"
