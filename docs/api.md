@@ -691,3 +691,11 @@ It is a named constant, so the compiler folds the branch and the unused call
 costs nothing at runtime. Both sets stay compiled and both stay tested against
 each other. An operator with no fortad kernel falls back to fortsym on its own,
 so the choice is per operator rather than per library.
+
+## Precision and defect correction
+
+`fortnum_precision` owns `precision_policy_t`, stage IDs, presets and the fp64
+locks. `fortnum_precision_vector` owns independently typed compressed storage
+and fp32/fp64 loads. `fortnum_refinement` supplies the original-operator fp64
+defect-correction controller with a selectable inner correction callback.
+See [precision APIs](precision.md) for arguments, failure statuses and limits.
