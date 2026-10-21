@@ -166,6 +166,7 @@ contains
         real(rk), allocatable :: rw(:), hw(:)
         logical, allocatable :: bw(:)
         real(rk) :: beta, before, score, best, denom, defect
+        real(rk) :: kscale, mscale, xnorm
         integer :: n, m, nev, k, keep, cycle, i, j, p, ierr, count, seed
         logical :: found
         info = EIGEN_INVALID
@@ -184,6 +185,15 @@ contains
         if (options%which < 1 .or. options%which > 4) return
         if (.not. ieee_is_finite(tolerance)) return
         if (tolerance <= 0 .or. .not. finite(start)) return
+        if (.not. ieee_is_finite(options%operator_scale)) return
+        if (.not. ieee_is_finite(options%mass_scale)) return
+        if (options%operator_scale < 0 .or. options%mass_scale < 0) return
+        if (options%operator_scale > real(huge(1.0_rk), kind(options%operator_scale))) &
+            return
+        if (options%mass_scale > real(huge(1.0_rk), kind(options%mass_scale))) return
+        kscale = real(options%operator_scale, rk)
+        mscale = real(options%mass_scale, rk)
+        if (.not. present(mass) .and. options%mass_scale == 0) mscale = 1
         if (present(solve_shift) .neqv. present(sigma)) return
         if (present(transform) .neqv. present(map)) return
         if (present(transform) .and. present(solve_shift)) return
@@ -252,6 +262,8 @@ contains
                 k = k + 1
                 q(:, k) = w/beta
                 mq(:, k) = mw/beta
+                if (options%mass_scale == 0) &
+                    mscale = max(mscale, cnorm(mq(:, k))/cnorm(q(:, k)))
                 call operator(q(:, k), bq(:, k))
                 if (info < 0) return
                 call metric(bq(:, k), mbq(:, k))
@@ -350,7 +362,11 @@ contains
                     return
                 end if
                 residuals(j) = cnorm(w)
-                denom = max(1.0_rk, cnorm(kx) + abs(lambda)*cnorm(mx))
+                xnorm = cnorm(vectors(:, j))
+                if (options%operator_scale == 0) &
+                    kscale = max(kscale, cnorm(kx)/xnorm)
+                if (options%mass_scale == 0) mscale = max(mscale, cnorm(mx)/xnorm)
+                denom = (kscale + abs(lambda)*mscale)*xnorm
                 if (.not. ieee_is_finite(denom)) then
                     info = EIGEN_OPERATOR_FAILED
                     return
@@ -420,6 +436,19 @@ contains
             complex(rk), intent(out) :: y(:)
             integer :: code
             code = 0
+            ! Shifted/transformed images do not measure the original K norm.
+            ! Sample K on the available basis vector only in automatic mode.
+            if (options%operator_scale == 0) then
+                if (associated(transform_call) .or. associated(shift_call)) then
+                    call apply(x, kx)
+                    stats%applications = stats%applications + 1
+                    if (.not. finite(kx)) then
+                        info = EIGEN_OPERATOR_FAILED
+                        return
+                    end if
+                    kscale = max(kscale, cnorm(kx)/cnorm(x))
+                end if
+            end if
             if (associated(transform_call)) then
                 call transform_call(x, y, code)
             else if (associated(shift_call)) then
@@ -432,6 +461,8 @@ contains
                     info = EIGEN_OPERATOR_FAILED
                     return
                 end if
+                if (options%operator_scale == 0) &
+                    kscale = max(kscale, cnorm(tmp)/cnorm(x))
                 if (associated(mass_call)) then
                     call mass_solve_call(tmp, y, code)
                 else
