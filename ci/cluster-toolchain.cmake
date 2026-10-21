@@ -1,0 +1,10 @@
+# sCluster system GCC 12.2; keep dependency discovery outside conda sysroots.
+set(CMAKE_Fortran_COMPILER /usr/bin/gfortran CACHE FILEPATH "")
+set(CMAKE_C_COMPILER /usr/bin/gcc CACHE FILEPATH "")
+set(CMAKE_CXX_COMPILER /usr/bin/g++ CACHE FILEPATH "")
+set(CMAKE_Fortran_FLAGS_INIT "-foffload=disable -finline-matmul-limit=0")
+set(BLA_VENDOR OpenBLAS CACHE STRING "")
+set(FORTSPARSE_AMD_INCLUDE_DIR /usr/include/suitesparse CACHE PATH "")
+set(FORTSPARSE_AMD_LIBRARY /usr/lib/x86_64-linux-gnu/libamd.so CACHE FILEPATH "")
+set(FORTSPARSE_METIS_INCLUDE_DIR /usr/include CACHE PATH "")
+set(FORTSPARSE_METIS_LIBRARY /usr/lib/x86_64-linux-gnu/libmetis.so CACHE FILEPATH "")

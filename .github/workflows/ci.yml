@@ -79,7 +79,7 @@ jobs:
   # Primal (non-derivative) build and test with gfortran. Required.
   gfortran:
     name: gfortran ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON('["self-hosted","itp-slurm"]') }}
     strategy:
       fail-fast: false
       matrix:
@@ -88,6 +88,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Bundle exact sources for Slurm
+        if: ${{ !github.event.pull_request.head.repo.fork }}
+        env:
+          SCI_TIER: ci-gfortran
+          SCI_MATRIX_OS: ${{ matrix.os }}
+        run: |-
+          TMPDIR="$RUNNER_TEMP" ci/bundle.sh "$RUNNER_TEMP/ci.tar.zst"
+      - name: Run native checks on sCluster
+        if: ${{ !github.event.pull_request.head.repo.fork }}
+        run: |-
+          sci-dispatch native "$RUNNER_TEMP/ci.tar.zst"
       - name: Install system dependencies
         run: |
           set -euo pipefail
@@ -99,21 +113,25 @@ jobs:
             liblapack-dev \
             libblas-dev
 
+        if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Configure
         run: |
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
             -DFORTNUM_BUILD_TESTING=ON
 
+        if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Build
         run: cmake --build build -j
 
+        if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Test
         run: ctest --test-dir build --output-on-failure
 
   # Reference "oracle" table generation against an independent implementation
   # (NumPy/SciPy). Non-required: stays green until the generator from #4 lands,
   # then runs it once to refresh the checked-in reference tables.
+        if: ${{ github.event.pull_request.head.repo.fork }}
   oracle:
     name: oracle reference tables
     runs-on: ubuntu-latest
