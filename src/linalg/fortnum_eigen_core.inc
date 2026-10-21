@@ -556,12 +556,23 @@ contains
         complex(rk), intent(in) :: x(:)
         finite = all(ieee_is_finite(real(x, rk))) .and. all(ieee_is_finite(aimag(x)))
     end function
-    pure real(rk) function cnorm(x) result(v)
+    real(rk) function cnorm(x) result(v)
         complex(rk), intent(in) :: x(:)
         real(rk) :: scale
-        scale = maxval(abs(x))
+        integer :: i
+        scale = 0
+        !$omp parallel do simd if(size(x) >= 8192) reduction(max:scale)
+        do i = 1, size(x)
+            scale = max(scale, abs(x(i)))
+        end do
         v = 0
-        if (scale > 0) v = scale*sqrt(sum(abs(x/scale)**2))
+        if (scale > 0) then
+            !$omp parallel do simd if(size(x) >= 8192) reduction(+:v)
+            do i = 1, size(x)
+                v = v + abs(x(i)/scale)**2
+            end do
+            v = scale*sqrt(v)
+        end if
     end function
     logical function unused_select(z)
         complex(rk), intent(in) :: z
