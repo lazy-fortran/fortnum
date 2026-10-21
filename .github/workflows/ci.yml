@@ -18,13 +18,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || format('{0}-{1}', github.ref, github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   generated:
     name: generated sources are current
-    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON('["self-hosted","itp-build"]') }}
+    runs-on: ${{ github.event.pull_request.head.repo.fork && fromJSON('["self-hosted","itp-ubuntu24"]') || fromJSON('["self-hosted","itp-build"]') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -102,7 +101,7 @@ jobs:
       github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci'))
   gfortran:
     name: gfortran ubuntu-latest
-    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || (github.event_name == 'schedule' || contains(github.event.pull_request.labels.*.name, 'full-ci')) && fromJSON('["self-hosted","itp-slurm"]') || fromJSON('["self-hosted","itp-build"]') }}
+    runs-on: ${{ github.event.pull_request.head.repo.fork && fromJSON('["self-hosted","itp-ubuntu24"]') || (github.event_name == 'schedule' || contains(github.event.pull_request.labels.*.name, 'full-ci')) && fromJSON('["self-hosted","itp-slurm"]') || fromJSON('["self-hosted","itp-build"]') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -147,7 +146,7 @@ jobs:
 
         if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Build
-        run: cmake --build build -j
+        run: cmake --build build -j "${SCI_CPUS:-8}"
 
         if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Test
@@ -161,7 +160,7 @@ jobs:
       github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci'))
   oracle:
     name: oracle reference tables
-    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON('["self-hosted","itp-build"]') }}
+    runs-on: ${{ github.event.pull_request.head.repo.fork && fromJSON('["self-hosted","itp-ubuntu24"]') || fromJSON('["self-hosted","itp-build"]') }}
     continue-on-error: true
     steps:
       - name: Checkout
@@ -225,7 +224,7 @@ jobs:
       github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci'))
   benchmark:
     name: benchmark regression gate
-    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON('["self-hosted","itp-build"]') }}
+    runs-on: ${{ github.event.pull_request.head.repo.fork && fromJSON('["self-hosted","itp-ubuntu24"]') || fromJSON('["self-hosted","itp-build"]') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -265,7 +264,7 @@ jobs:
 
         if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Build benchmark
-        run: cmake --build build-bench -j
+        run: cmake --build build-bench -j "${SCI_CPUS:-8}"
 
         if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Run benchmark
@@ -302,7 +301,9 @@ jobs:
       github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci'))
   enzyme:
     name: released Flang 22 + pinned Enzyme
-    runs-on: ubuntu-24.04
+    runs-on:
+      - self-hosted
+      - itp-ubuntu24
     env:
       LLVM_MAJOR: '22'
       ENZYME_REVISION: c96508349d9f121957292308c646b4a1fd53c507
