@@ -48,7 +48,7 @@ cmake -S . -B build -G Ninja \
     load_job_environment
     echo Build
     (
-cmake --build build -j
+cmake --build build -j "${SCI_CPUS:-8}"
 
     )
     load_job_environment
