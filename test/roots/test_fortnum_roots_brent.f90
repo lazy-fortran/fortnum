@@ -4,7 +4,7 @@ program test_fortnum_roots_brent
     ! Covers: IQI path on a smooth cubic; secant path (near-flat function);
     ! wide bracket forcing many bisection steps; sign-check domain error;
     ! convergence-error path (max_iter=1); exact zero at endpoint.
-    use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
+    use, intrinsic :: iso_fortran_env, only: dp => real64, int64, error_unit
     use fortnum_roots, only: root_brent
     use fortnum_status, only: fortnum_status_t, FORTNUM_OK, &
         FORTNUM_DOMAIN_ERROR, FORTNUM_CONVERGENCE_ERROR
@@ -23,6 +23,7 @@ program test_fortnum_roots_brent
     call test_brent_max_iter(nfail)
     call test_brent_ftol(nfail)
     call test_brent_interpolation_work(nfail)
+    call test_brent_nonrepresentable_linear(nfail)
 
     if (nfail > 0) then
         write (error_unit, "(i0,a)") nfail, " test(s) failed"
@@ -41,10 +42,10 @@ contains
         ! An exact root reached by the final allowed update must be accepted.
         call root_brent(f_linear, 0.0_dp, 1.0_dp, x, status, max_iter=1)
         call check_code('linear interpolation work', status%code, FORTNUM_OK, nfail)
-        call check('linear root', x, 1.0_dp/3, 2.0e-15_dp, nfail)
+        call check('linear root', x, 0.25_dp, 0.0_dp, nfail)
         call root_brent(f_linear, 1.0_dp, 0.0_dp, x, status, max_iter=1)
         call check_code('reversed linear work', status%code, FORTNUM_OK, nfail)
-        call check('reversed linear root', x, 1.0_dp/3, 2.0e-15_dp, nfail)
+        call check('reversed linear root', x, 0.25_dp, 0.0_dp, nfail)
         ! Smooth simple roots must use interpolation, not spend the roughly
         ! fifty bisections required to reach this accuracy on a unit bracket.
         call root_brent(f_cubic, 1.0_dp, 2.0_dp, x, status, max_iter=12)
@@ -58,8 +59,46 @@ contains
     pure function f_linear(x) result(y)
         real(dp), intent(in) :: x
         real(dp) :: y
-        y = 3*x - 1
+        y = 4*x - 1
     end function f_linear
+
+    subroutine test_brent_nonrepresentable_linear(nfail)
+        integer, intent(inout) :: nfail
+        type(fortnum_status_t) :: status
+        real(dp) :: x
+        integer(int64) :: residual_units
+        ! Exact rational enclosure: 3*6004799503160661 = 2**54 - 1,
+        ! whereas 3*6004799503160662 = 2**54 + 2. Neither endpoint is a root.
+        real(dp), parameter :: lower = scale(6004799503160661.0_dp, -54)
+        real(dp), parameter :: upper = scale(6004799503160662.0_dp, -54)
+
+        ! Subtracting 1/4 first keeps the residual nonzero with or without
+        ! contraction. A near root alone cannot close the still-wide bracket
+        ! after one update when ftol=0, so exhaustion is the correct status.
+        call root_brent(f_third, 0.0_dp, 1.0_dp, x, status, max_iter=1)
+        call check_code('nonrepresentable one update', status%code, &
+            FORTNUM_CONVERGENCE_ERROR, nfail)
+        call check('one-update linear root', x, lower, 0.0_dp, nfail)
+        call root_brent(f_third, 0.0_dp, 1.0_dp, x, status)
+        call check_code('nonrepresentable convergence', status%code, FORTNUM_OK, nfail)
+        if (x < lower .or. x > upper) then
+            nfail = nfail + 1
+            write (error_unit, '(a,es24.16)') 'FAIL [rational enclosure] x=', x
+        end if
+        ! Integer arithmetic supplies an independent exact residual in units
+        ! of 2**(-54) for these two dyadic neighbors of the rational root.
+        if (x >= lower .and. x <= upper) then
+            residual_units = 3_int64*int(scale(x, 54), int64)-2_int64**54
+            call check('nonrepresentable residual', &
+                scale(real(residual_units, dp), -54), 0.0_dp, scale(1.0_dp, -53), nfail)
+        end if
+    end subroutine test_brent_nonrepresentable_linear
+
+    pure function f_third(x) result(y)
+        real(dp), intent(in) :: x
+        real(dp) :: y
+        y = 3*(x-0.25_dp)-0.25_dp
+    end function f_third
 
     ! ------------------------------------------------------------------ helpers
 
