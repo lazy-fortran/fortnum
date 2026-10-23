@@ -1,4 +1,3 @@
-    use fortnum_eigen_types
     use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
     implicit none
     private
