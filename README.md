@@ -37,6 +37,16 @@ fo install
 `fo` runs static checks, builds, tests, and lints the fpm configuration. See
 [CONTRIBUTING.md](CONTRIBUTING.md) for the complete contributor gate.
 
+With fpm (Python 3.11 or newer supplies the per-test oracle arguments):
+
+```bash
+fpm test --profile release --runner "python3 scripts/fpm_test_runner.py"
+```
+
+The runner reuses `[extra.fo.test-args]` in `fpm.toml`. On macOS, select an
+installed OpenBLAS with `--link-flag "$(pkg-config --libs openblas)"`, because
+Accelerate does not provide the LAPACK `dggsvd3` routine used by the library.
+
 Useful CMake options:
 
 | Option | Default | Effect |
