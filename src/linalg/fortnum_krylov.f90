@@ -52,11 +52,35 @@ module fortnum_krylov
         end subroutine complex_preconditioner_t
     end interface
 
+    type, abstract, public :: real_linear_operator_t
+        !! Real linear map with state.  Extend it and implement `apply` to pass
+        !! an operator (or a preconditioner, M^{-1}) to `real_conjugate_gradient`.
+    contains
+        procedure(real_linear_operator_apply_t), deferred :: apply
+    end type real_linear_operator_t
+
+    type, extends(real_linear_operator_t) :: procedure_operator_t
+        !! Private adapter that wraps a stateless callback.
+        procedure(real_matvec_t), pointer, nopass :: apply_procedure => null()
+    contains
+        procedure :: apply => apply_procedure_operator
+    end type procedure_operator_t
+
+    abstract interface
+        subroutine real_linear_operator_apply_t(self, input, output)
+            import :: dp, real_linear_operator_t
+            class(real_linear_operator_t), intent(inout) :: self
+            real(dp), intent(in) :: input(:)
+            real(dp), intent(out) :: output(:)
+        end subroutine real_linear_operator_apply_t
+    end interface
+
     public :: complex_fgmres_operator
     public :: complex_gmres_operator
     public :: complex_preconditioner_t
     public :: real_fgmres_operator
     public :: complex_matvec_t
+    public :: real_conjugate_gradient
     public :: real_conjugate_gradient_operator
     public :: real_conjugate_gradient_matmat_operator
     public :: real_gmres_operator
@@ -66,26 +90,28 @@ module fortnum_krylov
 
 contains
 
-    subroutine real_conjugate_gradient_operator( &
-            matvec, right_hand_side, solution, tolerance, max_iterations, &
+    subroutine real_conjugate_gradient( &
+            operator, right_hand_side, solution, tolerance, max_iterations, &
             info, iterations, residual_norm, preconditioner)
-        !! Solve an SPD matrix-free system with (preconditioned) CG.
+        !! Solve an SPD system given as an operator object with (preconditioned) CG.
         !!
-        !! The callback must represent a symmetric positive-definite operator.
-        !! An optional preconditioner applies M^{-1} to a residual.  The
+        !! The operator must represent a symmetric positive-definite map.  It is
+        !! an object so that its state (matrices, factors, work arrays) travels
+        !! with the apply, and `apply` may update that state (intent(inout)).
+        !! An optional preconditioner object applies M^{-1} to a residual.  The
         !! solution is used as the initial guess and is updated in place.
         !!
         !! The true residual b - A x is checked every 100 iterations.  If the
         !! iteration stalls or reaches max_iterations, the best true-residual
         !! iterate is returned with KRYLOV_MAX_ITERATIONS.
-        procedure(real_matvec_t) :: matvec
+        class(real_linear_operator_t), intent(inout) :: operator
         real(dp), intent(in) :: right_hand_side(:)
         real(dp), intent(inout) :: solution(:)
         real(dp), intent(in) :: tolerance
         integer, intent(in) :: max_iterations
         integer, intent(out) :: info, iterations
         real(dp), intent(out) :: residual_norm
-        procedure(real_preconditioner_t), optional :: preconditioner
+        class(real_linear_operator_t), intent(inout), optional :: preconditioner
 
         real(dp), allocatable :: residual(:), direction(:), preconditioned(:)
         real(dp), allocatable :: operator_direction(:), work(:), best_solution(:)
@@ -115,7 +141,7 @@ contains
             return
         end if
 
-        call matvec(solution, work)
+        call operator%apply(solution, work)
         call parallel_vector_sub(right_hand_side, work, residual)
         residual_norm = parallel_vector_norm2(residual)
         if (residual_norm <= target) then
@@ -128,7 +154,7 @@ contains
         stall_iterations = max(1000, max_iterations/10)
 
         if (present(preconditioner)) then
-            call preconditioner(residual, preconditioned)
+            call preconditioner%apply(residual, preconditioned)
         else
             call parallel_vector_scale(1.0_dp, residual, preconditioned)
         end if
@@ -144,7 +170,7 @@ contains
         call parallel_vector_scale(1.0_dp, preconditioned, direction)
 
         do while (iterations < max_iterations)
-            call matvec(direction, operator_direction)
+            call operator%apply(direction, operator_direction)
             denominator = parallel_vector_dot(direction, operator_direction)
             if (denominator <= 0.0_dp) then
                 info = KRYLOV_BREAKDOWN
@@ -163,7 +189,7 @@ contains
                 ! Recompute the residual from the operator before accepting
                 ! recurrence-based convergence; this catches loss of
                 ! orthogonality and inaccurate device callbacks.
-                call matvec(solution, work)
+                call operator%apply(solution, work)
                 call parallel_vector_sub(right_hand_side, work, residual)
                 residual_norm = parallel_vector_norm2(residual)
                 if (residual_norm <= target) then
@@ -184,7 +210,7 @@ contains
                 ! Periodic true-residual check: replace the recurrence
                 ! residual, keep the best iterate, and stop on convergence,
                 ! on a stall, or at the iteration cap.
-                call matvec(solution, work)
+                call operator%apply(solution, work)
                 call parallel_vector_sub(right_hand_side, work, residual)
                 residual_norm = parallel_vector_norm2(residual)
                 if (residual_norm <= target) then
@@ -202,7 +228,7 @@ contains
             end if
 
             if (present(preconditioner)) then
-                call preconditioner(residual, preconditioned)
+                call preconditioner%apply(residual, preconditioned)
             else
                 call parallel_vector_scale(1.0_dp, residual, preconditioned)
             end if
@@ -224,7 +250,49 @@ contains
         solution = best_solution
         residual_norm = best_residual_norm
         info = KRYLOV_MAX_ITERATIONS
+    end subroutine real_conjugate_gradient
+
+    subroutine real_conjugate_gradient_operator( &
+            matvec, right_hand_side, solution, tolerance, max_iterations, &
+            info, iterations, residual_norm, preconditioner)
+        !! Solve an SPD matrix-free system with (preconditioned) CG.
+        !!
+        !! Procedure-argument form of `real_conjugate_gradient`: the callbacks
+        !! are wrapped in operator objects and the same CG core runs, so both
+        !! entry points give identical results.  The callbacks carry no
+        !! context; use `real_conjugate_gradient` for an operator with state.
+        procedure(real_matvec_t) :: matvec
+        real(dp), intent(in) :: right_hand_side(:)
+        real(dp), intent(inout) :: solution(:)
+        real(dp), intent(in) :: tolerance
+        integer, intent(in) :: max_iterations
+        integer, intent(out) :: info, iterations
+        real(dp), intent(out) :: residual_norm
+        procedure(real_preconditioner_t), optional :: preconditioner
+
+        type(procedure_operator_t) :: operator_adapter, preconditioner_adapter
+
+        operator_adapter%apply_procedure => matvec
+        if (present(preconditioner)) then
+            preconditioner_adapter%apply_procedure => preconditioner
+            call real_conjugate_gradient( &
+                operator_adapter, right_hand_side, solution, tolerance, &
+                max_iterations, info, iterations, residual_norm, &
+                preconditioner_adapter)
+        else
+            call real_conjugate_gradient( &
+                operator_adapter, right_hand_side, solution, tolerance, &
+                max_iterations, info, iterations, residual_norm)
+        end if
     end subroutine real_conjugate_gradient_operator
+
+    subroutine apply_procedure_operator(self, input, output)
+        class(procedure_operator_t), intent(inout) :: self
+        real(dp), intent(in) :: input(:)
+        real(dp), intent(out) :: output(:)
+
+        call self%apply_procedure(input, output)
+    end subroutine apply_procedure_operator
 
     subroutine real_conjugate_gradient_matmat_operator( &
             matmat, right_hand_side, solution, tolerance, max_iterations, &
