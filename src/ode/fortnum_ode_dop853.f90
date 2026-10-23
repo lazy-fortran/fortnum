@@ -145,11 +145,12 @@ contains
     ! Integrate problem%rhs from t0 to t1 with adaptive RK8(7)13M. Records the
     ! accepted-step mesh into solution, matching ode_integrate's layout so the
     ! fortnum_ode trace_rule products can walk it. Events are not exposed.
-    subroutine ode_integrate_dop(problem, workspace, solution, status)
+    subroutine ode_integrate_dop(problem, workspace, solution, status, ctx)
         type(ode_problem_t),    intent(in)    :: problem
         type(ode_workspace_t),  intent(inout) :: workspace
         type(ode_solution_t),   intent(inout) :: solution
         type(fortnum_status_t), intent(out)   :: status
+        class(*), intent(in), optional :: ctx
 
         integer  :: neq, nstep, cap
         real(dp) :: t, dir, span, h, hmax, hmin
@@ -192,7 +193,7 @@ contains
             return
         end if
 
-        h = initial_step(problem, workspace, hmax)
+        h = initial_step(problem, workspace, hmax, ctx)
         err_prev = 1.0_dp
         first_step = .true.
         after_reject = .false.
@@ -214,7 +215,7 @@ contains
                 workspace%k4, workspace%k5, workspace%k6, workspace%k7, &
                 workspace%k8, workspace%k9, workspace%k10, workspace%k11, &
                 workspace%k12, workspace%ytmp, workspace%y8, &
-                workspace%err5, workspace%err3, solution%nfev)
+                workspace%err5, workspace%err3, solution%nfev, ctx)
 
             err_norm = error_norm(solution%y(:,nstep+1), workspace%y8, &
                 workspace%err5, workspace%err3, &
@@ -419,10 +420,11 @@ contains
     ! Starting step from the scaled RHS magnitude at t0 (Hairer I, II.4),
     ! tuned for an order-8 method via the 1/8 power. Returns a positive
     ! magnitude bounded by hmax.
-    real(dp) function initial_step(problem, workspace, hmax) result(h)
+    real(dp) function initial_step(problem, workspace, hmax, ctx) result(h)
         type(ode_problem_t),   intent(in)    :: problem
         type(ode_workspace_t), intent(inout) :: workspace
         real(dp),              intent(in)    :: hmax
+        class(*), intent(in), optional :: ctx
         real(dp) :: d0, d1, sc
         integer  :: i, n
         if (problem%h0 > 0.0_dp) then
@@ -430,7 +432,7 @@ contains
             return
         end if
         n = size(problem%y0)
-        call problem%rhs(problem%t0, problem%y0, workspace%k1)
+        call problem%rhs(problem%t0, problem%y0, workspace%k1, ctx)
         d0 = 0.0_dp
         d1 = 0.0_dp
         do i = 1, n

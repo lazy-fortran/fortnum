@@ -637,3 +637,7 @@ add_test(NAME fortnum_eigen_disc COMMAND test_fortnum_eigen_disc)
 add_test(NAME fortnum_eigen_disc_large COMMAND test_fortnum_eigen_disc 32768)
 set_tests_properties(fortnum_eigen_disc_large PROPERTIES PROCESSORS 2
     ENVIRONMENT "OMP_NUM_THREADS=2;OPENBLAS_NUM_THREADS=1")
+
+add_executable(test_callback_context linalg/test_callback_context.f90)
+target_link_libraries(test_callback_context PRIVATE fortnum)
+add_test(NAME fortnum_callback_context COMMAND test_callback_context)

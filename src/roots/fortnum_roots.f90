@@ -78,6 +78,50 @@ module fortnum_roots
         end subroutine root_residual_vjp_t
     end interface
 
+    type, abstract, public :: scalar_root_function_t
+    contains
+        procedure(root_function_evaluate_t), deferred :: evaluate
+    end type
+    type, extends(scalar_root_function_t) :: root_function_adapter_t
+        procedure(root_fn_t), pointer, nopass :: callback => null()
+    contains
+        procedure :: evaluate => evaluate_root_function_adapter
+    end type
+    abstract interface
+        pure function root_function_evaluate_t(self, x) result(y)
+            import :: dp, scalar_root_function_t
+            class(scalar_root_function_t), intent(in) :: self
+            real(dp), intent(in) :: x
+            real(dp) :: y
+        end function
+    end interface
+    type, abstract, public :: scalar_root_derivative_t
+    contains
+        procedure(root_derivative_evaluate_t), deferred :: evaluate
+    end type
+    type, extends(scalar_root_derivative_t) :: root_derivative_adapter_t
+        procedure(root_fn_df_t), pointer, nopass :: callback => null()
+    contains
+        procedure :: evaluate => evaluate_root_derivative_adapter
+    end type
+    abstract interface
+        pure subroutine root_derivative_evaluate_t(self, x, fx, dfx)
+            import :: dp, scalar_root_derivative_t
+            class(scalar_root_derivative_t), intent(in) :: self
+            real(dp), intent(in) :: x
+            real(dp), intent(out) :: fx, dfx
+        end subroutine
+    end interface
+    interface root_brent
+        module procedure root_brent_object, root_brent_procedure
+    end interface
+    interface root_bisect
+        module procedure root_bisect_object, root_bisect_procedure
+    end interface
+    interface root_newton
+        module procedure root_newton_object, root_newton_procedure
+    end interface
+
 contains
 
     ! Bisection on [a, b] with the Illinois modification.
@@ -90,8 +134,8 @@ contains
     ! Illinois modification (Ford 1979): when the same endpoint is retained
     ! twice in a row, halve its function value.  This gives superlinear
     ! convergence without inverse quadratic steps, simplifying the IFT path.
-    subroutine root_bisect(f, a, b, x, status, xtol, ftol, max_iter)
-        procedure(root_fn_t)               :: f
+    subroutine root_bisect_object(f, a, b, x, status, xtol, ftol, max_iter)
+        class(scalar_root_function_t), intent(in) :: f
         real(dp),               intent(in) :: a, b
         real(dp),               intent(out):: x
         type(fortnum_status_t), intent(out):: status
@@ -116,8 +160,8 @@ contains
 
         xa = a
         xb = b
-        fa = f(xa)
-        fb = f(xb)
+        fa = f%evaluate(xa)
+        fb = f%evaluate(xb)
 
         ! Exact root at an endpoint.
         if (abs(fa) == 0.0_dp) then
@@ -142,7 +186,7 @@ contains
         do it = 1, max_it
             half_width = 0.5_dp * abs(xb - xa)
             xc = xa + half_width * sign(1.0_dp, xb - xa)
-            fc = f(xc)
+            fc = f%evaluate(xc)
 
             if (abs(fc) <= ft .or. half_width <= xt) then
                 x = xc
@@ -175,7 +219,21 @@ contains
         x = xa + 0.5_dp * (xb - xa)
         call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
             "root_bisect: maximum iterations reached without convergence")
-    end subroutine root_bisect
+    end subroutine root_bisect_object
+
+    subroutine root_bisect_procedure(f, a, b, x, status, xtol, ftol, max_iter)
+        procedure(root_fn_t)               :: f
+        real(dp),               intent(in) :: a, b
+        real(dp),               intent(out):: x
+        type(fortnum_status_t), intent(out):: status
+        real(dp), intent(in), optional     :: xtol, ftol
+        integer,  intent(in), optional     :: max_iter
+        type(root_function_adapter_t) :: adapter
+
+        adapter%callback => f
+        call root_bisect_object(adapter, a, b, x, status, xtol, ftol, &
+            max_iter)
+    end subroutine root_bisect_procedure
 
     ! Newton-Raphson with bisection guard.
     !
@@ -191,9 +249,9 @@ contains
     ! at any Newton step, the derivative is treated as zero and bisection
     ! takes over for that step.  At the final root, |f'(x)| < deriv_floor
     ! is reported as a FORTNUM_DOMAIN_ERROR (near-multiple root warning).
-    subroutine root_newton(fdf, a, b, x0, x, status, xtol, ftol, &
+    subroutine root_newton_object(fdf, a, b, x0, x, status, xtol, ftol, &
             max_iter, deriv_floor)
-        procedure(root_fn_df_t)            :: fdf
+        class(scalar_root_derivative_t), intent(in) :: fdf
         real(dp),               intent(in) :: a, b, x0
         real(dp),               intent(out):: x
         type(fortnum_status_t), intent(out):: status
@@ -222,8 +280,8 @@ contains
         fb = 0.0_dp
 
         ! Evaluate bracket endpoints to establish sign tracking.
-        call fdf(xa, fa, dfc)
-        call fdf(xb, fb, dfc)
+        call fdf%evaluate(xa, fa, dfc)
+        call fdf%evaluate(xb, fb, dfc)
 
         if (abs(fa) == 0.0_dp) then
             x = xa
@@ -246,7 +304,7 @@ contains
             xc = 0.5_dp * (xa + xb)
 
         do it = 1, max_it
-            call fdf(xc, fc, dfc)
+            call fdf%evaluate(xc, fc, dfc)
 
             if (abs(fc) <= ft) then
                 x = xc
@@ -290,7 +348,22 @@ contains
         x = xa + 0.5_dp * (xb - xa)
         call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
             "root_newton: maximum iterations reached without convergence")
-    end subroutine root_newton
+    end subroutine root_newton_object
+
+    subroutine root_newton_procedure(fdf, a, b, x0, x, status, xtol, ftol, &
+            max_iter, deriv_floor)
+        procedure(root_fn_df_t)            :: fdf
+        real(dp),               intent(in) :: a, b, x0
+        real(dp),               intent(out):: x
+        type(fortnum_status_t), intent(out):: status
+        real(dp), intent(in), optional     :: xtol, ftol, deriv_floor
+        integer,  intent(in), optional     :: max_iter
+        type(root_derivative_adapter_t) :: adapter
+
+        adapter%callback => fdf
+        call root_newton_object(adapter, a, b, x0, x, status, xtol, ftol, &
+            max_iter, deriv_floor)
+    end subroutine root_newton_procedure
 
     ! Brent's method on a bracketed interval [a, b].
     !
@@ -315,8 +388,8 @@ contains
     !
     ! Algorithm ref: Brent (1973), "Algorithms for Minimization without
     ! Derivatives", Ch. 4; Forsythe, Malcolm & Moler (1977), §11.
-    subroutine root_brent(f, a, b, x, status, xtol, ftol, max_iter)
-        procedure(root_fn_t)               :: f
+    subroutine root_brent_object(f, a, b, x, status, xtol, ftol, max_iter)
+        class(scalar_root_function_t), intent(in) :: f
         real(dp),               intent(in) :: a, b
         real(dp),               intent(out):: x
         type(fortnum_status_t), intent(out):: status
@@ -339,8 +412,8 @@ contains
 
         xa = a
         xb = b
-        fa = f(xa)
-        fb = f(xb)
+        fa = f%evaluate(xa)
+        fb = f%evaluate(xb)
 
         ! Exact root at an endpoint.
         if (abs(fa) == 0.0_dp .or. abs(fa) <= ft) then
@@ -435,7 +508,7 @@ contains
                 ! Step smaller than tolerance: nudge by tol1 in the right direction.
                 xb = xb + sign(tol1, s)
             end if
-            fb = f(xb)
+            fb = f%evaluate(xb)
 
             ! Keep xc on the opposite sign from xb to maintain a valid bracket.
             if (fb * fc > 0.0_dp) then
@@ -449,7 +522,21 @@ contains
         x = xb
         call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
             "root_brent: maximum iterations reached without convergence")
-    end subroutine root_brent
+    end subroutine root_brent_object
+
+    subroutine root_brent_procedure(f, a, b, x, status, xtol, ftol, max_iter)
+        procedure(root_fn_t)               :: f
+        real(dp),               intent(in) :: a, b
+        real(dp),               intent(out):: x
+        type(fortnum_status_t), intent(out):: status
+        real(dp), intent(in), optional     :: xtol, ftol
+        integer,  intent(in), optional     :: max_iter
+        type(root_function_adapter_t) :: adapter
+
+        adapter%callback => f
+        call root_brent_object(adapter, a, b, x, status, xtol, ftol, &
+            max_iter)
+    end subroutine root_brent_procedure
 
     ! Implicit-rule derivatives for a scalar root x*(p) of f(x, p) = 0.
     !
@@ -605,4 +692,17 @@ contains
         call status_set(status, FORTNUM_OK, "")
     end subroutine root_grad
 
+    pure function evaluate_root_function_adapter(self, x) result(y)
+        class(root_function_adapter_t), intent(in) :: self
+        real(dp), intent(in) :: x
+        real(dp) :: y
+        y = self%callback(x)
+    end function
+
+    pure subroutine evaluate_root_derivative_adapter(self, x, fx, dfx)
+        class(root_derivative_adapter_t), intent(in) :: self
+        real(dp), intent(in) :: x
+        real(dp), intent(out) :: fx, dfx
+        call self%callback(x, fx, dfx)
+    end subroutine
 end module fortnum_roots

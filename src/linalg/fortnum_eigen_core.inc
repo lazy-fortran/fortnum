@@ -94,10 +94,97 @@
             complex(rk), intent(out) :: work(*)
         end subroutine
     end interface
+    type, abstract, public :: real_eigen_operator_t
+    contains
+        procedure(real_eigen_operator_t_binding), deferred :: apply
+    end type
+    type, extends(real_eigen_operator_t) :: real_operator_adapter_t
+        procedure(real_operator), pointer, nopass :: callback => null()
+    contains
+        procedure :: apply => real_operator_adapter_t_call
+    end type
+    abstract interface
+        subroutine real_eigen_operator_t_binding(self, x, y)
+            import :: rk, real_eigen_operator_t
+            class(real_eigen_operator_t), intent(inout) :: self
+            real(rk), intent(in) :: x(:)
+            real(rk), intent(out) :: y(:)
+        end subroutine
+    end interface
+    type, abstract, public :: real_eigen_solve_t
+    contains
+        procedure(real_eigen_solve_t_binding), deferred :: solve
+    end type
+    type, extends(real_eigen_solve_t) :: real_solve_adapter_t
+        procedure(real_solve), pointer, nopass :: callback => null()
+    contains
+        procedure :: solve => real_solve_adapter_t_call
+    end type
+    abstract interface
+        subroutine real_eigen_solve_t_binding(self, x, y, info)
+            import :: rk, real_eigen_solve_t
+            class(real_eigen_solve_t), intent(inout) :: self
+            real(rk), intent(in) :: x(:)
+            real(rk), intent(out) :: y(:)
+            integer, intent(out) :: info
+        end subroutine
+    end interface
+    type, abstract, public :: complex_eigen_operator_t
+    contains
+        procedure(complex_eigen_operator_t_binding), deferred :: apply
+    end type
+    type, extends(complex_eigen_operator_t) :: complex_operator_adapter_t
+        procedure(complex_operator), pointer, nopass :: callback => null()
+    contains
+        procedure :: apply => complex_operator_adapter_t_call
+    end type
+    abstract interface
+        subroutine complex_eigen_operator_t_binding(self, x, y)
+            import :: rk, complex_eigen_operator_t
+            class(complex_eigen_operator_t), intent(inout) :: self
+            complex(rk), intent(in) :: x(:)
+            complex(rk), intent(out) :: y(:)
+        end subroutine
+    end interface
+    type, abstract, public :: complex_eigen_solve_t
+    contains
+        procedure(complex_eigen_solve_t_binding), deferred :: solve
+    end type
+    type, extends(complex_eigen_solve_t) :: complex_solve_adapter_t
+        procedure(complex_solve), pointer, nopass :: callback => null()
+    contains
+        procedure :: solve => complex_solve_adapter_t_call
+    end type
+    abstract interface
+        subroutine complex_eigen_solve_t_binding(self, x, y, info)
+            import :: rk, complex_eigen_solve_t
+            class(complex_eigen_solve_t), intent(inout) :: self
+            complex(rk), intent(in) :: x(:)
+            complex(rk), intent(out) :: y(:)
+            integer, intent(out) :: info
+        end subroutine
+    end interface
+    public :: krylov_schur_object
+    public :: lanczos_object
+    public :: real_krylov_schur_object
+    public :: real_lanczos_object
+    type, extends(complex_eigen_operator_t) :: real_complex_operator_t
+        class(real_eigen_operator_t), pointer :: operator => null()
+        real(rk), allocatable :: xr(:), xi(:), yr(:), yi(:)
+    contains
+        procedure :: apply => real_complex_operator_t_call
+    end type
+    type, extends(complex_eigen_solve_t) :: real_complex_solve_t
+        class(real_eigen_solve_t), pointer :: operator => null()
+        real(rk), allocatable :: xr(:), xi(:), yr(:), yi(:)
+    contains
+        procedure :: solve => real_complex_solve_t_call
+    end type
+
 contains
-    subroutine krylov_schur(apply, start, values, vectors, residuals, tolerance, &
+    subroutine krylov_schur_object(apply, start, values, vectors, residuals, tolerance, &
             options, info, stats, mass, solve_mass, solve_shift, sigma, transform, map)
-        procedure(complex_operator) :: apply
+        class(complex_eigen_operator_t), target, intent(inout) :: apply
         complex(rk), intent(in) :: start(:)
         complex(rk), intent(out) :: values(:), vectors(:, :)
         real(rk), intent(out) :: residuals(:)
@@ -105,17 +192,17 @@ contains
         type(eigen_options_t), intent(in) :: options
         integer, intent(out) :: info
         type(eigen_stats_t), intent(out) :: stats
-        procedure(complex_operator), optional :: mass
-        procedure(complex_solve), optional :: solve_mass, solve_shift, transform
+        class(complex_eigen_operator_t), target, intent(inout), optional :: mass
+        class(complex_eigen_solve_t), target, intent(inout), optional :: solve_mass, solve_shift, transform
         complex(rk), intent(in), optional :: sigma
         procedure(spectral_map), optional :: map
         call iterate(.false., apply, start, values, vectors, residuals, tolerance, &
             options, info, stats, mass, solve_mass, solve_shift, sigma, transform, map)
     end subroutine
 
-    subroutine lanczos(apply, start, values, vectors, residuals, tolerance, &
+    subroutine lanczos_object(apply, start, values, vectors, residuals, tolerance, &
             options, info, stats, mass, solve_mass, solve_shift, sigma)
-        procedure(complex_operator) :: apply
+        class(complex_eigen_operator_t), target, intent(inout) :: apply
         complex(rk), intent(in) :: start(:)
         complex(rk), intent(out) :: vectors(:, :)
         real(rk), intent(out) :: values(:), residuals(:)
@@ -123,8 +210,8 @@ contains
         type(eigen_options_t), intent(in) :: options
         integer, intent(out) :: info
         type(eigen_stats_t), intent(out) :: stats
-        procedure(complex_operator), optional :: mass
-        procedure(complex_solve), optional :: solve_mass, solve_shift
+        class(complex_eigen_operator_t), target, intent(inout), optional :: mass
+        class(complex_eigen_solve_t), target, intent(inout), optional :: solve_mass, solve_shift
         real(rk), intent(in), optional :: sigma
         complex(rk) :: cv(size(values))
         if (present(sigma)) then
@@ -140,7 +227,7 @@ contains
     subroutine iterate(hermitian, apply, start, values, vectors, residuals, &
   tolerance, options, info, stats, mass, solve_mass, solve_shift, sigma, transform, map)
         logical, intent(in) :: hermitian
-        procedure(complex_operator) :: apply
+        class(complex_eigen_operator_t), target, intent(inout) :: apply
         complex(rk), intent(in) :: start(:)
         complex(rk), intent(out) :: values(:), vectors(:, :)
         real(rk), intent(out) :: residuals(:)
@@ -148,12 +235,12 @@ contains
         type(eigen_options_t), intent(in) :: options
         integer, intent(out) :: info
         type(eigen_stats_t), intent(out) :: stats
-        procedure(complex_operator), optional :: mass
-        procedure(complex_solve), optional :: solve_mass, solve_shift, transform
+        class(complex_eigen_operator_t), target, intent(inout), optional :: mass
+        class(complex_eigen_solve_t), target, intent(inout), optional :: solve_mass, solve_shift, transform
         complex(rk), intent(in), optional :: sigma
         procedure(spectral_map), optional :: map
-        procedure(complex_operator), pointer :: mass_call
-        procedure(complex_solve), pointer :: mass_solve_call, shift_call, transform_call
+        class(complex_eigen_operator_t), pointer :: mass_call
+        class(complex_eigen_solve_t), pointer :: mass_solve_call, shift_call, transform_call
         procedure(spectral_map), pointer :: map_call
         complex(rk), allocatable :: q(:, :), mq(:, :), bq(:, :), mbq(:, :)
         complex(rk), allocatable :: nq(:, :), nmq(:, :), nbq(:, :), nmbq(:, :)
@@ -345,7 +432,7 @@ contains
                 mx = mx/beta
                 lambda = physical(h(j, j))
                 values(j) = lambda
-                call apply(vectors(:, j), kx)
+                call apply%apply(vectors(:, j), kx)
                 stats%applications = stats%applications + 1
                 if (.not. finite(kx)) then
                     info = EIGEN_OPERATOR_FAILED
@@ -424,7 +511,7 @@ contains
             complex(rk), intent(out) :: y(:)
             info = EIGEN_NOT_CONVERGED
             if (associated(mass_call)) then
-                call mass_call(x, y)
+                call mass_call%apply(x, y)
             else
                 y = x
             end if
@@ -439,7 +526,7 @@ contains
             ! Sample K on the available basis vector only in automatic mode.
             if (options%operator_scale == 0) then
                 if (associated(transform_call) .or. associated(shift_call)) then
-                    call apply(x, kx)
+                    call apply%apply(x, kx)
                     stats%applications = stats%applications + 1
                     if (.not. finite(kx)) then
                         info = EIGEN_OPERATOR_FAILED
@@ -449,13 +536,13 @@ contains
                 end if
             end if
             if (associated(transform_call)) then
-                call transform_call(x, y, code)
+                call transform_call%solve(x, y, code)
             else if (associated(shift_call)) then
                 call metric(x, tmp)
                 if (info < 0) return
-                call shift_call(tmp, y, code)
+                call shift_call%solve(tmp, y, code)
             else
-                call apply(x, tmp)
+                call apply%apply(x, tmp)
                 if (.not. finite(tmp)) then
                     info = EIGEN_OPERATOR_FAILED
                     return
@@ -463,7 +550,7 @@ contains
                 if (options%operator_scale == 0) &
                     kscale = max(kscale, cnorm(tmp)/cnorm(x))
                 if (associated(mass_call)) then
-                    call mass_solve_call(tmp, y, code)
+                    call mass_solve_call%solve(tmp, y, code)
                 else
                     y = tmp
                 end if
@@ -577,9 +664,9 @@ contains
         complex(rk), intent(in) :: z
         unused_select = .false.
     end function
-    subroutine real_krylov_schur(apply, start, values, vectors, residuals, &
+    subroutine real_krylov_schur_object(apply, start, values, vectors, residuals, &
             tolerance, options, info, stats, mass, solve_mass, solve_shift, sigma)
-        procedure(real_operator) :: apply
+        class(real_eigen_operator_t), target, intent(inout) :: apply
         real(rk), intent(in) :: start(:)
         complex(rk), intent(out) :: values(:), vectors(:, :)
         real(rk), intent(out) :: residuals(:)
@@ -587,23 +674,23 @@ contains
         type(eigen_options_t), intent(in) :: options
         integer, intent(out) :: info
         type(eigen_stats_t), intent(out) :: stats
-        procedure(real_operator), optional :: mass
-        procedure(real_solve), optional :: solve_mass, solve_shift
+        class(real_eigen_operator_t), target, intent(inout), optional :: mass
+        class(real_eigen_solve_t), target, intent(inout), optional :: solve_mass, solve_shift
         real(rk), intent(in), optional :: sigma
         call real_bridge(.false., apply, start, values, vectors, residuals, tolerance, &
             options, info, stats, mass, solve_mass, solve_shift, sigma)
     end subroutine
-    subroutine real_lanczos(apply, start, values, vectors, residuals, &
+    subroutine real_lanczos_object(apply, start, values, vectors, residuals, &
             tolerance, options, info, stats, mass, solve_mass, solve_shift, sigma)
-        procedure(real_operator) :: apply
+        class(real_eigen_operator_t), target, intent(inout) :: apply
         real(rk), intent(in) :: start(:)
         real(rk), intent(out) :: values(:), vectors(:, :), residuals(:)
         real(rk), intent(in) :: tolerance
         type(eigen_options_t), intent(in) :: options
         integer, intent(out) :: info
         type(eigen_stats_t), intent(out) :: stats
-        procedure(real_operator), optional :: mass
-        procedure(real_solve), optional :: solve_mass, solve_shift
+        class(real_eigen_operator_t), target, intent(inout), optional :: mass
+        class(real_eigen_solve_t), target, intent(inout), optional :: solve_mass, solve_shift
         real(rk), intent(in), optional :: sigma
         complex(rk) :: cv(size(values)), cx(size(vectors, 1), size(vectors, 2))
         call real_bridge(.true., apply, start, cv, cx, residuals, tolerance, &
@@ -614,7 +701,7 @@ contains
     subroutine real_bridge(hermitian, apply, start, values, vectors, residuals, &
    tolerance, options, info, stats, real_mass, real_solve_mass, real_solve_shift, sigma)
         logical, intent(in) :: hermitian
-        procedure(real_operator) :: apply
+        class(real_eigen_operator_t), target, intent(inout) :: apply
         real(rk), intent(in) :: start(:)
         complex(rk), intent(out) :: values(:), vectors(:, :)
         real(rk), intent(out) :: residuals(:)
@@ -622,76 +709,43 @@ contains
         type(eigen_options_t), intent(in) :: options
         integer, intent(out) :: info
         type(eigen_stats_t), intent(out) :: stats
-        procedure(real_operator), optional :: real_mass
-        procedure(real_solve), optional :: real_solve_mass, real_solve_shift
+        class(real_eigen_operator_t), target, intent(inout), optional :: real_mass
+        class(real_eigen_solve_t), target, intent(inout), optional :: real_solve_mass, real_solve_shift
         real(rk), intent(in), optional :: sigma
-        procedure(real_operator), pointer :: mass_call
-        procedure(real_solve), pointer :: mass_solve_call, shift_call
-        procedure(complex_operator), pointer :: pm
-        procedure(complex_solve), pointer :: ps, pi
-        real(rk) :: xr(size(start)), xi(size(start)), yr(size(start)), yi(size(start))
-        nullify (pm, ps, pi, mass_call, mass_solve_call, shift_call)
-        if (present(real_mass)) mass_call => real_mass
-        if (present(real_solve_mass)) mass_solve_call => real_solve_mass
-        if (present(real_solve_shift)) shift_call => real_solve_shift
-        if (present(real_mass)) pm => cmass
-        if (present(real_solve_mass)) ps => csolve
-        if (present(real_solve_shift)) pi => cshift
+        type(real_complex_operator_t), target :: op, mop
+        type(real_complex_solve_t), target :: msolve, shifted
+        class(complex_eigen_operator_t), pointer :: pm
+        class(complex_eigen_solve_t), pointer :: ps, pi
+        nullify(pm, ps, pi)
+        op%operator => apply
+        allocate(op%xr(size(start)), op%xi(size(start)), &
+                 op%yr(size(start)), op%yi(size(start)))
+        if (present(real_mass)) then
+            mop%operator => real_mass
+            allocate(mop%xr(size(start)), mop%xi(size(start)), &
+                     mop%yr(size(start)), mop%yi(size(start)))
+            pm => mop
+        end if
+        if (present(real_solve_mass)) then
+            msolve%operator => real_solve_mass
+            allocate(msolve%xr(size(start)), msolve%xi(size(start)), &
+                     msolve%yr(size(start)), msolve%yi(size(start)))
+            ps => msolve
+        end if
+        if (present(real_solve_shift)) then
+            shifted%operator => real_solve_shift
+            allocate(shifted%xr(size(start)), shifted%xi(size(start)), &
+                     shifted%yr(size(start)), shifted%yi(size(start)))
+            pi => shifted
+        end if
         if (present(sigma)) then
-            call iterate(hermitian, capply, cmplx(start, 0.0_rk, rk), values, vectors, &
+            call iterate(hermitian, op, cmplx(start, 0.0_rk, rk), values, vectors, &
                 residuals, tolerance, options, info, stats, pm, ps, pi, &
                 cmplx(sigma, 0.0_rk, rk))
         else
-            call iterate(hermitian, capply, cmplx(start, 0.0_rk, rk), values, vectors, &
+            call iterate(hermitian, op, cmplx(start, 0.0_rk, rk), values, vectors, &
                 residuals, tolerance, options, info, stats, pm, ps, pi)
         end if
-    contains
-        subroutine capply(x, y)
-            complex(rk), intent(in) :: x(:)
-            complex(rk), intent(out) :: y(:)
-            xr = real(x, rk)
-            xi = aimag(x)
-            call apply(xr, yr)
-            call apply(xi, yi)
-            y = cmplx(yr, yi, rk)
-        end subroutine
-        subroutine cmass(x, y)
-            complex(rk), intent(in) :: x(:)
-            complex(rk), intent(out) :: y(:)
-            xr = real(x, rk)
-            xi = aimag(x)
-            call mass_call(xr, yr)
-            call mass_call(xi, yi)
-            y = cmplx(yr, yi, rk)
-        end subroutine
-        subroutine csolve(x, y, code)
-            complex(rk), intent(in) :: x(:)
-            complex(rk), intent(out) :: y(:)
-            integer, intent(out) :: code
-            integer :: second
-            xr = real(x, rk)
-            xi = aimag(x)
-            call mass_solve_call(xr, yr, code)
-            if (code /= 0) return
-            call mass_solve_call(xi, yi, second)
-            code = second
-            if (code /= 0) return
-            y = cmplx(yr, yi, rk)
-        end subroutine
-        subroutine cshift(x, y, code)
-            complex(rk), intent(in) :: x(:)
-            complex(rk), intent(out) :: y(:)
-            integer, intent(out) :: code
-            integer :: second
-            xr = real(x, rk)
-            xi = aimag(x)
-            call shift_call(xr, yr, code)
-            if (code /= 0) return
-            call shift_call(xi, yi, second)
-            code = second
-            if (code /= 0) return
-            y = cmplx(yr, yi, rk)
-        end subroutine
     end subroutine
 
     subroutine eigen_bounds(residual, mass_lower, metric_norm, radius, info, &
@@ -762,4 +816,269 @@ contains
         if (min(nr, z, p) < 0 .or. nr + z + p /= n .or. nr < nl) return
         count = nr - nl
         info = EIGEN_OK
+    end subroutine
+
+    subroutine real_operator_adapter_t_call(self, x, y)
+        class(real_operator_adapter_t), intent(inout) :: self
+        real(rk), intent(in) :: x(:)
+        real(rk), intent(out) :: y(:)
+        call self%callback(x, y)
+    end subroutine
+
+    subroutine real_solve_adapter_t_call(self, x, y, info)
+        class(real_solve_adapter_t), intent(inout) :: self
+        real(rk), intent(in) :: x(:)
+        real(rk), intent(out) :: y(:)
+        integer, intent(out) :: info
+        call self%callback(x, y, info)
+    end subroutine
+
+    subroutine complex_operator_adapter_t_call(self, x, y)
+        class(complex_operator_adapter_t), intent(inout) :: self
+        complex(rk), intent(in) :: x(:)
+        complex(rk), intent(out) :: y(:)
+        call self%callback(x, y)
+    end subroutine
+
+    subroutine complex_solve_adapter_t_call(self, x, y, info)
+        class(complex_solve_adapter_t), intent(inout) :: self
+        complex(rk), intent(in) :: x(:)
+        complex(rk), intent(out) :: y(:)
+        integer, intent(out) :: info
+        call self%callback(x, y, info)
+    end subroutine
+
+    subroutine krylov_schur(apply, start, values, vectors, residuals, tolerance, &
+            options, info, stats, mass, solve_mass, solve_shift, sigma, transform, map)
+        procedure(complex_operator) :: apply
+        complex(rk), intent(in) :: start(:)
+        complex(rk), intent(out) :: values(:), vectors(:, :)
+        real(rk), intent(out) :: residuals(:)
+        real(rk), intent(in) :: tolerance
+        type(eigen_options_t), intent(in) :: options
+        integer, intent(out) :: info
+        type(eigen_stats_t), intent(out) :: stats
+        procedure(complex_operator), optional :: mass
+        procedure(complex_solve), optional :: solve_mass, solve_shift, transform
+        complex(rk), intent(in), optional :: sigma
+        procedure(spectral_map), optional :: map
+        type(complex_operator_adapter_t), target :: apply_adapter
+        type(complex_operator_adapter_t), target :: mass_adapter
+        class(complex_eigen_operator_t), pointer :: mass_object
+        type(complex_solve_adapter_t), target :: solve_mass_adapter
+        class(complex_eigen_solve_t), pointer :: solve_mass_object
+        type(complex_solve_adapter_t), target :: solve_shift_adapter
+        class(complex_eigen_solve_t), pointer :: solve_shift_object
+        type(complex_solve_adapter_t), target :: transform_adapter
+        class(complex_eigen_solve_t), pointer :: transform_object
+        nullify(mass_object, solve_mass_object, solve_shift_object, transform_object)
+
+        apply_adapter%callback => apply
+        if (present(mass)) then
+            mass_adapter%callback => mass
+            mass_object => mass_adapter
+        end if
+        if (present(solve_mass)) then
+            solve_mass_adapter%callback => solve_mass
+            solve_mass_object => solve_mass_adapter
+        end if
+        if (present(solve_shift)) then
+            solve_shift_adapter%callback => solve_shift
+            solve_shift_object => solve_shift_adapter
+        end if
+        if (present(transform)) then
+            transform_adapter%callback => transform
+            transform_object => transform_adapter
+        end if
+        call krylov_schur_object(apply_adapter, &
+            start, &
+            values, &
+            vectors, &
+            residuals, &
+            tolerance, &
+            options, &
+            info, &
+            stats, &
+            mass_object, &
+            solve_mass_object, &
+            solve_shift_object, &
+            sigma, &
+            transform_object, &
+            map)
+    end subroutine
+
+    subroutine lanczos(apply, start, values, vectors, residuals, tolerance, &
+            options, info, stats, mass, solve_mass, solve_shift, sigma)
+        procedure(complex_operator) :: apply
+        complex(rk), intent(in) :: start(:)
+        complex(rk), intent(out) :: vectors(:, :)
+        real(rk), intent(out) :: values(:), residuals(:)
+        real(rk), intent(in) :: tolerance
+        type(eigen_options_t), intent(in) :: options
+        integer, intent(out) :: info
+        type(eigen_stats_t), intent(out) :: stats
+        procedure(complex_operator), optional :: mass
+        procedure(complex_solve), optional :: solve_mass, solve_shift
+        real(rk), intent(in), optional :: sigma
+        type(complex_operator_adapter_t), target :: apply_adapter
+        type(complex_operator_adapter_t), target :: mass_adapter
+        class(complex_eigen_operator_t), pointer :: mass_object
+        type(complex_solve_adapter_t), target :: solve_mass_adapter
+        class(complex_eigen_solve_t), pointer :: solve_mass_object
+        type(complex_solve_adapter_t), target :: solve_shift_adapter
+        class(complex_eigen_solve_t), pointer :: solve_shift_object
+        nullify(mass_object, solve_mass_object, solve_shift_object)
+
+        apply_adapter%callback => apply
+        if (present(mass)) then
+            mass_adapter%callback => mass
+            mass_object => mass_adapter
+        end if
+        if (present(solve_mass)) then
+            solve_mass_adapter%callback => solve_mass
+            solve_mass_object => solve_mass_adapter
+        end if
+        if (present(solve_shift)) then
+            solve_shift_adapter%callback => solve_shift
+            solve_shift_object => solve_shift_adapter
+        end if
+        call lanczos_object(apply_adapter, &
+            start, &
+            values, &
+            vectors, &
+            residuals, &
+            tolerance, &
+            options, &
+            info, &
+            stats, &
+            mass_object, &
+            solve_mass_object, &
+            solve_shift_object, &
+            sigma)
+    end subroutine
+
+    subroutine real_krylov_schur(apply, start, values, vectors, residuals, &
+            tolerance, options, info, stats, mass, solve_mass, solve_shift, sigma)
+        procedure(real_operator) :: apply
+        real(rk), intent(in) :: start(:)
+        complex(rk), intent(out) :: values(:), vectors(:, :)
+        real(rk), intent(out) :: residuals(:)
+        real(rk), intent(in) :: tolerance
+        type(eigen_options_t), intent(in) :: options
+        integer, intent(out) :: info
+        type(eigen_stats_t), intent(out) :: stats
+        procedure(real_operator), optional :: mass
+        procedure(real_solve), optional :: solve_mass, solve_shift
+        real(rk), intent(in), optional :: sigma
+        type(real_operator_adapter_t), target :: apply_adapter
+        type(real_operator_adapter_t), target :: mass_adapter
+        class(real_eigen_operator_t), pointer :: mass_object
+        type(real_solve_adapter_t), target :: solve_mass_adapter
+        class(real_eigen_solve_t), pointer :: solve_mass_object
+        type(real_solve_adapter_t), target :: solve_shift_adapter
+        class(real_eigen_solve_t), pointer :: solve_shift_object
+        nullify(mass_object, solve_mass_object, solve_shift_object)
+
+        apply_adapter%callback => apply
+        if (present(mass)) then
+            mass_adapter%callback => mass
+            mass_object => mass_adapter
+        end if
+        if (present(solve_mass)) then
+            solve_mass_adapter%callback => solve_mass
+            solve_mass_object => solve_mass_adapter
+        end if
+        if (present(solve_shift)) then
+            solve_shift_adapter%callback => solve_shift
+            solve_shift_object => solve_shift_adapter
+        end if
+        call real_krylov_schur_object(apply_adapter, &
+            start, &
+            values, &
+            vectors, &
+            residuals, &
+            tolerance, &
+            options, &
+            info, &
+            stats, &
+            mass_object, &
+            solve_mass_object, &
+            solve_shift_object, &
+            sigma)
+    end subroutine
+
+    subroutine real_lanczos(apply, start, values, vectors, residuals, &
+            tolerance, options, info, stats, mass, solve_mass, solve_shift, sigma)
+        procedure(real_operator) :: apply
+        real(rk), intent(in) :: start(:)
+        real(rk), intent(out) :: values(:), vectors(:, :), residuals(:)
+        real(rk), intent(in) :: tolerance
+        type(eigen_options_t), intent(in) :: options
+        integer, intent(out) :: info
+        type(eigen_stats_t), intent(out) :: stats
+        procedure(real_operator), optional :: mass
+        procedure(real_solve), optional :: solve_mass, solve_shift
+        real(rk), intent(in), optional :: sigma
+        type(real_operator_adapter_t), target :: apply_adapter
+        type(real_operator_adapter_t), target :: mass_adapter
+        class(real_eigen_operator_t), pointer :: mass_object
+        type(real_solve_adapter_t), target :: solve_mass_adapter
+        class(real_eigen_solve_t), pointer :: solve_mass_object
+        type(real_solve_adapter_t), target :: solve_shift_adapter
+        class(real_eigen_solve_t), pointer :: solve_shift_object
+        nullify(mass_object, solve_mass_object, solve_shift_object)
+
+        apply_adapter%callback => apply
+        if (present(mass)) then
+            mass_adapter%callback => mass
+            mass_object => mass_adapter
+        end if
+        if (present(solve_mass)) then
+            solve_mass_adapter%callback => solve_mass
+            solve_mass_object => solve_mass_adapter
+        end if
+        if (present(solve_shift)) then
+            solve_shift_adapter%callback => solve_shift
+            solve_shift_object => solve_shift_adapter
+        end if
+        call real_lanczos_object(apply_adapter, &
+            start, &
+            values, &
+            vectors, &
+            residuals, &
+            tolerance, &
+            options, &
+            info, &
+            stats, &
+            mass_object, &
+            solve_mass_object, &
+            solve_shift_object, &
+            sigma)
+    end subroutine
+
+    subroutine real_complex_operator_t_call(self, x, y)
+        class(real_complex_operator_t), intent(inout) :: self
+        complex(rk), intent(in) :: x(:)
+        complex(rk), intent(out) :: y(:)
+        self%xr = real(x, rk)
+        self%xi = aimag(x)
+        call self%operator%apply(self%xr, self%yr)
+        call self%operator%apply(self%xi, self%yi)
+        y = cmplx(self%yr, self%yi, rk)
+    end subroutine
+
+    subroutine real_complex_solve_t_call(self, x, y, info)
+        class(real_complex_solve_t), intent(inout) :: self
+        complex(rk), intent(in) :: x(:)
+        complex(rk), intent(out) :: y(:)
+        integer, intent(out) :: info
+        integer :: second
+        self%xr = real(x, rk)
+        self%xi = aimag(x)
+        call self%operator%solve(self%xr, self%yr, info)
+        if (info /= 0) return
+        call self%operator%solve(self%xi, self%yi, second)
+        info = second
+        if (info /= 0) return
+        y = cmplx(self%yr, self%yi, rk)
     end subroutine

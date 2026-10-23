@@ -20,7 +20,7 @@ module fortnum_symmetric_eigen
     !! candidate unless the caller supplies a separate gap or inertia argument.
     !! Memory: two n-by-max_basis real arrays plus O(max_basis^2) workspace.
     use fortnum_kinds, only: dp
-    use fortnum_krylov, only: real_matvec_t, KRYLOV_OK, KRYLOV_MAX_ITERATIONS, &
+    use fortnum_krylov, only: real_matvec_t, real_linear_operator_t, KRYLOV_OK, KRYLOV_MAX_ITERATIONS, &
         KRYLOV_BREAKDOWN, KRYLOV_INVALID_ARGUMENT
     use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
     use, intrinsic :: iso_fortran_env, only: int64
@@ -28,6 +28,15 @@ module fortnum_symmetric_eigen
     private
 
     public :: symmetric_eigen, block_lanczos_lowest
+
+    type, extends(real_linear_operator_t) :: lanczos_adapter_t
+        procedure(real_matvec_t), pointer, nopass :: callback => null()
+    contains
+        procedure :: apply => lanczos_adapter_apply
+    end type
+    interface block_lanczos_lowest
+        module procedure block_lanczos_lowest_object, block_lanczos_lowest_procedure
+    end interface
 
 contains
 
@@ -214,7 +223,7 @@ contains
         end do
     end subroutine sort_ascending
 
-    subroutine block_lanczos_lowest(matvec, start, nev, max_basis, tolerance, &
+    subroutine block_lanczos_lowest_object(matvec, start, nev, max_basis, tolerance, &
                                     values, vectors, residuals, info, iterations)
         !! Lowest nev eigenpairs of the symmetric operator `matvec`.
         !!
@@ -228,7 +237,7 @@ contains
         !! KRYLOV_MAX_ITERATIONS (best available pairs returned),
         !! KRYLOV_INVALID_ARGUMENT, KRYLOV_BREAKDOWN (nonfinite operator data).
         !! iterations counts operator applications.
-        procedure(real_matvec_t) :: matvec
+        class(real_linear_operator_t), intent(inout) :: matvec
         real(dp), intent(in) :: start(:, :)
         integer, intent(in) :: nev, max_basis
         real(dp), intent(in) :: tolerance
@@ -261,7 +270,7 @@ contains
                 exit
             end if
             do j = k + 1, k + added
-                call matvec(v(:, j), w(:, j))
+                call matvec%apply(v(:, j), w(:, j))
                 iterations = iterations + 1
                 if (.not. all(ieee_is_finite(w(:, j)))) then
                     info = KRYLOV_BREAKDOWN
@@ -298,7 +307,7 @@ contains
             if (added < b) block(:, added + 1:b) = 0.0_dp
         end do
         info = KRYLOV_MAX_ITERATIONS
-    end subroutine block_lanczos_lowest
+    end subroutine block_lanczos_lowest_object
 
     subroutine ritz(v, w, t, k, nev, values, vectors, residuals, theta, y, work, &
                     info)
@@ -361,4 +370,36 @@ contains
             v(:, k + added) = block(:, j)/after
         end do
     end subroutine orthonormal_extension
+    subroutine block_lanczos_lowest_procedure(matvec, start, nev, max_basis, tolerance, &
+                                    values, vectors, residuals, info, iterations)
+        !! Lowest nev eigenpairs of the symmetric operator `matvec`.
+        !!
+        !! start(:, 1:b) is the initial block (b >= 1); rank-deficient or zero
+        !! columns are replaced by deterministic pseudo-random vectors. The
+        !! basis grows by b columns per step up to max_basis (<= n) columns.
+        !! Convergence: every returned residual ||A x - theta x||_2 is at most
+        !! tolerance*max(1, max_i |theta_i|). If the Krylov basis becomes
+        !! invariant it is extended by pseudo-random vectors; a full basis gives
+        !! the exact Rayleigh--Ritz decomposition. info: KRYLOV_OK,
+        !! KRYLOV_MAX_ITERATIONS (best available pairs returned),
+        !! KRYLOV_INVALID_ARGUMENT, KRYLOV_BREAKDOWN (nonfinite operator data).
+        !! iterations counts operator applications.
+        procedure(real_matvec_t) :: matvec
+        real(dp), intent(in) :: start(:, :)
+        integer, intent(in) :: nev, max_basis
+        real(dp), intent(in) :: tolerance
+        real(dp), intent(out) :: values(:), vectors(:, :), residuals(:)
+        integer, intent(out) :: info, iterations
+        type(lanczos_adapter_t) :: operator
+        operator%callback => matvec
+        call block_lanczos_lowest_object(operator, start, nev, max_basis, &
+            tolerance, values, vectors, residuals, info, iterations)
+    end subroutine
+    subroutine lanczos_adapter_apply(self, input, output)
+        class(lanczos_adapter_t), intent(inout) :: self
+        real(dp), intent(in) :: input(:)
+        real(dp), intent(out) :: output(:)
+        call self%callback(input, output)
+    end subroutine
+
 end module fortnum_symmetric_eigen
