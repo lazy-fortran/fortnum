@@ -1,4 +1,5 @@
 module fortnum_eigen_sp
+    use fortnum_eigen_types
     use fortnum_kinds, only: rk => sp
 #define GEMM cgemm
 #define GEMV cgemv
