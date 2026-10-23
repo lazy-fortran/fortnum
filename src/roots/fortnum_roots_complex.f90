@@ -47,7 +47,7 @@ module fortnum_roots_complex
     use, intrinsic :: iso_fortran_env, only: dp => real64
     use fortnum_status, only: fortnum_status_t, status_set, &
         FORTNUM_OK, FORTNUM_DOMAIN_ERROR, FORTNUM_CONVERGENCE_ERROR
-    use fortnum_integrate_gk, only: integrate_gk
+    use fortnum_integrate_gk, only: integrate_gk, gk_function_t
     implicit none
     private
 
@@ -85,6 +85,16 @@ module fortnum_roots_complex
             integer,     intent(out)   :: info
         end subroutine zggev
     end interface
+
+    type, extends(gk_function_t) :: edge_integrand_t
+        procedure(complex_root_fn_t), pointer, nopass :: callback => null()
+        class(*), pointer :: context => null()
+        complex(dp) :: origin, direction
+        integer :: power = 0
+        logical :: imaginary = .false.
+    contains
+        procedure :: evaluate => edge_integrand_value
+    end type
 
 contains
 
@@ -329,25 +339,32 @@ contains
         procedure(complex_root_fn_t)        :: f
         complex(dp),         intent(in)     :: za, zb
         integer,             intent(in)     :: p
-        class(*),  intent(in), optional     :: ctx
+        class(*), target, intent(in), optional :: ctx
         complex(dp),         intent(out)    :: val
         type(fortnum_status_t), intent(out) :: status
 
         complex(dp) :: dzdt
         real(dp)    :: rr, ri, aerr
         integer     :: ierr
+        type(edge_integrand_t) :: integrand
 
         call status_set(status, FORTNUM_OK, "")
         dzdt = zb - za
 
-        call integrate_gk(g_re, 0.0_dp, 1.0_dp, 1.0e-12_dp, 1.0e-11_dp, &
+        integrand%callback => f
+        if (present(ctx)) integrand%context => ctx
+        integrand%origin = za
+        integrand%direction = dzdt
+        integrand%power = p
+        call integrate_gk(integrand, 0.0_dp, 1.0_dp, 1.0e-12_dp, 1.0e-11_dp, &
             rr, aerr, ierr, key=31, limit=400)
         if (ierr /= 0 .and. ierr /= 2) then
             call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
                 "complex_region_roots: edge integral (real part) failed")
             return
         end if
-        call integrate_gk(g_im, 0.0_dp, 1.0_dp, 1.0e-12_dp, 1.0e-11_dp, &
+        integrand%imaginary = .true.
+        call integrate_gk(integrand, 0.0_dp, 1.0_dp, 1.0e-12_dp, 1.0e-11_dp, &
             ri, aerr, ierr, key=31, limit=400)
         if (ierr /= 0 .and. ierr /= 2) then
             call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
@@ -356,33 +373,6 @@ contains
         end if
         val = cmplx(rr, ri, dp)
 
-    contains
-
-        ! Full complex integrand value at parameter t.
-        function integrand(t) result(gz)
-            real(dp), intent(in) :: t
-            complex(dp) :: gz, z, lfp, zp
-            z   = za + cmplx(t, 0.0_dp, dp) * dzdt
-            lfp = log_deriv(f, z, ctx)
-            if (p == 0) then
-                zp = (1.0_dp, 0.0_dp)
-            else
-                zp = z ** p
-            end if
-            gz  = zp * lfp * dzdt
-        end function integrand
-
-        function g_re(t) result(y)
-            real(dp), intent(in) :: t
-            real(dp) :: y
-            y = real(integrand(t))
-        end function g_re
-
-        function g_im(t) result(y)
-            real(dp), intent(in) :: t
-            real(dp) :: y
-            y = aimag(integrand(t))
-        end function g_im
     end subroutine edge_integral
 
     ! Logarithmic derivative f'(z)/f(z) by a complex central finite
@@ -727,4 +717,23 @@ contains
         end do
     end function det_lu
 
+    function edge_integrand_value(self, x) result(fx)
+        class(edge_integrand_t), intent(in) :: self
+        real(dp), intent(in) :: x
+        real(dp) :: fx
+        complex(dp) :: gz, z, lfp, zp
+        z = self%origin + cmplx(x, 0.0_dp, dp)*self%direction
+        lfp = log_deriv(self%callback, z, self%context)
+        if (self%power == 0) then
+            zp = (1.0_dp, 0.0_dp)
+        else
+            zp = z**self%power
+        end if
+        gz = zp*lfp*self%direction
+        if (self%imaginary) then
+            fx = aimag(gz)
+        else
+            fx = real(gz)
+        end if
+    end function
 end module fortnum_roots_complex

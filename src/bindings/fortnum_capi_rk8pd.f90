@@ -111,23 +111,10 @@ contains
         tt = real(t, dp)
         nfev = 0
         call rk8pd_evolve_apply(rhs_bridge, h%state, tt, real(t1, dp), yy, &
-            h%eps_abs, h%eps_rel, h%max_steps, nfev, status)
+            h%eps_abs, h%eps_rel, h%max_steps, nfev, status, ctx=h)
         y(1:h%neq) = real(yy, c_double)
         t = real(tt, c_double)
         code = int(status%code, c_int)
-    contains
-        subroutine rhs_bridge(tb, yb, dydt, ctx)
-            real(dp), intent(in)  :: tb
-            real(dp), intent(in)  :: yb(:)
-            real(dp), intent(out) :: dydt(:)
-            class(*), intent(in), optional :: ctx
-            procedure(c_ode_rhs), pointer :: cf
-            real(c_double) :: yc(size(yb)), dc(size(yb))
-            call c_f_procpointer(h%rhs, cf)
-            yc = real(yb, c_double)
-            call cf(real(tb, c_double), int(size(yb), c_int), yc, dc, h%ctx)
-            dydt = real(dc, dp)
-        end subroutine rhs_bridge
     end function fortnum_rk8pd_integrate_to
 
     ! Advance the carried solution by one accepted step toward t1: on return *t
@@ -158,23 +145,10 @@ contains
         nfev = 0
         call rk8pd_evolve_apply(rhs_bridge, h%state, tt, real(t1, dp), yy, &
             h%eps_abs, h%eps_rel, h%max_steps, nfev, status, &
-            single_step=.true.)
+            single_step=.true., ctx=h)
         y(1:h%neq) = real(yy, c_double)
         t = real(tt, c_double)
         code = int(status%code, c_int)
-    contains
-        subroutine rhs_bridge(tb, yb, dydt, ctx)
-            real(dp), intent(in)  :: tb
-            real(dp), intent(in)  :: yb(:)
-            real(dp), intent(out) :: dydt(:)
-            class(*), intent(in), optional :: ctx
-            procedure(c_ode_rhs), pointer :: cf
-            real(c_double) :: yc(size(yb)), dc(size(yb))
-            call c_f_procpointer(h%rhs, cf)
-            yc = real(yb, c_double)
-            call cf(real(tb, c_double), int(size(yb), c_int), yc, dc, h%ctx)
-            dydt = real(dc, dp)
-        end subroutine rhs_bridge
     end function fortnum_rk8pd_step_to
 
     ! Free the evolve state behind the handle.
@@ -187,4 +161,22 @@ contains
         deallocate (h)
     end subroutine fortnum_rk8pd_destroy
 
+
+        subroutine rhs_bridge(tb, yb, dydt, ctx)
+            real(dp), intent(in)  :: tb
+            real(dp), intent(in)  :: yb(:)
+            real(dp), intent(out) :: dydt(:)
+            class(*), intent(in), optional :: ctx
+            procedure(c_ode_rhs), pointer :: cf
+            real(c_double) :: yc(size(yb)), dc(size(yb))
+            select type(h => ctx)
+            type is (rk8pd_handle_t)
+            call c_f_procpointer(h%rhs, cf)
+            yc = real(yb, c_double)
+            call cf(real(tb, c_double), int(size(yb), c_int), yc, dc, h%ctx)
+            dydt = real(dc, dp)
+            class default
+                error stop "invalid RK8PD callback context"
+            end select
+        end subroutine rhs_bridge
 end module fortnum_capi_rk8pd

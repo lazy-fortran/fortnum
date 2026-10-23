@@ -144,6 +144,30 @@ module fortnum_integrate_gk
     real(dp), parameter :: epmach = epsilon(1.0_dp)
     real(dp), parameter :: uflow  = tiny(1.0_dp)
 
+    type, abstract, public :: gk_function_t
+    contains
+        procedure(gk_evaluate_t), deferred :: evaluate
+    end type
+    type, extends(gk_function_t) :: gk_procedure_t
+        procedure(gk_integrand_t), pointer, nopass :: callback => null()
+    contains
+        procedure :: evaluate => gk_procedure_evaluate
+    end type
+    abstract interface
+        function gk_evaluate_t(self, x) result(fx)
+            import :: dp, gk_function_t
+            class(gk_function_t), intent(in) :: self
+            real(dp), intent(in) :: x
+            real(dp) :: fx
+        end function
+    end interface
+    interface integrate_gk
+        module procedure integrate_gk_object, integrate_gk_procedure
+    end interface
+    interface gk_apply
+        module procedure gk_apply_object, gk_apply_procedure
+    end interface
+
 contains
 
     ! Integrate f over [a,b] to tolerances epsabs+epsrel*|result|.
@@ -151,9 +175,9 @@ contains
     ! limit bounds adaptive subdivisions; default 200.
     ! ierr == 0: converged. 1: max subdivisions reached. 2: roundoff detected.
     ! 3: bad integrand behaviour. 6: invalid input.
-    subroutine integrate_gk(f, a, b, epsabs, epsrel, result, abserr, ierr, &
+    subroutine integrate_gk_object(f, a, b, epsabs, epsrel, result, abserr, ierr, &
             key, limit)
-        procedure(gk_integrand_t) :: f
+        class(gk_function_t), intent(in) :: f
         real(dp), intent(in)  :: a, b, epsabs, epsrel
         real(dp), intent(out) :: result, abserr
         integer,  intent(out) :: ierr
@@ -179,12 +203,12 @@ contains
 
         call qag_adapt(f, a, b, epsabs, epsrel, key_loc, limit_loc, result, &
             abserr, ierr)
-    end subroutine integrate_gk
+    end subroutine integrate_gk_object
 
     ! Single-level attempt; falls through to bisection if not converged.
     subroutine qag_adapt(f, a, b, epsabs, epsrel, key, limit, result, abserr, &
             ierr)
-        procedure(gk_integrand_t) :: f
+        class(gk_function_t), intent(in) :: f
         real(dp), intent(in)  :: a, b, epsabs, epsrel
         integer,  intent(in)  :: key, limit
         real(dp), intent(out) :: result, abserr
@@ -210,7 +234,7 @@ contains
     ! did not converge, so the allocation cost is not on the fast path.
     subroutine qag_bisect(f, a, b, epsabs, epsrel, key, limit, result, abserr, &
             ierr)
-        procedure(gk_integrand_t) :: f
+        class(gk_function_t), intent(in) :: f
         real(dp), intent(in)    :: a, b, epsabs, epsrel
         integer,  intent(in)    :: key, limit
         real(dp), intent(inout) :: result, abserr
@@ -274,8 +298,8 @@ contains
         abserr = sum(ws(1:min(last, limit), 4))
     end subroutine qag_bisect
 
-    subroutine gk_apply(f, key, a, b, result, abserr, resabs, resasc)
-        procedure(gk_integrand_t) :: f
+    subroutine gk_apply_object(f, key, a, b, result, abserr, resabs, resasc)
+        class(gk_function_t), intent(in) :: f
         integer,  intent(in)  :: key
         real(dp), intent(in)  :: a, b
         real(dp), intent(out) :: result, abserr, resabs, resasc
@@ -294,7 +318,7 @@ contains
             call gk_rule(f, a, b, 31, xgk61, wgk61, 15, wg61, .false., &
                 result, abserr, resabs, resasc)
         end select
-    end subroutine gk_apply
+    end subroutine gk_apply_object
 
     ! Apply one GK(nh) panel on [a,b].
     ! Kronrod nodes interlace Gauss: even entries in xgk are Gauss nodes
@@ -302,7 +326,7 @@ contains
     ! also carries a Gauss weight.
     subroutine gk_rule(f, a, b, nh, xgk, wgk, ngw, wg, center_gauss, &
             result, abserr, resabs, resasc)
-        procedure(gk_integrand_t) :: f
+        class(gk_function_t), intent(in) :: f
         integer,  intent(in)  :: nh, ngw
         real(dp), intent(in)  :: a, b, xgk(nh), wgk(nh), wg(ngw)
         logical,  intent(in)  :: center_gauss
@@ -319,7 +343,7 @@ contains
         hlgth  = 0.5_dp*(b - a)
         dhlgth = abs(hlgth)
 
-        fc = f(centr)
+        fc = f%evaluate(centr)
         if (center_gauss) then
             resg        = wg(ngw)*fc
             npair_gauss = ngw - 1
@@ -334,8 +358,8 @@ contains
         do j = 1, npair_gauss
             jtw  = 2*j
             absc  = hlgth*xgk(jtw)
-            fval1 = f(centr - absc)
-            fval2 = f(centr + absc)
+            fval1 = f%evaluate(centr - absc)
+            fval2 = f%evaluate(centr + absc)
             fv1(jtw) = fval1
             fv2(jtw) = fval2
             fsum  = fval1 + fval2
@@ -347,8 +371,8 @@ contains
         do j = 1, nh/2
             jtwm1 = 2*j - 1
             absc   = hlgth*xgk(jtwm1)
-            fval1  = f(centr - absc)
-            fval2  = f(centr + absc)
+            fval1  = f%evaluate(centr - absc)
+            fval2  = f%evaluate(centr + absc)
             fv1(jtwm1) = fval1
             fv2(jtwm1) = fval2
             fsum   = fval1 + fval2
@@ -375,4 +399,35 @@ contains
         end if
     end subroutine gk_rule
 
+    subroutine integrate_gk_procedure(f, a, b, epsabs, epsrel, result, abserr, ierr, &
+            key, limit)
+        procedure(gk_integrand_t) :: f
+        real(dp), intent(in)  :: a, b, epsabs, epsrel
+        real(dp), intent(out) :: result, abserr
+        integer,  intent(out) :: ierr
+        integer,  intent(in), optional :: key, limit
+        type(gk_procedure_t) :: adapter
+
+        adapter%callback => f
+        call integrate_gk_object(adapter, a, b, epsabs, epsrel, result, abserr, ierr, &
+            key, limit)
+    end subroutine integrate_gk_procedure
+
+    subroutine gk_apply_procedure(f, key, a, b, result, abserr, resabs, resasc)
+        procedure(gk_integrand_t) :: f
+        integer,  intent(in)  :: key
+        real(dp), intent(in)  :: a, b
+        real(dp), intent(out) :: result, abserr, resabs, resasc
+        type(gk_procedure_t) :: adapter
+
+        adapter%callback => f
+        call gk_apply_object(adapter, key, a, b, result, abserr, resabs, resasc)
+    end subroutine gk_apply_procedure
+
+    function gk_procedure_evaluate(self, x) result(fx)
+        class(gk_procedure_t), intent(in) :: self
+        real(dp), intent(in) :: x
+        real(dp) :: fx
+        fx = self%callback(x)
+    end function
 end module fortnum_integrate_gk

@@ -14,6 +14,22 @@ module fortnum_eigen
                                 eigen_real_operator_dp => real_operator, &
                                 eigen_complex_operator_dp => complex_operator, &
               eigen_real_solve_dp => real_solve, eigen_complex_solve_dp => complex_solve
+    use fortnum_eigen_sp, only: eigen_real_operator_sp_t => real_eigen_operator_t
+    use fortnum_eigen_sp, only: eigen_real_solve_sp_t => real_eigen_solve_t
+    use fortnum_eigen_sp, only: eigen_complex_operator_sp_t => complex_eigen_operator_t
+    use fortnum_eigen_sp, only: eigen_complex_solve_sp_t => complex_eigen_solve_t
+    use fortnum_eigen_sp, only: krylov_schur_sp_object => krylov_schur_object
+    use fortnum_eigen_sp, only: lanczos_sp_object => lanczos_object
+    use fortnum_eigen_sp, only: real_krylov_schur_sp_object => real_krylov_schur_object
+    use fortnum_eigen_sp, only: real_lanczos_sp_object => real_lanczos_object
+    use fortnum_eigen_dp, only: eigen_real_operator_dp_t => real_eigen_operator_t
+    use fortnum_eigen_dp, only: eigen_real_solve_dp_t => real_eigen_solve_t
+    use fortnum_eigen_dp, only: eigen_complex_operator_dp_t => complex_eigen_operator_t
+    use fortnum_eigen_dp, only: eigen_complex_solve_dp_t => complex_eigen_solve_t
+    use fortnum_eigen_dp, only: krylov_schur_dp_object => krylov_schur_object
+    use fortnum_eigen_dp, only: lanczos_dp_object => lanczos_object
+    use fortnum_eigen_dp, only: real_krylov_schur_dp_object => real_krylov_schur_object
+    use fortnum_eigen_dp, only: real_lanczos_dp_object => real_lanczos_object
     implicit none
     private
     public :: krylov_schur, lanczos, eigen_bounds, inertia_count
@@ -25,11 +41,19 @@ module fortnum_eigen
     public :: eigen_real_operator_dp, eigen_complex_operator_dp
     public :: eigen_real_solve_sp, eigen_complex_solve_sp
     public :: eigen_real_solve_dp, eigen_complex_solve_dp
+    public :: eigen_real_operator_sp_t, eigen_real_operator_dp_t
+    public :: eigen_real_solve_sp_t, eigen_real_solve_dp_t
+    public :: eigen_complex_operator_sp_t, eigen_complex_operator_dp_t
+    public :: eigen_complex_solve_sp_t, eigen_complex_solve_dp_t
     interface krylov_schur
         module procedure arnoldi_sp, arnoldi_dp, real_arnoldi_sp, real_arnoldi_dp
+        module procedure krylov_schur_sp_object, krylov_schur_dp_object
+        module procedure real_krylov_schur_sp_object, real_krylov_schur_dp_object
     end interface
     interface lanczos
         module procedure lanczos_sp, lanczos_dp, real_lanczos_sp, real_lanczos_dp
+        module procedure lanczos_sp_object, lanczos_dp_object
+        module procedure real_lanczos_sp_object, real_lanczos_dp_object
     end interface
     interface eigen_bounds
         module procedure bounds_sp, bounds_dp

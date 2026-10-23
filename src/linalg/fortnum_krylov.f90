@@ -88,6 +88,28 @@ module fortnum_krylov
     public :: real_matvec_t
     public :: real_preconditioner_t
 
+    type, abstract, public :: complex_linear_operator_t
+    contains
+        procedure(complex_linear_apply_t), deferred :: apply
+    end type
+
+    type, extends(complex_linear_operator_t) :: complex_procedure_operator_t
+        procedure(complex_matvec_t), pointer, nopass :: apply_procedure => null()
+    contains
+        procedure :: apply => apply_complex_procedure_operator
+    end type
+
+    abstract interface
+        subroutine complex_linear_apply_t(self, input, output)
+            import :: dp, complex_linear_operator_t
+            class(complex_linear_operator_t), intent(inout) :: self
+            complex(dp), intent(in) :: input(:)
+            complex(dp), intent(out) :: output(:)
+        end subroutine
+    end interface
+
+    public :: real_gmres, complex_gmres, real_fgmres, complex_fgmres
+
 contains
 
     subroutine real_conjugate_gradient( &
@@ -466,10 +488,10 @@ contains
 
     end subroutine real_conjugate_gradient_matmat_operator
 
-    subroutine real_gmres_operator( &
+    subroutine real_gmres( &
             matvec, right_hand_side, solution, tolerance, max_iterations, &
             restart, info, iterations, residual_norm)
-        procedure(real_matvec_t) :: matvec
+        class(real_linear_operator_t), intent(inout) :: matvec
         real(dp), intent(in) :: right_hand_side(:)
         real(dp), intent(inout) :: solution(:)
         real(dp), intent(in) :: tolerance
@@ -510,7 +532,7 @@ contains
         end if
 
         do while (iterations < max_iterations)
-            call matvec(solution, work)
+            call matvec%apply(solution, work)
             call parallel_vector_sub(right_hand_side, work, residual)
             residual_norm = parallel_vector_norm2(residual)
             if (residual_norm <= target) then
@@ -528,7 +550,7 @@ contains
             arnoldi_breakdown = .false.
 
             do inner = 1, cycle_size
-                call matvec(basis(:, inner), work)
+                call matvec%apply(basis(:, inner), work)
                 ! Classical Gram-Schmidt with one reorthogonalisation (CGS2).
                 call parallel_vector_gemv_t( &
                     basis, inner, work, hessenberg(:, inner))
@@ -583,7 +605,7 @@ contains
                 return
             end if
             call parallel_vector_gemv_n(1.0_dp, basis, used, y, solution)
-            call matvec(solution, work)
+            call matvec%apply(solution, work)
             call parallel_vector_sub(right_hand_side, work, residual)
             residual_norm = parallel_vector_norm2(residual)
             if (residual_norm <= target) then
@@ -596,6 +618,23 @@ contains
             end if
         end do
         info = KRYLOV_MAX_ITERATIONS
+    end subroutine real_gmres
+
+    subroutine real_gmres_operator( &
+            matvec, right_hand_side, solution, tolerance, max_iterations, &
+            restart, info, iterations, residual_norm)
+        procedure(real_matvec_t) :: matvec
+        real(dp), intent(in) :: right_hand_side(:)
+        real(dp), intent(inout) :: solution(:)
+        real(dp), intent(in) :: tolerance
+        integer, intent(in) :: max_iterations, restart
+        integer, intent(out) :: info, iterations
+        real(dp), intent(out) :: residual_norm
+        type(procedure_operator_t) :: operator_adapter
+
+        operator_adapter%apply_procedure => matvec
+        call real_gmres(operator_adapter, right_hand_side, solution, tolerance, &
+            max_iterations, restart, info, iterations, residual_norm)
     end subroutine real_gmres_operator
 
     pure subroutine real_givens(first, second, cosine, sine, rotated)
@@ -637,10 +676,10 @@ contains
         info = KRYLOV_OK
     end subroutine real_upper_triangular_solve
 
-    subroutine complex_gmres_operator( &
+    subroutine complex_gmres( &
             matvec, right_hand_side, solution, tolerance, max_iterations, &
             restart, info, iterations, residual_norm)
-        procedure(complex_matvec_t) :: matvec
+        class(complex_linear_operator_t), intent(inout) :: matvec
         complex(dp), intent(in) :: right_hand_side(:)
         complex(dp), intent(inout) :: solution(:)
         real(dp), intent(in) :: tolerance
@@ -680,7 +719,7 @@ contains
         end if
 
         do while (iterations < max_iterations)
-            call matvec(solution, work)
+            call matvec%apply(solution, work)
             residual = right_hand_side - work
             residual_norm = norm2(abs(residual))
             if (residual_norm <= target) then
@@ -698,7 +737,7 @@ contains
             arnoldi_breakdown = .false.
 
             do inner = 1, cycle_size
-                call matvec(basis(:, inner), work)
+                call matvec%apply(basis(:, inner), work)
                 do previous = 1, inner
                     coefficient = dot_product(basis(:, previous), work)
                     hessenberg(previous, inner) = coefficient
@@ -755,7 +794,7 @@ contains
                 return
             end if
             solution = solution + matmul(basis(:, :used), y(:used))
-            call matvec(solution, work)
+            call matvec%apply(solution, work)
             residual_norm = norm2(abs(right_hand_side - work))
             if (residual_norm <= target) then
                 info = KRYLOV_OK
@@ -767,9 +806,26 @@ contains
             end if
         end do
         info = KRYLOV_MAX_ITERATIONS
+    end subroutine complex_gmres
+
+    subroutine complex_gmres_operator( &
+            matvec, right_hand_side, solution, tolerance, max_iterations, &
+            restart, info, iterations, residual_norm)
+        procedure(complex_matvec_t) :: matvec
+        complex(dp), intent(in) :: right_hand_side(:)
+        complex(dp), intent(inout) :: solution(:)
+        real(dp), intent(in) :: tolerance
+        integer, intent(in) :: max_iterations, restart
+        integer, intent(out) :: info, iterations
+        real(dp), intent(out) :: residual_norm
+        type(complex_procedure_operator_t) :: operator_adapter
+
+        operator_adapter%apply_procedure => matvec
+        call complex_gmres(operator_adapter, right_hand_side, solution, tolerance, &
+            max_iterations, restart, info, iterations, residual_norm)
     end subroutine complex_gmres_operator
 
-    subroutine real_fgmres_operator( &
+    subroutine real_fgmres( &
             matvec, preconditioner, right_hand_side, solution, tolerance, &
             max_iterations, restart, info, iterations, residual_norm, &
             stagnation_ratio)
@@ -785,8 +841,8 @@ contains
         !! start of the cycle; if it fell by less than the factor
         !! stagnation_ratio (default 0.99) the routine returns
         !! KRYLOV_STAGNATION instead of looping, keeping the improved iterate.
-        procedure(real_matvec_t) :: matvec
-        procedure(real_preconditioner_t) :: preconditioner
+        class(real_linear_operator_t), intent(inout) :: matvec
+        class(real_linear_operator_t), intent(inout) :: preconditioner
         real(dp), intent(in) :: right_hand_side(:)
         real(dp), intent(inout) :: solution(:)
         real(dp), intent(in) :: tolerance
@@ -831,7 +887,7 @@ contains
             return
         end if
 
-        call matvec(solution, work)
+        call matvec%apply(solution, work)
         call parallel_vector_sub(right_hand_side, work, residual)
         residual_norm = parallel_vector_norm2(residual)
         do while (iterations < max_iterations)
@@ -851,8 +907,8 @@ contains
             arnoldi_breakdown = .false.
 
             do inner = 1, cycle_size
-                call preconditioner(basis(:, inner), preconditioned(:, inner))
-                call matvec(preconditioned(:, inner), work)
+                call preconditioner%apply(basis(:, inner), preconditioned(:, inner))
+                call matvec%apply(preconditioned(:, inner), work)
                 ! Classical Gram-Schmidt with one reorthogonalisation (CGS2).
                 call parallel_vector_gemv_t( &
                     basis, inner, work, hessenberg(:, inner))
@@ -907,7 +963,7 @@ contains
                 return
             end if
             call parallel_vector_gemv_n(1.0_dp, preconditioned, used, y, solution)
-            call matvec(solution, work)
+            call matvec%apply(solution, work)
             call parallel_vector_sub(right_hand_side, work, residual)
             residual_norm = parallel_vector_norm2(residual)
             if (residual_norm <= target) then
@@ -924,15 +980,50 @@ contains
             end if
         end do
         info = KRYLOV_MAX_ITERATIONS
+    end subroutine real_fgmres
+
+    subroutine real_fgmres_operator( &
+            matvec, preconditioner, right_hand_side, solution, tolerance, &
+            max_iterations, restart, info, iterations, residual_norm, &
+            stagnation_ratio)
+        !! Restarted flexible GMRES with right preconditioning.
+        !!
+        !! Solves A x = b through A M_j^{-1} u_j = v_j, x += M_j^{-1} u_j,
+        !! where the callback may apply a different M_j^{-1} each iteration
+        !! (for example an inner Krylov solve).  The preconditioned basis is
+        !! stored, so the cost is one extra vector per iteration.
+        !!
+        !! solution is the initial guess and is updated in place.  After each
+        !! restart cycle the true residual is compared with the one at the
+        !! start of the cycle; if it fell by less than the factor
+        !! stagnation_ratio (default 0.99) the routine returns
+        !! KRYLOV_STAGNATION instead of looping, keeping the improved iterate.
+        procedure(real_matvec_t) :: matvec
+        procedure(real_preconditioner_t) :: preconditioner
+        real(dp), intent(in) :: right_hand_side(:)
+        real(dp), intent(inout) :: solution(:)
+        real(dp), intent(in) :: tolerance
+        integer, intent(in) :: max_iterations, restart
+        integer, intent(out) :: info, iterations
+        real(dp), intent(out) :: residual_norm
+        real(dp), intent(in), optional :: stagnation_ratio
+        type(procedure_operator_t) :: operator_adapter, preconditioner_adapter
+
+        operator_adapter%apply_procedure => matvec
+        preconditioner_adapter%apply_procedure => preconditioner
+        call real_fgmres(operator_adapter, preconditioner_adapter, &
+            right_hand_side, solution, tolerance, &
+            max_iterations, restart, info, iterations, residual_norm, &
+            stagnation_ratio)
     end subroutine real_fgmres_operator
 
-    subroutine complex_fgmres_operator( &
+    subroutine complex_fgmres( &
             matvec, preconditioner, right_hand_side, solution, tolerance, &
             max_iterations, restart, info, iterations, residual_norm, &
             stagnation_ratio)
         !! Complex counterpart of real_fgmres_operator (same contract).
-        procedure(complex_matvec_t) :: matvec
-        procedure(complex_preconditioner_t) :: preconditioner
+        class(complex_linear_operator_t), intent(inout) :: matvec
+        class(complex_linear_operator_t), intent(inout) :: preconditioner
         complex(dp), intent(in) :: right_hand_side(:)
         complex(dp), intent(inout) :: solution(:)
         real(dp), intent(in) :: tolerance
@@ -979,7 +1070,7 @@ contains
             return
         end if
 
-        call matvec(solution, work)
+        call matvec%apply(solution, work)
         residual = right_hand_side - work
         residual_norm = norm2(abs(residual))
         do while (iterations < max_iterations)
@@ -999,8 +1090,8 @@ contains
             arnoldi_breakdown = .false.
 
             do inner = 1, cycle_size
-                call preconditioner(basis(:, inner), preconditioned(:, inner))
-                call matvec(preconditioned(:, inner), work)
+                call preconditioner%apply(basis(:, inner), preconditioned(:, inner))
+                call matvec%apply(preconditioned(:, inner), work)
                 ! Classical Gram-Schmidt with one reorthogonalisation (CGS2),
                 ! parallel over basis columns (dots) and rows (updates).
                 do pass = 1, 2
@@ -1072,7 +1163,7 @@ contains
                 return
             end if
             solution = solution + matmul(preconditioned(:, :used), y(:used))
-            call matvec(solution, work)
+            call matvec%apply(solution, work)
             residual = right_hand_side - work
             residual_norm = norm2(abs(residual))
             if (residual_norm <= target) then
@@ -1089,6 +1180,30 @@ contains
             end if
         end do
         info = KRYLOV_MAX_ITERATIONS
+    end subroutine complex_fgmres
+
+    subroutine complex_fgmres_operator( &
+            matvec, preconditioner, right_hand_side, solution, tolerance, &
+            max_iterations, restart, info, iterations, residual_norm, &
+            stagnation_ratio)
+        !! Complex counterpart of real_fgmres_operator (same contract).
+        procedure(complex_matvec_t) :: matvec
+        procedure(complex_preconditioner_t) :: preconditioner
+        complex(dp), intent(in) :: right_hand_side(:)
+        complex(dp), intent(inout) :: solution(:)
+        real(dp), intent(in) :: tolerance
+        integer, intent(in) :: max_iterations, restart
+        integer, intent(out) :: info, iterations
+        real(dp), intent(out) :: residual_norm
+        real(dp), intent(in), optional :: stagnation_ratio
+        type(complex_procedure_operator_t) :: operator_adapter, preconditioner_adapter
+
+        operator_adapter%apply_procedure => matvec
+        preconditioner_adapter%apply_procedure => preconditioner
+        call complex_fgmres(operator_adapter, preconditioner_adapter, &
+            right_hand_side, solution, tolerance, &
+            max_iterations, restart, info, iterations, residual_norm, &
+            stagnation_ratio)
     end subroutine complex_fgmres_operator
 
     pure subroutine complex_givens(first, second, cosine, sine, rotated)
@@ -1141,4 +1256,10 @@ contains
         info = KRYLOV_OK
     end subroutine upper_triangular_solve
 
+    subroutine apply_complex_procedure_operator(self, input, output)
+        class(complex_procedure_operator_t), intent(inout) :: self
+        complex(dp), intent(in) :: input(:)
+        complex(dp), intent(out) :: output(:)
+        call self%apply_procedure(input, output)
+    end subroutine
 end module fortnum_krylov
