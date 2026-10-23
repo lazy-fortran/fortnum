@@ -15,17 +15,40 @@ module fortnum_sampled_norm
             logical, intent(out) :: ok
         end subroutine
     end interface
+    type, abstract, public :: coordinate_enclosure_t
+    contains
+        procedure(coordinate_enclosure_t_binding), deferred :: evaluate
+    end type
+    type, extends(coordinate_enclosure_t) :: coordinate_enclosure_t_adapter
+        procedure(coordinate_enclosure), pointer, nopass :: callback => null()
+    contains
+        procedure :: evaluate => coordinate_enclosure_t_adapter_evaluate
+    end type
+    abstract interface
+        subroutine coordinate_enclosure_t_binding(self, index, value, ok)
+            import :: interval_t
+            import :: coordinate_enclosure_t
+            class(coordinate_enclosure_t), intent(in) :: self
+            integer, intent(in) :: index
+            type(interval_t), intent(out) :: value
+            logical, intent(out) :: ok
+        end subroutine
+    end interface
+    interface sampled_norm_upper
+        module procedure sampled_norm_upper_object, sampled_norm_upper_procedure
+    end interface
+
 contains
     ! Probability law: iid UNIFORM coordinates, independent of a fixed vector.
     ! A caller must prove |v_i| <= envelope for ALL coordinates, not a sampled max.
     ! Threefry is the reproducible implementation; confidence is conditional on
     ! the ideal iid-bit law (a deterministic PRNG seed alone is not random).
-    subroutine sampled_norm_upper(n, samples, delta, envelope, draw, coordinate, &
+    subroutine sampled_norm_upper_object(n, samples, delta, envelope, draw, coordinate, &
                                    estimate, upper, ok)
         integer, intent(in) :: n, samples
         real(dp), intent(in) :: delta, envelope
         type(rng_t), intent(inout) :: draw
-        procedure(coordinate_enclosure) :: coordinate
+        class(coordinate_enclosure_t), intent(in) :: coordinate
         real(dp), intent(out) :: estimate, upper
         logical, intent(out) :: ok
         type(interval_t) :: value, scaled, sumsq, tail, radius
@@ -46,7 +69,7 @@ contains
                 if (bits < limit) exit
             end do
             index = int(modulo(bits,int(n,i64))) + 1
-            call coordinate(index,value,valid)
+            call coordinate%evaluate(index,value,valid)
             if (.not. valid) return
             if (.not. ieee_is_finite(value%lo)) return
             if (.not. ieee_is_finite(value%hi)) return
@@ -66,5 +89,35 @@ contains
             ipoint(min(1._dp,scaled%hi)))
         upper = radius%hi
         ok = ieee_is_finite(upper)
+    end subroutine
+
+    subroutine sampled_norm_upper_procedure(n, samples, delta, envelope, draw, coordinate, &
+                                   estimate, upper, ok)
+        integer, intent(in) :: n, samples
+        real(dp), intent(in) :: delta, envelope
+        type(rng_t), intent(inout) :: draw
+        procedure(coordinate_enclosure) :: coordinate
+        real(dp), intent(out) :: estimate, upper
+        logical, intent(out) :: ok
+        type(coordinate_enclosure_t_adapter) :: adapter
+
+        adapter%callback => coordinate
+        call sampled_norm_upper_object(n, &
+            samples, &
+            delta, &
+            envelope, &
+            draw, &
+            adapter, &
+            estimate, &
+            upper, &
+            ok)
+    end subroutine
+
+    subroutine coordinate_enclosure_t_adapter_evaluate(self, index, value, ok)
+        class(coordinate_enclosure_t_adapter), intent(in) :: self
+            integer, intent(in) :: index
+            type(interval_t), intent(out) :: value
+            logical, intent(out) :: ok
+        call self%callback(index, value, ok)
     end subroutine
 end module

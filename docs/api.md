@@ -734,3 +734,32 @@ Stopping uses the normwise backward error
 bounds; zero selects observed matrix-free norm estimates.
 See [eigenproblem contracts](eigen.md) for callbacks, scale estimation, soft locking, conditional
 bounds, memory, precision and failure semantics.
+
+## Context-carrying callbacks
+
+The scalar roots accept `scalar_root_function_t` or `scalar_root_derivative_t`
+objects through the existing `root_brent`, `root_bisect` and `root_newton`
+generics. Implement the pure `evaluate` binding and keep parameters in the
+object. `integrate_gk` and `gk_apply` similarly accept `gk_function_t` objects.
+The adaptive integration drivers carry their existing optional context through
+explicit local bridge objects.
+
+`real_gmres`, `real_fgmres`, `complex_gmres` and `complex_fgmres` accept
+`real_linear_operator_t` or `complex_linear_operator_t` objects. A flexible
+preconditioner uses the same `apply` capability and may update its own state.
+The eigen generics accept the corresponding `eigen_real_operator_dp_t`,
+`eigen_complex_operator_dp_t`, `eigen_real_solve_dp_t` and
+`eigen_complex_solve_dp_t` capabilities, with `_sp_t` counterparts.
+
+`block_lanczos_lowest` also accepts `real_linear_operator_t`. The `mixed_refine`
+generic accepts that action together with a `refinement_solver_t` correction
+object. `ode_integrate_dop` forwards its optional `ctx` to the initial RHS
+evaluation and every stage.
+
+Sampled norm coordinates and verified midpoint integrands have
+`coordinate_enclosure_t`, `midpoint_function_t` and
+`midpoint_batch_function_t` capabilities. Their `evaluate` bindings retain the
+original enclosure and concurrency contracts. Existing procedure entry points
+remain adapters to the class-based cores, preserving the numerical algorithms
+and evaluation order. Module procedures implementing these bindings need no
+compiler trampolines or global callback state.
