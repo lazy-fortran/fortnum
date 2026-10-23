@@ -9,8 +9,8 @@ module fortnum_capi
     ! Callback-driven routines (quadrature, root finding, multiroot, central
     ! difference, ODE) take a C function pointer plus an opaque void* context.
     ! A stack-local carrier type passes the (c_funptr, c_ptr) pair through the
-    ! Fortran routine's class(*) ctx slot; a host-associated bridge calls back
-    ! through c_f_procpointer. No module-level state, so two callers never race.
+    ! Fortran routine's class(*) ctx slot; module procedures call back through
+    ! c_f_procpointer. No module-level state, so distinct caller contexts do not race.
     !
     ! No __enzyme_* symbol is exposed here (ad.md sec 2): the C surface is the
     ! primal foo_* routines only.
@@ -37,7 +37,7 @@ module fortnum_capi
         integrate_qagp, integrate_qagiu, &
         integrate_workspace_t, integrate_epstab_t, integrate_result_t
 
-    use fortnum_roots, only: root_brent
+    use fortnum_roots, only: root_brent, scalar_root_function_t
     use fortnum_multiroot, only: multiroot_hybrid, deriv_central, argsort
 
     use fortnum_ode, only: ode_problem_t, ode_workspace_t, ode_solution_t
@@ -107,6 +107,13 @@ module fortnum_capi
     public :: fortnum_levin_u_accel, fortnum_multiroot_hybrid
     public :: fortnum_root_brent, fortnum_deriv_central, fortnum_argsort
     public :: fortnum_ode_integrate_dop, fortnum_ode_solve_dop
+
+    type, extends(scalar_root_function_t) :: c_root_function_t
+        procedure(c_scalar_fn), pointer, nopass :: callback => null()
+        type(c_ptr) :: context
+    contains
+        procedure :: evaluate => evaluate_c_root
+    end type
 
 contains
 
@@ -440,21 +447,18 @@ contains
         type(fortnum_status_t)        :: status
         real(dp)                      :: x
         procedure(c_scalar_fn), pointer :: cf
+        type(c_root_function_t) :: root_callback
         br%fn  = f
         br%ctx = ctx
         ! Resolve the C procedure pointer here (c_f_procpointer is impure); the
-        ! pure root_fn that root_brent demands then only calls through cf.
+        ! pure root object that root_brent demands then only calls through cf.
         call c_f_procpointer(br%fn, cf)
-        call root_brent(root_fn, real(a, dp), real(b, dp), x, status, &
+        root_callback%callback => cf
+        root_callback%context = br%ctx
+        call root_brent(root_callback, real(a, dp), real(b, dp), x, status, &
             xtol=real(xtol, dp), ftol=real(ftol, dp), max_iter=int(max_iter))
         root = x
         code = int(status%code, c_int)
-    contains
-        pure function root_fn(xv) result(yv)
-            real(dp), intent(in) :: xv
-            real(dp) :: yv
-            yv = cf(real(xv, c_double), br%ctx)
-        end function root_fn
     end function fortnum_root_brent
 
     function fortnum_deriv_central(f, x, h, result, abserr, ctx) result(code) &
@@ -474,15 +478,6 @@ contains
         result = r
         abserr = e
         code   = int(status%code, c_int)
-    contains
-        function deriv_fn(xv, ctx) result(yv)
-            real(dp), intent(in) :: xv
-            class(*), intent(in), optional :: ctx
-            real(dp) :: yv
-            procedure(c_scalar_fn), pointer :: cf
-            call c_f_procpointer(br%fn, cf)
-            yv = cf(real(xv, c_double), br%ctx)
-        end function deriv_fn
     end function fortnum_deriv_central
 
     subroutine fortnum_argsort(x, n, perm) bind(c, name="fortnum_argsort")
@@ -521,36 +516,7 @@ contains
     contains
         ! Builds the analytic Jacobian by central differences of the C residual
         ! callback, matching the KiLCA "_hybrids" usage on a _hybrid signature.
-        subroutine residual_jacobian(xv, fv, jac, ctx)
-            real(dp), intent(in)  :: xv(:)
-            real(dp), intent(out) :: fv(:)
-            real(dp), intent(out) :: jac(:, :)
-            class(*), intent(in), optional :: ctx
-            real(dp), parameter :: cube_root_eps = 6.0554544523933429e-6_dp
-            real(dp) :: xp(size(xv)), xm(size(xv)), fp(size(xv)), fm(size(xv)), hh
-            integer :: j
-            call eval_residual(xv, fv)
-            do j = 1, size(xv)
-                hh = cube_root_eps*max(abs(xv(j)), 1.0_dp)
-                xp = xv; xm = xv
-                xp(j) = xv(j) + hh
-                xm(j) = xv(j) - hh
-                call eval_residual(xp, fp)
-                call eval_residual(xm, fm)
-                jac(:, j) = (fp - fm)/(2.0_dp*hh)
-            end do
-        end subroutine residual_jacobian
 
-        subroutine eval_residual(xv, fv)
-            real(dp), intent(in)  :: xv(:)
-            real(dp), intent(out) :: fv(:)
-            procedure(c_vector_fn), pointer :: cf
-            real(c_double) :: xc(size(xv)), fc(size(xv))
-            call c_f_procpointer(br%fn, cf)
-            xc = real(xv, c_double)
-            call cf(int(size(xv), c_int), xc, fc, br%ctx)
-            fv = real(fc, dp)
-        end subroutine eval_residual
     end function fortnum_multiroot_hybrid
 
     ! ------------------------------------------------------------------- ode
@@ -621,7 +587,7 @@ contains
         problem%rtol = real(rtol, dp)
         problem%atol = real(atol, dp)
         problem%max_steps = int(max_steps)
-        call ode_integrate_dop(problem, ws, sol, status)
+        call ode_integrate_dop(problem, ws, sol, status, ctx=br)
         nout = min(sol%nsteps + 1, int(npts_cap))
         npts = int(nout, c_int)
         if (nout >= 1 .and. allocated(sol%t)) then
@@ -629,7 +595,66 @@ contains
             y_out(:, 1:nout) = sol%y(:, 1:nout)
         end if
         code = int(status%code, c_int)
-    contains
+    end function run_ode_dop
+
+    pure function evaluate_c_root(self, x) result(y)
+        class(c_root_function_t), intent(in) :: self
+        real(dp), intent(in) :: x
+        real(dp) :: y
+        y = self%callback(real(x, c_double), self%context)
+    end function
+
+        function deriv_fn(xv, ctx) result(yv)
+            real(dp), intent(in) :: xv
+            class(*), intent(in), optional :: ctx
+            real(dp) :: yv
+            procedure(c_scalar_fn), pointer :: cf
+            select type(br => ctx)
+            type is (scalar_bridge_t)
+            call c_f_procpointer(br%fn, cf)
+            yv = cf(real(xv, c_double), br%ctx)
+            class default
+                error stop "invalid C callback context"
+            end select
+        end function deriv_fn
+
+        subroutine residual_jacobian(xv, fv, jac, ctx)
+            real(dp), intent(in)  :: xv(:)
+            real(dp), intent(out) :: fv(:)
+            real(dp), intent(out) :: jac(:, :)
+            class(*), intent(in), optional :: ctx
+            real(dp), parameter :: cube_root_eps = 6.0554544523933429e-6_dp
+            real(dp) :: xp(size(xv)), xm(size(xv)), fp(size(xv)), fm(size(xv)), hh
+            integer :: j
+            select type(br => ctx)
+            type is (vector_bridge_t)
+            call eval_residual(br, xv, fv)
+            do j = 1, size(xv)
+                hh = cube_root_eps*max(abs(xv(j)), 1.0_dp)
+                xp = xv; xm = xv
+                xp(j) = xv(j) + hh
+                xm(j) = xv(j) - hh
+                call eval_residual(br, xp, fp)
+                call eval_residual(br, xm, fm)
+                jac(:, j) = (fp - fm)/(2.0_dp*hh)
+            end do
+            class default
+                error stop "invalid C callback context"
+            end select
+        end subroutine residual_jacobian
+
+        subroutine eval_residual(br, xv, fv)
+            type(vector_bridge_t), intent(in) :: br
+            real(dp), intent(in)  :: xv(:)
+            real(dp), intent(out) :: fv(:)
+            procedure(c_vector_fn), pointer :: cf
+            real(c_double) :: xc(size(xv)), fc(size(xv))
+            call c_f_procpointer(br%fn, cf)
+            xc = real(xv, c_double)
+            call cf(int(size(xv), c_int), xc, fc, br%ctx)
+            fv = real(fc, dp)
+        end subroutine eval_residual
+
         subroutine rhs_bridge(t, y, dydt, ctx)
             real(dp), intent(in)  :: t
             real(dp), intent(in)  :: y(:)
@@ -637,11 +662,14 @@ contains
             class(*), intent(in), optional :: ctx
             procedure(c_ode_rhs), pointer :: cf
             real(c_double) :: yc(size(y)), dc(size(y))
+            select type(br => ctx)
+            type is (vector_bridge_t)
             call c_f_procpointer(br%fn, cf)
             yc = real(y, c_double)
             call cf(real(t, c_double), int(size(y), c_int), yc, dc, br%ctx)
             dydt = real(dc, dp)
+            class default
+                error stop "invalid C callback context"
+            end select
         end subroutine rhs_bridge
-    end function run_ode_dop
-
 end module fortnum_capi

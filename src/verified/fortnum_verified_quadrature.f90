@@ -25,6 +25,52 @@ module fortnum_verified_quadrature
         end subroutine midpoint_batch_callback
     end interface
 
+    type, abstract, public :: midpoint_function_t
+    contains
+        procedure(midpoint_function_t_binding), deferred :: evaluate
+    end type
+    type, extends(midpoint_function_t) :: midpoint_function_t_adapter
+        procedure(midpoint_callback), pointer, nopass :: callback => null()
+    contains
+        procedure :: evaluate => midpoint_function_t_adapter_evaluate
+    end type
+    abstract interface
+        subroutine midpoint_function_t_binding(self, cell, midpoint, value, curvature, ok)
+            import :: interval_t
+            import :: midpoint_function_t
+            class(midpoint_function_t), intent(in) :: self
+            type(interval_t), intent(in) :: cell, midpoint
+            type(interval_t), intent(out) :: value, curvature
+            logical, intent(out) :: ok
+        end subroutine midpoint_function_t_binding
+    end interface
+    interface composite_midpoint
+        module procedure composite_midpoint_object, composite_midpoint_procedure
+    end interface
+
+    type, abstract, public :: midpoint_batch_function_t
+    contains
+        procedure(midpoint_batch_function_t_binding), deferred :: evaluate
+    end type
+    type, extends(midpoint_batch_function_t) :: midpoint_batch_function_t_adapter
+        procedure(midpoint_batch_callback), pointer, nopass :: callback => null()
+    contains
+        procedure :: evaluate => midpoint_batch_function_t_adapter_evaluate
+    end type
+    abstract interface
+        subroutine midpoint_batch_function_t_binding(self, cell, midpoint, value, curvature, ok)
+            import :: interval_t
+            import :: midpoint_batch_function_t
+            class(midpoint_batch_function_t), intent(in) :: self
+            type(interval_t), intent(in) :: cell, midpoint
+            type(interval_t), intent(out) :: value(:), curvature(:)
+            logical, intent(out) :: ok
+        end subroutine midpoint_batch_function_t_binding
+    end interface
+    interface composite_midpoint_batch
+        module procedure composite_midpoint_batch_object, composite_midpoint_batch_procedure
+    end interface
+
 contains
 
     ! Each stored edge is an exact real endpoint. On every cell the callback
@@ -34,8 +80,8 @@ contains
     ! This permits piecewise smooth functions with knots among the edges.
     ! Refinement, tails and root-bracket schedules remain caller responsibilities.
     ! No allocations occur here; no callback estimate is promoted to a proof.
-    subroutine composite_midpoint(callback, edges, integral, ok)
-        procedure(midpoint_callback) :: callback
+    subroutine composite_midpoint_object(callback, edges, integral, ok)
+        class(midpoint_function_t), intent(in) :: callback
         real(dp), intent(in) :: edges(:)
         type(interval_t), intent(out) :: integral
         logical, intent(out) :: ok
@@ -57,7 +103,7 @@ contains
                 interval(edges(j + 1)), midpoint, width)
             if (.not. finite_interval(midpoint)) return
             if (.not. finite_interval(width)) return
-            call callback(interval(edges(j), edges(j + 1)), midpoint, &
+            call callback%evaluate(interval(edges(j), edges(j + 1)), midpoint, &
                           value, curvature, callback_ok)
             if (.not. callback_ok) return
             if (.not. finite_interval(value)) return
@@ -71,13 +117,13 @@ contains
         end do
         integral = acc
         ok = .true.
-    end subroutine composite_midpoint
+    end subroutine composite_midpoint_object
 
     ! The callback shares integrand work among caller-sized components. Scratch
     ! arrays exist once per invocation; no allocation occurs in the cell loop.
     ! A failure in any component invalidates the complete output packet.
-    subroutine composite_midpoint_batch(callback, edges, integral, ok)
-        procedure(midpoint_batch_callback) :: callback
+    subroutine composite_midpoint_batch_object(callback, edges, integral, ok)
+        class(midpoint_batch_function_t), intent(in) :: callback
         real(dp), intent(in) :: edges(:)
         type(interval_t), intent(out) :: integral(:)
         logical, intent(out) :: ok
@@ -101,7 +147,7 @@ contains
                 interval(edges(j + 1)), midpoint, width)
             if (.not. finite_interval(midpoint)) return
             if (.not. finite_interval(width)) return
-            call callback(interval(edges(j), edges(j + 1)), midpoint, &
+            call callback%evaluate(interval(edges(j), edges(j + 1)), midpoint, &
                           value, curvature, callback_ok)
             if (.not. callback_ok) return
             do component = 1, size(integral)
@@ -117,7 +163,7 @@ contains
         end do
         integral = acc
         ok = .true.
-    end subroutine composite_midpoint_batch
+    end subroutine composite_midpoint_batch_object
 
     pure logical function finite_interval(value) result(ok)
         type(interval_t), intent(in) :: value
@@ -129,4 +175,48 @@ contains
         ok = .true.
     end function finite_interval
 
+
+    subroutine composite_midpoint_procedure(callback, edges, integral, ok)
+        procedure(midpoint_callback) :: callback
+        real(dp), intent(in) :: edges(:)
+        type(interval_t), intent(out) :: integral
+        logical, intent(out) :: ok
+        type(midpoint_function_t_adapter) :: adapter
+
+        adapter%callback => callback
+        call composite_midpoint_object(adapter, &
+            edges, &
+            integral, &
+            ok)
+    end subroutine
+
+    subroutine midpoint_function_t_adapter_evaluate(self, cell, midpoint, value, curvature, ok)
+        class(midpoint_function_t_adapter), intent(in) :: self
+            type(interval_t), intent(in) :: cell, midpoint
+            type(interval_t), intent(out) :: value, curvature
+            logical, intent(out) :: ok
+        call self%callback(cell, midpoint, value, curvature, ok)
+    end subroutine
+
+    subroutine composite_midpoint_batch_procedure(callback, edges, integral, ok)
+        procedure(midpoint_batch_callback) :: callback
+        real(dp), intent(in) :: edges(:)
+        type(interval_t), intent(out) :: integral(:)
+        logical, intent(out) :: ok
+        type(midpoint_batch_function_t_adapter) :: adapter
+
+        adapter%callback => callback
+        call composite_midpoint_batch_object(adapter, &
+            edges, &
+            integral, &
+            ok)
+    end subroutine
+
+    subroutine midpoint_batch_function_t_adapter_evaluate(self, cell, midpoint, value, curvature, ok)
+        class(midpoint_batch_function_t_adapter), intent(in) :: self
+            type(interval_t), intent(in) :: cell, midpoint
+            type(interval_t), intent(out) :: value(:), curvature(:)
+            logical, intent(out) :: ok
+        call self%callback(cell, midpoint, value, curvature, ok)
+    end subroutine
 end module fortnum_verified_quadrature

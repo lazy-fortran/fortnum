@@ -14,14 +14,11 @@ module fortnum_integrate
     ! (sub_a/sub_b/sub_r/sub_e plus key and extrapolated) are the hooks #40
     ! re-walks; nothing here moves a boundary or re-adapts.
     !
-    ! No module-level state and no global procedure pointer: the caller's
-    ! integrand and its optional ctx are threaded to the ctx-free kernel through
-    ! a host-associated wrapper that lives on the call stack for the duration of
-    ! one driver call (ADR section 2). This lets a later derivative product call
-    ! the integrand without a hidden side channel.
+    ! Caller-owned bridge objects carry the integrand and optional context to
+    ! the Gauss-Kronrod kernel without compiler trampolines or global state.
 
     use, intrinsic :: iso_fortran_env, only: dp => real64
-    use fortnum_integrate_gk, only: gk_apply
+    use fortnum_integrate_gk, only: gk_apply, gk_function_t
     use fortnum_status, only: fortnum_status_t, status_set, &
         FORTNUM_OK, FORTNUM_DOMAIN_ERROR, &
         FORTNUM_CONVERGENCE_ERROR
@@ -44,17 +41,6 @@ module fortnum_integrate
             class(*), intent(in), optional :: ctx
             real(dp) :: fx
         end function integrate_integrand_t
-    end interface
-
-    ! Bridge interface: the kernel's gk_apply takes a ctx-free integrand. Each
-    ! entry point passes a host-associated wrapper around (f, ctx) that matches
-    ! this; the driver's procedure dummy is typed against it. No module pointer.
-    abstract interface
-        function panel_kernel_t(x) result(fx)
-            import :: dp
-            real(dp), intent(in) :: x
-            real(dp) :: fx
-        end function panel_kernel_t
     end interface
 
     ! QUADPACK alist/blist/rlist/elist workspace, one entry per subinterval.
@@ -102,6 +88,16 @@ module fortnum_integrate
 
     integer, parameter :: DEFAULT_LIMIT = 500
 
+    type, extends(gk_function_t) :: integrate_bridge_t
+        procedure(integrate_integrand_t), pointer, nopass :: callback => null()
+        class(*), pointer :: context => null()
+        real(dp), pointer :: bound => null()
+        integer, pointer :: sign => null()
+        logical :: infinite = .false.
+    contains
+        procedure :: evaluate => evaluate_integrate_bridge
+    end type
+
 contains
 
     ! ------------------------------------------------------------------
@@ -115,9 +111,13 @@ contains
         type(integrate_result_t),  intent(inout) :: result
         type(fortnum_status_t),    intent(out)   :: status
         integer,  intent(in), optional :: key, limit
-        class(*), intent(in), optional :: ctx
+        class(*), intent(in), optional , target :: ctx
 
         integer :: key_loc, limit_loc
+        type(integrate_bridge_t) :: bridge
+
+        bridge%callback => f
+        if (present(ctx)) bridge%context => ctx
 
         key_loc   = 21
         limit_loc = DEFAULT_LIMIT
@@ -139,20 +139,14 @@ contains
 
     contains
 
-        ! The driver core sits inside integrate_qag so panel_f sees f and ctx
-        ! by host association without a module pointer. use_eps is false here.
+        ! The local bridge owns the callback association for this driver call.
         subroutine qag_core(use_eps)
             logical, intent(in) :: use_eps
             type(integrate_epstab_t) :: dummy_eps
-            call driver(panel_f, a, b, epsabs, epsrel, key_loc, limit_loc, &
+            call driver(bridge, a, b, epsabs, epsrel, key_loc, limit_loc, &
                 use_eps, workspace, dummy_eps, result, status)
         end subroutine qag_core
 
-        function panel_f(x) result(fx)
-            real(dp), intent(in) :: x
-            real(dp) :: fx
-            fx = f(x, ctx)
-        end function panel_f
 
     end subroutine integrate_qag
 
@@ -168,9 +162,13 @@ contains
         type(integrate_result_t),  intent(inout) :: result
         type(fortnum_status_t),    intent(out)   :: status
         integer,  intent(in), optional :: limit
-        class(*), intent(in), optional :: ctx
+        class(*), intent(in), optional , target :: ctx
 
         integer :: limit_loc
+        type(integrate_bridge_t) :: bridge
+
+        bridge%callback => f
+        if (present(ctx)) bridge%context => ctx
 
         limit_loc = DEFAULT_LIMIT
         if (present(limit)) limit_loc = limit
@@ -190,15 +188,10 @@ contains
     contains
 
         subroutine qags_core()
-            call driver(panel_f, a, b, epsabs, epsrel, 21, limit_loc, &
+            call driver(bridge, a, b, epsabs, epsrel, 21, limit_loc, &
                 .true., workspace, epstab, result, status)
         end subroutine qags_core
 
-        function panel_f(x) result(fx)
-            real(dp), intent(in) :: x
-            real(dp) :: fx
-            fx = f(x, ctx)
-        end function panel_f
 
     end subroutine integrate_qags
 
@@ -218,13 +211,17 @@ contains
         type(integrate_result_t),  intent(inout) :: result
         type(fortnum_status_t),    intent(out)   :: status
         integer,  intent(in), optional :: limit
-        class(*), intent(in), optional :: ctx
+        class(*), intent(in), optional , target :: ctx
 
         real(dp) :: brk(size(points))
         real(dp) :: bnds(size(points) + 2)
         integer  :: limit_loc, nbrk, npan, i, j
         real(dp) :: bk, gap
         logical  :: dup
+        type(integrate_bridge_t) :: bridge
+
+        bridge%callback => f
+        if (present(ctx)) bridge%context => ctx
 
         limit_loc = DEFAULT_LIMIT
         if (present(limit)) limit_loc = limit
@@ -300,15 +297,10 @@ contains
     contains
 
         subroutine qagp_core()
-            call driver_seeded(panel_f, 21, epsabs, epsrel, limit_loc, npan, &
+            call driver_seeded(bridge, 21, epsabs, epsrel, limit_loc, npan, &
                 workspace, epstab, result, status)
         end subroutine qagp_core
 
-        function panel_f(x) result(fx)
-            real(dp), intent(in) :: x
-            real(dp) :: fx
-            fx = f(x, ctx)
-        end function panel_f
 
     end subroutine integrate_qagp
 
@@ -324,16 +316,23 @@ contains
     subroutine integrate_qagiu(f, bound, inf, epsabs, epsrel, workspace, &
             epstab, result, status, limit, ctx)
         procedure(integrate_integrand_t)        :: f
-        real(dp),                  intent(in)    :: bound, epsabs, epsrel
+        real(dp),                  intent(in)    , target :: bound, epsabs, epsrel
         integer,                   intent(in)    :: inf
         type(integrate_workspace_t), intent(inout) :: workspace
         type(integrate_epstab_t),  intent(inout) :: epstab
         type(integrate_result_t),  intent(inout) :: result
         type(fortnum_status_t),    intent(out)   :: status
         integer,  intent(in), optional :: limit
-        class(*), intent(in), optional :: ctx
+        class(*), intent(in), optional , target :: ctx
 
-        integer :: limit_loc, sgn
+        integer , target :: limit_loc, sgn
+        type(integrate_bridge_t) :: bridge
+
+        bridge%callback => f
+        if (present(ctx)) bridge%context => ctx
+        bridge%infinite = .true.
+        bridge%bound => bound
+        bridge%sign => sgn
 
         limit_loc = DEFAULT_LIMIT
         if (present(limit)) limit_loc = limit
@@ -381,17 +380,17 @@ contains
                 call ensure_workspace(ws2, limit_loc)
                 call reset_epstab(eps2)
                 sgn = 1
-                call driver(panel_f, 0.0_dp, 1.0_dp, epsabs, epsrel, 15, &
+                call driver(bridge, 0.0_dp, 1.0_dp, epsabs, epsrel, 15, &
                     limit_loc, .true., workspace, epstab, result, &
                     status)
                 sgn = -1
-                call driver(panel_f, 0.0_dp, 1.0_dp, epsabs, epsrel, 15, &
+                call driver(bridge, 0.0_dp, 1.0_dp, epsabs, epsrel, 15, &
                     limit_loc, .true., ws2, eps2, res2, status)
                 result%value  = result%value + res2%value
                 result%abserr = result%abserr + res2%abserr
                 result%neval  = result%neval + res2%neval
             else
-                call driver(panel_f, 0.0_dp, 1.0_dp, epsabs, epsrel, 15, &
+                call driver(bridge, 0.0_dp, 1.0_dp, epsabs, epsrel, 15, &
                     limit_loc, .true., workspace, epstab, result, &
                     status)
             end if
@@ -400,17 +399,6 @@ contains
         ! Transformed integrand on t in (0,1]: x = bound + sgn*(1-t)/t,
         ! dx = dt/t**2. The Jacobian rides inside the wrapper, so the kernel
         ! never sees the transform (no module state).
-        function panel_f(t) result(fx)
-            real(dp), intent(in) :: t
-            real(dp) :: fx, x, jac
-            if (t <= 0.0_dp) then
-                fx = 0.0_dp
-                return
-            end if
-            x   = bound + real(sgn, dp)*(1.0_dp - t)/t
-            jac = 1.0_dp/(t*t)
-            fx  = f(x, ctx)*jac
-        end function panel_f
 
     end subroutine integrate_qagiu
 
@@ -529,20 +517,13 @@ contains
         type(integrate_result_t),  intent(in)    :: result
         real(dp),                  intent(out)   :: di_dp
         type(fortnum_status_t),    intent(out)   :: status
-        class(*), intent(in), optional :: ctx
+        class(*), intent(in), optional , target :: ctx
+        type(integrate_bridge_t) :: bridge
 
-        call jvp_walk_trace(tangent_f, result, di_dp, status)
+        bridge%callback => dfdp
+        if (present(ctx)) bridge%context => ctx
 
-    contains
-
-        ! Host-associated tangent wrapper: bridges the caller's df/dp and its
-        ! optional ctx to the kernel's ctx-free integrand. Lives on this call
-        ! stack; no module state, matching the primal panel_f pattern.
-        function tangent_f(x) result(fx)
-            real(dp), intent(in) :: x
-            real(dp) :: fx
-            fx = dfdp(x, ctx)
-        end function tangent_f
+        call jvp_walk_trace(bridge, result, di_dp, status)
 
     end subroutine integrate_qag_jvp
 
@@ -560,17 +541,13 @@ contains
         type(integrate_result_t),  intent(in)    :: result
         real(dp),                  intent(out)   :: di_dp
         type(fortnum_status_t),    intent(out)   :: status
-        class(*), intent(in), optional :: ctx
+        class(*), intent(in), optional , target :: ctx
+        type(integrate_bridge_t) :: bridge
 
-        call jvp_walk_trace(tangent_f, result, di_dp, status)
+        bridge%callback => dfdp
+        if (present(ctx)) bridge%context => ctx
 
-    contains
-
-        function tangent_f(x) result(fx)
-            real(dp), intent(in) :: x
-            real(dp) :: fx
-            fx = dfdp(x, ctx)
-        end function tangent_f
+        call jvp_walk_trace(bridge, result, di_dp, status)
 
     end subroutine integrate_qags_jvp
 
@@ -585,17 +562,13 @@ contains
         type(integrate_result_t),  intent(in)    :: result
         real(dp),                  intent(out)   :: di_dp
         type(fortnum_status_t),    intent(out)   :: status
-        class(*), intent(in), optional :: ctx
+        class(*), intent(in), optional , target :: ctx
+        type(integrate_bridge_t) :: bridge
 
-        call jvp_walk_trace(tangent_f, result, di_dp, status)
+        bridge%callback => dfdp
+        if (present(ctx)) bridge%context => ctx
 
-    contains
-
-        function tangent_f(x) result(fx)
-            real(dp), intent(in) :: x
-            real(dp) :: fx
-            fx = dfdp(x, ctx)
-        end function tangent_f
+        call jvp_walk_trace(bridge, result, di_dp, status)
 
     end subroutine integrate_qagp_jvp
 
@@ -614,14 +587,21 @@ contains
     ! ------------------------------------------------------------------
     subroutine integrate_qagiu_jvp(dfdp, bound, inf, result, di_dp, status, ctx)
         procedure(integrate_integrand_t)        :: dfdp
-        real(dp),                  intent(in)    :: bound
+        real(dp),                  intent(in)    , target :: bound
         integer,                   intent(in)    :: inf
         type(integrate_result_t),  intent(in)    :: result
         real(dp),                  intent(out)   :: di_dp
         type(fortnum_status_t),    intent(out)   :: status
-        class(*), intent(in), optional :: ctx
+        class(*), intent(in), optional , target :: ctx
 
-        integer :: sgn
+        integer , target :: sgn
+        type(integrate_bridge_t) :: bridge
+
+        bridge%callback => dfdp
+        if (present(ctx)) bridge%context => ctx
+        bridge%infinite = .true.
+        bridge%bound => bound
+        bridge%sign => sgn
 
         di_dp = 0.0_dp
         if (inf /= -1 .and. inf /= 1) then
@@ -632,24 +612,7 @@ contains
         end if
         sgn = inf
 
-        call jvp_walk_trace(tangent_f, result, di_dp, status)
-
-    contains
-
-        ! Transformed tangent on t in (0,1]: x = bound + sgn*(1-t)/t,
-        ! dx = dt/t**2. d/dp of f(x(t), p)*jac is (df/dp)(x(t))*jac because the
-        ! transform is parameter-free; same wrapper shape as the primal panel_f.
-        function tangent_f(t) result(fx)
-            real(dp), intent(in) :: t
-            real(dp) :: fx, x, jac
-            if (t <= 0.0_dp) then
-                fx = 0.0_dp
-                return
-            end if
-            x   = bound + real(sgn, dp)*(1.0_dp - t)/t
-            jac = 1.0_dp/(t*t)
-            fx  = dfdp(x, ctx)*jac
-        end function tangent_f
+        call jvp_walk_trace(bridge, result, di_dp, status)
 
     end subroutine integrate_qagiu_jvp
 
@@ -663,7 +626,7 @@ contains
     ! linearization point; propagate it without forming a product.
     ! ------------------------------------------------------------------
     subroutine jvp_walk_trace(tangent, result, di_dp, status)
-        procedure(panel_kernel_t)                :: tangent
+        class(gk_function_t), intent(in)                :: tangent
         type(integrate_result_t),  intent(in)    :: result
         real(dp),                  intent(out)   :: di_dp
         type(fortnum_status_t),    intent(out)   :: status
@@ -703,12 +666,11 @@ contains
     end subroutine jvp_walk_trace
 
     ! ==================================================================
-    ! Shared globally adaptive driver. panel_f is the ctx-free integrand
-    ! bridged by the caller's host-associated wrapper; never a module pointer.
+    ! Shared globally adaptive driver with an explicit integrand object.
     ! ==================================================================
     subroutine driver(panel_f, a, b, epsabs, epsrel, key, limit, use_eps, &
             ws, epstab, result, status)
-        procedure(panel_kernel_t)               :: panel_f
+        class(gk_function_t), intent(in)               :: panel_f
         real(dp),                  intent(in)    :: a, b, epsabs, epsrel
         integer,                   intent(in)    :: key, limit
         logical,                   intent(in)    :: use_eps
@@ -770,7 +732,7 @@ contains
     ! ==================================================================
     subroutine driver_seeded(panel_f, key, epsabs, epsrel, limit, npan, &
             ws, epstab, result, status)
-        procedure(panel_kernel_t)               :: panel_f
+        class(gk_function_t), intent(in)               :: panel_f
         integer,                   intent(in)    :: key, limit, npan
         real(dp),                  intent(in)    :: epsabs, epsrel
         type(integrate_workspace_t), intent(inout) :: ws
@@ -845,7 +807,7 @@ contains
     ! descent. The per-panel GK rule (gk_apply) and frozen-trace are unchanged.
     subroutine adapt_loop(panel_f, key, epsabs, epsrel, limit, use_eps, &
             neval_panel, area, errsum, ws, epstab, result, status)
-        procedure(panel_kernel_t)               :: panel_f
+        class(gk_function_t), intent(in)               :: panel_f
         integer,                   intent(in)    :: key, limit, neval_panel
         real(dp),                  intent(in)    :: epsabs, epsrel
         logical,                   intent(in)    :: use_eps
@@ -1484,5 +1446,23 @@ contains
             end if
             abseps = max(abseps, 5.0_dp*epmach*abs(reseps))
         end subroutine qelg
+
+    function evaluate_integrate_bridge(self, x) result(fx)
+        class(integrate_bridge_t), intent(in) :: self
+        real(dp), intent(in) :: x
+        real(dp) :: fx, argument, jac
+        argument = x
+        jac = 1.0_dp
+        if (self%infinite) then
+            if (x <= 0.0_dp) then
+                fx = 0.0_dp
+                return
+            end if
+            argument = self%bound + real(self%sign, dp)*(1.0_dp - x)/x
+            jac = 1.0_dp/(x*x)
+        end if
+        fx = self%callback(argument, self%context)
+        if (self%infinite) fx = fx*jac
+    end function
 
     end module fortnum_integrate
