@@ -32,6 +32,13 @@ openmp = "*"
 [dev-dependencies]
 test-drive = { git = "https://github.com/fortran-lang/test-drive.git" }
 
+# C sources are not recognized as programs by automatic discovery.
+# Declare this entry point so it is not linked into every Fortran test.
+[[test]]
+name = "capi_smoke"
+source-dir = "test/capi"
+main = "smoke.c"
+
 [fortran]
 implicit-typing = false
 source-form = "free"
