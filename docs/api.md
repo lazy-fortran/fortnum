@@ -587,6 +587,32 @@ reproducible points in the unit cube. The implementation supports dimensions
 through `SOBOL_MAX_DIMENSION`; `SOBOL_TABULATED_DIMENSION` identifies the
 dimensions using the published Joe--Kuo initial direction values.
 
+## Sampling
+
+`fortnum_nuts` draws from a differentiable log density with the No-U-Turn
+sampler (multinomial trajectories and the generalized U-turn criterion of
+Betancourt 2017, as in Stan) and dual-averaging step-size adaptation
+(Hoffman and Gelman 2014). The metric is dense and fixed: pass the lower
+Cholesky factor of an estimate of the target covariance, for example a Laplace
+covariance. The callback returns the log density and its gradient through a
+`class(*)` context; a non-OK status or a non-finite value counts as infinite
+energy and ends the trajectory as divergent.
+
+```fortran
+type(nuts_options_t) :: options
+type(nuts_result_t) :: draws
+call nuts_sample(log_density, n, x0, chol, options, generator, context, draws, status)
+```
+
+`nuts_result_t` holds the draws with their log density, acceptance statistic,
+energy, tree depth, leapfrog count and divergence flag.
+
+`fortnum_psis` implements Pareto-smoothed importance sampling (Vehtari et al.
+2024). `psis_smooth` returns smoothed log weights and the tail shape k-hat,
+`gpd_fit` is the Zhang--Stephens generalized Pareto fit it uses, and
+`psis_khat_threshold(S)` is the reliability threshold
+min(1 - 1/log10(S), 0.7).
+
 ## Verified computing
 
 The verified modules return enclosures: every result contains the exact real
