@@ -176,6 +176,8 @@ target_sources(fortnum PRIVATE
     quadrature/fortnum_levin.f90
     quadrature/fortnum_quadrature.f90
     rng/fortnum_rng.f90
+    sampling/fortnum_nuts.f90
+    sampling/fortnum_psis.f90
     roots/fortnum_fixed_point.f90
     roots/fortnum_multiroot.f90
     roots/fortnum_multiroot_rc.f90
