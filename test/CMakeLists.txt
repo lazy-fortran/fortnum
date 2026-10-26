@@ -461,6 +461,14 @@ add_executable(test_fortnum_rng rng/test_fortnum_rng.f90)
 target_link_libraries(test_fortnum_rng PRIVATE fortnum)
 add_test(NAME fortnum_rng COMMAND test_fortnum_rng)
 
+# --- sampling: NUTS and PSIS ---
+add_executable(test_fortnum_nuts sampling/test_fortnum_nuts.f90)
+target_link_libraries(test_fortnum_nuts PRIVATE fortnum)
+add_test(NAME fortnum_nuts COMMAND test_fortnum_nuts)
+add_executable(test_fortnum_psis sampling/test_fortnum_psis.f90)
+target_link_libraries(test_fortnum_psis PRIVATE fortnum)
+add_test(NAME fortnum_psis COMMAND test_fortnum_psis)
+
 # --- M4 adaptive integration (QAG/QAGS) ---
 add_executable(test_fortnum_integrate quadrature/test_fortnum_integrate.f90)
 target_link_libraries(test_fortnum_integrate PRIVATE fortnum)
