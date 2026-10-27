@@ -94,3 +94,8 @@ main = "gen_verified_midpoint.f90"
 name = "gen_eigen_bounds"
 source-dir = "app"
 main = "gen_eigen_bounds.f90"
+
+[[executable]]
+name = "gen_dnestrovskii"
+source-dir = "app"
+main = "gen_dnestrovskii.f90"
