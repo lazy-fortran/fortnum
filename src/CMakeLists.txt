@@ -95,6 +95,44 @@ target_sources(fortnum PRIVATE
     generated/fortad/sqrt1pm1_stable.f90
     generated/fortad/toroidal_order.f90
     generated/fortnum_bessel_outer_jvp_kernel.f90
+    generated/fortnum_dnestro_pos_5_1.f90
+    generated/fortnum_dnestro_pos_5_2.f90
+    generated/fortnum_dnestro_pos_5_3.f90
+    generated/fortnum_dnestro_pos_5_4.f90
+    generated/fortnum_dnestro_pos_5_5.f90
+    generated/fortnum_dnestro_pos_5_6.f90
+    generated/fortnum_dnestro_pos_5_7.f90
+    generated/fortnum_dnestro_pos_5_8.f90
+    generated/fortnum_dnestro_pos_7_1.f90
+    generated/fortnum_dnestro_pos_7_2.f90
+    generated/fortnum_dnestro_pos_7_3.f90
+    generated/fortnum_dnestro_pos_7_4.f90
+    generated/fortnum_dnestro_pos_7_5.f90
+    generated/fortnum_dnestro_pos_7_6.f90
+    generated/fortnum_dnestro_pos_7_7.f90
+    generated/fortnum_dnestro_pos_7_8.f90
+    generated/fortnum_dnestro_pos_tail_5.f90
+    generated/fortnum_dnestro_pos_tail_7.f90
+    generated/fortnum_dnestro_im_5.f90
+    generated/fortnum_dnestro_im_7.f90
+    generated/fortnum_dnestro_re_5_1.f90
+    generated/fortnum_dnestro_re_5_2.f90
+    generated/fortnum_dnestro_re_5_3.f90
+    generated/fortnum_dnestro_re_5_4.f90
+    generated/fortnum_dnestro_re_5_5.f90
+    generated/fortnum_dnestro_re_5_6.f90
+    generated/fortnum_dnestro_re_5_7.f90
+    generated/fortnum_dnestro_re_5_8.f90
+    generated/fortnum_dnestro_re_7_1.f90
+    generated/fortnum_dnestro_re_7_2.f90
+    generated/fortnum_dnestro_re_7_3.f90
+    generated/fortnum_dnestro_re_7_4.f90
+    generated/fortnum_dnestro_re_7_5.f90
+    generated/fortnum_dnestro_re_7_6.f90
+    generated/fortnum_dnestro_re_7_7.f90
+    generated/fortnum_dnestro_re_7_8.f90
+    generated/fortnum_dnestro_tail_5.f90
+    generated/fortnum_dnestro_tail_7.f90
     generated/fortnum_dawson_outer_kernel.f90
     generated/fortnum_dawson_outer_jvp_kernel.f90
     generated/fortnum_dawson_outer_value_kernel.f90
@@ -186,6 +224,7 @@ target_sources(fortnum PRIVATE
     special/fortnum_special.f90
     special/fortnum_special_bessel.f90
     special/fortnum_special_complex_bessel.f90
+    special/fortnum_special_dnestrovskii.f90
     special/fortnum_special_dawson.f90
     special/fortnum_special_erf_cbind.f90
     special/fortnum_special_faddeeva.f90

@@ -145,3 +145,41 @@ src/generated/fortnum_eigen_radius_sp.f90,fortnum_eigen_radius_sp,fortsym-genera
 src/generated/fortnum_eigen_radius_dp.f90,fortnum_eigen_radius_dp,fortsym-generated,analytical,generated pointwise eigenvalue bound
 src/generated/fortnum_eigen_temple_sp.f90,fortnum_eigen_temple_sp,fortsym-generated,analytical,generated pointwise eigenvalue bound
 src/generated/fortnum_eigen_temple_dp.f90,fortnum_eigen_temple_dp,fortsym-generated,analytical,generated pointwise eigenvalue bound
+src/generated/fortnum_dnestro_im_5.f90,fortnum_dnestro_im_5,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_im_7.f90,fortnum_dnestro_im_7,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_re_5_1.f90,fortnum_dnestro_re_5_1,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_re_5_2.f90,fortnum_dnestro_re_5_2,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_re_5_3.f90,fortnum_dnestro_re_5_3,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_re_5_4.f90,fortnum_dnestro_re_5_4,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_re_5_5.f90,fortnum_dnestro_re_5_5,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_re_5_6.f90,fortnum_dnestro_re_5_6,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_re_5_7.f90,fortnum_dnestro_re_5_7,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_re_5_8.f90,fortnum_dnestro_re_5_8,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_re_7_1.f90,fortnum_dnestro_re_7_1,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_re_7_2.f90,fortnum_dnestro_re_7_2,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_re_7_3.f90,fortnum_dnestro_re_7_3,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_re_7_4.f90,fortnum_dnestro_re_7_4,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_re_7_5.f90,fortnum_dnestro_re_7_5,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_re_7_6.f90,fortnum_dnestro_re_7_6,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_re_7_7.f90,fortnum_dnestro_re_7_7,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_re_7_8.f90,fortnum_dnestro_re_7_8,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_tail_5.f90,fortnum_dnestro_tail_5,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_tail_7.f90,fortnum_dnestro_tail_7,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_pos_5_1.f90,fortnum_dnestro_pos_5_1,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_pos_5_2.f90,fortnum_dnestro_pos_5_2,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_pos_5_3.f90,fortnum_dnestro_pos_5_3,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_pos_5_4.f90,fortnum_dnestro_pos_5_4,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_pos_5_5.f90,fortnum_dnestro_pos_5_5,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_pos_5_6.f90,fortnum_dnestro_pos_5_6,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_pos_5_7.f90,fortnum_dnestro_pos_5_7,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_pos_5_8.f90,fortnum_dnestro_pos_5_8,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_pos_7_1.f90,fortnum_dnestro_pos_7_1,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_pos_7_2.f90,fortnum_dnestro_pos_7_2,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_pos_7_3.f90,fortnum_dnestro_pos_7_3,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_pos_7_4.f90,fortnum_dnestro_pos_7_4,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_pos_7_5.f90,fortnum_dnestro_pos_7_5,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_pos_7_6.f90,fortnum_dnestro_pos_7_6,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_pos_7_7.f90,fortnum_dnestro_pos_7_7,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_pos_7_8.f90,fortnum_dnestro_pos_7_8,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_pos_tail_5.f90,fortnum_dnestro_pos_tail_5,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/generated/fortnum_dnestro_pos_tail_7.f90,fortnum_dnestro_pos_tail_7,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
