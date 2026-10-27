@@ -12,6 +12,8 @@ program gen_dnestrovskii
     type(arena_t), target :: arena
     type(expr_t) :: x, f, g, term
     real(dp) :: c(33), q
+    real(dp),parameter :: loss(2)=[2.36327180120735470306422331112_dp, &
+        0.945308720482941881225689324449_dp]
     integer :: i, j, k, input, lock_unit
     character(40) :: revision
     character(40) :: name
@@ -42,7 +44,7 @@ program gen_dnestrovskii
         end do
         write (name, '(A,I0)') 'fortnum_dnestro_tail_', 2*i + 3
         call emit(trim(name), f)
-        g = -real_expr(arena, acos(-1.0_dp)/gamma(q))* &
+        g = -real_expr(arena, loss(i))* &
             x**real_expr(arena, q - 1)*exp(-x)
         write (name, '(A,I0)') 'fortnum_dnestro_im_', 2*i + 3
         call emit(trim(name), g)
@@ -68,7 +70,7 @@ program gen_dnestrovskii
         call emit(trim(name), f)
     end do
     f = real_expr(arena, 2.0_dp/3.0_dp)*(1 - 2*x + &
-                              real_expr(arena, 2*sqrt(acos(-1.0_dp)))*x**real_expr(arena, 1.5_dp)* &
+                              real_expr(arena, 3.54490770181103205459633496668_dp)*x**real_expr(arena, 1.5_dp)* &
                                          exp(x)*erfc(sqrt(x)))
     call emit('fortnum_dnestro_pos_5_1', f)
     f = real_expr(arena, 0.4_dp)*(1 - x*f)
