@@ -251,14 +251,7 @@ def check_generated_revision(root: Path) -> list[str]:
             )
         )
         midpoint_generator = "Generator: gen_verified_midpoint" in text
-        dnestrovskii_generator = "Generator: gen_dnestrovskii" in text
-        if dnestrovskii_generator:
-            dnestrovskii_lock = root / "tools/codegen/fortsym-dnestrovskii.lock"
-            path_revision = dnestrovskii_lock.read_text(encoding="utf-8").strip()
-            if re.fullmatch(r"[0-9a-f]{40}", path_revision) is None:
-                errors.append("fortsym-dnestrovskii.lock is not one full SHA")
-                continue
-        elif midpoint_generator:
+        if midpoint_generator:
             midpoint_lock = root / "tools/codegen/fortsym-verified-midpoint.lock"
             path_revision = midpoint_lock.read_text(encoding="utf-8").strip()
             if re.fullmatch(r"[0-9a-f]{40}", path_revision) is None:
@@ -268,9 +261,7 @@ def check_generated_revision(root: Path) -> list[str]:
             path_revision = rk54_revision if rk54_generator else revision
         expected = f"Generator revision: fortsym@{path_revision}"
         if expected not in text:
-            if dnestrovskii_generator:
-                lock_name = "fortsym-dnestrovskii.lock"
-            elif midpoint_generator:
+            if midpoint_generator:
                 lock_name = "fortsym-verified-midpoint.lock"
             else:
                 lock_name = "fortsym-rk54.lock" if rk54_generator else "fortsym.lock"

@@ -7,20 +7,16 @@ program gen_dnestrovskii
     use fortsym_diff, only: diff
     use fortsym_kernel, only: kernel_spec_t, emit_kernel
     use fortnum_codegen_provenance, only: generated_path, cost_block_text, &
-                                          insert_cost_block
+                                          insert_cost_block, fortsym_revision
     implicit none
     type(arena_t), target :: arena
     type(expr_t) :: x, f, g, term
     real(dp) :: c(33), q
-    real(dp),parameter :: loss(2)=[2.36327180120735470306422331112_dp, &
-        0.945308720482941881225689324449_dp]
-    integer :: i, j, k, input, lock_unit
-    character(40) :: revision
+    real(dp), parameter :: loss(2) = [2.36327180120735470306422331112_dp, &
+                                      0.945308720482941881225689324449_dp]
+    integer :: i, j, k, input
     character(40) :: name
 
-    open (newunit=lock_unit, file='fortsym-dnestrovskii.lock', status='old')
-    read (lock_unit, '(a)') revision
-    close (lock_unit)
     call arena%init()
     x = sym(arena, 'x')
     open (newunit=input, file='data/dnestrovskii.dat', status='old')
@@ -70,7 +66,7 @@ program gen_dnestrovskii
         call emit(trim(name), f)
     end do
     f = real_expr(arena, 2.0_dp/3.0_dp)*(1 - 2*x + &
-                              real_expr(arena, 3.54490770181103205459633496668_dp)*x**real_expr(arena, 1.5_dp)* &
+                 real_expr(arena, 3.54490770181103205459633496668_dp)*x**real_expr(arena, 1.5_dp)* &
                                          exp(x)*erfc(sqrt(x)))
     call emit('fortnum_dnestro_pos_5_1', f)
     f = real_expr(arena, 0.4_dp)*(1 - x*f)
@@ -90,7 +86,7 @@ contains
         spec%args = [str('x')]
         spec%outputs = [str('value'), str('derivative')]
         spec%generator = str('gen_dnestrovskii')
-        spec%generator_revision = str('fortsym@'//revision)
+        spec%generator_revision = str(fortsym_revision())
         spec%regenerate_command = str('cd tools/codegen && fo exec gen_dnestrovskii')
         spec%pure_procedure = .true.
         spec%elemental_procedure = .true.

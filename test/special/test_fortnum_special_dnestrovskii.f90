@@ -1,6 +1,7 @@
 program test_dnestrovskii
     use, intrinsic :: iso_fortran_env, only: dp => real64
     use fortnum_special_dnestrovskii, only: dnestrovskii
+    use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan, ieee_positive_inf
     implicit none
     complex(dp) :: f, df, plus, minus, unused
     real(dp) :: row(9), err, derr, fd, h, maximum, dmaximum
@@ -35,6 +36,11 @@ program test_dnestrovskii
         end do
     end do
     close (unit)
+    if (count /= 1102) error stop 'incomplete reference samples'
+    call dnestrovskii(5, ieee_value(0.0_dp, ieee_quiet_nan), f, df, status)
+    if (status == 0) error stop 'NaN accepted'
+    call dnestrovskii(5, ieee_value(0.0_dp, ieee_positive_inf), f, df, status)
+    if (status == 0) error stop 'infinity accepted'
     call dnestrovskii(3, -1.0_dp, f, df, status)
     if (status == 0) error stop 'unsupported order accepted'
     print '(A,I0,A,ES12.4,A,ES12.4)', 'oracle samples=', count, &
