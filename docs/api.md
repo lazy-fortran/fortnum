@@ -37,6 +37,27 @@ contract. They do not use mutable global error state.
 
 ## Special functions
 
+`fortnum_special_dnestrovskii` provides
+`call dnestrovskii(q_twice, z, value, derivative, status)` for the upper-lip
+boundary value of the Dnestrovskii function on the finite real axis.
+`q_twice` is 5 or 7 (orders 5/2 and 7/2). `value` and `derivative` are
+complex real64, with the derivative taken with respect to `z`. Status is
+zero on success and one for an unsupported order or argument; failed outputs
+are zero. The imaginary part is negative on the open negative axis.
+The definition and frequency sign follow Bornatici et al.,
+[Nucl. Fusion 23, 1153 (1983), Eqs. (2.3.68)–(2.3.71)](https://doi.org/10.1088/0029-5515/23/9/005).
+
+Piecewise degree-32 polynomials evaluate the real part on `-128 <= z <= 128`
+except `0 < z <= 1`, which uses the defining complementary error function.
+A 32-term inverse-argument expansion evaluates either tail. FortSym
+emits both values and their derivative rows. The exponentially small imaginary
+part is set to zero for `z <= -700`. This is a real-axis interface, with no
+oblique-wave or complex-argument continuation. The committed 90-digit oracles
+cover the origin, resonance wing, interval boundaries and asymptotic tail.
+`tools/codegen/data/fit_dnestrovskii.py` reproduces coefficients and oracles
+with mpmath; it is not a production dependency.
+
+
 `fortnum_special` re-exports the common special-function surface:
 
 | Family | Primal | Products |

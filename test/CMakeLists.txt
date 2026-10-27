@@ -649,3 +649,8 @@ set_tests_properties(fortnum_eigen_disc_large PROPERTIES PROCESSORS 2
 add_executable(test_callback_context linalg/test_callback_context.f90)
 target_link_libraries(test_callback_context PRIVATE fortnum)
 add_test(NAME fortnum_callback_context COMMAND test_callback_context)
+
+add_executable(test_fortnum_special_dnestrovskii special/test_fortnum_special_dnestrovskii.f90)
+target_link_libraries(test_fortnum_special_dnestrovskii PRIVATE fortnum)
+add_test(NAME fortnum_special_dnestrovskii COMMAND test_fortnum_special_dnestrovskii
+    ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/dnestrovskii.dat)
