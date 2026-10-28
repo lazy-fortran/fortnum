@@ -8,7 +8,9 @@ measured evidence.
 
 | Document | Scope |
 | --- | --- |
-| [README](../README.md) | Build, package scope, derivative model, and entry points |
+| [README](../README.md) | Package scope and entry points |
+| [Building](building.md) | Requirements, CMake options, fpm, quad precision |
+| [Derivatives](differentiation.md) | Derivative products, terminology, CPU/GPU support |
 | [Coulomb functions](coulomb.md) | Bounded real S-wave F/G, normalization and oracle |
 | [Eigenproblems](eigen.md) | Matrix-free Krylov-Schur, Lanczos, spectral maps and conditional bounds |
 | [Multi-fidelity prediction](multifidelity.md) | Fixed-hyperparameter autoregressive Gaussian processes and derivative products |
