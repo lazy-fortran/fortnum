@@ -1,0 +1,148 @@
+name: nightly
+
+# Jobs too slow for the merge queue run once a night on main. A failed job
+# bisects its own command between the last commit where it passed and this
+# commit; the report job files or updates one issue labelled nightly-failure,
+# and the next run in which every recorded job passes closes it.
+run-name: >-
+  ${{ inputs.jobs && format('nightly: {0}', inputs.jobs) || 'nightly: all jobs' }}
+
+on:
+  schedule:
+    - cron: "41 1 * * *"
+  workflow_dispatch:
+    inputs:
+      jobs:
+        description: Comma-separated jobs to run, for example enzyme (empty runs all)
+        required: false
+        default: ""
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: Plan nightly jobs
+    runs-on: [self-hosted, itp-ubuntu24]
+    outputs:
+      jobs: ${{ steps.plan.outputs.jobs }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: plan
+        env:
+          JOBS: ${{ inputs.jobs }}
+        run: python3 scripts/nightly_triage.py plan --jobs "$JOBS"
+
+  enzyme:
+    name: released Flang 22 + pinned Enzyme
+    needs: plan
+    if: contains(fromJSON(needs.plan.outputs.jobs), 'enzyme')
+    runs-on:
+      - self-hosted
+      - itp-ubuntu24
+    # The job itself takes about 25 minutes; the rest is room for bisection.
+    timeout-minutes: 360
+    env:
+      LLVM_MAJOR: '22'
+      ENZYME_REVISION: c96508349d9f121957292308c646b4a1fd53c507
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install build dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ca-certificates cmake curl g++ gfortran git gnupg \
+            libblas-dev libfftw3-dev liblapack-dev libflint-dev libgmp-dev \
+            libmpfr-dev libzstd-dev lsb-release ninja-build \
+            software-properties-common
+      - name: Install pinned SymEngine
+        run: scripts/ci/install_symengine.sh
+      - name: Install fpm and fo
+        run: |
+          set -euo pipefail
+          sudo curl -L -o /usr/local/bin/fpm \
+            https://github.com/fortran-lang/fpm/releases/download/v0.13.0/fpm-0.13.0-linux-x86_64-gcc-12
+          sudo chmod +x /usr/local/bin/fpm
+          git clone --depth 1 https://github.com/lazy-fortran/fo.git /tmp/fo
+          (
+            cd /tmp/fo
+            fpm install --profile release --prefix "$HOME/.local"
+          )
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Install released LLVM and Flang
+        run: |
+          set -euo pipefail
+          curl -fsSL https://apt.llvm.org/llvm.sh -o /tmp/llvm.sh
+          chmod +x /tmp/llvm.sh
+          sudo /tmp/llvm.sh "$LLVM_MAJOR"
+          sudo apt-get install -y --no-install-recommends \
+            "flang-$LLVM_MAJOR" \
+            "libclang-$LLVM_MAJOR-dev" \
+            "llvm-$LLVM_MAJOR-dev"
+          mkdir -p "$RUNNER_TEMP/llvm-bin"
+          for tool in clang flang-new llvm-link opt; do
+            ln -s "/usr/bin/$tool-$LLVM_MAJOR" "$RUNNER_TEMP/llvm-bin/$tool"
+          done
+          echo "$RUNNER_TEMP/llvm-bin" >> "$GITHUB_PATH"
+      - name: Build pinned Enzyme plugin
+        run: |
+          set -euo pipefail
+          git clone https://github.com/EnzymeAD/Enzyme.git "$RUNNER_TEMP/enzyme"
+          git -C "$RUNNER_TEMP/enzyme" checkout "$ENZYME_REVISION"
+          cmake -S "$RUNNER_TEMP/enzyme/enzyme" \
+            -B "$RUNNER_TEMP/enzyme-build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLLVM_DIR="/usr/lib/llvm-$LLVM_MAJOR/lib/cmake/llvm"
+          cmake --build "$RUNNER_TEMP/enzyme-build" \
+            --target "LLVMEnzyme-$LLVM_MAJOR" -j 2
+          echo "FORTNUM_CI_ENZYME_PLUGIN=$RUNNER_TEMP/enzyme-build/Enzyme/LLVMEnzyme-$LLVM_MAJOR.so" \
+            >> "$GITHUB_ENV"
+      - name: Generate wrappers, build and test the real Enzyme pipelines
+        id: job
+        run: python3 scripts/nightly_triage.py run enzyme
+      - name: Bisect the failure
+        if: failure() && steps.job.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/nightly_triage.py bisect enzyme
+      - name: Keep the bisection result for the report
+        if: failure() && steps.job.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-triage-enzyme
+          path: ${{ runner.temp }}/nightly-triage/enzyme.json
+          if-no-files-found: ignore
+
+  report:
+    name: Report nightly result
+    needs: [plan, enzyme]
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
+    runs-on: [self-hosted, itp-ubuntu24]
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Collect bisection results
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: nightly-triage-*
+          path: ${{ runner.temp }}/nightly-triage
+          merge-multiple: true
+      - name: File, update or close the nightly-failure issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOBS: ${{ inputs.jobs }}
+        run: python3 scripts/nightly_triage.py report --jobs "$JOBS"
