@@ -1,24 +1,33 @@
 # fortnum
 
-`fortnum` is a Fortran 2018 numerical library for special functions,
-quadrature, adaptive integration, FFTs, ODEs, roots, interpolation, splines,
-linear algebra, and random numbers. The library has no mutable global numerical
-state. LAPACK and BLAS are its only runtime numerical dependencies.
+A Fortran 2018 numerical library: special functions, quadrature and adaptive
+integration, FFTs, ODEs, root finding, interpolation and splines, linear algebra,
+random numbers and sampling. It is written to replace GSL-, QUADPACK- and
+FFTW-style dependencies in Fortran research codes, and provides derivative
+products (JVPs, VJPs, gradients) for many of its kernels.
 
-The derivative API is product-oriented. Kernels may provide JVPs, VJPs,
-gradients, or HVPs through competing `autodiff`, `analytical`, and `hybrid`
-candidates. Correctness comes from independent oracles. Complete-workload wall
-clock and peak memory select production candidates.
+Status: research code under active development; interfaces may change.
 
-## Build
+## Features
 
-Requirements:
+- Special functions: Bessel (real and complex), gamma, error and Faddeeva
+  functions, Dawson, elliptic, Legendre and toroidal, Coulomb, hypergeometric
+  1F1 and others.
+- Quadrature, adaptive (Gauss-Kronrod, CQUAD, Levin) integration, FFTs.
+- ODE integrators (DOP853, RK8PD, VODE, DDEABM, Gauss-Radau, extrapolation,
+  geometric integrators) with events and sensitivities.
+- Roots and multidimensional roots, B-splines, Krylov solvers and matrix-free
+  eigenproblems, Toeplitz and tensor-product operators.
+- Random numbers with explicit state, NUTS sampling, Gaussian-process
+  multi-fidelity prediction.
+- Verified computing: interval and ball arithmetic and rigorous enclosures.
+- No mutable global numerical state; BLAS and LAPACK are the only runtime
+  numerical dependencies. A C interface is declared in `include/fortnum.h`.
 
-- a Fortran 2018 compiler
-- CMake 3.22 or newer, or `fpm`
-- BLAS and LAPACK
+## Building
 
-With CMake:
+Requirements: a Fortran 2018 compiler, CMake 3.22 or newer (or fpm), and
+BLAS/LAPACK.
 
 ```bash
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -27,51 +36,16 @@ ctest --test-dir build --output-on-failure
 cmake --install build
 ```
 
-With the local `fo` workflow:
-
-```bash
-fo
-fo install
-```
-
-`fo` runs static checks, builds, tests, and lints the fpm configuration. See
-[CONTRIBUTING.md](CONTRIBUTING.md) for the complete contributor gate.
-
-With fpm (Python 3.11 or newer supplies the per-test oracle arguments):
+With fpm (Python 3.11 or newer supplies the per-test data arguments):
 
 ```bash
 fpm test --profile release --runner "python3 scripts/fpm_test_runner.py"
 ```
 
-The runner reuses `[extra.fo.test-args]` in `fpm.toml`. On macOS, select an
-installed OpenBLAS with `--link-flag "$(pkg-config --libs openblas)"`, because
-Accelerate does not provide the LAPACK `dggsvd3` routine used by the library.
+CMake options, GPU backends, quad-precision support and macOS notes are in
+[docs/building.md](docs/building.md).
 
-Useful CMake options:
-
-| Option | Default | Effect |
-| --- | --- | --- |
-| `FORTNUM_BUILD_TESTING` | on for a top-level build | Build the test suite |
-| `FORTNUM_BUILD_EXAMPLES` | on for a top-level build | Build API examples |
-| `FORTNUM_CHECK_GENERATED` | off | Regenerate and compare committed `fortsym` kernels |
-| `FORTNUM_USE_BENCHMARK_SELECTION` | on | Read committed derivative selections |
-| `FORTNUM_ENABLE_ENZYME` | off | Build supported CPU Enzyme tests |
-| `FORTNUM_ENZYME_REQUIRED` | off | Fail if the requested Enzyme toolchain is unavailable |
-| `FORTNUM_ENABLE_OPENMP` | on | Link host OpenMP for the Krylov vector kernels when available |
-| `FORTNUM_GPU_BACKEND` | `NONE` | Select `NONE`, `OPENACC`, or `OPENMP` |
-
-Selecting an unavailable GPU backend fails configuration. GPU execution never
-falls back silently to the host. OpenMP GPU builds currently require the
-validated NVIDIA HPC SDK `nvfortran` compiler.
-
-Quad precision is optional. CMake probes `selected_real_kind(33, 4931)`
-(`FORTNUM_HAVE_REAL128`); without it (`nvfortran`) configuration warns and
-`fortnum_interval_qp`, `fortnum_cfft_rigorous` and `fortnum_fseries` are not
-built, and the tests with `real128` oracles are reported by CTest as Disabled.
-gfortran and ifx keep the full library. fpm has no per-compiler source
-selection and is unchanged.
-
-## Use
+## Usage
 
 Each numerical area has its own module:
 
@@ -89,8 +63,6 @@ program example
 end program example
 ```
 
-The main public modules are:
-
 | Area | Modules |
 | --- | --- |
 | kinds and status | `fortnum_kinds`, `fortnum_status` |
@@ -104,70 +76,30 @@ The main public modules are:
 | random numbers | `fortnum_rng` |
 | verified computing | `fortnum_rounding`, `fortnum_interval`, `fortnum_interval_qp`, `fortnum_ball`, `fortnum_idual`, `fortnum_cfft_rigorous`, `fortnum_fseries`, `fortnum_verified_linalg` |
 
-The [API guide](docs/api.md) shows the public families and common call
-patterns. Production module sources remain authoritative for exact signatures.
-The installed C interface is declared in `include/fortnum.h`.
-
-## Differentiation
-
-Public terminology is fixed:
-
-- `autodiff` means compiler or source-transformation differentiation
-- `analytical` includes explicit formulas, stable recurrences, linear
-  operators, frozen traces, and implicit tangent or adjoint solves
-- `hybrid` means autodiff composition with at least one analytical operator
-  rule
-
-A procedure can have several candidates for the same product. Finite
-differences are validation diagnostics unless measurements justify production
-use. Residual-defined outputs always admit an analytical implicit candidate.
-
-`fortsym` owns build-time symbolic algebra and code generation. The lock file
-at `tools/codegen/fortsym.lock` identifies the tested revision. Generated
-production kernels are committed under `src/generated`; temporary algebraic
-variants and Enzyme wrappers stay in the build tree. Generators are quiet by
-default. Set `FORTNUM_CODEGEN_VERBOSE=1` for diagnostic output.
-
-CPU support includes selected `autodiff`, `analytical`, and `hybrid`
-candidates. GPU support currently uses validated `analytical` leaves:
-
-| Target | `autodiff` | `analytical` | `hybrid` |
-| --- | --- | --- | --- |
-| CPU | supported selectively | supported | supported selectively |
-| GPU | unsupported | supported for listed kernels | unsupported |
-
-The exact contracts and evidence live in:
-
-- [derivative contract](docs/design/ad.md)
-- [implementation plan](docs/design/differentiation_plan.md)
-- [kernel ownership inventory](docs/design/derivative_kernel_inventory.csv)
-- [CPU/GPU contract](docs/design/gpu.md)
-- [current evidence report](docs/design/differentiation_report.md)
-- [ROADMAP.md](ROADMAP.md)
-
-## Performance evidence
-
-Machine-readable measurements are committed under `benchmark/reference`.
-Normalized cross-kernel statistics live in
-`benchmark/report/data/mechanism_tournaments.csv`. Reproducible `fortplot`
-programs generate the report figures; generated PNG files are not committed.
-
-Every selected derivative record includes validation, workload shape, compiler
-and hardware identity, wall-clock time, and peak memory. Records add direction,
-input/output scaling, cache counters, code size, or GPU profiling data when
-those measurements affect the decision.
-
-See [benchmark/README.md](benchmark/README.md) to reproduce the reports and add
-new evidence.
+The [API guide](docs/api.md) shows the module families and common call patterns.
 
 ## Documentation
 
-[docs/README.md](docs/README.md) is the documentation map. It distinguishes
-normative contracts, user guides, migration notes, plans, and measured
-evidence. This keeps implementation history out of the README.
+- [Documentation map](docs/README.md)
+- [API guide](docs/api.md)
+- [Building](docs/building.md)
+- [Derivatives](docs/differentiation.md)
+- [Migrating from libneo](docs/migration_libneo.md)
+- [Benchmarks](benchmark/README.md)
+
+## Related projects
+
+- [fortsym](https://github.com/lazy-fortran/fortsym): symbolic algebra used at
+  build time to generate kernels under `src/generated`.
+- [fortgen](https://github.com/lazy-fortran/fortgen): code-generation runtime
+  (build dependency).
+- [libneo](https://github.com/itpplasma/libneo): plasma physics library whose
+  numerical routines are migrating to fortnum.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
 MIT. See [LICENSE](LICENSE).
-
-CPU precision/storage support is described in [precision APIs](docs/precision.md).
