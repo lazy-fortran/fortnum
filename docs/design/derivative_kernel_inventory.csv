@@ -183,3 +183,4 @@ src/generated/fortnum_dnestro_pos_7_7.f90,fortnum_dnestro_pos_7_7,fortsym-genera
 src/generated/fortnum_dnestro_pos_7_8.f90,fortnum_dnestro_pos_7_8,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
 src/generated/fortnum_dnestro_pos_tail_5.f90,fortnum_dnestro_pos_tail_5,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
 src/generated/fortnum_dnestro_pos_tail_7.f90,fortnum_dnestro_pos_tail_7,fortsym-generated,analytical,generated Dnestrovskii approximation and derivative row
+src/interp/fortnum_multifidelity.f90,gp_jvp;gp_vjp,hand-written algorithmic,analytical,contractions of generated covariance rows with fixed trained coefficients

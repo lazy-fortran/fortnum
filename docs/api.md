@@ -810,3 +810,16 @@ original enclosure and concurrency contracts. Existing procedure entry points
 remain adapters to the class-based cores, preserving the numerical algorithms
 and evaluation order. Module procedures implementing these bindings need no
 compiler trampolines or global callback state.
+
+## Multi-fidelity prediction
+
+`fortnum_multifidelity` provides `autoregressive_gp_t` with `fit`, `predict`,
+`jvp` and `vjp` methods. It fits paired low/high responses at shared sites,
+then differentiates the conditional mean with fixed training data and
+hyperparameters. See [the multi-fidelity guide](multifidelity.md) for shapes,
+uncertainty semantics and limits.
+
+`fortnum_gaussian_constraints` provides `brownian_factor` for a shared initial
+normal offset with Brownian increments, and `constrain_discrepancy` for a
+covariance-weighted orthogonal projection away from supplied protected
+sensitivity columns. See [the multi-fidelity guide](multifidelity.md).

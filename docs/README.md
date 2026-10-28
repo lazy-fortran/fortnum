@@ -11,6 +11,7 @@ measured evidence.
 | [README](../README.md) | Build, package scope, derivative model, and entry points |
 | [Coulomb functions](coulomb.md) | Bounded real S-wave F/G, normalization and oracle |
 | [Eigenproblems](eigen.md) | Matrix-free Krylov-Schur, Lanczos, spectral maps and conditional bounds |
+| [Multi-fidelity prediction](multifidelity.md) | Fixed-hyperparameter autoregressive Gaussian processes and derivative products |
 | [API guide](api.md) | Public module families and common call patterns |
 | [libneo migration](migration_libneo.md) | Primal API mapping |
 | [libneo derivative migration](migration_libneo_ad.md) | Derivative-product mapping |
