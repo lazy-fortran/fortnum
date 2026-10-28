@@ -654,3 +654,11 @@ add_executable(test_fortnum_special_dnestrovskii special/test_fortnum_special_dn
 target_link_libraries(test_fortnum_special_dnestrovskii PRIVATE fortnum)
 add_test(NAME fortnum_special_dnestrovskii COMMAND test_fortnum_special_dnestrovskii
     ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/dnestrovskii.dat)
+
+add_executable(test_multifidelity interp/test_multifidelity.f90)
+target_link_libraries(test_multifidelity PRIVATE fortnum)
+add_test(NAME multifidelity COMMAND test_multifidelity)
+
+add_executable(test_gaussian_constraints interp/test_gaussian_constraints.f90)
+target_link_libraries(test_gaussian_constraints PRIVATE fortnum)
+add_test(NAME gaussian_constraints COMMAND test_gaussian_constraints)

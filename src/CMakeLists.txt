@@ -21,6 +21,11 @@ target_link_libraries(fortnum PUBLIC fortgen_runtime)
 target_sources(fortnum PRIVATE
     ${FORTNUM_BUILD_SELECTION_SOURCE}
     # module sources (alphabetical, one per line; append here)
+    generated/fortnum_mf_distance.f90
+    generated/fortnum_mf_covariance.f90
+    generated/fortnum_mf_autoregressive.f90
+    interp/fortnum_multifidelity.f90
+    interp/fortnum_gaussian_constraints.f90
     generated/fortnum_coulomb_series_kernel.f90
     special/fortnum_special_coulomb.f90
     ad/fortnum_active_vector.f90
