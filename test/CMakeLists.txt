@@ -552,6 +552,9 @@ add_test(NAME module_visibility_audit
         --src ${CMAKE_SOURCE_DIR}/src
         --api ${CMAKE_SOURCE_DIR}/docs/api.md)
 
+add_test(NAME nightly_triage_guards
+    COMMAND python3 ${CMAKE_SOURCE_DIR}/scripts/test_nightly_triage.py)
+
 add_test(NAME enzyme_fixture_duplication_guard
     COMMAND ${CMAKE_SOURCE_DIR}/test/ad/check_enzyme_fixture_guard.sh
         ${CMAKE_SOURCE_DIR})
