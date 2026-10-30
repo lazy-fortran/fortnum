@@ -858,3 +858,48 @@ With zero iterations an initially stationary point can still converge.
 No valid callback value is available on an initial failure, so value and gradient
 norm retain their `huge` sentinels. The routine does not impose bounds and does
 not establish global optimality or posterior uncertainty.
+
+## Gram and positive semidefinite factors
+
+`fortnum_gram_factor` exports `gram_factor_workspace_t`:
+
+```fortran
+type(gram_factor_workspace_t) :: workspace
+call workspace%factor(w, b, status)
+```
+
+The caller supplies a finite matrix `w(n,m)` and preallocates `b(n,n)`, where
+`n>=1` and `m>=0`. The result is lower triangular and satisfies
+`matmul(b,transpose(b)) = matmul(w,transpose(w))` to floating-point accuracy.
+Rank-deficient inputs are supported; `m=0` produces a zero factor.
+QR factorization of `transpose(w)` avoids forming the Gram matrix or adding
+diagonal jitter. The workspace retains its matrix, Householder coefficients
+and LAPACK work array while the shape is unchanged. Use a separate workspace
+for each concurrent stream. A nonfinite resulting factor is a convergence error.
+
+`fortnum_psd_factor` exports:
+
+```fortran
+call psd_factor(a, b, status, rank, backward_error)
+```
+
+The caller supplies a finite, nonempty square matrix `a` and preallocates a
+matching `b`. LAPACK Cholesky factorization with complete pivoting and zero
+pivot tolerance retains positive pivots across different scales. The optional
+`rank` counts accepted positive pivots; rounding a rank-deficient matrix can
+leave additional small positive pivots. Restoring the original row order means
+that the returned factor need not be triangular.
+
+Symmetry and reconstruction must satisfy the relative maximum-entry bound
+`128*n*epsilon(1.0_dp)`. The optional `backward_error` is
+`maxval(abs(matmul(b,transpose(b))-a))/maxval(abs(a))`; its calculation scales
+the factors to avoid squaring extreme magnitudes. A zero matrix returns zero
+rank and error. Rank-deficient LAPACK termination succeeds only if the
+reconstruction check passes. Thus success establishes a positive semidefinite
+approximation within that bound, rather than exact positive semidefiniteness
+of the input. The routine introduces neither jitter nor eigenvalue clipping.
+
+Invalid data or failed reconstruction returns `FORTNUM_DOMAIN_ERROR`; a LAPACK
+error returns `FORTNUM_CONVERGENCE_ERROR`. Failure leaves `b` and `rank` zero.
+The backward error remains `huge` unless reconstruction was measured, in which
+case that measurement is returned.
