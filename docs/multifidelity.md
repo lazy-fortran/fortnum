@@ -44,3 +44,74 @@ decomposition handles dependent columns. This protects a fixed tangent space;
 it does not imply global identifiability of a nonlinear model. The CTest
 `gaussian_constraints` checks Brownian covariances, rejection of unsorted times,
 and nontrivial orthogonality with correlated noise and a rank-deficient span.
+
+## Two uncertain fidelities
+
+`fortnum_ar1::ar1_gp_t` conditions two noisy, zero-mean Gaussian processes
+with `f_high = rho f_low + delta`, with independent low and discrepancy
+priors. This is a separate interface from the deterministic cheap-code
+correction above. The model follows Kennedy and O'Hagan (2000),
+[doi:10.1093/biomet/87.1.1](https://doi.org/10.1093/biomet/87.1.1), and the
+recursive formulation of Le Gratiet and Garnier (2014),
+[doi:10.1615/Int.J.UncertaintyQuantification.2014006914](https://doi.org/10.1615/Int.J.UncertaintyQuantification.2014006914).
+
+For low observations at `Xl` and high observations at `Xh`, supply low-prior
+blocks `low = Kl(Xl,Xl)`, `cross = Kl(Xl,Xh)`, `high = Kl(Xh,Xh)`, the
+high-level discrepancy covariance `delta`, and separate full noise
+covariances `noise_low`, `noise_high`. Both levels must be nonempty.
+The observation covariance is
+
+```
+A = low + noise_low
+B = rho * cross
+D = rho**2 * high + delta + noise_high
+K = [A, B; transpose(B), D]
+```
+
+`condition(low, cross, high, delta, noise_low, noise_high, rho, y_low,
+y_high, status)` factors `A` and the conditional covariance
+`S = D - transpose(B) A^-1 B`. Observation locations need not be nested;
+low-level uncertainty remains in `S`. Noiseless nested designs give the
+independent-level recursion in the paper. Failed conditioning invalidates the
+previous posterior. No jitter or nugget is inserted silently. The supplied
+prior and noise blocks must define valid covariance matrices; the two
+conditional factorizations must be positive definite.
+
+`predict(prior, cross_low, cross_high, mean, covariance, status)` works for
+any target, including low/high values or discrepancy. The shapes are
+`prior(np,np)`, `cross_low(nl,np)`, `cross_high(nh,np)`, `mean(np)`, and
+`covariance(np,np)`. Cross covariances include the AR(1) factors. For a high
+target at `x`, they are `rho Kl(Xl,x)` and
+`rho**2 Kl(Xh,x) + Kdelta(Xh,x)`. The target prior excludes observation noise.
+The full target covariance retains the remaining low-level uncertainty.
+
+`log_likelihood(value,status)` returns the normalized log density.
+`gradient(derivatives,gradient,status,score)` takes symmetric
+`derivatives(nl+nh,nl+nh,nparam)` of `K` in observation order, and returns
+`(alpha^T dK alpha - trace(K^-1 dK))/2`. The optional `score` is `alpha`,
+the derivative with respect to the observation means. Subtract means before
+conditioning; when means depend on a parameter, add its contraction with
+`score` to the covariance derivative. The caller owns proper hyperpriors and
+posterior inference. These routines never perform a plug-in fit.
+
+`rbf_covariance(x,y,amplitude,length,k,derivatives,status)` uses the generated
+squared-exponential leaves; amplitudes are standard deviations, and the last
+derivative dimension of size two is ordered log amplitude, log length.
+`covariance_factor(k,dk,l,dl,status)` differentiates the Cholesky recurrence
+for any supplied covariance and symmetric derivative blocks. Both support
+non-centered hierarchical GP priors. Constrained discrepancies can use
+`Q = constraint_nullspace(protected)` and covariance `Q^T Kdelta Q` in its
+non-redundant coordinates, so the physical discrepancy is `Q L z`.
+The constraints are a fixed modelling choice, not inferred identifiability.
+
+The `multifidelity` CTest compares unequal, nonnested noisy designs with an
+independent dense Gaussian-conditioning calculation, including the full target
+covariance and normalized density. Finite differences check rho and log kernel
+parameter likelihood gradients and Cholesky sensitivities. Scalar limits cover
+independent fidelities, covariance failure and posterior invalidation.
+
+The covariance score is an analytical implicit product of the factored
+Gaussian solves. Cholesky sensitivities use a differentiated recurrence;
+the RBF pointwise derivatives reuse the existing FortSym-generated leaves.
+Factorization, Schur-complement assembly and solves remain handwritten.
+No alternative derivative backend or benchmark-selected dispatch is added.

@@ -823,3 +823,23 @@ uncertainty semantics and limits.
 normal offset with Brownian increments, and `constrain_discrepancy` for a
 covariance-weighted orthogonal projection away from supplied protected
 sensitivity columns. See [the multi-fidelity guide](multifidelity.md).
+
+### Noisy AR(1) co-kriging
+
+`fortnum_ar1` provides `ar1_gp_t` for two uncertain Gaussian processes with
+`high = rho * low + delta`. `ar1_covariance` assembles the observation
+covariance and its rho derivative from low-level kernel blocks, discrepancy
+covariance and separate observation-noise covariances. `condition` uses the
+low-level Cholesky factor followed by the high-level Schur complement.
+`predict` takes a target prior covariance and its cross covariances with both
+observation levels; it returns the conditional mean and full covariance.
+`log_likelihood` includes the determinant and Gaussian normalization.
+`gradient` takes derivatives of the full observation covariance, returns exact
+log marginal likelihood derivatives and optionally the mean score. It does
+not optimize hyperparameters. `rbf_covariance` returns a squared-exponential
+kernel and log-amplitude/log-length derivatives; `covariance_factor` returns
+a Cholesky factor and its derivatives. See [multi-fidelity](multifidelity.md).
+
+`fortnum_gaussian_constraints::constraint_nullspace` returns an orthonormal
+basis of the complement of fixed protected columns, including dependent
+columns. It can be used to construct a constrained discrepancy GP.
