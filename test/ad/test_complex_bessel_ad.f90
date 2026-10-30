@@ -12,7 +12,7 @@ program test_complex_bessel_ad
     ! .false.: the unscaled functions are analytic in z (the KODE=1 case the
     ! KiLCA derivatives dIm/dKm use).
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
-    use fortnum_ad_test_utils, only: check_jvp_vs_fd, dot_product_identity
+    use fortnum_ad_test_utils, only: fd_jvp, rel_err, dot_product_identity
     use fortnum_status, only: fortnum_status_t
     use fortnum_special_complex_bessel, only: bessel_j_complex, &
         bessel_i_complex, bessel_k_complex, &
@@ -52,8 +52,7 @@ contains
         integer,      intent(inout) :: nfail
         complex(dp) :: pts(4)
         integer     :: orders(3), i, j
-        real(dp)    :: x(1), v(1)
-        logical     :: ok
+        real(dp)    :: x(1), v(1), jv_ad(2), jv_fd(2), worst
 
         ! Moderate complex z with Re z > 0 (K needs it); covers KiLCA's domain.
         pts = [ (1.0_dp, 1.0_dp), (2.5_dp, -0.8_dp), &
@@ -67,8 +66,16 @@ contains
             do i = 1, size(pts)
                 z0  = pts(i)
                 dir = (0.7_dp, -0.4_dp)
-                ok = check_jvp_vs_fd(label//"_jvp", f_primal, f_jvp, x, v, tol_fd)
-                if (.not. ok) nfail = nfail + 1
+                ! The square-Jacobian helper cannot size these two outputs.
+                call f_jvp(x, v, jv_ad)
+                call fd_jvp(f_primal, x, v, jv_fd)
+                worst = max(rel_err(jv_ad(1), jv_fd(1)), &
+                    rel_err(jv_ad(2), jv_fd(2)))
+                if (.not. worst <= tol_fd) then
+                    nfail = nfail + 1
+                    write (error_unit, '(a,a,a,es12.4)') &
+                        "FAIL [", label, "_jvp] worst rel_err=", worst
+                end if
             end do
         end do
     end subroutine sweep
