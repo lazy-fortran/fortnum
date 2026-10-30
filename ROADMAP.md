@@ -636,3 +636,6 @@ the exact neighbours from `nearest`.
 - [x] A posteriori cubic-Hermite residual certificate for stored ODE
   candidates, `fortnum_ode_residual_certificate`.
 - [ ] Stieltjes/Pick bounds once the kinetic-compression algorithm settles.
+
+- [x] Callback-based unconstrained BFGS minimization with finite backtracking,
+  explicit nonconvergence, and independent quadratic/nonlinear fixtures.

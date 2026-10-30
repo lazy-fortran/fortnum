@@ -665,3 +665,7 @@ add_test(NAME multifidelity COMMAND test_multifidelity)
 add_executable(test_gaussian_constraints interp/test_gaussian_constraints.f90)
 target_link_libraries(test_gaussian_constraints PRIVATE fortnum)
 add_test(NAME gaussian_constraints COMMAND test_gaussian_constraints)
+
+add_executable(test_minimize test_minimize.f90)
+target_link_libraries(test_minimize PRIVATE fortnum)
+add_test(NAME fortnum_minimize COMMAND test_minimize)

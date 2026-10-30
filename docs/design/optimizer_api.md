@@ -95,3 +95,22 @@ differences and a vector residual with the adjoint identity
 \[
 u^T(Jv)=v^T(J^Tu).
 \]
+
+## Local unconstrained minimizer
+
+`fortnum_minimize::bfgs_minimize` consumes the existing `grad_fn` callback and
+keeps all numerical state local to the call. Its dense inverse BFGS metric is
+intended for small and moderate active vectors. Armijo backtracking has a finite
+trial budget. Failed or nonfinite callbacks terminate with a domain error;
+exhausted budgets and stagnation are convergence errors. Only the absolute
+Euclidean gradient criterion means success. Curvature updates below a relative
+roundoff threshold are skipped, and a non-descent direction resets the metric.
+
+`test/test_minimize.f90` compares the solution against an exact positive definite
+quadratic, the known Rosenbrock minimizer, and synthetic exponential observation
+residuals with a quadratic prior. A central finite difference independently
+checks the residual gradient. It also exercises nonfinite callbacks, finite
+line-search exhaustion, iteration exhaustion, and stagnation. These checks
+establish local convergence on these fixtures, not global convergence or any
+Bayesian posterior claim. See the API guide for option defaults and failure
+semantics.

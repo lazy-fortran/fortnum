@@ -824,3 +824,37 @@ uncertainty semantics and limits.
 normal offset with Brownian increments, and `constrain_discrepancy` for a
 covariance-weighted orthogonal projection away from supplied protected
 sensitivity columns. See [the multi-fidelity guide](multifidelity.md).
+
+## Unconstrained minimization
+
+`fortnum_minimize` exports `bfgs_options_t`, `bfgs_result_t`, and:
+
+```fortran
+call bfgs_minimize(objective, x, context, result, options)
+```
+
+`x(:)` is updated to the last accepted iterate. `options` is optional.
+`objective` matches the public `fortnum_ad_interfaces::grad_fn` callback:
+`objective(n,x,f,g,context,status)`, with scalar value `f`, gradient `g(n)`,
+caller-owned `class(*)` context, and `fortnum_ad_status_t` status. Supply a
+consistent value and gradient; nonsmooth or failed derivative status is rejected.
+
+The dense BFGS inverse metric starts at identity and uses Armijo backtracking.
+Storage is quadratic in the number of variables. Defaults are 500 iterations,
+50 trials per line search, absolute Euclidean gradient tolerance `1e-8`,
+relative step tolerance `1e-14`, Armijo coefficient `1e-4`, and contraction `0.5`.
+These are the fields `max_iterations`, `max_line_search`, `gradient_tolerance`,
+`step_tolerance`, `armijo`, and `contraction`. Scale variables and the objective
+so that the absolute gradient tolerance has the intended meaning.
+
+`result` reports `status`, `converged`, accepted `iterations`, `function_calls`
+(counting joint value/gradient calls), last accepted `value`, and `gradient_norm`.
+Only reaching the gradient tolerance sets `converged` and `FORTNUM_OK`.
+Invalid input, nonfinite callback values, or failed callbacks return
+`FORTNUM_DOMAIN_ERROR`. Exhausted iterations, exhausted line search, a nonfinite
+search direction, or step stagnation return `FORTNUM_CONVERGENCE_ERROR`; the
+message identifies the cause. Callback failure ends the solve immediately.
+With zero iterations an initially stationary point can still converge.
+No valid callback value is available on an initial failure, so value and gradient
+norm retain their `huge` sentinels. The routine does not impose bounds and does
+not establish global optimality or posterior uncertainty.

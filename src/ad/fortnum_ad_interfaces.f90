@@ -71,6 +71,7 @@ module fortnum_ad_interfaces
         integer :: quality = FORTNUM_AD_QUALITY_UNKNOWN
     end type fortnum_ad_status_t
 
+    public :: grad_fn
     public :: ad_status_set
     public :: ad_status_ok
     public :: ad_status_merge
