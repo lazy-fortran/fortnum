@@ -121,6 +121,12 @@ over the accepted primal step schedule. The caller supplies `ode_var_rhs_t`,
 which returns the contracted right-hand side for the requested direction.
 `s0` carries the initial-state tangent.
 
+`ode_integrate_jvp_multi` carries several directions through one replay. The
+columns of `s0` are the seeds, and its `ode_var_rhs_multi_t` callback returns
+all contracted right-hand sides of a stage in one call, so a caller can build
+\(f_y\) and \(f_p\) once per stage instead of once per direction. Column \(k\)
+of the result equals `ode_integrate_jvp` for direction \(k\).
+
 The schedule, tolerances, status, and event choices are inactive. The primal
 stage states and signed step sizes are replayed.
 
