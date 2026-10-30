@@ -639,3 +639,6 @@ the exact neighbours from `nearest`.
 
 - [x] Callback-based unconstrained BFGS minimization with finite backtracking,
   explicit nonconvergence, and independent quadratic/nonlinear fixtures.
+
+- [x] Reusable rectangular Gram factors and pivoted semidefinite initialization,
+  with scaled independent oracles and explicit reconstruction validation.

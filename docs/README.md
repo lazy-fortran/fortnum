@@ -24,6 +24,7 @@ measured evidence.
 | --- | --- |
 | [Architecture](design.md) | Module boundaries and repository invariants |
 | [Derivative contract](design/ad.md) | Terminology, products, candidate selection, and generated-source ownership |
+| [Gram factors](design/gram_factors.md) | Rectangular roots and semidefinite reconstruction checks |
 | [Optimizer API](design/optimizer_api.md) | Flat active vectors and backend-independent callbacks |
 | [Array temporaries](design/array_temporaries.md) | Compiler-warning baseline and drift check |
 | [Downstream active kernels](design/downstream_ad.md) | Packing and composing downstream differentiable kernels |

@@ -213,3 +213,8 @@ See [docs/design/differentiation_benchmarks.md](../docs/design/differentiation_b
 for the evidence catalog and
 [docs/design/differentiation_report.md](../docs/design/differentiation_report.md)
 for aggregate statistics.
+
+`bench_gram_factor` compares cached and fresh QR workspace costs for a synthetic
+seven-row, sixteen-column matrix. Run with `OPENBLAS_NUM_THREADS=1` inside an
+outer parallel workload; each stream owns its workspace. Five raw CPU-time
+samples are printed by `fo exec bench_gram_factor`.

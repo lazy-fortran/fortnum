@@ -669,3 +669,11 @@ add_test(NAME gaussian_constraints COMMAND test_gaussian_constraints)
 add_executable(test_minimize test_minimize.f90)
 target_link_libraries(test_minimize PRIVATE fortnum)
 add_test(NAME fortnum_minimize COMMAND test_minimize)
+
+add_executable(test_gram_factor linalg/test_gram_factor.f90)
+target_link_libraries(test_gram_factor PRIVATE fortnum)
+add_test(NAME fortnum_gram_factor COMMAND test_gram_factor)
+fortnum_require_real128(test_gram_factor:fortnum_gram_factor)
+
+add_executable(bench_gram_factor "${PROJECT_SOURCE_DIR}/benchmark/bench_gram_factor.f90")
+target_link_libraries(bench_gram_factor PRIVATE fortnum)

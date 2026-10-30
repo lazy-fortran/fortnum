@@ -195,6 +195,8 @@ target_sources(fortnum PRIVATE
     interp/fortnum_polynomial.f90
     linalg/fortnum_bvls.f90
     linalg/fortnum_cholesky.f90
+    linalg/fortnum_gram_factor.f90
+    linalg/fortnum_psd_factor.f90
     linalg/fortnum_gsvd.f90
     linalg/fortnum_krylov.f90
     linalg/fortnum_parallel_vector.f90
