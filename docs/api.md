@@ -424,6 +424,7 @@ Method modules expose:
 First-order products in `fortnum_ode`:
 
 - `ode_integrate_jvp`
+- `ode_integrate_jvp_multi`
 - `ode_integrate_vjp`
 - `ode_integrate_parameter_vjp`
 - `ode_integrate_vjp_checkpointed`

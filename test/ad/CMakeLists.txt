@@ -148,6 +148,10 @@ target_link_libraries(test_ode_discrete_sensitivity PRIVATE fortnum)
 add_test(NAME ad_ode_discrete_sensitivity
     COMMAND test_ode_discrete_sensitivity)
 
+add_executable(test_ode_multi_tangent test_ode_multi_tangent.f90)
+target_link_libraries(test_ode_multi_tangent PRIVATE fortnum)
+add_test(NAME ad_ode_multi_tangent COMMAND test_ode_multi_tangent)
+
 add_executable(test_ode_long_nonstiff test_ode_long_nonstiff.f90)
 target_link_libraries(test_ode_long_nonstiff PRIVATE fortnum)
 add_test(NAME ad_ode_long_nonstiff COMMAND test_ode_long_nonstiff)
