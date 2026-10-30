@@ -230,7 +230,7 @@ contains
             action = MULTIROOT_FAILED
             return
         end if
-        state%dx(1:n) = rhs
+        state%dx(1:n) = rhs(1:n)
         state%g0 = 0.5_dp*dot_n(f, f, n)
         state%lambda = 1.0_dp
         state%ls_count = 0
