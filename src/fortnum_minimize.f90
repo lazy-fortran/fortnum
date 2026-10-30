@@ -104,14 +104,17 @@ contains
                 call objective(n, xt, ft, gt, context, callback_status)
                 result%function_calls = result%function_calls + 1
                 if (.not. ad_status_ok(callback_status)) then
+                    if (callback_status%status%code == FORTNUM_DOMAIN_ERROR) then
+                        alpha = alpha*opt%contraction
+                        cycle
+                    end if
                     call status_set(result%status, FORTNUM_DOMAIN_ERROR, &
                         'Objective callback failed during line search')
                     return
                 end if
                 if (.not. ieee_is_finite(ft) .or. .not. all(ieee_is_finite(gt))) then
-                    call status_set(result%status, FORTNUM_DOMAIN_ERROR, &
-                        'Nonfinite objective or gradient during line search')
-                    return
+                    alpha = alpha*opt%contraction
+                    cycle
                 end if
                 if (ft <= f + opt%armijo*alpha*slope) then
                     accepted = .true.

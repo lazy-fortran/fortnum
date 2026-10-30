@@ -850,10 +850,14 @@ so that the absolute gradient tolerance has the intended meaning.
 `result` reports `status`, `converged`, accepted `iterations`, `function_calls`
 (counting joint value/gradient calls), last accepted `value`, and `gradient_norm`.
 Only reaching the gradient tolerance sets `converged` and `FORTNUM_OK`.
-Invalid input, nonfinite callback values, or failed callbacks return
-`FORTNUM_DOMAIN_ERROR`. Exhausted iterations, exhausted line search, a nonfinite
-search direction, or step stagnation return `FORTNUM_CONVERGENCE_ERROR`; the
-message identifies the cause. Callback failure ends the solve immediately.
+Invalid input or an invalid initial callback returns `FORTNUM_DOMAIN_ERROR`.
+During line search, a callback reporting `FORTNUM_DOMAIN_ERROR` or returning
+nonfinite values is a rejected trial: the step contracts within the same finite
+trial budget. Other callback failures and nonsmooth derivative status terminate
+immediately with `FORTNUM_DOMAIN_ERROR`. Exhausted iterations, exhausted line
+search, a nonfinite search direction, or step stagnation return
+`FORTNUM_CONVERGENCE_ERROR`; the message identifies the cause. A rejected trial
+does not replace the last accepted point, value or gradient norm.
 With zero iterations an initially stationary point can still converge.
 No valid callback value is available on an initial failure, so value and gradient
 norm retain their `huge` sentinels. The routine does not impose bounds and does

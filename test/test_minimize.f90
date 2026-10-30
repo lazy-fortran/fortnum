@@ -1,7 +1,8 @@
 module minimize_fixture
     use fortnum_kinds, only: dp
     use fortnum_ad_interfaces
-    use fortnum_status, only: FORTNUM_OK, FORTNUM_DOMAIN_ERROR
+    use fortnum_status, only: FORTNUM_OK, FORTNUM_DOMAIN_ERROR, &
+        FORTNUM_NOT_IMPLEMENTED
     use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan
     implicit none
 contains
@@ -17,9 +18,25 @@ contains
         select type (context)
             type is (integer)
             select case (context)
-            case (1)
+            case (1, 8:13)
                 g = [4*x(1) + x(2) - 3, x(1) + 3*x(2) + 2]
                 f = 2*x(1)**2 + x(1)*x(2) + 1.5_dp*x(2)**2 - 3*x(1) + 2*x(2)
+                if (context == 12) then
+                    if (abs(x(1) - 4.0_dp) > 0) status%status%code = FORTNUM_DOMAIN_ERROR
+                else if (x(1) <= 0) then
+                    select case (context)
+                    case (8)
+                        status%status%code = FORTNUM_DOMAIN_ERROR
+                    case (9)
+                        f = ieee_value(1.0_dp, ieee_quiet_nan)
+                    case (10)
+                        g = ieee_value(1.0_dp, ieee_quiet_nan)
+                    case (11)
+                        status%status%code = FORTNUM_NOT_IMPLEMENTED
+                    case (13)
+                        status%quality = FORTNUM_AD_QUALITY_NONSMOOTH
+                    end select
+                end if
             case (2)
                 f = (1 - x(1))**2 + 100*(x(2) - x(1)**2)**2
                 g = [-2*(1 - x(1)) - 400*x(1)*(x(2) - x(1)**2), &
@@ -70,6 +87,49 @@ program test_minimize
     call require(maxval(abs(x - [1.0_dp, -1.0_dp])) < 1e-7_dp, &
         'exact quadratic minimizer')
     call require(result%function_calls > result%iterations, 'evaluation accounting')
+    do i = 8, 10
+        context = i
+        x = [4.0_dp, -3.0_dp]
+        call bfgs_minimize(objective, x, context, result)
+        call require(result%converged, 'recoverable trial convergence')
+        call require(maxval(abs(x - [1.0_dp, -1.0_dp])) < 1e-7_dp, &
+            'recoverable trial exact minimizer')
+        call require(result%function_calls > result%iterations + 2, &
+            'rejected trial evaluation accounting')
+    end do
+    context = 8
+    x = [-1.0_dp, -3.0_dp]
+    call bfgs_minimize(objective, x, context, result)
+    call require(result%status%code == FORTNUM_DOMAIN_ERROR, &
+        'invalid initial point still fails')
+    call require(result%function_calls == 1, 'invalid initial point evaluated once')
+    call require(maxval(abs(x - [-1.0_dp, -3.0_dp])) <= 0, 'invalid initial point unchanged')
+    context = 11
+    x = [4.0_dp, -3.0_dp]
+    call bfgs_minimize(objective, x, context, result)
+    call require(result%status%code == FORTNUM_DOMAIN_ERROR, &
+        'non-domain callback failure still terminates')
+    call require(result%function_calls == 2, 'non-domain trial is not retried')
+    call require(maxval(abs(x - [4.0_dp, -3.0_dp])) <= 0, 'non-domain failure preserves point')
+    context = 13
+    call bfgs_minimize(objective, x, context, result)
+    call require(result%status%code == FORTNUM_DOMAIN_ERROR, &
+        'nonsmooth trial still terminates')
+    call require(result%function_calls == 2, 'nonsmooth trial is not retried')
+    context = 12
+    x = [4.0_dp, -3.0_dp]
+    options%max_line_search = 4
+    call bfgs_minimize(objective, x, context, result, options)
+    call require(result%status%code == FORTNUM_CONVERGENCE_ERROR, &
+        'domain trials exhaust finite line-search budget')
+    call require(.not. result%converged, 'exhausted domain trials are not success')
+    call require(result%function_calls == 5, 'domain trial budget accounting')
+    call require(result%iterations == 0, 'domain trials never accepted')
+    call require(maxval(abs(x - [4.0_dp, -3.0_dp])) <= 0, 'domain exhaustion preserves point')
+    call require(abs(result%value - 15.5_dp) <= 0, 'domain exhaustion preserves value')
+    call require(abs(result%gradient_norm - sqrt(109.0_dp)) < 1e-13_dp, &
+        'domain exhaustion preserves gradient norm')
+    options = bfgs_options_t()
     context = 2
     x = [-1.2_dp, 1.0_dp]
     call bfgs_minimize(objective, x, context, result)
