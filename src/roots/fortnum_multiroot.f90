@@ -870,8 +870,9 @@ contains
 
         root = start
         do
+            ! Check for a leaf before doubling a possibly large index.
+            if (root > heap_n / 2) exit
             child = 2 * root
-            if (child > heap_n) exit
             if (child + 1 <= heap_n) then
                 if (x(perm(child + 1)) > x(perm(child))) child = child + 1
             end if
