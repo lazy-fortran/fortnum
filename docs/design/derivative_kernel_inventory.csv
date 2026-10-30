@@ -55,7 +55,7 @@ src/interp/fortnum_polynomial.f90,lagrange_weights_jvp;lagrange_weights_vjp;lagr
 src/linalg/fortnum_linalg.f90,det2_jvp;det2_vjp;det3_jvp;det3_vjp;inv2_jvp;inv2_vjp;inv3_jvp;inv3_vjp,fortsym-generated,analytical,thin shape and singularity adapters around generated products
 src/linalg/fortnum_linalg.f90,linear_solve_jvp;linear_solve_jvp_factored;linear_solve_jvp_factored_many;linear_solve_vjp;linear_solve_vjp_factored;linear_solve_vjp_factored_many;linear_solve_complex_jvp;linear_solve_complex_vjp,implicit solve,analytical,tangent and adjoint equations reuse primal factors for real and complex systems
 src/ode/fortnum_ode.f90,ode_implicit_stage_jvp;ode_implicit_stage_vjp,implicit solve,analytical,stage state is defined by an implicit residual
-src/ode/fortnum_ode.f90,ode_integrate_jvp;ode_integrate_vjp;ode_integrate_parameter_vjp;ode_integrate_vjp_checkpointed;ode_integrate_vjp_recomputed,frozen trace,analytical,accepted primal step schedule is held fixed
+src/ode/fortnum_ode.f90,ode_integrate_jvp;ode_integrate_jvp_multi;ode_integrate_vjp;ode_integrate_parameter_vjp;ode_integrate_vjp_checkpointed;ode_integrate_vjp_recomputed,frozen trace,analytical,accepted primal step schedule is held fixed
 src/ode/fortnum_ode_events.f90,ode_event_time_jvp;ode_event_state_jvp,implicit solve,analytical,event time is defined by a zero residual
 src/quadrature/fortnum_integrate.f90,integrate_fixed_jvp;integrate_moving_lower_jvp;integrate_moving_upper_jvp,hand-written algorithmic,analytical,differentiation under the integral and Leibniz boundary terms
 src/quadrature/fortnum_integrate.f90,integrate_qag_jvp;integrate_qags_jvp;integrate_qagp_jvp;integrate_qagiu_jvp;jvp_walk_trace,frozen trace,analytical,adaptive interval schedule is held fixed

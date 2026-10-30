@@ -41,6 +41,7 @@ module fortnum_ode
     public :: ode_rhs_t, ode_event_t, ode_var_rhs_t, ode_param_vjp_t
     public :: ode_integrate, ode_solve
     public :: ode_integrate_jvp, ode_integrate_vjp
+    public :: ode_var_rhs_multi_t, ode_integrate_jvp_multi
     public :: ode_integrate_parameter_vjp
     public :: ode_build_checkpoints, ode_integrate_vjp_checkpointed
     public :: ode_build_recompute_trace, ode_integrate_vjp_recomputed
@@ -118,6 +119,20 @@ module fortnum_ode
             real(dp), intent(out) :: dsdt(:)
             class(*), intent(in), optional :: ctx
         end subroutine ode_var_rhs_t
+    end interface
+
+    abstract interface
+        ! Variational RHS for several tangents at once: column k of dsdt is
+        ! J_f(t,y) s(:,k) + df/dp . vp_k. One call per stage lets the caller
+        ! build J_f and df/dp once for all directions.
+        subroutine ode_var_rhs_multi_t(t, y, s, dsdt, ctx)
+            import :: dp
+            real(dp), intent(in)  :: t
+            real(dp), intent(in)  :: y(:)
+            real(dp), intent(in)  :: s(:, :)
+            real(dp), intent(out) :: dsdt(:, :)
+            class(*), intent(in), optional :: ctx
+        end subroutine ode_var_rhs_multi_t
     end interface
 
     abstract interface
@@ -595,6 +610,50 @@ contains
         s1 = s
     end subroutine ode_integrate_jvp
 
+    ! ode_integrate_jvp for the columns of s0 in one replay of the trace.
+    ! Column k of s1 equals ode_integrate_jvp with seed s0(:,k) and the k-th
+    ! RHS direction; the primal stages are recomputed once, not per column.
+    subroutine ode_integrate_jvp_multi(problem, var_rhs, s0, solution, s1, &
+            status)
+        type(ode_problem_t),     intent(in)  :: problem
+        procedure(ode_var_rhs_multi_t)       :: var_rhs
+        real(dp),                intent(in)  :: s0(:, :)
+        type(ode_solution_t),    intent(in)  :: solution
+        real(dp), allocatable,   intent(out) :: s1(:, :)
+        type(fortnum_status_t),  intent(out) :: status
+
+        integer  :: neq, i
+        real(dp), allocatable :: y(:), s(:, :)
+
+        call status_set(status, FORTNUM_OK, "")
+        if (.not. associated(problem%rhs)) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_integrate_jvp_multi: rhs not associated")
+            return
+        end if
+        if (.not. allocated(solution%t) .or. .not. allocated(solution%y)) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_integrate_jvp_multi: empty trace (run ode_integrate first)")
+            return
+        end if
+
+        neq = size(solution%y, 1)
+        if (size(s0, 1) /= neq) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                "ode_integrate_jvp_multi: s0 row count mismatch")
+            return
+        end if
+
+        allocate(y(neq))
+        s = s0
+        do i = 1, solution%nsteps
+            y = solution%y(:, i)
+            call augmented_step_multi(problem%rhs, var_rhs, solution%t(i), y, &
+                s, solution%h(i), neq, size(s0, 2))
+        end do
+        call move_alloc(s, s1)
+    end subroutine ode_integrate_jvp_multi
+
     ! Reverse sensitivity (VJP) over the frozen trace. Discrete adjoint: the
     ! forward product is the composition of per-step linear maps S = M_n...M_1,
     ! so J^T u = M_1^T...M_n^T u, walking the recorded trace backward. Each
@@ -965,6 +1024,55 @@ contains
         call rhs(t, y, ydot)
         call var_rhs(t, y, s, sdot)
     end subroutine ck_stage
+
+    ! augmented_step with a block of tangent columns.
+    subroutine augmented_step_multi(rhs, var_rhs, t, y, s, h, neq, m)
+        procedure(ode_rhs_t)           :: rhs
+        procedure(ode_var_rhs_multi_t) :: var_rhs
+        real(dp), intent(in)     :: t
+        real(dp), intent(inout)  :: y(:)
+        real(dp), intent(inout)  :: s(:, :)
+        real(dp), intent(in)     :: h
+        integer,  intent(in)     :: neq, m
+
+        real(dp) :: yk1(neq), yk2(neq), yk3(neq), yk4(neq), yk5(neq), yk6(neq)
+        real(dp) :: sk1(neq, m), sk2(neq, m), sk3(neq, m), sk4(neq, m)
+        real(dp) :: sk5(neq, m), sk6(neq, m)
+        real(dp) :: yt(neq), st(neq, m)
+
+        call rhs(t, y, yk1)
+        call var_rhs(t, y, s, sk1)
+
+        yt = y + h * (CK_A21 * yk1)
+        st = s + h * (CK_A21 * sk1)
+        call rhs(t + CK_C2 * h, yt, yk2)
+        call var_rhs(t + CK_C2 * h, yt, st, sk2)
+
+        yt = y + h * (CK_A31 * yk1 + CK_A32 * yk2)
+        st = s + h * (CK_A31 * sk1 + CK_A32 * sk2)
+        call rhs(t + CK_C3 * h, yt, yk3)
+        call var_rhs(t + CK_C3 * h, yt, st, sk3)
+
+        yt = y + h * (CK_A41 * yk1 + CK_A42 * yk2 + CK_A43 * yk3)
+        st = s + h * (CK_A41 * sk1 + CK_A42 * sk2 + CK_A43 * sk3)
+        call rhs(t + CK_C4 * h, yt, yk4)
+        call var_rhs(t + CK_C4 * h, yt, st, sk4)
+
+        yt = y + h * (CK_A51 * yk1 + CK_A52 * yk2 + CK_A53 * yk3 + CK_A54 * yk4)
+        st = s + h * (CK_A51 * sk1 + CK_A52 * sk2 + CK_A53 * sk3 + CK_A54 * sk4)
+        call rhs(t + CK_C5 * h, yt, yk5)
+        call var_rhs(t + CK_C5 * h, yt, st, sk5)
+
+        yt = y + h * (CK_A61 * yk1 + CK_A62 * yk2 + CK_A63 * yk3 &
+            + CK_A64 * yk4 + CK_A65 * yk5)
+        st = s + h * (CK_A61 * sk1 + CK_A62 * sk2 + CK_A63 * sk3 &
+            + CK_A64 * sk4 + CK_A65 * sk5)
+        call rhs(t + CK_C6 * h, yt, yk6)
+        call var_rhs(t + CK_C6 * h, yt, st, sk6)
+
+        y = y + h * (CK_B5_1 * yk1 + CK_B5_3 * yk3 + CK_B5_4 * yk4 + CK_B5_6 * yk6)
+        s = s + h * (CK_B5_1 * sk1 + CK_B5_3 * sk3 + CK_B5_4 * sk4 + CK_B5_6 * sk6)
+    end subroutine augmented_step_multi
 
     ! Discrete-adjoint step: the transpose of augmented_step's linear s-map.
     ! The forward s-update is s' = s + h sum b_i sk_i with sk_i a linear chain

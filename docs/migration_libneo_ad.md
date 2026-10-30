@@ -60,6 +60,7 @@ Run the primal solver first to record its accepted trace.
 | Need | Interface |
 | --- | --- |
 | forward state sensitivity | `ode_integrate_jvp` |
+| forward sensitivity, several directions | `ode_integrate_jvp_multi` |
 | initial-state cotangent | `ode_integrate_vjp` |
 | initial-state and parameter cotangents | `ode_integrate_parameter_vjp` |
 | bounded reverse storage | checkpointed or recomputed VJP interface |
