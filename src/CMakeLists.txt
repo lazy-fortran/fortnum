@@ -37,6 +37,7 @@ target_sources(fortnum PRIVATE
     fft/fortnum_fft.f90
     fft/fortnum_fft8_kernel.f90
     fortnum_ad_backend.f90
+    fortnum_minimize.f90
     fortnum_kinds.f90
     fortnum_status.f90
     fortnum_version.f90
