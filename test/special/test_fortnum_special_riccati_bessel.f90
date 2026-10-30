@@ -57,11 +57,14 @@ program test_fortnum_special_riccati_bessel
                 end if
                 call hankel(l, x, .false., ref, ok)
                 if (ok) call check("yhat Hankel", l, yhat(l), ref)
-                if (l < top .and. abs(yhat(l + 1)) < 1.0e280_dp) then
-                    w = jhat(l + 1)*yhat(l) - jhat(l)*yhat(l + 1)
-                    scale = abs(jhat(l + 1)*yhat(l)) + abs(jhat(l)*yhat(l + 1))
-                    if (.not. abs(w - 1.0_dp) <= tol_wronskian*scale) &
-                        call check("Wronskian", l, w, 1.0_dp)
+                if (l < top) then
+                    if (abs(yhat(l + 1)) < 1.0e280_dp) then
+                        w = jhat(l + 1)*yhat(l) - jhat(l)*yhat(l + 1)
+                        scale = abs(jhat(l + 1)*yhat(l)) + &
+                            abs(jhat(l)*yhat(l + 1))
+                        if (.not. abs(w - 1.0_dp) <= tol_wronskian*scale) &
+                            call check("Wronskian", l, w, 1.0_dp)
+                    end if
                 end if
                 if (top == lmax .and. .not. any_ok .and. l <= 2*x + 40 .and. &
                         abs(l - x) > 3.0_dp*x**(1.0_dp/3.0_dp) + 2.0_dp .and. &
