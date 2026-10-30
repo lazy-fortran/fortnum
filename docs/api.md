@@ -907,3 +907,41 @@ Invalid data or failed reconstruction returns `FORTNUM_DOMAIN_ERROR`; a LAPACK
 error returns `FORTNUM_CONVERGENCE_ERROR`. Failure leaves `b` and `rank` zero.
 The backward error remains `huge` unless reconstruction was measured, in which
 case that measurement is returned.
+### Optional stationary-point refinement
+
+When scalar objective differences lose resolution near a candidate minimum,
+`stationary_refine(objective, x, context, result, options)` can refine its gradient
+root using the same callback. This is a separate opt-in local operation; BFGS
+never invokes it automatically. Both objective and gradient must remain consistent
+and finite. Absolute Euclidean gradient tolerance applies to the objective as
+supplied, including any normalization.
+
+`stationary_options_t` supplies `max_steps` (default 8, allowed 0–8),
+`gradient_tolerance` (default `1e-6`), `hessian_step` (`1e-4`),
+`curvature_tolerance` (`5e-4`), and `relative_radius` (`1e-3`). Real options must
+be finite and positive. Each iteration uses one existing `multiroot_hybrid`
+iteration on the gradient. Central differences of the analytical gradient use
+steps `hessian_step*max(1,abs(x(j)))` and half that value. Their Hessians must
+agree in relative maximum norm, be symmetric to `curvature_tolerance`, and both
+be strictly positive definite without regularization. This is a numerical local
+curvature check, not a proof of convexity.
+
+Both the predicted Newton step and the returned step must fit within
+`relative_radius*(1+norm2(x))`. A trial replaces `x` only if its Euclidean gradient
+norm strictly decreases and its curvature passes the same checks. A root solver
+iteration-limit status can therefore supply a useful accepted step; success still
+requires the caller's explicit gradient tolerance and positive curvature. Zero or
+unresolvable steps alone never establish convergence.
+
+`stationary_result_t` reports `status`, `converged`, `accepted_steps`,
+`function_calls` (all joint callback evaluations, including failed probes),
+`initial_gradient_norm`, last accepted `gradient_norm` and `value`,
+`last_root_status`, `last_step_norm`, `curvature_valid`, `hessian_difference`,
+and `minimum_eigenvalue`. Curvature diagnostics describe the most recent check;
+the point, value and gradient describe the last accepted iterate. Rejected trials
+leave that iterate unchanged. Invalid inputs and nonfinite callbacks return a
+domain error; explicit callback failures preserve their status code. Unsafe
+curvature, nonlocal steps, nondecreasing trials and exhausted step budgets return
+a convergence error. No global minimum, likelihood model or uncertainty
+calculation is implied. Dense storage is quadratic in the variable count; each
+two-resolution Hessian costs four gradient calls per variable.
