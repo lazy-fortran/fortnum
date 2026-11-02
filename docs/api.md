@@ -528,6 +528,46 @@ curvature for `A x = -g` from zero. A non-finite operator or preconditioner
 output (the way a callback reports failure) or `r^T M r < 0` is
 `KRYLOV_BREAKDOWN`.
 
+`fortnum_phi` evaluates matrix-free phi-function combinations:
+
+```fortran
+use fortnum_phi, only: phi_action, phi_options_t, phi_report_t, PHI_OK
+
+type(phi_options_t) :: controls
+type(phi_report_t) :: report
+! operator extends real_linear_operator_t; vectors has shape (n, 0:p).
+call phi_action(operator, tau, vectors, result, info, controls, report)
+```
+
+`result(n)` is `sum_k phi_k(tau*A)*vectors(:,k)`, with `phi_0(z)=exp(z)`
+and `phi_k(0)=1/k!`. The first input column always corresponds to order
+zero regardless of its actual lower bound. `tau` may be negative or zero.
+The operator may be singular. `controls` and `report` are optional; no
+solver state is global. The inputs must be finite, with `n>=1` and at
+least one column. Strided input sections are supported.
+
+`phi_options_t` defaults to `rtol=1e-12`, `atol=0`,
+`min_dimension=8`, `max_dimension=64`, `max_steps=10000`, and
+`max_rejections=100`. Tolerances must be nonnegative, with at least one
+positive; dimensions must satisfy `1<=min_dimension<=max_dimension`.
+`max_steps` is a positive accepted-substep budget and `max_rejections`
+is a nonnegative rejection budget for the entire call.
+
+`phi_report_t` records `matvecs`, `max_dimension`, accepted `substeps`,
+`rejections`, the sum of local `estimated_error` values, and
+`reached_fraction` of the augmented exponential interval `[0,1]`.
+`PHI_OK` means the complete action was evaluated; `PHI_INVALID_ARGUMENT`
+means invalid shapes or controls; `PHI_NO_CONVERGENCE` means budget or
+step-resolution exhaustion; `PHI_NONFINITE` means a nonfinite operator,
+norm, exponential, or result. Every failure zeros `result`; a partial
+result must not be used by a time stepper. The operator's own state may
+be updated by `apply`.
+
+The tolerances bound local defect estimates relative to input and candidate
+norms, rather than certifying the final answer. See the
+[phi-action design](design/ode.md#matrix-free-phi-function-actions) for
+normalization, error-estimate limits and the explicit-equation restriction.
+
 `fortnum_parallel_vector` provides the OpenMP vector kernels behind the real
 CG and GMRES solvers: `parallel_vector_axpy`, `_xpay`, `_sub`, `_scale`,
 `_dot`, `_norm2`, and the basis products `_gemv_t` and `_gemv_n`. Reductions
