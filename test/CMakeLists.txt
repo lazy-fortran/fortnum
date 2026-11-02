@@ -683,3 +683,13 @@ fortnum_require_real128(test_gram_factor:fortnum_gram_factor)
 
 add_executable(bench_gram_factor "${PROJECT_SOURCE_DIR}/benchmark/bench_gram_factor.f90")
 target_link_libraries(bench_gram_factor PRIVATE fortnum)
+
+add_executable(test_fortnum_phi linalg/test_fortnum_phi.f90)
+target_link_libraries(test_fortnum_phi PRIVATE fortnum)
+add_test(NAME fortnum_phi COMMAND test_fortnum_phi)
+fortnum_require_real128(test_fortnum_phi:fortnum_phi)
+
+add_executable(test_fortnum_phi_matrix_free linalg/test_fortnum_phi_matrix_free.f90)
+target_link_libraries(test_fortnum_phi_matrix_free PRIVATE fortnum OpenMP::OpenMP_Fortran)
+add_test(NAME fortnum_phi_matrix_free COMMAND test_fortnum_phi_matrix_free)
+set_tests_properties(fortnum_phi_matrix_free PROPERTIES ENVIRONMENT "OMP_NUM_THREADS=8")

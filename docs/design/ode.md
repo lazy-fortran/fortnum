@@ -184,3 +184,83 @@ Tests compare against closed-form trajectories, matrix exponentials,
 manufactured stiff systems, finite differences of the frozen map, adjoint
 identities, event-time formulas, implicit residual equations, and refinement
 of continuous sensitivities.
+
+## Matrix-free phi-function actions
+
+`fortnum_phi` evaluates a linear combination
+
+\[
+w=\sum_{k=0}^{p}\varphi_k(\tau A)v_k,
+\qquad
+\varphi_k(z)=\sum_{j=0}^{\infty}\frac{z^j}{(j+k)!}.
+\]
+
+Here `A` is a real operator, `tau` is a signed real scalar, and `v_k` are
+real vectors of equal length. The integer `p` is the highest function order;
+`z` is a dimensionless scalar argument. This includes the exponential (`k=0`) and the
+functions needed by exponential Rosenbrock methods (`k=1,2,3`). No inverse
+of `A` is required, including when `A` is singular or `tau` is zero.
+
+The caller extends `real_linear_operator_t` and supplies its `apply` method.
+The implementation builds an Arnoldi basis for the augmented operator
+
+\[
+ B=\begin{pmatrix}
+ \tau A & v_p/\sigma & \cdots & v_1/\sigma\\
+ 0 &&K&
+ \end{pmatrix},
+ \qquad
+ x_0=\begin{pmatrix}v_0/\sigma\\e_p\end{pmatrix},
+\]
+
+where `K` is the `p` by `p` shift matrix with ones on its first
+superdiagonal, `e_p` is its last coordinate vector, and `sigma` is the
+largest absolute input entry. The physical part of `sigma*exp(B)*x_0`
+is the requested combination. Zero inputs return zero without applying `A`.
+The `p=0` case omits the auxiliary block. Input normalization avoids
+squaring extremely large or small vector entries in the Euclidean norm.
+The full augmented matrix is never assembled.
+
+Arnoldi uses the existing parallel vector kernels and two passes of
+classical Gram-Schmidt. The basis grows from `min_dimension` in increments
+of four up to `max_dimension`, or stops at an invariant subspace. A
+rejected evaluation halves the internal substep. Accepted substeps may
+grow by at most a factor of two. Both basis storage and the substep and
+rejection budgets are bounded by caller controls. The small projected
+exponential uses degree-13 diagonal Padé scaling and squaring with a
+LAPACK linear solve, following
+[Higham, SIAM J. Matrix Anal. Appl. 26, 1179–1193 (2005)](https://doi.org/10.1137/04061101X).
+
+Two additional projected coordinates integrate the Arnoldi defect once and
+twice. The larger magnitude estimates the omitted contribution and reduces
+sensitivity to cancellation of the first term. A substep is accepted when
+this estimate is at most one tenth of its allocated tolerance. For a
+substep occupying fraction `ds` of the interval, that allocation is
+`ds*(atol + rtol*scale)`, where `scale` is the larger of the maximum input
+vector norm and the candidate result norm. Reported error is the sum of
+accepted local estimates in input units. It excludes Padé and floating-point
+roundoff, and is an estimate, not a rigorous forward-error bound. Strongly
+nonnormal growth can amplify earlier local errors; cancellation in the
+requested combination can also make its relative error exceed `rtol`.
+
+This is an augmented-exponential Arnoldi implementation with adaptive
+substeps and basis dimensions. It does not implement the particular
+cost-minimizing controller of
+[Niesen and Wright, Algorithm 919, ACM TOMS 38(3), article 22 (2012)](https://doi.org/10.1145/2168773.2168781).
+That paper supplies the related polynomial-inhomogeneity formulation and
+adaptive Krylov context.
+
+The action is intended for exponential integration of `y' = f(t,y)`.
+A constant mass matrix is not part of this interface. A consumer must
+supply an operator in the explicit evolution equation's coordinates.
+Exponential Rosenbrock stepping and its embedded time-error controller
+are separate from the internal phi-action error control.
+
+Validation compares orders zero through three against the closed-form
+Dirichlet Laplacian spectrum and against a quadruple-precision Taylor
+scaling-and-squaring exponential of a full nonnormal augmented matrix.
+Both cover matrix 1-norms through `1e4` with relative error at most `1e-10`.
+Additional cases cover mixed combinations, forced substepping, oscillatory
+operators, signed and zero time, singular operators, strided inputs,
+large and small vector scales, and explicit failure statuses. These tests
+do not establish a stiffness-independent time integrator.
