@@ -510,6 +510,24 @@ Gram--Schmidt and complex Givens rotations. Structured kernel operators and
 device-resident callbacks are planned consumers of these contracts.
 `real_gmres_operator` uses classical Gram--Schmidt with one reorthogonalization.
 
+`real_minres` is preconditioned MINRES (Paige--Saunders) for a symmetric,
+possibly indefinite or singular operator object, with an optional SPD
+preconditioner object M ~ A^{-1}; `real_minres_operator` is the
+procedure-argument form and runs the same core. The solution is the initial
+guess. Convergence is `|b - A x| <= tolerance |b|` (relative to the
+right-hand side, without the `max(|b|, 1)` floor of CG and GMRES, as inexact
+Newton inner solves need); the residual is carried by the Liu--Roosta
+recurrence and `residual_norm` is the explicit residual of the returned
+solution (`KRYLOV_STAGNATION` if the recurrence met the tolerance and the
+explicit residual does not). The M-norm of the residual does not increase.
+With the optional `curvature_direction(:)` present, the first residual of
+nonpositive curvature, `(M r)^T A (M r) <= 0`, ends the solve with
+`KRYLOV_NONPOSITIVE_CURVATURE`: `solution` holds the previous iterate and
+`curvature_direction` holds `M r`, a descent direction of nonpositive
+curvature for `A x = -g` from zero. A non-finite operator or preconditioner
+output (the way a callback reports failure) or `r^T M r < 0` is
+`KRYLOV_BREAKDOWN`.
+
 `fortnum_parallel_vector` provides the OpenMP vector kernels behind the real
 CG and GMRES solvers: `parallel_vector_axpy`, `_xpay`, `_sub`, `_scale`,
 `_dot`, `_norm2`, and the basis products `_gemv_t` and `_gemv_n`. Reductions
@@ -862,6 +880,43 @@ With zero iterations an initially stationary point can still converge.
 No valid callback value is available on an initial failure, so value and gradient
 norm retain their `huge` sentinels. The routine does not impose bounds and does
 not establish global optimality or posterior uncertainty.
+
+## Newton-MR
+
+`fortnum_newton_mr` exports `newton_mr_problem_t`, `newton_mr_options_t`,
+`newton_mr_report_t` and:
+
+```fortran
+call newton_mr_solve(problem, x, options, report)
+```
+
+The problem extends `newton_mr_problem_t` (itself a `real_linear_operator_t`)
+and implements `evaluate(x, f, g, status)`; `linearize(x, status)` (default:
+nothing) prepares the Hessian action `apply` at x and the SPD preconditioner
+`precondition(r, z, status)` (default: identity). Each iteration solves
+`H d = -g` by `real_minres` to the forcing `eta = min(forcing_max,
+(|g|/|g0|)^(1/2))` (or the fixed `forcing_max`), bounded below by half the
+stopping gradient. Convergence: `|g| <= max(tolerance |g0|,
+absolute_tolerance)`.
+
+The default merit `NEWTON_MR_MERIT_OBJECTIVE` is Newton-MR of Liu and Roosta
+(2022): with `npc_exit` (default on) a nonpositive-curvature MINRES exit gives
+the direction, which is tracked forward while the Armijo rule holds; a
+solution direction backtracks from one. Inside the roundoff band of f the
+trapezoidal change `(g(x) + g(x + s)).s/2` ranks the step.
+`NEWTON_MR_MERIT_GRADIENT` is for stationary points that are not minimizers
+(saddle points of a Lagrangian): the merit is `g^T M g / 2` with the
+preconditioner of the current linearization held fixed across the line
+search, whose slope `(H d)^T M g` is negative for every MINRES iterate
+without a curvature condition; the curvature exit is not used.
+
+`report` gives the status (`NEWTON_MR_OK`, `_MAX_ITERATIONS`, `_BREAKDOWN`,
+`_LINE_SEARCH`, `_EVALUATION`, `_INVALID_ARGUMENT`), Newton and MINRES
+iteration counts, the largest MINRES count, curvature steps, backtracks,
+evaluations, the last objective and gradient norms, and wall seconds of
+linearization, MINRES and evaluation. A MINRES iterate at its cap or after
+stagnation is used as an inexact step; a failed trial evaluation is a
+rejected trial.
 
 ## Gram and positive semidefinite factors
 
