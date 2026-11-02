@@ -2,7 +2,9 @@ module fortnum_ode_bdf
     !! Matrix-free variable-step BDF2 for F(t,y,ydot) = M(t,y) ydot + R(t,y).
     !! See docs/design/ode.md for the implicit callback and error contracts.
     use fortnum_kinds, only: dp
-    use fortnum_krylov, only: real_linear_operator_t, real_fgmres, KRYLOV_OK
+    use fortnum_krylov, only: real_linear_operator_t, real_fgmres, &
+        real_fgmres_operator, KRYLOV_OK
+    use fortnum_generated_bdf2, only: bdf2_weights, bdf_predict, bdf_error
     use fortnum_status, only: fortnum_status_t, status_set, FORTNUM_OK, &
         FORTNUM_DOMAIN_ERROR, FORTNUM_CONVERGENCE_ERROR
     use, intrinsic :: ieee_arithmetic, only: ieee_is_finite, ieee_value, ieee_quiet_nan
@@ -50,12 +52,14 @@ module fortnum_ode_bdf
 
     type, public :: bdf_state_t
         real(dp) :: t = 0.0_dp, next_step = 0.0_dp, previous_step = 0.0_dp
-        real(dp), allocatable :: y(:), previous_y(:)
+        real(dp), allocatable :: y(:), previous_y(:), derivative(:)
+        logical :: derivative_valid = .false.
     end type bdf_state_t
 
     type, public :: bdf_report_t
         integer :: accepted = 0, rejected_error = 0, rejected_newton = 0
         integer :: newton_iterations = 0, krylov_iterations = 0, evaluations = 0
+        integer :: implicit_solves = 0, mass_iterations = 0
         integer :: last_failure = BDF_SOLVED, callback_status = 0
         integer :: linear_status = KRYLOV_OK
         real(dp) :: last_error = 0.0_dp
@@ -124,19 +128,29 @@ contains
         valid = .true.
     end function valid_options
 
-    subroutine bdf_init(state, t, y, options, status)
+    subroutine bdf_init(state, t, y, options, status, derivative)
         type(bdf_state_t), intent(out) :: state
         real(dp), intent(in) :: t, y(:)
         type(bdf_options_t), intent(in) :: options
         type(fortnum_status_t), intent(out) :: status
+        real(dp), intent(in), optional :: derivative(:)
 
         call status_set(status, FORTNUM_DOMAIN_ERROR, 'Invalid BDF initial data')
         if (.not. valid_options(options)) return
         if (size(y) < 1 .or. .not. ieee_is_finite(t)) return
         if (.not. all(ieee_is_finite(y))) return
+        if (present(derivative)) then
+            if (size(derivative) /= size(y)) return
+            if (.not. all(ieee_is_finite(derivative))) return
+        end if
         state%t = t
         state%y = y
         state%previous_y = y
+        allocate (state%derivative(size(y)), source=0.0_dp)
+        if (present(derivative)) then
+            state%derivative = derivative
+            state%derivative_valid = .true.
+        end if
         state%next_step = min(options%initial_step, options%max_step)
         call status_set(status, FORTNUM_OK, '')
     end subroutine bdf_init
@@ -149,8 +163,9 @@ contains
         type(bdf_report_t), intent(out) :: report
         type(fortnum_status_t), intent(out) :: status
         type(newton_workspace_t) :: work
-        real(dp), allocatable :: high(:), low(:), half(:), offset(:), weights(:)
-        real(dp) :: h, ratio, alpha, direction, factor, error
+        real(dp), allocatable :: high(:), prediction(:), estimate(:)
+        real(dp), allocatable :: offset(:), weights(:)
+        real(dp) :: h, ratio, alpha, beta, milne, direction, factor, error, power
         integer :: n, attempt, failure
 
         report = bdf_report_t()
@@ -158,10 +173,13 @@ contains
         if (.not. valid_options(options)) return
         if (.not. allocated(state%y)) return
         if (.not. allocated(state%previous_y)) return
+        if (.not. allocated(state%derivative)) return
         n = size(state%y)
         if (n < 1 .or. size(state%previous_y) /= n) return
+        if (size(state%derivative) /= n) return
         if (.not. all(ieee_is_finite(state%y))) return
         if (.not. all(ieee_is_finite(state%previous_y))) return
+        if (.not. all(ieee_is_finite(state%derivative))) return
         if (.not. ieee_is_finite(state%t)) return
         if (.not. ieee_is_finite(target)) return
         if (.not. ieee_is_finite(state%next_step)) return
@@ -171,7 +189,7 @@ contains
         if (target == state%t) return
         direction = sign(1.0_dp, target - state%t)
         if (direction*state%previous_step < 0.0_dp) state%previous_step = 0.0_dp
-        allocate (high(n), low(n), half(n), offset(n), weights(n))
+        allocate (high(n), prediction(n), estimate(n), offset(n), weights(n))
         allocate (work%derivative(n), work%r(n), work%trial(n), &
             work%trial_r(n), work%d(n), work%rhs(n))
 
@@ -184,31 +202,30 @@ contains
                     'BDF step underflow or minimum step reached')
                 return
             end if
-            offset = 0.0_dp
-            alpha = 1.0_dp/h
-            high = state%y
-            if (state%previous_step /= 0.0_dp) then
-                ratio = h/state%previous_step
-                alpha = (1.0_dp + 2.0_dp*ratio)/((1.0_dp + ratio)*h)
-                offset = -ratio**2/((1.0_dp + ratio)*h)* &
-                    (state%y - state%previous_y)
-                high = state%y + ratio*(state%y - state%previous_y)
-            end if
-            call solve_step(state%t + h, state%y, alpha, offset, high, failure)
-            if (failure == BDF_SOLVED .and. options%adaptive) then
-                offset = 0.0_dp
-                if (state%previous_step == 0.0_dp) then
-                    half = state%y
-                    call solve_step(state%t + h/2, state%y, 2/h, offset, half, failure)
-                    if (failure == BDF_SOLVED) then
-                        low = half
-                        call solve_step(state%t + h, half, 2/h, offset, low, failure)
-                    end if
-                else
-                    low = high
-                    call solve_step(state%t + h, state%y, 1/h, offset, low, failure)
+            if (.not. state%derivative_valid) then
+                call initial_derivative(problem, state, options, report, failure)
+                if (failure /= BDF_SOLVED) then
+                    report%last_failure = failure
+                    report%rejected_newton = report%rejected_newton + 1
+                    state%next_step = 0.25_dp*abs(h)
+                    cycle
                 end if
             end if
+            offset = 0.0_dp
+            alpha = 1.0_dp/h
+            ratio = 0.0_dp
+            milne = 0.5_dp
+            power = 0.5_dp
+            if (state%previous_step /= 0.0_dp) then
+                ratio = h/state%previous_step
+                call bdf2_weights(h, ratio, alpha, beta, milne)
+                offset = beta*(state%y - state%previous_y)
+                power = 1.0_dp/3.0_dp
+            end if
+            call bdf_predict(h, ratio, state%y, state%previous_y, &
+                state%derivative, prediction)
+            high = prediction
+            call solve_step(state%t + h, state%y, alpha, offset, high, failure)
             report%last_failure = failure
             if (failure /= BDF_SOLVED) then
                 report%rejected_newton = report%rejected_newton + 1
@@ -218,14 +235,15 @@ contains
             error = 0.0_dp
             if (options%adaptive) then
                 weights = options%atol + options%rtol*max(abs(state%y), abs(high))
-                error = norm2((high - low)/weights)/sqrt(real(n, dp))
-                if (state%previous_step == 0.0_dp) error = 2.0_dp*error
+                call bdf_error(high, prediction, milne, estimate)
+                error = norm2(estimate/weights)/sqrt(real(n, dp))
             end if
             report%last_error = error
             if (.not. ieee_is_finite(error)) error = huge(1.0_dp)
             factor = 2.0_dp
             if (.not. options%adaptive) factor = 1.0_dp
-            if (error > 0.0_dp) factor = max(0.2_dp, min(2.0_dp, 0.9_dp/sqrt(error)))
+            if (error > 0.0_dp) &
+                factor = max(0.2_dp, min(2.0_dp, 0.6_dp*error**(-power)))
             state%next_step = min(options%max_step, factor*abs(h))
             if (error > 1.0_dp) then
                 report%rejected_error = report%rejected_error + 1
@@ -233,6 +251,7 @@ contains
             end if
             state%previous_y = state%y
             state%y = high
+            state%derivative = work%derivative
             state%previous_step = h
             state%t = state%t + h
             report%accepted = report%accepted + 1
@@ -251,10 +270,72 @@ contains
             real(dp), intent(inout) :: x(:)
             integer, intent(out) :: failure
 
+            report%implicit_solves = report%implicit_solves + 1
             call newton_step(problem, t, base, alpha, offset, x, options, &
                 work, report, failure)
         end subroutine solve_step
     end subroutine bdf_integrate_to
+
+    subroutine initial_derivative(problem, state, options, report, failure)
+        class(bdf_problem_t), intent(inout) :: problem
+        type(bdf_state_t), intent(inout) :: state
+        type(bdf_options_t), intent(in) :: options
+        type(bdf_report_t), intent(inout) :: report
+        integer, intent(out) :: failure
+        real(dp) :: zero(size(state%y)), residual(size(state%y))
+        real(dp) :: rhs(size(state%y)), slope(size(state%y)), scale, linear_residual
+        integer :: iterations, callback_failure
+
+        failure = BDF_EVALUATION
+        zero = 0.0_dp
+        call problem%evaluate(state%t, state%y, zero, residual, &
+            report%callback_status)
+        report%evaluations = report%evaluations + 1
+        if (report%callback_status /= 0) return
+        if (.not. all(ieee_is_finite(residual))) return
+        scale = norm2(residual)
+        if (.not. ieee_is_finite(scale)) return
+        slope = 0.0_dp
+        if (scale > 0.0_dp) then
+            rhs = -residual/scale
+            callback_failure = 0
+            call real_fgmres_operator(mass_action, identity, rhs, slope, &
+                1.0e-8_dp, options%max_krylov, options%restart, &
+                report%linear_status, iterations, linear_residual)
+            report%mass_iterations = report%mass_iterations + iterations
+            report%callback_status = callback_failure
+            failure = BDF_LINEAR_FAILURE
+            if (report%linear_status /= KRYLOV_OK .or. callback_failure /= 0) return
+            slope = scale*slope
+            if (.not. all(ieee_is_finite(slope))) return
+        end if
+        state%derivative = slope
+        state%derivative_valid = .true.
+        failure = BDF_SOLVED
+
+    contains
+
+        subroutine mass_action(input, output)
+            real(dp), intent(in) :: input(:)
+            real(dp), intent(out) :: output(:)
+            integer :: info
+
+            ! F is affine in ydot, so this is M input without a Jacobian setup.
+            call problem%evaluate(state%t, state%y, input, output, info)
+            report%evaluations = report%evaluations + 1
+            if (info /= 0) callback_failure = info
+            output = output - residual
+            if (callback_failure /= 0) &
+                output = ieee_value(1.0_dp, ieee_quiet_nan)
+        end subroutine mass_action
+
+        subroutine identity(input, output)
+            real(dp), intent(in) :: input(:)
+            real(dp), intent(out) :: output(:)
+
+            output = input
+        end subroutine identity
+    end subroutine initial_derivative
 
     subroutine newton_step(problem, t, base, alpha, offset, x, options, &
             work, report, failure)

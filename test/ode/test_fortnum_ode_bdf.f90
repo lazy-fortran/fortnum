@@ -176,13 +176,114 @@ program test_fortnum_ode_bdf
     implicit none
 
     call check_order()
+    call check_step_scaling()
+    call check_estimator()
     call check_variable_steps()
     call check_error_control()
+    call check_robertson_cost()
     call check_diffusion()
     call check_failures()
     print '(a)', 'fortnum_ode_bdf: all tests passed'
 
 contains
+
+    subroutine check_estimator()
+        type(problem_t) :: problem
+        type(bdf_options_t) :: options
+        type(bdf_state_t) :: state
+        type(bdf_report_t) :: report
+        type(fortnum_status_t) :: status
+        real(dp), parameter :: ratios(*) = [0.5_dp, 1.0_dp, 2.0_dp]
+        real(dp), parameter :: t = 0.4_dp
+        real(dp) :: h, k, true_error, estimated, weight, quotient, first
+        integer :: i, refinement, direction, order
+
+        problem%mode = 2
+        problem%stiffness = 0.0_dp
+        options%rtol = 0.01_dp
+        options%atol = 1.0e-10_dp
+        options%newton_tolerance = 1.0e-10_dp
+        options%max_steps = 1
+        do order = 1, 2
+            do direction = -1, 1, 2
+                do i = 1, size(ratios)
+                    if (order == 1 .and. i > 1) cycle
+                    do refinement = 1, 4
+                        h = direction*0.02_dp/2**(refinement - 1)
+                        k = h/ratios(i)
+                        options%initial_step = abs(h)
+                        call bdf_init(state, t, [exp(-t)], options, status)
+                        if (order == 2) then
+                            call bdf_init(state, t, [exp(-t)], options, status, &
+                                derivative=[-exp(-t)])
+                            state%previous_step = k
+                            state%previous_y = [exp(-(t - k))]
+                        end if
+                        call bdf_integrate_to(problem, state, t + h, options, &
+                            report, status)
+                        call require(status%code == FORTNUM_OK, &
+                            'exact-start nonlinear single step')
+                        call require(report%accepted == 1, 'single accepted step')
+                        call require(report%implicit_solves == 1, &
+                            'error estimator requires no extra implicit solve')
+                        if (order == 1) then
+                            call require(report%mass_iterations > 0, &
+                                'startup computes the consistent derivative once')
+                        else
+                            call require(report%mass_iterations == 0, &
+                                'supplied derivative avoids the initial mass solve')
+                        end if
+                        weight = options%atol + options%rtol* &
+                            max(exp(-t), abs(state%y(1)))
+                        estimated = report%last_error*weight
+                        true_error = abs(state%y(1) - exp(-(t + h)))
+                        quotient = estimated/true_error
+                        if (refinement == 1) first = abs(quotient - 1)
+                        print '(a,i0,a,f4.1,a,es10.2,a,f10.6)', &
+                            'LTE order=', order, ' omega=', ratios(i), &
+                            ' h=', h, ' estimate/true=', quotient
+                    end do
+                    call require(abs(quotient - 1) < 0.1_dp, &
+                        'local error estimate tends to the true local error')
+                    call require(abs(quotient - 1) < first/2, &
+                        'local error estimate improves with refinement')
+                end do
+            end do
+        end do
+    end subroutine check_estimator
+
+    subroutine check_step_scaling()
+        type(problem_t) :: problem
+        type(bdf_options_t) :: options
+        type(bdf_state_t) :: state
+        type(bdf_report_t) :: report
+        type(fortnum_status_t) :: status
+        real(dp) :: exponent, tolerances(5), counts(5), x(5), z(5)
+        integer :: i
+
+        problem%mode = 2
+        problem%stiffness = 0.0_dp
+        options%initial_step = 0.01_dp
+        do i = 1, 5
+            tolerances(i) = 10.0_dp**(-i - 3)
+            options%rtol = tolerances(i)
+            options%atol = 0.01_dp*options%rtol
+            call bdf_init(state, 0.0_dp, [1.0_dp], options, status)
+            call bdf_integrate_to(problem, state, 2.0_dp, options, report, status)
+            call require(status%code == FORTNUM_OK, 'smooth nonlinear scaling solve')
+            counts(i) = real(report%accepted, dp)
+            print '(a,es10.2,a,i0)', 'smooth tolerance=', tolerances(i), &
+                ' steps=', report%accepted
+        end do
+        x = log(1/tolerances)
+        z = log(counts)
+        x = x - sum(x)/size(x)
+        z = z - sum(z)/size(z)
+        exponent = sum(x*z)/sum(x*x)
+        print '(a,f8.4)', 'step-count tolerance exponent=', exponent
+        call require(exponent > 0.25_dp .and. exponent < 0.45_dp, &
+            'BDF2 step count scales with the cube root of inverse tolerance')
+    end subroutine check_step_scaling
 
     subroutine require(condition, message)
         logical, intent(in) :: condition
@@ -269,14 +370,15 @@ contains
         call require(abs(state%y(1) - 1.0_dp) < 1.0e-5_dp, 'backward exact solution')
     end subroutine check_variable_steps
 
-    subroutine dense_reference(steps, result)
+    subroutine dense_reference(final_time, steps, result)
+        real(dp), intent(in) :: final_time
         integer, intent(in) :: steps
         real(dp), intent(out) :: result(3)
         real(dp) :: y(3), f0(3), f(3), j(3, 3), r(3), d(3), h
         integer :: step, iteration, info, i
 
         result = [1.0_dp, 0.0_dp, 0.0_dp]
-        h = 0.1_dp/steps
+        h = final_time/steps
         do step = 1, steps
             call robertson_rhs(result, f0)
             y = result
@@ -308,9 +410,9 @@ contains
         real(dp) :: coarse(3), fine(3), finer(3), reference(3), error, previous_error
         integer :: decade
 
-        call dense_reference(10000, coarse)
-        call dense_reference(20000, fine)
-        call dense_reference(40000, finer)
+        call dense_reference(1.0_dp, 10000, coarse)
+        call dense_reference(1.0_dp, 20000, fine)
+        call dense_reference(1.0_dp, 40000, finer)
         reference = (4*finer - fine)/3
         call require(maxval(abs(reference - (4*fine - coarse)/3)) < 1.0e-11_dp, &
             'independent dense Robertson reference is converged')
@@ -321,7 +423,7 @@ contains
             options%rtol = 10.0_dp**(-decade)
             options%atol = options%rtol*1.0e-4_dp
             call bdf_init(state, 0.0_dp, [1.0_dp, 0.0_dp, 0.0_dp], options, status)
-            call bdf_integrate_to(problem, state, 0.1_dp, options, report, status)
+            call bdf_integrate_to(problem, state, 1.0_dp, options, report, status)
             call require(status%code == FORTNUM_OK, 'adaptive Robertson solve')
             error = maxval(abs(state%y - reference))
             print '(a,es10.2,a,es12.4,a,i0,a,i0)', 'Robertson tolerance=', &
@@ -336,6 +438,43 @@ contains
             previous_error = error
         end do
     end subroutine check_error_control
+
+    subroutine check_robertson_cost()
+        type(problem_t) :: problem
+        type(bdf_options_t) :: options
+        type(bdf_state_t) :: state
+        type(bdf_report_t) :: report
+        type(fortnum_status_t) :: status
+        real(dp) :: coarse(3), fine(3), finer(3), reference(3), error, cost
+        integer :: decade
+
+        call dense_reference(4.0_dp, 20000, coarse)
+        call dense_reference(4.0_dp, 40000, fine)
+        call dense_reference(4.0_dp, 80000, finer)
+        reference = (4*finer - fine)/3
+        call require(maxval(abs(reference - (4*fine - coarse)/3)) < 1.0e-11_dp, &
+            'independent long Robertson reference is converged')
+        problem%mode = 3
+        options%initial_step = 1.0e-6_dp
+        do decade = 3, 7
+            options%rtol = 10.0_dp**(-decade)
+            options%atol = options%rtol*1.0e-4_dp
+            call bdf_init(state, 0.0_dp, [1.0_dp, 0.0_dp, 0.0_dp], options, status)
+            call bdf_integrate_to(problem, state, 4.0_dp, options, report, status)
+            call require(status%code == FORTNUM_OK, 'Robertson cost solve')
+            error = maxval(abs(state%y - reference))
+            cost = real(report%implicit_solves, dp)/report%accepted
+            print '(a,es10.2,a,es12.4,a,i0,a,f8.4)', 'Robertson cost tolerance=', &
+                options%rtol, ' error=', error, ' steps=', report%accepted, &
+                ' solves/accepted=', cost
+            call require(error > 0.1_dp*options%rtol .and. &
+                error < 10*options%rtol, 'Robertson achieved accuracy matches cost')
+            call require(report%implicit_solves == report%accepted + &
+                report%rejected_error + report%rejected_newton, &
+                'one implicit solve per Robertson attempt')
+            call require(cost < 1.2_dp, 'Robertson retries add little solve cost')
+        end do
+    end subroutine check_robertson_cost
 
     subroutine check_diffusion()
         type(problem_t) :: problem
@@ -398,6 +537,13 @@ contains
         call bdf_init(state, 0.0_dp, invalid, options, status)
         call require(status%code == FORTNUM_DOMAIN_ERROR, &
             'nonfinite initial value is rejected')
+        call bdf_init(state, 0.0_dp, [1.0_dp], options, status, derivative=invalid)
+        call require(status%code == FORTNUM_DOMAIN_ERROR, &
+            'nonfinite initial derivative is rejected')
+        call bdf_init(state, 0.0_dp, [1.0_dp], options, status, &
+            derivative=[-1.0_dp, -1.0_dp])
+        call require(status%code == FORTNUM_DOMAIN_ERROR, &
+            'wrong-sized initial derivative is rejected')
         problem%mode = 2
         problem%stiffness = 25.0_dp
         options%initial_step = 0.1_dp
