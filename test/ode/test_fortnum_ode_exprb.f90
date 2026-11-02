@@ -10,7 +10,7 @@ module exprb_fixtures
 
     type, extends(exprb_problem_t) :: problem_t
         integer :: mode = 1, fail_rhs = 0, fail_setup = 0, fail_action = 0
-        integer :: actions = 0, evaluations = 0, fail_at = 0
+        integer :: actions = 0, evaluations = 0, linearizations = 0, fail_at = 0
         real(dp) :: diffusion = 1.0_dp, mu = 100.0_dp
         real(dp), allocatable :: point(:)
     contains
@@ -165,6 +165,7 @@ contains
         real(dp), intent(in) :: y(:)
         integer, intent(out) :: status
 
+        self%linearizations = self%linearizations + 1
         self%point = y
         status = 0
         if (self%fail_setup > 0) then
@@ -257,6 +258,7 @@ program test_fortnum_ode_exprb
     call orders()
     call tolerance_control()
     call diffusion_refinement()
+    call rejection_reuse()
     call failures()
     call comparisons()
 
@@ -392,6 +394,51 @@ contains
         call require(maxval(counts) <= 2*minval(counts), 'refinement step independence')
     end subroutine diffusion_refinement
 
+    subroutine rejection_reuse()
+        type(problem_t) :: p
+        type(exprb_options_t) :: o
+        type(exprb_state_t) :: s
+        type(exprb_report_t) :: r
+        type(fortnum_status_t) :: status
+        integer :: method, evaluations, linearizations
+
+        o%initial_step = 0.5_dp
+        o%rtol = 1.0e-7_dp
+        o%atol = 1.0e-9_dp
+        do method = EXPRB_EULER, EXPRB32
+            p = problem_t()
+            o%method = method
+            call exprb_init(s, 0.0_dp, [1.0_dp], o, status)
+            call exprb_integrate_to(p, s, 0.5_dp, o, r, status)
+            call require(status%code == FORTNUM_OK, 'rejected-step solve')
+            call require(r%rejected_error > 0, 'large initial step forces rejection')
+            call require(r%rejected_failure == 0, 'only error rejections')
+            call require(abs(s%y(1) - 1/1.5_dp) < 5.0e-5_dp, 'reuse exact oracle')
+            call require(p%linearizations == r%accepted, &
+                'one linearization per accepted step despite rejections')
+            call require(p%evaluations == 2*r%accepted + r%rejected_error, &
+                'rejected steps reuse base evaluation')
+            call require(r%linearizations == p%linearizations, &
+                'rejection linearization accounting')
+            call require(r%evaluations == p%evaluations, &
+                'rejection evaluation accounting')
+            print '(a,4i8)', 'reuse method/steps/rejections/linearizations ', &
+                method, r%accepted, r%rejected_error, r%linearizations
+            evaluations = p%evaluations
+            linearizations = p%linearizations
+            call exprb_integrate_to(p, s, 0.6_dp, o, r, status)
+            call require(status%code == FORTNUM_OK, 'reuse continuation')
+            call require(abs(s%y(1) - 1/1.6_dp) < 5.0e-5_dp, &
+                'reuse continuation exact oracle')
+            call require(p%linearizations - linearizations == r%accepted, &
+                'continuation refreshes accepted endpoint')
+            call require(r%linearizations == p%linearizations - linearizations, &
+                'continuation linearization accounting')
+            call require(r%evaluations == p%evaluations - evaluations, &
+                'continuation evaluation accounting')
+        end do
+    end subroutine rejection_reuse
+
     subroutine failures()
         type(problem_t) :: p
         type(exprb_options_t) :: o
@@ -416,6 +463,22 @@ contains
             call require(abs(s%y(1) - 1/1.2_dp) < 1.0e-5_dp, 'retry exact oracle')
             call require(r%jacobian_actions == p%actions, 'retry action accounting')
             call require(r%evaluations == p%evaluations, 'evaluation accounting')
+            call require(r%linearizations == p%linearizations, &
+                'linearization accounting')
+            if (kind == 2) then
+                call require(p%linearizations == r%accepted + 1, &
+                    'retry failed linearization only')
+            else
+                call require(p%linearizations == r%accepted, &
+                    'reuse linearization after RHS or phi failure')
+            end if
+            if (kind == 1 .or. kind == 4) then
+                call require(p%evaluations == 2*r%accepted + r%rejected_error + 1, &
+                    'count failed RHS evaluation')
+            else
+                call require(p%evaluations == 2*r%accepted + r%rejected_error, &
+                    'reuse base evaluation after setup or phi failure')
+            end if
         end do
         call exprb_integrate_to(p, s, 0.4_dp, o, r, status)
         call require(status%code == FORTNUM_OK, 'continuation')
