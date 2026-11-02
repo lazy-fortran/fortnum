@@ -232,6 +232,153 @@ and excited fast modes, with stiffness ratios starting at `1e8` and increasing
 under refinement; the test preconditioner uses a dense factorization. It tests
 bounded time-step counts, not the scalability of that preconditioner.
 
+## Autonomous exponential Rosenbrock integration
+
+`fortnum_ode_exprb` integrates `y' = f(y)` with exponential Rosenbrock–Euler
+(order two, `EXPRB_EULER`) or the embedded third/second-order pair `EXPRB32`
+(the default). These are the autonomous methods of Hochbruck, Ostermann and
+Schweitzer, [SIAM J. Numer. Anal. 47, 786–803 (2009), Sections 2 and 5–6](https://doi.org/10.1137/080717717).
+The caller extends `exprb_problem_t`, which inherits `real_linear_operator_t`:
+
+| Method | Contract |
+| --- | --- |
+| `evaluate(y,f,status)` | Evaluate `f(y)` without changing the retained Jacobian. Zero status means success. |
+| `linearize(y,status)` | Retain `y` and prepare its Jacobian. Zero status means success. |
+| `apply(input,output)` | Apply the retained Jacobian to `input`; no assembly is required. |
+
+For non-autonomous equations, append time as a state with derivative one.
+The caller's Jacobian action must then include the derivative with respect to
+that appended time. There is no separate time-derivative callback. This is an
+ordinary differential equation interface, without a mass matrix; conversion
+from a mass-matrix residual belongs to the caller.
+
+For accepted state `y`, step `h`, and Jacobian `J = f'(y)`, the stages are
+
+\[
+U=y+h\phi_1(hJ)f(y),\qquad D=f(U)-f(y)-J(U-y),
+\]
+\[
+y_{\rm new}=U+2h\phi_3(hJ)D.
+\]
+
+Here `phi_k` is the entire function defined in the
+[phi-action contract](../api.md#linear-algebra). Euler accepts `U`; exprb32
+accepts `y_new`. Each stage makes one `fortnum_phi` action with its coefficient
+vector already scaled by `h` or `2h`. Fixed-step Euler needs only the first
+stage. Adaptive Euler also computes the correction for its error estimate.
+The Jacobian is frozen for both stages and refreshed on every attempt.
+
+```fortran
+type(exprb_options_t) :: options
+type(exprb_state_t) :: state
+type(exprb_report_t) :: report
+type(fortnum_status_t) :: status
+! problem extends exprb_problem_t.
+call exprb_init(state, initial_time, initial_y, options, status)
+if (status%code == FORTNUM_OK) then
+    call exprb_integrate_to(problem, state, final_time, options, report, status)
+end if
+```
+
+The caller owns options, state and report. `state%y` and `state%t` remain the
+last accepted endpoint on failure. `next_step` is a positive magnitude;
+forward, backward, clipped-endpoint and continuation calls are supported.
+Reinitialize after changing the state discontinuously.
+
+The estimate is the correction `2h phi_3(hJ) D`, computed directly to avoid
+subtracting nearby endpoints. Its weighted root-mean-square norm uses
+`atol + rtol*max(abs(y),abs(accepted_candidate))`. An indicator above one
+rejects the attempt. Both methods use the cube-root controller
+`0.8*error**(-1/3)`, limited to `[0.2,2]`, with two for zero error. The scalar
+controller is retained in `tools/codegen/app/gen_exprb.f90` and emitted by
+FortSym. `adaptive=.false.` disables the error test and keeps the proposed
+step magnitude; choose `initial_step=max_step` for constant-step studies.
+
+A failed callback, nonfinite output or failed phi action rejects the attempt
+and reduces its magnitude by four. `max_steps` bounds all attempts per call.
+Invalid controls or state return `FORTNUM_DOMAIN_ERROR`; exhausted attempts,
+a step below `min_step` (including a clipped final step), or an inability to
+advance floating-point time return `FORTNUM_CONVERGENCE_ERROR`.
+
+`options%phi` holds independent phi-action controls, defaulting to
+`phi_options_t()` with relative tolerance `1e-12`. They are not automatically
+relaxed with the time tolerance. The embedded estimate measures time error,
+not phi-action error, so callers must keep the phi error small enough for
+their accuracy target. Neither estimate is a rigorous global bound, and no
+uniform accuracy or work bound for arbitrary stiff problems is claimed.
+
+Reports reset per call. They count accepted steps, error/failure rejections,
+function evaluations, linearizations, Jacobian actions (including the explicit
+remainder action), phi calls, phi substeps/rejections, and maximum Krylov
+dimension. `last_failure` is `EXPRB_SOLVED`, `EXPRB_EVALUATION`,
+`EXPRB_LINEARIZE` or `EXPRB_PHI_FAILURE`. `callback_status` retains the latest
+nonzero callback status; `phi_status` and `last_error` describe the latest
+phi action and completed error test. No events, device execution or
+sensitivity trace are provided.
+
+The registered `fortnum_ode_exprb` test checks nonlinear manufactured orders,
+a Dirichlet reaction–diffusion system made autonomous by a clock state,
+stiff van der Pol tolerance control against refined classical RK4, and
+periodic diffusion with excited fast Fourier modes under three refinements.
+It also compares both exponential methods and BDF2 with independent oracles.
+The diffusion gate bounds accepted steps, not Krylov work or memory; small
+meshes permit full-space Krylov projections. BDF comparisons use dense
+factorization as a test preconditioner, not a scalable PDE solver.
+
+### Measured comparison
+
+The `fortnum_ode_exprb` test calibrates tolerances against the independent
+endpoint oracle to reach a maximum absolute error between `1e-7` and `1e-6`
+on each nonlinear problem. Calibration is excluded from timing. Periodic
+linear diffusion uses the same `1e-6` error ceiling; the exponential methods
+are exact in time there, up to phi-action and floating-point error, so their
+errors cannot be matched to BDF2 by adjusting the time tolerance.
+
+The following CPU samples use GNU Fortran 16.2, Release, on an Apple M3 Ultra,
+with one OpenMP and one OpenBLAS thread. Time is the median of three complete
+solves, including setup and allocation; brackets give the minimum and maximum.
+Function counts include the supplied initial BDF derivative. Jacobian actions
+include the BDF preconditioner's unit-vector columns and shifted operator
+actions. All BDF preconditioners are dense factors; these small tests do not
+measure production preconditioner scalability. The state and time variables
+in these synthetic problems are dimensionless.
+
+| Problem | Method | Maximum error | Steps | Function evaluations | Jacobian actions | Wall time, ms [min, max] |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Scalar decay | Rosenbrock–Euler | 6.04e-07 | 143 | 286 | 1001 | 1.106 [1.095, 1.108] |
+| Scalar decay | exprb32 | 5.29e-07 | 21 | 42 | 147 | 0.160 [0.159, 0.163] |
+| Scalar decay | BDF2 | 6.03e-07 | 354 | 1057 | 2808 | 0.910 [0.901, 0.915] |
+| Dirichlet reaction–diffusion | Rosenbrock–Euler | 5.99e-07 | 209 | 418 | 4389 | 7.713 [7.669, 7.978] |
+| Dirichlet reaction–diffusion | exprb32 | 6.19e-07 | 20 | 40 | 480 | 1.114 [1.103, 1.127] |
+| Dirichlet reaction–diffusion | BDF2 | 8.56e-07 | 160 | 472 | 5909 | 1.220 [1.210, 1.239] |
+| Van der Pol | Rosenbrock–Euler | 6.01e-07 | 7946 | 15898 | 71541 | 80.390 [80.219, 81.362] |
+| Van der Pol | exprb32 | 4.13e-07 | 911 | 1828 | 8226 | 9.638 [9.197, 9.845] |
+| Van der Pol | BDF2 | 5.92e-07 | 15055 | 45169 | 150555 | 44.238 [43.867, 45.051] |
+| Periodic diffusion | Rosenbrock–Euler | 5.35e-14 | 10 | 20 | 56 | 0.122 [0.121, 0.124] |
+| Periodic diffusion | exprb32 | 2.33e-14 | 10 | 20 | 56 | 0.122 [0.121, 0.123] |
+| Periodic diffusion | BDF2 | 6.01e-07 | 1459 | 4396 | 55613 | 8.737 [8.736, 9.023] |
+
+Scalar decay solves `y'=-y^2`, `y(0)=1`, to time `0.5`. Reaction–diffusion
+uses 15 interior points on `[0,1]`, zero Dirichlet boundaries, unit diffusivity,
+quadratic reaction and manufactured forcing for
+`y_i(t)=sin(pi*x_i)/(1+t)`, with an appended clock, to time `0.5`.
+Van der Pol uses stiffness parameter `mu=100`, initial state `(2,0)` and
+endpoint `100`; its independent classical fourth-order Runge–Kutta reference
+uses 1.6 million uniform steps and is checked against 0.8 million steps
+(endpoint difference `5.64e-10`). Diffusion uses 16 periodic points, decay
+rate one, diffusion coefficient `1e8/(4*16^2)`, an initial constant plus cosine
+and alternating modes, and endpoint one. Its exact endpoint differs from
+the decayed constant by exponentially negligible fast modes.
+
+The order tests measure Euler slopes `2.004` and `2.011`, and exprb32 slopes
+`3.006` and `2.996`, on scalar decay and reaction–diffusion respectively.
+For van der Pol, tolerances `1e-3` through `1e-7` give endpoint errors
+`2.01e-5`, `4.73e-6`, `6.00e-7`, `1.27e-7`, `1.45e-8`.
+Diffusion grids of 16, 32 and 64 points have stiffness ratios starting at
+`1e8` and increasing quadratically. All take seven accepted steps, with
+maximum Krylov dimensions 12, 20, 36 and total phi substeps 8, 8, 9.
+These observations concern these oracles, not arbitrary stiff systems.
+
 ## Four-state GPU reverse communication
 
 `fortnum_ode_rk54_device` provides allocation-free Cash-Karp 5(4) and
