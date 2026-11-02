@@ -208,7 +208,9 @@ target_sources(fortnum PRIVATE
     linalg/fortnum_toeplitz.f90
     ode/fortnum_ode.f90
     generated/fortnum_bdf2_leaves.f90
+    generated/fortnum_exprb_leaves.f90
     ode/fortnum_ode_bdf.f90
+    ode/fortnum_ode_exprb.f90
     ode/fortnum_ode_cash_karp.f90
     ode/fortnum_ode_ddeabm.f90
     ode/fortnum_ode_dop853.f90

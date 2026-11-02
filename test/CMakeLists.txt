@@ -702,3 +702,9 @@ add_executable(test_fortnum_phi_matrix_free linalg/test_fortnum_phi_matrix_free.
 target_link_libraries(test_fortnum_phi_matrix_free PRIVATE fortnum OpenMP::OpenMP_Fortran)
 add_test(NAME fortnum_phi_matrix_free COMMAND test_fortnum_phi_matrix_free)
 set_tests_properties(fortnum_phi_matrix_free PROPERTIES ENVIRONMENT "OMP_NUM_THREADS=8")
+
+add_executable(test_fortnum_ode_exprb ode/test_fortnum_ode_exprb.f90)
+target_link_libraries(test_fortnum_ode_exprb PRIVATE fortnum)
+add_test(NAME fortnum_ode_exprb COMMAND test_fortnum_ode_exprb)
+set_tests_properties(fortnum_ode_exprb PROPERTIES
+    ENVIRONMENT "OMP_NUM_THREADS=1;OPENBLAS_NUM_THREADS=1" LABELS ode TIMEOUT 180)

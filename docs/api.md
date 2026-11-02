@@ -420,6 +420,7 @@ Method modules expose:
 | `fortnum_ode_ddeabm` | stateful Adams method |
 | `fortnum_ode_vode` | stateful VODE-style integration |
 | `fortnum_ode_bdf` | matrix-free variable-step BDF2 with BDF1 startup, Milne error control and Newton-FGMRES for nonsingular mass-matrix systems |
+| `fortnum_ode_exprb` | autonomous matrix-free exponential Rosenbrock–Euler (order 2) and exprb32 (order 3), with embedded error control and Krylov phi actions |
 | `fortnum_ode_events` | event scan and event derivatives |
 
 For implicit systems, extend `bdf_problem_t` with residual evaluation,
@@ -429,6 +430,18 @@ shifted-Jacobian setup/action and an optional right preconditioner. Call
 on failure. The [BDF contract](design/ode.md#matrix-free-implicit-bdf-integration)
 defines state-dependent mass derivatives, the BDF2 local error estimate,
 startup derivative setup, step limits, nonlinear forcing and failure reports.
+
+For autonomous `y' = f(y)`, extend `exprb_problem_t` with
+`evaluate(y,f,status)`, `linearize(y,status)` and Jacobian `apply(input,output)`.
+Evaluation must preserve the retained linearization. Use `exprb_init` and
+`exprb_integrate_to`, with caller-owned `exprb_options_t`, `exprb_state_t` and
+`exprb_report_t`. `options%method` selects `EXPRB32` (default) or `EXPRB_EULER`;
+`rtol`, `atol`, step limits and `adaptive` control time stepping, while
+`options%phi` controls phi-action accuracy. Reports include function and
+Jacobian counts, Krylov dimensions and phi substeps. Make non-autonomous
+problems autonomous by appending time with derivative one, including its
+Jacobian column. See the [exponential contract](design/ode.md#autonomous-exponential-rosenbrock-integration)
+for formulas, error semantics and failure behavior.
 
 First-order products in `fortnum_ode`:
 
