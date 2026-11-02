@@ -1,7 +1,7 @@
 module fortnum_multiroot_rc
     ! Reverse-communication (RC) mirror of multiroot_hybrid (fortnum_multiroot):
-    ! the same Powell hybrid Newton step with a backtracking line search on the
-    ! residual 1/2 |F|^2, but with control inverted so it runs on a device.
+    ! the same Newton step with a backtracking line search on the residual
+    ! 1/2 |F|^2, but with control inverted so it runs on a device.
     !
     ! The host multiroot_hybrid takes a procedure(multiroot_fdf_t) callback and
     ! a class(*) ctx, and the line search re-enters that callback.  Neither
@@ -10,7 +10,7 @@ module fortnum_multiroot_rc
     ! loop, evaluates F and the analytic Jacobian inline at state%x, and calls
     ! multiroot_step repeatedly.  multiroot_step is a pure leaf !$acc routine
     ! seq that resumes from multiroot_rc_t, runs one logical action of the SAME
-    ! dogleg / line-search / LU iteration, and returns an action token telling
+    ! Newton / line-search / LU iteration, and returns an action token telling
     ! the caller what to do next (evaluate F and J, stop, or fail).
     !
     ! This is additive: the host multiroot_hybrid / multiroot_hybrids callback
@@ -107,7 +107,7 @@ contains
         state%x_base(1:n) = x0
     end subroutine multiroot_rc_init
 
-    ! One logical action of the Powell dogleg iteration, resumable from state.
+    ! One logical action of the Newton line-search iteration, resumable from state.
     !
     ! The caller must have written f(1:n) = F(state%x) and jac(1:n,1:n) =
     ! dF/dx at state%x before each call.  On return, action is:
