@@ -394,6 +394,11 @@ add_executable(test_fortnum_multiroot_rc roots/test_fortnum_multiroot_rc.f90)
 target_link_libraries(test_fortnum_multiroot_rc PRIVATE fortnum)
 add_test(NAME fortnum_multiroot_rc COMMAND test_fortnum_multiroot_rc)
 
+# multiroot_hybrids against MINPACK hybrd1 evaluation counts
+add_executable(test_fortnum_multiroot_hybrids_minpack roots/test_fortnum_multiroot_hybrids_minpack.f90)
+target_link_libraries(test_fortnum_multiroot_hybrids_minpack PRIVATE fortnum)
+add_test(NAME fortnum_multiroot_hybrids_minpack COMMAND test_fortnum_multiroot_hybrids_minpack)
+
 # --- small dense linalg (host + !$acc routine seq) ---
 add_executable(test_fortnum_linalg linalg/test_fortnum_linalg.f90)
 target_link_libraries(test_fortnum_linalg PRIVATE fortnum)
