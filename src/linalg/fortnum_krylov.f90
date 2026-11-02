@@ -1,5 +1,6 @@
 module fortnum_krylov
-    !! Restarted matrix-free GMRES and flexible GMRES for real and complex host-side linear operators.
+    !! Restarted matrix-free GMRES and flexible GMRES for real and complex host-side linear operators,
+    !! conjugate gradients and preconditioned MINRES for real symmetric operators.
     !!
     !! Modified Gram--Schmidt is followed by a reorthogonalization pass.
     !! Complex Givens rotations update the Hessenberg least-squares problem
@@ -18,6 +19,7 @@ module fortnum_krylov
     integer, parameter, public :: KRYLOV_MAX_ITERATIONS = 1
     integer, parameter, public :: KRYLOV_BREAKDOWN = 2
     integer, parameter, public :: KRYLOV_STAGNATION = 3
+    integer, parameter, public :: KRYLOV_NONPOSITIVE_CURVATURE = 4
     integer, parameter, public :: KRYLOV_INVALID_ARGUMENT = -1
 
     abstract interface
@@ -86,6 +88,8 @@ module fortnum_krylov
     public :: real_gmres_operator
     public :: real_matmat_t
     public :: real_matvec_t
+    public :: real_minres
+    public :: real_minres_operator
     public :: real_preconditioner_t
 
     type, abstract, public :: complex_linear_operator_t
@@ -307,6 +311,223 @@ contains
                 max_iterations, info, iterations, residual_norm)
         end if
     end subroutine real_conjugate_gradient_operator
+
+    subroutine real_minres( &
+            operator, right_hand_side, solution, tolerance, max_iterations, &
+            info, iterations, residual_norm, preconditioner, curvature_direction)
+        !! Preconditioned MINRES (Paige and Saunders 1975) for a symmetric,
+        !! possibly indefinite or singular operator A.
+        !!
+        !! The optional preconditioner applies an SPD M ~ A^{-1}; the iterates
+        !! minimize the M-norm of the residual over the Krylov space, so
+        !! |b - A x|_M does not increase.  The solution is the initial guess
+        !! and is updated in place.  The residual r_k = b - A x_k is carried by
+        !! the recurrence of Liu and Roosta ("MINRES: from negative curvature
+        !! detection to monotonicity properties", SIAM J. Optim. 32, 2022),
+        !! the Lanczos step subtracts the previous vector before forming the
+        !! diagonal coefficient (modified Gram--Schmidt).
+        !!
+        !! Converged (KRYLOV_OK) when |b - A x| <= tolerance |b| (Euclidean,
+        !! relative to the right-hand side without the max(|b|, 1) floor of
+        !! the CG and GMRES solvers, as inner solves of inexact Newton
+        !! methods need).  residual_norm is the explicit |b - A x| of the
+        !! returned solution; a recurrence that met the tolerance while the
+        !! explicit residual does not is KRYLOV_STAGNATION.  At the iteration
+        !! cap the last iterate is returned with KRYLOV_MAX_ITERATIONS.  A
+        !! singular A with consistent b is admitted: the Krylov space stays in
+        !! the range of A.
+        !!
+        !! With curvature_direction present, the first residual r_{k-1} of
+        !! nonpositive curvature, (M r)^T A (M r) <= 0, ends the solve with
+        !! KRYLOV_NONPOSITIVE_CURVATURE (the test c_{k-1} gamma_k >= 0 of the
+        !! QR recurrence, Liu and Roosta): solution is x_{k-1},
+        !! curvature_direction is M r_{k-1} and residual_norm is |r_{k-1}| from
+        !! the recurrence.  For A x = -g at x = 0, M r_{k-1} is a descent
+        !! direction of nonpositive curvature (Newton-MR, fortnum_newton_mr).
+        !!
+        !! A preconditioner with r^T M r < 0, or a non-finite operator or
+        !! preconditioner output (the way a callback reports failure), is
+        !! KRYLOV_BREAKDOWN with the last iterate in solution.
+        class(real_linear_operator_t), intent(inout) :: operator
+        real(dp), intent(in) :: right_hand_side(:)
+        real(dp), intent(inout) :: solution(:)
+        real(dp), intent(in) :: tolerance
+        integer, intent(in) :: max_iterations
+        integer, intent(out) :: info, iterations
+        real(dp), intent(out) :: residual_norm
+        class(real_linear_operator_t), intent(inout), optional :: preconditioner
+        real(dp), intent(out), optional :: curvature_direction(:)
+
+        real(dp), allocatable :: v(:), y(:), r1(:), r2(:), w(:), w1(:), w2(:)
+        real(dp), allocatable :: residual(:), correction(:)
+        real(dp) :: beta, previous_beta, alpha, delta, gamma_bar, epsilon_k
+        real(dp) :: previous_epsilon, delta_bar, gamma, cosine, sine
+        real(dp) :: phi, phi_bar, right_hand_side_norm, target, recurrence_norm
+        integer :: n, k
+        logical :: detect
+
+        info = KRYLOV_INVALID_ARGUMENT
+        iterations = 0
+        residual_norm = huge(1.0_dp)
+        n = size(right_hand_side)
+        detect = present(curvature_direction)
+        if (n < 1) return
+        if (size(solution) /= n) return
+        if (detect) then
+            if (size(curvature_direction) /= n) return
+        end if
+        if (.not. tolerance > 0.0_dp .or. max_iterations < 1) return
+
+        right_hand_side_norm = parallel_vector_norm2(right_hand_side)
+        if (right_hand_side_norm == 0.0_dp) then
+            solution = 0.0_dp
+            residual_norm = 0.0_dp
+            info = KRYLOV_OK
+            return
+        end if
+        target = tolerance*right_hand_side_norm
+        allocate (v(n), y(n), r1(n), r2(n), w(n), w1(n), w2(n), residual(n), &
+            correction(n))
+        if (any(solution /= 0.0_dp)) then
+            call operator%apply(solution, y)
+            call parallel_vector_sub(right_hand_side, y, r2)
+        else
+            r2 = right_hand_side
+        end if
+        residual = r2
+        info = KRYLOV_BREAKDOWN
+        if (.not. all(ieee_is_finite(r2))) return
+        residual_norm = parallel_vector_norm2(residual)
+        if (residual_norm <= target) then
+            info = KRYLOV_OK
+            return
+        end if
+        call apply_preconditioner(r2, y)
+        beta = parallel_vector_dot(r2, y)
+        if (.not. ieee_is_finite(beta) .or. .not. beta > 0.0_dp) return
+        beta = sqrt(beta)
+        r1 = 0.0_dp
+        w = 0.0_dp
+        w1 = 0.0_dp
+        correction = 0.0_dp
+        previous_beta = 0.0_dp
+        delta_bar = 0.0_dp
+        epsilon_k = 0.0_dp
+        phi_bar = beta
+        cosine = -1.0_dp
+        sine = 0.0_dp
+
+        info = KRYLOV_MAX_ITERATIONS
+        do k = 1, max_iterations
+            call parallel_vector_scale(1.0_dp/beta, y, v)
+            call operator%apply(v, y)
+            if (k > 1) call parallel_vector_axpy(-beta/previous_beta, r1, y)
+            alpha = parallel_vector_dot(v, y)
+            call parallel_vector_axpy(-alpha/beta, r2, y)
+            r1 = r2
+            r2 = y
+            call apply_preconditioner(r2, y)
+            previous_beta = beta
+            beta = parallel_vector_dot(r2, y)
+            if (.not. ieee_is_finite(beta) .or. .not. beta >= 0.0_dp .or. &
+                .not. ieee_is_finite(alpha)) then
+                info = KRYLOV_BREAKDOWN
+                exit
+            end if
+            beta = sqrt(beta)
+            previous_epsilon = epsilon_k
+            delta = cosine*delta_bar + sine*alpha
+            gamma_bar = sine*delta_bar - cosine*alpha
+            epsilon_k = sine*beta
+            delta_bar = -cosine*beta
+            if (detect .and. cosine*gamma_bar >= 0.0_dp) then
+                ! The residual of x_(k-1) has nonpositive curvature.
+                call apply_preconditioner(residual, curvature_direction)
+                call parallel_vector_axpy(1.0_dp, correction, solution)
+                residual_norm = parallel_vector_norm2(residual)
+                info = KRYLOV_NONPOSITIVE_CURVATURE
+                if (.not. all(ieee_is_finite(curvature_direction))) &
+                    info = KRYLOV_BREAKDOWN
+                return
+            end if
+            gamma = sqrt(gamma_bar**2 + beta**2)
+            if (.not. gamma > 0.0_dp) then
+                info = KRYLOV_BREAKDOWN
+                exit
+            end if
+            cosine = gamma_bar/gamma
+            sine = beta/gamma
+            phi = cosine*phi_bar
+            phi_bar = sine*phi_bar
+            w2 = w1
+            w1 = w
+            w = (v - previous_epsilon*w2 - delta*w1)/gamma
+            call parallel_vector_axpy(phi, w, correction)
+            iterations = k
+            if (beta > 0.0_dp) then
+                residual = sine**2*residual - (cosine*phi_bar/beta)*r2
+            else
+                ! Invariant Krylov space: the iterate solves the system.
+                residual = 0.0_dp
+            end if
+            recurrence_norm = parallel_vector_norm2(residual)
+            if (.not. ieee_is_finite(recurrence_norm)) then
+                info = KRYLOV_BREAKDOWN
+                exit
+            end if
+            if (recurrence_norm <= target) then
+                info = KRYLOV_OK
+                exit
+            end if
+        end do
+
+        call parallel_vector_axpy(1.0_dp, correction, solution)
+        call operator%apply(solution, y)
+        call parallel_vector_sub(right_hand_side, y, residual)
+        residual_norm = parallel_vector_norm2(residual)
+        if (info == KRYLOV_OK .and. .not. residual_norm <= target) &
+            info = KRYLOV_STAGNATION
+    contains
+        subroutine apply_preconditioner(input, output)
+            real(dp), intent(in) :: input(:)
+            real(dp), intent(out) :: output(:)
+
+            if (present(preconditioner)) then
+                call preconditioner%apply(input, output)
+            else
+                output = input
+            end if
+        end subroutine apply_preconditioner
+    end subroutine real_minres
+
+    subroutine real_minres_operator( &
+            matvec, right_hand_side, solution, tolerance, max_iterations, &
+            info, iterations, residual_norm, preconditioner, curvature_direction)
+        !! Procedure-argument form of `real_minres` for stateless callbacks.
+        procedure(real_matvec_t) :: matvec
+        real(dp), intent(in) :: right_hand_side(:)
+        real(dp), intent(inout) :: solution(:)
+        real(dp), intent(in) :: tolerance
+        integer, intent(in) :: max_iterations
+        integer, intent(out) :: info, iterations
+        real(dp), intent(out) :: residual_norm
+        procedure(real_preconditioner_t), optional :: preconditioner
+        real(dp), intent(out), optional :: curvature_direction(:)
+
+        type(procedure_operator_t) :: operator_adapter, preconditioner_adapter
+
+        operator_adapter%apply_procedure => matvec
+        if (present(preconditioner)) then
+            preconditioner_adapter%apply_procedure => preconditioner
+            call real_minres(operator_adapter, right_hand_side, solution, &
+                tolerance, max_iterations, info, iterations, residual_norm, &
+                preconditioner_adapter, curvature_direction)
+        else
+            call real_minres(operator_adapter, right_hand_side, solution, &
+                tolerance, max_iterations, info, iterations, residual_norm, &
+                curvature_direction=curvature_direction)
+        end if
+    end subroutine real_minres_operator
 
     subroutine apply_procedure_operator(self, input, output)
         class(procedure_operator_t), intent(inout) :: self
