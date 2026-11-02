@@ -13,6 +13,7 @@ target_sources(fortnum PRIVATE
     linalg/fortnum_eigen_sp.F90
     linalg/fortnum_eigen_dp.F90
     linalg/fortnum_eigen.f90
+    linalg/fortnum_phi.f90
     linalg/fortnum_precision.f90
     linalg/fortnum_precision_vector.f90
     linalg/fortnum_refinement.f90)
