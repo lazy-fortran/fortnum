@@ -109,3 +109,8 @@ main = "gen_dnestrovskii.f90"
 name = "gen_multifidelity"
 source-dir = "app"
 main = "gen_multifidelity.f90"
+
+[[executable]]
+name = "gen_exprb"
+source-dir = "app"
+main = "gen_exprb.f90"
