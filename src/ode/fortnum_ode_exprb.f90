@@ -115,6 +115,7 @@ contains
         real(dp), allocatable :: correction(:), high(:), vectors(:, :), weights(:)
         real(dp) :: direction, h, error, factor
         integer :: n, attempt, info
+        logical :: have_f, have_linearization
 
         report = exprb_report_t()
         call status_set(status, FORTNUM_DOMAIN_ERROR, 'Invalid exprb controls or state')
@@ -132,6 +133,8 @@ contains
         direction = sign(1.0_dp, target - state%t)
         allocate (f(n), stage(n), delta(n), jf(n), defect(n), correction(n))
         allocate (high(n), vectors(n, 0:3), weights(n))
+        have_f = .false.
+        have_linearization = .false.
 
         do attempt = 1, options%max_steps
             h = direction*min(state%next_step, options%max_step, abs(target - state%t))
@@ -166,6 +169,8 @@ contains
             end if
             state%y = high
             state%t = state%t + h
+            have_f = .false.
+            have_linearization = .false.
             report%accepted = report%accepted + 1
             if (direction*(target - state%t) <= 0.0_dp) then
                 state%t = target
@@ -178,16 +183,22 @@ contains
     contains
 
         subroutine take_step()
-            report%last_failure = EXPRB_EVALUATION
-            call problem%evaluate(state%y, f, info)
-            report%evaluations = report%evaluations + 1
-            if (info /= 0) report%callback_status = info
-            if (info /= 0 .or. .not. all(ieee_is_finite(f))) return
-            report%last_failure = EXPRB_LINEARIZE
-            call problem%linearize(state%y, info)
-            report%linearizations = report%linearizations + 1
-            if (info /= 0) report%callback_status = info
-            if (info /= 0) return
+            if (.not. have_f) then
+                report%last_failure = EXPRB_EVALUATION
+                call problem%evaluate(state%y, f, info)
+                report%evaluations = report%evaluations + 1
+                if (info /= 0) report%callback_status = info
+                if (info /= 0 .or. .not. all(ieee_is_finite(f))) return
+                have_f = .true.
+            end if
+            if (.not. have_linearization) then
+                report%last_failure = EXPRB_LINEARIZE
+                call problem%linearize(state%y, info)
+                report%linearizations = report%linearizations + 1
+                if (info /= 0) report%callback_status = info
+                if (info /= 0) return
+                have_linearization = .true.
+            end if
             vectors = 0.0_dp
             vectors(:, 1) = h*f
             call action(1, delta)
