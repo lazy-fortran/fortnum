@@ -266,7 +266,18 @@ Here `phi_k` is the entire function defined in the
 accepts `y_new`. Each stage makes one `fortnum_phi` action with its coefficient
 vector already scaled by `h` or `2h`. Fixed-step Euler needs only the first
 stage. Adaptive Euler also computes the correction for its error estimate.
-The Jacobian is frozen for both stages and refreshed on every attempt.
+Within one `exprb_integrate_to` call, the successful base evaluation `f(y)`
+and linearization are reused across error rejections and phi-action or stage
+evaluation failures. Both are refreshed after an accepted step. A failed base
+evaluation or linearization is retried; a successful base evaluation is retained
+even if linearization fails. Reuse ends when the integration call returns.
+
+The linearization point remains the last argument passed to `linearize`.
+`evaluate` must not change that point, its Jacobian or any associated
+preconditioner, including when returning an error. `apply` must likewise
+preserve the retained linearization. A consumer that changes it while
+evaluating a stage violates the callback contract; reducing the step does not
+restore it.
 
 ```fortran
 type(exprb_options_t) :: options
@@ -310,7 +321,9 @@ uniform accuracy or work bound for arbitrary stiff problems is claimed.
 Reports reset per call. They count accepted steps, error/failure rejections,
 function evaluations, linearizations, Jacobian actions (including the explicit
 remainder action), phi calls, phi substeps/rejections, and maximum Krylov
-dimension. `last_failure` is `EXPRB_SOLVED`, `EXPRB_EVALUATION`,
+dimension. `evaluations` and `linearizations` count actual callback calls,
+including failed calls; reused results add nothing to either counter.
+`last_failure` is `EXPRB_SOLVED`, `EXPRB_EVALUATION`,
 `EXPRB_LINEARIZE` or `EXPRB_PHI_FAILURE`. `callback_status` retains the latest
 nonzero callback status; `phi_status` and `last_error` describe the latest
 phi action and completed error test. No events, device execution or
@@ -334,7 +347,8 @@ linear diffusion uses the same `1e-6` error ceiling; the exponential methods
 are exact in time there, up to phi-action and floating-point error, so their
 errors cannot be matched to BDF2 by adjusting the time tolerance.
 
-The following CPU samples use GNU Fortran 16.2, Release, on an Apple M3 Ultra,
+The following CPU samples predate base-callback reuse on rejected attempts.
+They use GNU Fortran 16.2, Release, on an Apple M3 Ultra,
 with one OpenMP and one OpenBLAS thread. Time is the median of three complete
 solves, including setup and allocation; brackets give the minimum and maximum.
 Function counts include the supplied initial BDF derivative. Jacobian actions
