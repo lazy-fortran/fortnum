@@ -18,7 +18,7 @@ python3 "$repository_dir/scripts/check_contracted_codegen.py" "$repository_dir"
         gen_special_region_candidates gen_jacobi_recurrence \
         gen_rk54_device gen_rk54_cpu_tableau gen_dop853_tableau \
         gen_verified_midpoint gen_coulomb_series gen_eigen_bounds gen_dnestrovskii \
-        gen_multifidelity; do
+        gen_multifidelity gen_bdf2; do
         FORTNUM_CODEGEN_OUTPUT_DIR="$temporary_dir" fo exec --no-build "$generator"
     done
 )

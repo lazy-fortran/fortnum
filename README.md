@@ -15,7 +15,8 @@ Status: research code under active development; interfaces may change.
   1F1 and others.
 - Quadrature, adaptive (Gauss-Kronrod, CQUAD, Levin) integration, FFTs.
 - ODE integrators (DOP853, RK8PD, VODE, DDEABM, Gauss-Radau, extrapolation,
-  geometric integrators) with events and sensitivities.
+  geometric integrators) with events and sensitivities; matrix-free implicit
+  BDF2 with adaptive steps for nonsingular mass-matrix systems.
 - Roots and multidimensional roots, B-splines, Krylov solvers and matrix-free
   eigenproblems, Toeplitz and tensor-product operators.
 - Random numbers with explicit state, NUTS sampling, Gaussian-process

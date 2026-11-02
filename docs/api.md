@@ -419,7 +419,16 @@ Method modules expose:
 | `fortnum_ode_rk8pd` | stateful RK8PD evolution |
 | `fortnum_ode_ddeabm` | stateful Adams method |
 | `fortnum_ode_vode` | stateful VODE-style integration |
+| `fortnum_ode_bdf` | matrix-free variable-step BDF2 with BDF1 startup, Milne error control and Newton-FGMRES for nonsingular mass-matrix systems |
 | `fortnum_ode_events` | event scan and event derivatives |
+
+For implicit systems, extend `bdf_problem_t` with residual evaluation,
+shifted-Jacobian setup/action and an optional right preconditioner. Call
+`bdf_init`, then `bdf_integrate_to`; the caller owns `bdf_state_t`,
+`bdf_options_t` and `bdf_report_t`. The last accepted endpoint remains available
+on failure. The [BDF contract](design/ode.md#matrix-free-implicit-bdf-integration)
+defines state-dependent mass derivatives, the BDF2 local error estimate,
+startup derivative setup, step limits, nonlinear forcing and failure reports.
 
 First-order products in `fortnum_ode`:
 
