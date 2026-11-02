@@ -1,21 +1,23 @@
 module fortnum_multiroot
     ! Multidimensional root finding F(x) = 0 in R^n, plus two scalar
-    ! numerical utilities that share the same consumer (KiLCA): a central
-    ! finite-difference first derivative with a Richardson error estimate,
-    ! and an ascending index sort.
+    ! numerical utilities that share the same consumer (KiLCA): a fourth-order
+    ! central-difference first derivative with an error estimate, and an
+    ! ascending index sort.
     !
-    ! Solvers (Powell hybrid dogleg, analytic and finite-difference Jacobian):
-    !   multiroot_hybrid  - Newton step with a backtracking line search on the
-    !       residual 1/2 |F|^2, analytic Jacobian supplied by the callback.
-    !   multiroot_hybrids - same iteration, Jacobian built column by column by
-    !       central differences of F (the KiLCA call site fakes the Jacobian
-    !       this way).  "s" = Jacobian by secant/finite difference.
-    !   Both terminate when |F|_inf <= ftol (residual) or the step norm
-    !       |dx|_inf <= xtol*(|x|_inf + xtol) (relative+absolute delta).
-    !   The Newton system J dx = -F is solved by Gaussian elimination with
-    !       partial pivoting; a singular Jacobian reports FORTNUM_DOMAIN_ERROR.
-    !   Ref: Powell (1970) hybrid method; More, Garbow & Hillstrom, MINPACK
-    !       (1980), hybrj/hybrd; Dennis & Schnabel (1983), §6.5 line search.
+    ! Solvers:
+    !   multiroot_hybrid  - Newton's method with a backtracking line search on
+    !       1/2 |F|_2^2, using the analytic Jacobian the callback returns with
+    !       every F.  No trust region and no Jacobian updates.
+    !   multiroot_hybrids - Powell's hybrid method as in MINPACK hybrd1: dogleg
+    !       steps in a trust region, a forward-difference Jacobian at the start
+    !       and after repeated poor steps, Broyden rank-one updates of its QR
+    !       factors otherwise.  "s": no Jacobian callback.
+    !   Both report success only when |F|_inf <= ftol; stagnation below xtol
+    !       or the iteration cap is a failure status.
+    !   Ref: Powell, in Rabinowitz (ed.), Numerical Methods for Nonlinear
+    !       Algebraic Equations (1970); More, Garbow & Hillstrom, User Guide
+    !       for MINPACK-1, ANL-80-74 (1980), hybrd; Dennis & Schnabel (1983),
+    !       ch. 6 (line search, dogleg), sec. 8.1 (Broyden update).
     !
     ! DERIVATIVE POLICY for the solvers (ad.md §1, §4): implicit_rule.
     !   The root satisfies F(x*, p) = 0.  The implicit function theorem gives
@@ -29,8 +31,9 @@ module fortnum_multiroot
     !   IS finite differencing; it already estimates a derivative, so an AD
     !   derivative of the estimator is not meaningful.  Use the value it
     !   returns; do not differentiate through it.
-    !   Ref: Ridders, Adv. Eng. Software 4 (1982) 75 (Richardson extrapolation
-    !   of central differences); Abramowitz & Stegun 25.3.21.
+    !   One Richardson step on central differences at h and h/2 (not Ridders'
+    !   extrapolation tableau), at most one retry at the error-balancing step.
+    !   Ref: Abramowitz & Stegun 25.3.6.
     !
     ! argsort: DERIVATIVE POLICY primal_only (ad.md §1).  An index permutation
     !   is integer-valued and control-flow dependent; it carries no derivative.
@@ -69,7 +72,7 @@ module fortnum_multiroot
     end interface
 
     ! System without an analytic Jacobian: returns only F(x) in f(n).
-    ! multiroot_hybrids builds the Jacobian by central differences of this.
+    ! multiroot_hybrids builds the Jacobian by forward differences of this.
     abstract interface
         subroutine multiroot_fn_t(x, f, ctx)
             import :: dp
@@ -133,11 +136,17 @@ module fortnum_multiroot
 
 contains
 
-    ! Newton + backtracking line search with an analytic Jacobian.
+    ! Newton's method with a backtracking line search, analytic Jacobian.
     !
-    ! x0 is the starting point (length n); the converged root is returned in x.
-    ! xtol drives the step-size stop (default 1e-10), ftol the residual stop
-    ! (default 1e-10), max_iter caps Newton steps (default 1000).
+    ! Unlike multiroot_hybrids this is not Powell's dogleg method: the callback
+    ! returns J with every F, so each Newton step uses the exact Jacobian at
+    ! the current point and a Broyden update would save no evaluations.
+    !
+    ! x0 is the starting point (length n); the root is returned in x.  Success
+    ! when |F|_inf <= ftol (default 1e-10).  A Newton step with
+    ! |dx|_inf <= xtol*(|x|_inf + xtol) (xtol default 1e-10) before that, or
+    ! max_iter Newton steps (default 1000), is reported as
+    ! FORTNUM_CONVERGENCE_ERROR; a singular Jacobian as FORTNUM_DOMAIN_ERROR.
     subroutine multiroot_hybrid(fdf, n, x0, x, status, xtol, ftol, max_iter, &
             ctx, jacobian)
         procedure(multiroot_fdf_t)         :: fdf
@@ -187,9 +196,26 @@ contains
             "multiroot_hybrid: maximum iterations reached without convergence")
     end subroutine multiroot_hybrid
 
-    ! Newton + line search with the Jacobian built by central differences.
-    ! Same stop criteria and contract as multiroot_hybrid; takes a function
-    ! callback that returns only F(x).
+    ! Powell hybrid method with a dogleg trust region, as MINPACK hybrd1
+    ! (unit scaling, initial bound FACTOR*|x0|_2).  Same defaults and success
+    ! criterion as multiroot_hybrid; takes a callback that returns only F(x).
+    !
+    ! Each iteration minimises the linear model |F + J p|_2 over the region
+    ! |p|_2 <= delta along Powell's dogleg path and accepts the trial point
+    ! when it achieves at least 1e-4 of the predicted reduction of |F|_2^2.
+    ! The region shrinks after a poor ratio of actual to predicted reduction
+    ! and grows after good ones.  J is built by forward differences (n
+    ! evaluations) at the start and after two consecutive poor ratios; in
+    ! between, a Broyden rank-one update is applied directly to J = QR by
+    ! Givens rotations, so such a step costs one evaluation of F.
+    !
+    ! Converged: |F|_inf <= ftol.  Failure (FORTNUM_CONVERGENCE_ERROR, or
+    ! FORTNUM_DOMAIN_ERROR when the current Jacobian factor is singular):
+    ! the trust radius falls to xtol*(|x|_2 + xtol) after a step that cut
+    ! |F|_2 by less than 10% (hybrd stops there regardless), no progress over
+    ! five Jacobian evaluations or ten iterations (hybrd's nslow2/nslow1), a
+    ! step at rounding level, or max_iter trial points (one F evaluation
+    ! each, plus n per Jacobian).
     subroutine multiroot_hybrids(fn, n, x0, x, status, xtol, ftol, max_iter, ctx)
         procedure(multiroot_fn_t)          :: fn
         integer,                intent(in) :: n
@@ -200,35 +226,138 @@ contains
         integer,  intent(in), optional     :: max_iter
         class(*), intent(in), optional     :: ctx
 
-        real(dp) :: f(n), jac(n, n), dx(n)
-        real(dp) :: xt, ft
-        integer  :: it, max_it, ls_stat
+        ! MINPACK hybrd constants: initial bound factor and ratio thresholds.
+        real(dp), parameter :: FACTOR = 100.0_dp
+        real(dp), parameter :: P1 = 0.1_dp, P5 = 0.5_dp, P001 = 1.0e-3_dp, &
+            P0001 = 1.0e-4_dp
+        real(dp) :: f(n), jac(n, n), q(n, n), r(n, n), qtf(n)
+        real(dp) :: p(n), xtrial(n), ftrial(n), pred(n), qtft(n), u(n), v(n)
+        real(dp) :: xt, ft, eps, delta, xnorm, fnorm, fnorm1, pnorm
+        real(dp) :: actred, prered, ratio
+        integer  :: it, max_it, nsucc, ncsuc, ncfail, nslow1, nslow2, j
+        logical  :: jeval, sing
 
         call status_set(status, FORTNUM_OK, "")
         x = x0
         call resolve_tols(xtol, ftol, max_iter, xt, ft, max_it)
+        eps = epsilon(1.0_dp)
 
         call fn(x, f, ctx)
         if (maxval(abs(f)) <= ft) return
+        fnorm = norm2(f)
+        xnorm = norm2(x)
+        it = 0
+        nsucc = 0
+        ncsuc = 0
+        ncfail = 0
+        nslow1 = 0
+        nslow2 = 0
 
-        do it = 1, max_it
-            call fd_jacobian(fn, n, x, jac, ctx)
-            call solve_linear(n, jac, -f, dx, ls_stat)
-            if (ls_stat /= 0) then
-                call status_set(status, FORTNUM_DOMAIN_ERROR, &
-                    "multiroot_hybrids: singular finite-difference Jacobian")
-                return
+        do
+            jeval = .true.
+            call fd_jacobian_forward(fn, n, x, f, jac, ctx)
+            ! As in hybrd, the bound restarts until a step has been accepted.
+            if (nsucc == 0) then
+                delta = FACTOR * xnorm
+                if (delta == 0.0_dp) delta = FACTOR
             end if
-            call line_search_fn(fn, n, x, f, dx, ctx)
-            if (maxval(abs(f)) <= ft) return
-            if (maxval(abs(dx)) <= xt * (maxval(abs(x)) + xt)) then
-                if (maxval(abs(f)) <= ft) return
-                exit
-            end if
+            call qr_householder(n, jac, q, r)
+            sing = any([(r(j, j) == 0.0_dp, j = 1, n)])
+            qtf = matmul(f, q)
+
+            do
+                it = it + 1
+                if (it > max_it) then
+                    call fail("maximum iterations reached without convergence")
+                    return
+                end if
+                call dogleg(n, r, qtf, delta, p)
+                p = -p
+                xtrial = x + p
+                pnorm = norm2(p)
+                if (nsucc == 0) delta = min(delta, pnorm)
+                call fn(xtrial, ftrial, ctx)
+                fnorm1 = norm2(ftrial)
+
+                actred = -1.0_dp
+                if (fnorm1 < fnorm) actred = 1.0_dp - (fnorm1 / fnorm)**2
+                ! Linear-model residual in the Q basis: Q^T F + R p.
+                pred = qtf + matmul(r, p)
+                prered = 0.0_dp
+                if (norm2(pred) < fnorm) prered = 1.0_dp - (norm2(pred) / fnorm)**2
+                ratio = 0.0_dp
+                if (prered > 0.0_dp) ratio = actred / prered
+
+                if (ratio < P1) then
+                    ncsuc = 0
+                    ncfail = ncfail + 1
+                    delta = P5 * delta
+                else
+                    ncfail = 0
+                    ncsuc = ncsuc + 1
+                    if (ratio >= P5 .or. ncsuc > 1) delta = max(delta, pnorm / P5)
+                    if (abs(ratio - 1.0_dp) <= P1) delta = pnorm / P5
+                end if
+
+                if (ratio >= P0001) then
+                    x = xtrial
+                    f = ftrial
+                    xnorm = norm2(x)
+                    fnorm = fnorm1
+                    nsucc = nsucc + 1
+                    if (maxval(abs(f)) <= ft) return
+                end if
+
+                nslow1 = nslow1 + 1
+                if (actred >= P001) nslow1 = 0
+                if (jeval) nslow2 = nslow2 + 1
+                if (actred >= P1) nslow2 = 0
+
+                ! hybrd stops here unconditionally; a step that still cut |F|_2
+                ! by 10% is convergence towards ftol, not stagnation.
+                if (delta <= xt * (xnorm + xt) .and. actred < P1) then
+                    call fail("trust region below xtol without convergence")
+                    return
+                end if
+                if (P1 * max(P1 * delta, pnorm) <= eps * xnorm) then
+                    call fail("step at rounding level; xtol too small")
+                    return
+                end if
+                if (nslow2 == 5) then
+                    call fail("no progress over five Jacobian evaluations")
+                    return
+                end if
+                if (nslow1 == 10) then
+                    call fail("no progress in ten iterations")
+                    return
+                end if
+                if (ncfail == 2) exit
+
+                ! Broyden update J + (dF - J p) p^T / |p|^2 in factored form:
+                ! R + u v^T with u = Q^T(dF - J p)/|p|, v = p/|p|.
+                qtft = matmul(ftrial, q)
+                u = (qtft - pred) / pnorm
+                v = p / pnorm
+                if (ratio >= P0001) qtf = qtft
+                call qr_rank_one_update(n, q, r, qtf, u, v)
+                sing = any([(r(j, j) == 0.0_dp, j = 1, n)])
+                jeval = .false.
+            end do
         end do
 
-        call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
-            "multiroot_hybrids: maximum iterations reached without convergence")
+    contains
+
+        subroutine fail(reason)
+            character(len=*), intent(in) :: reason
+            if (sing) then
+                call status_set(status, FORTNUM_DOMAIN_ERROR, &
+                    "multiroot_hybrids: singular Jacobian; " // reason)
+            else
+                call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
+                    "multiroot_hybrids: " // reason)
+            end if
+        end subroutine fail
+
     end subroutine multiroot_hybrids
 
     ! Implicit-rule derivatives for an n-dim root x*(p) of F(x, p) = 0.
@@ -601,61 +730,188 @@ contains
             end if
             lambda = 0.5_dp * lambda
         end do
-        ! No decrease found: take the smallest step taken so the iteration
-        ! still advances (full Newton already evaluated as xtrial above).
+        ! No decrease within 30 halvings: accept the last, smallest trial step
+        ! so the iteration still advances.
         x = xtrial; f = ftrial; jac = jtrial
     end subroutine line_search_fdf
 
-    ! Backtracking line search for the finite-difference-Jacobian solver.
-    subroutine line_search_fn(fn, n, x, f, dx, ctx)
-        procedure(multiroot_fn_t)           :: fn
-        integer,  intent(in)                :: n
-        real(dp), intent(inout)             :: x(n), f(n)
-        real(dp), intent(in)                :: dx(n)
-        class(*), intent(in), optional      :: ctx
+    ! Powell's dogleg step for min |R p - qtb|_2 subject to |p|_2 <= delta,
+    ! with R upper triangular (MINPACK dogleg, unit scaling).  Returns the
+    ! Gauss-Newton point R^{-1} qtb when it lies inside the region; otherwise
+    ! the point where the path from the Cauchy point of the scaled gradient
+    ! R^T qtb to the Gauss-Newton point crosses the boundary, or the scaled
+    ! gradient step clipped to the boundary.  A zero diagonal of R is replaced
+    ! by eps times its column maximum, so a singular R still yields a step.
+    pure subroutine dogleg(n, r, qtb, delta, p)
+        integer,  intent(in)  :: n
+        real(dp), intent(in)  :: r(n, n), qtb(n), delta
+        real(dp), intent(out) :: p(n)
 
-        real(dp) :: xtrial(n), ftrial(n)
-        real(dp) :: g0, gtrial, lambda
+        real(dp) :: g(n), rg(n), eps, piv, qnorm, gnorm, sgnorm, bnorm
+        real(dp) :: alpha, temp, dq, sd
+        integer  :: j
+
+        eps = epsilon(1.0_dp)
+        do j = n, 1, -1
+            piv = r(j, j)
+            if (piv == 0.0_dp) then
+                piv = eps * maxval(abs(r(1:j, j)))
+                if (piv == 0.0_dp) piv = eps
+            end if
+            p(j) = (qtb(j) - dot_product(r(j, j+1:n), p(j+1:n))) / piv
+        end do
+        qnorm = norm2(p)
+        if (qnorm <= delta) return
+
+        do j = 1, n
+            g(j) = dot_product(r(1:j, j), qtb(1:j))
+        end do
+        gnorm = norm2(g)
+        sgnorm = 0.0_dp
+        alpha = delta / qnorm
+        if (gnorm /= 0.0_dp) then
+            g = g / gnorm
+            do j = 1, n
+                rg(j) = dot_product(r(j, j:n), g(j:n))
+            end do
+            temp = norm2(rg)
+            ! Distance to the minimiser of the model along the gradient.
+            sgnorm = (gnorm / temp) / temp
+            alpha = 0.0_dp
+            if (sgnorm < delta) then
+                bnorm = norm2(qtb)
+                dq = delta / qnorm
+                sd = sgnorm / delta
+                temp = (bnorm / gnorm) * (bnorm / qnorm) * sd
+                temp = temp - dq * sd**2 + sqrt((temp - dq)**2 &
+                    + (1.0_dp - dq**2) * (1.0_dp - sd**2))
+                alpha = dq * (1.0_dp - sd**2) / temp
+            end if
+        end if
+        p = (1.0_dp - alpha) * min(sgnorm, delta) * g + alpha * p
+    end subroutine dogleg
+
+    ! Householder QR of a square matrix: a = q r with q orthogonal and r upper
+    ! triangular, q formed explicitly for the rank-one updates.
+    pure subroutine qr_householder(n, a, q, r)
+        integer,  intent(in)  :: n
+        real(dp), intent(in)  :: a(n, n)
+        real(dp), intent(out) :: q(n, n), r(n, n)
+
+        real(dp) :: w(n), alpha, wnorm2
+        integer  :: k, j
+
+        r = a
+        q = 0.0_dp
+        do j = 1, n
+            q(j, j) = 1.0_dp
+        end do
+        do k = 1, n - 1
+            alpha = norm2(r(k:n, k))
+            if (alpha == 0.0_dp) cycle
+            if (r(k, k) > 0.0_dp) alpha = -alpha
+            w(k:n) = r(k:n, k)
+            w(k) = w(k) - alpha
+            wnorm2 = dot_product(w(k:n), w(k:n))
+            do j = k, n
+                r(k:n, j) = r(k:n, j) &
+                    - (2.0_dp * dot_product(w(k:n), r(k:n, j)) / wnorm2) * w(k:n)
+            end do
+            do j = 1, n
+                q(j, k:n) = q(j, k:n) &
+                    - (2.0_dp * dot_product(q(j, k:n), w(k:n)) / wnorm2) * w(k:n)
+            end do
+            r(k+1:n, k) = 0.0_dp
+        end do
+    end subroutine qr_householder
+
+    ! Refactor q (r + u v^T) as q' r' with r' upper triangular, by Givens
+    ! rotations (Golub & Van Loan, Matrix Computations, sec. 6.5.1); qtf is
+    ! rotated along so that it stays q'^T F.  Same role as MINPACK
+    ! r1updt/r1mpyq, here on dense storage.
+    pure subroutine qr_rank_one_update(n, q, r, qtf, u, v)
+        integer,  intent(in)    :: n
+        real(dp), intent(inout) :: q(n, n), r(n, n), qtf(n)
+        real(dp), intent(in)    :: u(n), v(n)
+
+        real(dp) :: w(n), c, s
         integer  :: k
 
-        g0 = 0.5_dp * dot_product(f, f)
-        lambda = 1.0_dp
-        do k = 1, 30
-            xtrial = x + lambda * dx
-            call fn(xtrial, ftrial, ctx)
-            gtrial = 0.5_dp * dot_product(ftrial, ftrial)
-            if (gtrial < (1.0_dp - 1.0e-4_dp * lambda) * g0) then
-                x = xtrial; f = ftrial
-                return
-            end if
-            lambda = 0.5_dp * lambda
+        w = u
+        ! Rotate w onto e_1; r becomes upper Hessenberg.
+        do k = n - 1, 1, -1
+            call givens(w(k), w(k + 1), c, s)
+            w(k) = c * w(k) + s * w(k + 1)
+            w(k + 1) = 0.0_dp
+            call apply_givens(n, k, c, s, q, r, qtf)
         end do
-        x = xtrial; f = ftrial
-    end subroutine line_search_fn
+        r(1, :) = r(1, :) + w(1) * v
+        ! Restore triangular form.
+        do k = 1, n - 1
+            call givens(r(k, k), r(k + 1, k), c, s)
+            call apply_givens(n, k, c, s, q, r, qtf)
+            r(k + 1, k) = 0.0_dp
+        end do
 
-    ! Central-difference Jacobian: column j is (F(x + h e_j) - F(x - h e_j))/(2h)
-    ! with h scaled by |x_j|.
-    subroutine fd_jacobian(fn, n, x, jac, ctx)
+    end subroutine qr_rank_one_update
+
+    ! Apply the rotation G = [c -s; s c] in the (k, k+1) plane: r <- G^T r,
+    ! qtf <- G^T qtf, q <- q G, so that q r and q qtf are unchanged.
+    pure subroutine apply_givens(n, k, c, s, q, r, qtf)
+        integer,  intent(in)    :: n, k
+        real(dp), intent(in)    :: c, s
+        real(dp), intent(inout) :: q(n, n), r(n, n), qtf(n)
+        real(dp) :: row(n), col(n), t
+
+        row = r(k, :)
+        r(k, :) = c * row + s * r(k + 1, :)
+        r(k + 1, :) = -s * row + c * r(k + 1, :)
+        col = q(:, k)
+        q(:, k) = c * col + s * q(:, k + 1)
+        q(:, k + 1) = -s * col + c * q(:, k + 1)
+        t = qtf(k)
+        qtf(k) = c * t + s * qtf(k + 1)
+        qtf(k + 1) = -s * t + c * qtf(k + 1)
+    end subroutine apply_givens
+
+    ! Rotation [c s; -s c] that maps (a, b) to (hypot(a, b), 0).
+    pure subroutine givens(a, b, c, s)
+        real(dp), intent(in)  :: a, b
+        real(dp), intent(out) :: c, s
+        real(dp) :: h
+
+        h = hypot(a, b)
+        if (h == 0.0_dp) then
+            c = 1.0_dp
+            s = 0.0_dp
+        else
+            c = a / h
+            s = b / h
+        end if
+    end subroutine givens
+
+    ! Forward-difference Jacobian at x from the known f = F(x), with
+    ! MINPACK fdjac1's step sqrt(eps)*|x_j| (sqrt(eps) when x_j = 0).
+    subroutine fd_jacobian_forward(fn, n, x, f, jac, ctx)
         procedure(multiroot_fn_t)      :: fn
         integer,  intent(in)           :: n
-        real(dp), intent(in)           :: x(n)
+        real(dp), intent(in)           :: x(n), f(n)
         real(dp), intent(out)          :: jac(n, n)
         class(*), intent(in), optional :: ctx
 
-        real(dp), parameter :: cube_root_eps = 6.0554544523933429e-6_dp
-        real(dp) :: xp(n), xm(n), fp(n), fm(n), h
+        real(dp) :: xp(n), fp(n), h, root_eps
         integer  :: j
 
+        root_eps = sqrt(epsilon(1.0_dp))
         do j = 1, n
-            h = cube_root_eps * max(abs(x(j)), 1.0_dp)
-            xp = x; xm = x
+            h = root_eps * abs(x(j))
+            if (h == 0.0_dp) h = root_eps
+            xp = x
             xp(j) = x(j) + h
-            xm(j) = x(j) - h
             call fn(xp, fp, ctx)
-            call fn(xm, fm, ctx)
-            jac(:, j) = (fp - fm) / (2.0_dp * h)
+            jac(:, j) = (fp - f) / h
         end do
-    end subroutine fd_jacobian
+    end subroutine fd_jacobian_forward
 
     ! Solve A x = b (n x n) by Gaussian elimination with partial pivoting.
     ! stat = 0 on success, 1 when A is numerically singular.  A and b are
@@ -830,7 +1086,7 @@ contains
     ! Ascending index sort: perm is the
     ! permutation with x(perm) nondecreasing.  Heapsort on the index array so
     ! the input x is never moved; O(n log n), no recursion, no allocation
-    ! beyond perm.  Ties keep ascending value order (not a stability claim).
+    ! beyond perm.  Not stable: equal values may come in any index order.
     pure subroutine argsort(x, perm)
         real(dp), intent(in)  :: x(:)
         integer,  intent(out) :: perm(size(x))
