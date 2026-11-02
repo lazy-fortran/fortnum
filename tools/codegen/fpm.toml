@@ -16,6 +16,11 @@ implicit-typing = false
 source-form = "free"
 
 [[executable]]
+name = "gen_bdf2"
+source-dir = "app"
+main = "gen_bdf2.f90"
+
+[[executable]]
 name = "gen_special_outer"
 source-dir = "app"
 main = "gen_special_outer.f90"

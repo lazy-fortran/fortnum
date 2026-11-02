@@ -70,6 +70,168 @@ The package also exposes:
 
 Each method owns its documented state. They do not share hidden solver globals.
 
+## Matrix-free implicit BDF integration
+
+`fortnum_ode_bdf` integrates `F(t,y,ydot) = M(t,y) ydot + R(t,y) = 0`
+with a nonsingular mass matrix `M`, using first-order backward differentiation
+(BDF1, backward Euler) at startup and variable-step BDF2 thereafter. `R` is
+the spatial or physical residual and `ydot` is the time derivative. The caller
+extends `bdf_problem_t`, which reuses `real_linear_operator_t` from
+`fortnum_krylov`, and implements these methods:
+
+| Method | Contract |
+| --- | --- |
+| `evaluate(t,y,ydot,residual,status)` | Evaluate `F` without changing the current linearization. Zero `status` means success. |
+| `linearize(t,y,ydot,alpha,status)` | Retain the point and prepare the shifted Jacobian and preconditioner. Zero `status` means success. |
+| `apply(input,output)` | Apply `F_y input + alpha F_ydot input` at the retained point. |
+| `precondition(r,z,status)` | Optional right inverse action for the shifted Jacobian; the default is the identity. Nonzero `status` rejects the attempt. |
+
+The shifted Jacobian includes `(dM/dy input) ydot` for a state-dependent mass
+matrix, as well as `alpha M input` and `R_y input`. Omitting the mass derivative
+changes Newton's equation. The integrator never assembles or inverts `M` and
+never assumes a symmetric Jacobian. Callback state belongs to the problem
+object; each trajectory owns a separate `bdf_state_t`.
+
+```fortran
+type(bdf_options_t) :: options
+type(bdf_state_t) :: state
+type(bdf_report_t) :: report
+type(fortnum_status_t) :: status
+! problem is a caller-defined extension of bdf_problem_t.
+options%rtol = 1.0e-5_dp
+options%atol = 1.0e-8_dp
+options%initial_step = 1.0e-3_dp
+call bdf_init(state, 0.0_dp, initial_y, options, status)
+if (status%code == FORTNUM_OK) then
+    call bdf_integrate_to(problem, state, final_time, options, report, status)
+end if
+```
+
+`state%y` and `state%t` are the last accepted endpoint. Continuation to another
+target retains the history; changing direction restarts with BDF1. Endpoint
+clipping lands on the requested time without interpolation. `next_step` stores
+a positive proposed magnitude, while `previous_step` is signed. Do not modify
+the accepted state or history between calls; reinitialize after a discontinuity.
+
+For current step `h`, previous step `k` and ratio `r=h/k`, the BDF2 derivative is
+
+\[
+\dot y_{n+1}=\frac{1+2r}{(1+r)h}(y_{n+1}-y_n)
+             -\frac{r^2}{(1+r)h}(y_n-y_{n-1}).
+\]
+
+Each attempt makes one implicit time-step solve. Its Newton initial guess is
+the quadratic Hermite predictor through `y_{n-1}`, `y_n` and the retained
+endpoint derivative `d_n`:
+
+\[
+y^P_{n+1}=y_n+h d_n+r\{h d_n-r(y_n-y_{n-1})\}.
+\]
+
+For exact starting data and fixed positive `r`, Taylor expansion gives the
+predictor and BDF2 local solution errors
+
+\[
+y^P_{n+1}-y(t_n+h)=-p(r)h^3 y'''(t_n)+O(h^4),\quad
+y_{n+1}-y(t_n+h)=b(r)h^3 y'''(t_n)+O(h^4),
+\]
+\[
+p(r)=\frac{1+r}{6r},\qquad
+b(r)=\frac{(1+r)^2}{6r(1+2r)}.
+\]
+
+Here the derivative defect of BDF2 is
+`-h*(h+k)*y'''/6`; negation and division by its leading shifted coefficient
+`alpha=(1+2r)/((1+r)*h)` gives `b(r)`. Eliminating the common third derivative
+is Milne's device:
+
+\[
+e_{n+1}=C(r)(y_{n+1}-y^P_{n+1}),\qquad
+C(r)=\frac{b(r)}{b(r)+p(r)}=\frac{1+r}{2+3r}.
+\]
+
+This estimates the BDF2 local solution error of order `h**3`, rather than the
+derivative residual or a BDF1 error. The derivation above is for this Hermite
+predictor; an Adams--Bashforth predictor has different constants. For the
+standard BDF and multistep error-estimation framework, see E. Hairer and
+G. Wanner, *Solving Ordinary Differential Equations II: Stiff and
+Differential-Algebraic Problems*, second revised edition, Springer (1996),
+[Chapter V](https://doi.org/10.1007/978-3-642-05221-7).
+The formulas are retained in the FortSym generator
+`tools/codegen/app/gen_bdf2.f90` and emitted into `src/generated/`.
+
+At startup, the predictor is explicit Euler `y^P_1=y_0+h*d_0`. The estimate
+`(y_1-y^P_1)/2` is asymptotically the BDF1 local solution error of order
+`h**2`; the accepted value is the single backward Euler step. There are no
+embedded or half-step implicit solves. An optional `derivative` argument to
+`bdf_init` supplies a consistent initial `d_0`. Otherwise the first attempt
+obtains it once from the linear equation `M(t_0,y_0)*d_0=-R(t_0,y_0)` using
+unpreconditioned FGMRES with normalized right-hand side and relative tolerance
+`1e-8`. Its mass action uses `F(t_0,y_0,v)-F(t_0,y_0,0)`, since `F` is affine
+in `ydot`. This setup does not solve another implicit time step. Supplying
+`d_0` avoids that linear setup, useful for a difficult mass matrix. Subsequent
+derivatives come directly from the accepted implicit solve, including across
+continuation and direction changes.
+
+The error indicator is the root-mean-square norm of `e_{n+1}` divided
+componentwise by `atol + rtol*max(abs(y_n),abs(y_{n+1}))`. It is an asymptotic
+local estimate for smooth resolved solutions and sufficiently accurate Newton
+solves, not a rigorous bound on the global trajectory error or a uniform stiff
+error bound.
+
+An indicator above one rejects the attempt. The elementary controller uses
+`h_new = abs(h)*0.6*error**(-1/3)` for BDF2 and exponent `-1/2` for startup.
+The multiplier is limited to `[0.2,2]`; zero error selects two. Every attempted
+step is also capped at twice the previous accepted step magnitude, below the classical
+BDF2 zero-stability ratio `1+sqrt(2)`, even after endpoint clipping or a retry.
+Nonlinear failure reduces the step by four. `adaptive=.false.` disables the
+error test, retains the proposed step magnitude after acceptance, and still
+rejects failed nonlinear solves. Set `initial_step=max_step` for
+constant-step convergence studies. `min_step` is enforced even on a clipped
+final step; a step that cannot advance floating-point time also fails.
+`max_steps` bounds all attempts per call, including rejections. Invalid data
+return `FORTNUM_DOMAIN_ERROR`; underflow, minimum-step or budget exhaustion
+return `FORTNUM_CONVERGENCE_ERROR`, retaining the last accepted endpoint.
+
+The inner inexact Newton solve uses fortnum's existing right-preconditioned
+FGMRES, residual backtracking and
+[Eisenstat--Walker choice 2](https://doi.org/10.1137/0917003), with multiplier
+0.9, exponent 1.5 and its safeguard against a sudden forcing decrease. The
+initial forcing is 0.1, the upper limit 0.9, and `forcing_min` (default
+`1e-4`, allowed in `(0,0.1]`) prevents oversolving near the linear rounding
+floor. The normalized linear right-hand side preserves relative forcing
+despite FGMRES's absolute stopping floor. Newton converges on a zero residual
+or a full correction whose weighted root-mean-square norm is at most
+`newton_tolerance` (default 0.03), using the same state weights as the error
+test. A converged correction need not decrease a residual already at roundoff.
+
+The report counts accepted steps, error and nonlinear rejections, Newton and
+Krylov iterations, and evaluations for the current call. `implicit_solves`
+counts all attempted implicit time-step solves, including rejected ones;
+`mass_iterations` counts the separate initial mass solve's Krylov iterations.
+`last_error` is the last error indicator. `last_failure` describes the latest
+solve as
+`BDF_SOLVED`,
+`BDF_NEWTON_LIMIT`, `BDF_LINEAR_FAILURE`, `BDF_EVALUATION`, `BDF_LINE_SEARCH`
+or `BDF_LINEARIZE`; it is reset by a later successful implicit solve.
+`callback_status` and `linear_status` retain the last callback and FGMRES
+status. Nonfinite callback output is a failure. Rejections change the proposed
+step, never the accepted solution or multistep history. This interface is
+host-side and primal-only, without event location or a sensitivity trace.
+
+`fortnum_ode_bdf` tests use exact stiff triangular-system and manufactured
+nonlinear trajectories (including a state-dependent mass), polynomial
+exactness on nonuniform grids, a refined dense trapezoidal Robertson reference,
+and periodic diffusion Fourier modes. Exact-start single steps check the local
+error estimate at ratios `0.5`, `1` and `2` in both time directions. A smooth
+nonlinear trajectory checks cube-root tolerance scaling. Robertson on `[0,1]`
+retains the error/rejection regression, while `[0,4]` checks achieved error
+within a factor ten of tolerance and approximately one implicit solve per
+accepted step. Diffusion includes a slow constant mode
+and excited fast modes, with stiffness ratios starting at `1e8` and increasing
+under refinement; the test preconditioner uses a dense factorization. It tests
+bounded time-step counts, not the scalability of that preconditioner.
+
 ## Four-state GPU reverse communication
 
 `fortnum_ode_rk54_device` provides allocation-free Cash-Karp 5(4) and
