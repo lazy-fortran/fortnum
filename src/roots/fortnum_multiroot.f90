@@ -218,7 +218,12 @@ contains
     ! between, a Broyden rank-one update is applied directly to J = QR by
     ! Givens rotations, so such a step costs one evaluation of F.
     !
-    ! Converged: |F|_inf <= ftol.  Failure (FORTNUM_CONVERGENCE_ERROR, or
+    ! Converged: |F|_inf <= ftol, or, with step_tol(n) present, a trial step
+    ! that is the full quasi-Newton step (inside the trust region) with
+    ! |p_i| <= step_tol(i) for every i; x is then that trial point, as in a
+    ! Newton iteration stopped on its step.  This is for residuals whose
+    ! rounding floor lies above any useful ftol: the step test needs no
+    ! residual scale.  Failure (FORTNUM_CONVERGENCE_ERROR, or
     ! FORTNUM_DOMAIN_ERROR when the current Jacobian factor is singular):
     ! the trust radius falls to xtol*(|x|_2 + xtol) after a step that cut
     ! |F|_2 by less than 10% (hybrd stops there regardless), no progress over
@@ -234,7 +239,7 @@ contains
     ! by less than 10%: near the rounding floor those carry noise, not slope.
     ! Non-finite factors invalidate it.
     subroutine multiroot_hybrids(fn, n, x0, x, status, xtol, ftol, max_iter, &
-            ctx, warm)
+            ctx, warm, step_tol)
         procedure(multiroot_fn_t)          :: fn
         integer,                intent(in) :: n
         real(dp),               intent(in) :: x0(n)
@@ -244,6 +249,7 @@ contains
         integer,  intent(in), optional     :: max_iter
         class(*), intent(in), optional     :: ctx
         type(multiroot_hybrids_warm_t), intent(inout), optional :: warm
+        real(dp), intent(in), optional     :: step_tol(n)
 
         ! MINPACK hybrd constants: initial bound factor and ratio thresholds.
         real(dp), parameter :: FACTOR = 100.0_dp
@@ -254,7 +260,7 @@ contains
         real(dp) :: xt, ft, eps, delta, xnorm, fnorm, fnorm1, pnorm
         real(dp) :: actred, prered, ratio
         integer  :: it, max_it, nsucc, ncsuc, ncfail, nslow1, nslow2, j
-        logical  :: jeval, sing, reuse, clean
+        logical  :: jeval, sing, reuse, clean, newton
 
         call status_set(status, FORTNUM_OK, "")
         x = x0
@@ -302,7 +308,7 @@ contains
                     call fail("maximum iterations reached without convergence")
                     return
                 end if
-                call dogleg(n, r, qtf, delta, p)
+                call dogleg(n, r, qtf, delta, p, newton)
                 p = -p
                 xtrial = x + p
                 pnorm = norm2(p)
@@ -318,6 +324,17 @@ contains
                 if (norm2(pred) < fnorm) prered = 1.0_dp - (norm2(pred) / fnorm)**2
                 ratio = 0.0_dp
                 if (prered > 0.0_dp) ratio = actred / prered
+
+                if (present(step_tol) .and. newton) then
+                    if (all(abs(p) <= step_tol)) then
+                        x = xtrial
+                        if (present(warm) .and. clean) then
+                            if (actred >= P1) call broyden_update()
+                            call save_warm()
+                        end if
+                        return
+                    end if
+                end if
 
                 if (ratio < P1) then
                     ncsuc = 0
@@ -798,10 +815,12 @@ contains
     ! R^T qtb to the Gauss-Newton point crosses the boundary, or the scaled
     ! gradient step clipped to the boundary.  A zero diagonal of R is replaced
     ! by eps times its column maximum, so a singular R still yields a step.
-    pure subroutine dogleg(n, r, qtb, delta, p)
+    ! newton tells whether p is the Gauss-Newton point.
+    pure subroutine dogleg(n, r, qtb, delta, p, newton)
         integer,  intent(in)  :: n
         real(dp), intent(in)  :: r(n, n), qtb(n), delta
         real(dp), intent(out) :: p(n)
+        logical,  intent(out) :: newton
 
         real(dp) :: g(n), rg(n), eps, piv, qnorm, gnorm, sgnorm, bnorm
         real(dp) :: alpha, temp, dq, sd
@@ -817,7 +836,8 @@ contains
             p(j) = (qtb(j) - dot_product(r(j, j+1:n), p(j+1:n))) / piv
         end do
         qnorm = norm2(p)
-        if (qnorm <= delta) return
+        newton = qnorm <= delta
+        if (newton) return
 
         do j = 1, n
             g(j) = dot_product(r(1:j, j), qtb(1:j))
