@@ -477,7 +477,8 @@ They differentiate the residual equation at the converged root.
 
 `fortnum_multiroot` provides:
 
-- `multiroot_hybrid`, `multiroot_hybrids`
+- `multiroot_hybrid`, `multiroot_hybrids` (optional warm start from the
+  previous solve's Jacobian through `multiroot_hybrids_warm_t`)
 - `multiroot_jvp`, `multiroot_vjp`, `multiroot_grad`
 - factored JVP and VJP variants
 - generic implicit JVP and VJP boundaries
