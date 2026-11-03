@@ -403,6 +403,11 @@ add_executable(test_fortnum_multiroot_hybrids_minpack roots/test_fortnum_multiro
 target_link_libraries(test_fortnum_multiroot_hybrids_minpack PRIVATE fortnum)
 add_test(NAME fortnum_multiroot_hybrids_minpack COMMAND test_fortnum_multiroot_hybrids_minpack)
 
+# multiroot_hybrids warm start from the previous solve's Jacobian
+add_executable(test_fortnum_multiroot_hybrids_warm roots/test_fortnum_multiroot_hybrids_warm.f90)
+target_link_libraries(test_fortnum_multiroot_hybrids_warm PRIVATE fortnum)
+add_test(NAME fortnum_multiroot_hybrids_warm COMMAND test_fortnum_multiroot_hybrids_warm)
+
 # --- small dense linalg (host + !$acc routine seq) ---
 add_executable(test_fortnum_linalg linalg/test_fortnum_linalg.f90)
 target_link_libraries(test_fortnum_linalg PRIVATE fortnum)
