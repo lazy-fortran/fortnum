@@ -145,9 +145,9 @@ find_package(LAPACK REQUIRED)
 
 # Quad precision (binary128) is optional: NVHPC's nvfortran has no real128 and
 # rejects the kind at compile time. Without it the binary128 interval, rigorous
-# FFT and Fourier-series modules are not built (fortnum_interval_qp,
-# fortnum_cfft_rigorous, fortnum_fseries) and the tests that use real128
-# oracles are not registered. Never silent: see the warning below.
+# FFT, Fourier-series and Coulomb modules are not built (fortnum_interval_qp,
+# fortnum_cfft_rigorous, fortnum_fseries, fortnum_special_coulomb) and the
+# tests that use real128 are not registered. Never silent: see the warning below.
 include(CheckFortranSourceCompiles)
 check_fortran_source_compiles("
 program probe_real128
@@ -161,8 +161,8 @@ if(NOT FORTNUM_HAVE_REAL128)
     message(WARNING
         "Fortran compiler ${CMAKE_Fortran_COMPILER_ID} has no quad precision "
         "(selected_real_kind(33, 4931) is negative): fortnum_interval_qp, "
-        "fortnum_cfft_rigorous and fortnum_fseries are NOT built and real128 "
-        "tests are skipped. Use gfortran or ifx for binary128 support.")
+        "fortnum_cfft_rigorous, fortnum_fseries and fortnum_special_coulomb are "
+        "NOT built and real128 tests are skipped. Use gfortran or ifx for binary128 support.")
 endif()
 
 # Small, shared IEEE storage runtime; generators use the same conversion contract.

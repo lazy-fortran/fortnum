@@ -95,10 +95,6 @@ module fortnum_verified_linalg
         end subroutine dsyev
     end interface
 
-    !$omp declare reduction(verified_sum : interval_t : &
-    !$omp& omp_out = reduction_add(omp_out, omp_in)) &
-    !$omp& initializer(omp_priv = interval_t(0.0_dp, 0.0_dp))
-
     real(dp), parameter :: u = unit_roundoff
 
 contains
@@ -114,7 +110,7 @@ contains
         !! Inputs are exact represented binary64 reals. Invalid input fails
         !! closed to the entire line; every sum/product is outward rounded.
         real(dp), intent(in) :: x(:), y(:)
-        type(interval_t) :: total
+        type(interval_t) :: total, part
         integer :: i
         total = entire()
         if (size(x) /= size(y)) return
@@ -122,16 +118,25 @@ contains
         if (.not. all(ieee_is_finite(y))) return
         total = interval(0.0_dp)
         if (size(x) == 0) return
-        !$omp parallel do reduction(verified_sum:total) if(size(x) >= 8192)
+        ! Per-thread partial sums combined in a critical section: nvfortran
+        ! has no user-defined OpenMP reductions.
+        !$omp parallel private(part) if(size(x) >= 8192)
+        part = interval(0.0_dp)
+        !$omp do
         do i = 1, size(x)
-            total = reduction_add(total, interval(x(i))*interval(y(i)))
+            part = reduction_add(part, interval(x(i))*interval(y(i)))
         end do
+        !$omp end do
+        !$omp critical (fortnum_verified_sum)
+        total = reduction_add(total, part)
+        !$omp end critical (fortnum_verified_sum)
+        !$omp end parallel
     end function
 
     function weighted_norm2_enclosure(w, x) result(total)
         !! Enclose sum(w*x**2), for finite nonnegative point weights.
         real(dp), intent(in) :: w(:), x(:)
-        type(interval_t) :: total
+        type(interval_t) :: total, part
         integer :: i
         total = entire()
         if (size(w) /= size(x)) return
@@ -140,17 +145,26 @@ contains
         if (any(w < 0.0_dp)) return
         total = interval(0.0_dp)
         if (size(x) == 0) return
-        !$omp parallel do reduction(verified_sum:total) if(size(x) >= 8192)
+        ! Per-thread partial sums combined in a critical section: nvfortran
+        ! has no user-defined OpenMP reductions.
+        !$omp parallel private(part) if(size(x) >= 8192)
+        part = interval(0.0_dp)
+        !$omp do
         do i = 1, size(x)
-            total = reduction_add(total, interval(w(i))*sqr(interval(x(i))))
+            part = reduction_add(part, interval(w(i))*sqr(interval(x(i))))
         end do
+        !$omp end do
+        !$omp critical (fortnum_verified_sum)
+        total = reduction_add(total, part)
+        !$omp end critical (fortnum_verified_sum)
+        !$omp end parallel
         total%lo = max(0.0_dp, total%lo)
     end function
 
     function norm2_up_vector(x) result(bound)
         real(dp), intent(in) :: x(:)
         real(dp) :: bound
-        type(interval_t) :: total
+        type(interval_t) :: total, part
         integer :: i
         bound = ieee_value(1.0_dp, ieee_positive_inf)
         if (.not. all(ieee_is_finite(x))) return
@@ -159,10 +173,19 @@ contains
             return
         end if
         total = interval(0.0_dp)
-        !$omp parallel do reduction(verified_sum:total) if(size(x) >= 8192)
+        ! Per-thread partial sums combined in a critical section: nvfortran
+        ! has no user-defined OpenMP reductions.
+        !$omp parallel private(part) if(size(x) >= 8192)
+        part = interval(0.0_dp)
+        !$omp do
         do i = 1, size(x)
-            total = reduction_add(total, sqr(interval(x(i))))
+            part = reduction_add(part, sqr(interval(x(i))))
         end do
+        !$omp end do
+        !$omp critical (fortnum_verified_sum)
+        total = reduction_add(total, part)
+        !$omp end critical (fortnum_verified_sum)
+        !$omp end parallel
         bound = sqrt_up(max(0.0_dp, total%hi))
     end function
 

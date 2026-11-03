@@ -27,8 +27,6 @@ target_sources(fortnum PRIVATE
     generated/fortnum_mf_autoregressive.f90
     interp/fortnum_multifidelity.f90
     interp/fortnum_gaussian_constraints.f90
-    generated/fortnum_coulomb_series_kernel.f90
-    special/fortnum_special_coulomb.f90
     ad/fortnum_active_vector.f90
     ad/fortnum_ad_interfaces.f90
     ad/fortnum_derivative_registry.f90
@@ -269,6 +267,8 @@ target_sources(fortnum PRIVATE
 # Binary128 modules need real128; see FORTNUM_HAVE_REAL128 in the top-level file.
 if(FORTNUM_HAVE_REAL128)
     target_sources(fortnum PRIVATE
+        generated/fortnum_coulomb_series_kernel.f90
+        special/fortnum_special_coulomb.f90
         verified/fortnum_cfft_rigorous.f90
         verified/fortnum_fseries.f90
         verified/fortnum_interval_qp.f90)
