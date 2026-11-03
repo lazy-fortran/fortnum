@@ -21,7 +21,8 @@ b_1=2 eta [Re psi(1+i eta)+2 EulerGamma-1]. Equating powers gives
     b_n = [2 eta b_(n-1)-b_(n-2)-2 eta(2n-1)a_(n-1)]/[n(n-1)].
 
 The recurrence is retained in `tools/codegen/app/gen_coulomb_series.f90`.
-Its checked output uses binary128 accumulation. Digamma comes from the
+Its checked output uses binary128 accumulation, so the module is built only
+with compilers that have binary128 (not nvfortran). Digamma comes from the
 existing FortNum implementation; binary64 input and final rounding dominate.
 Two consecutive terms must be small: a single zero term at eta=0 is not
 convergence. The iteration cap returns failure. Independent mpmath references
