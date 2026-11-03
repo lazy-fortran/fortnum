@@ -51,12 +51,21 @@ module fortnum_multiroot
     public :: multiroot_fdf_t, multiroot_fn_t, multiroot_residual_jvp_t
     public :: multiroot_state_jacobian_t, multiroot_parameter_vjp_t
     public :: multiroot_preconditioned_solve_t
-    public :: multiroot_hybrid, multiroot_hybrids
+    public :: multiroot_hybrid, multiroot_hybrids, multiroot_hybrids_warm_t
     public :: multiroot_implicit_jvp, multiroot_implicit_vjp
     public :: multiroot_jvp, multiroot_jvp_factored
     public :: multiroot_vjp, multiroot_vjp_factored, multiroot_grad
     public :: deriv_fn_t, deriv_central
     public :: argsort
+
+    ! Caller-owned Jacobian estimate J = q r carried between calls of
+    ! multiroot_hybrids on a sequence of related systems (e.g. one implicit
+    ! time step after another).  Set valid = .false. to force a fresh
+    ! forward-difference Jacobian.
+    type :: multiroot_hybrids_warm_t
+        logical :: valid = .false.
+        real(dp), allocatable :: q(:, :), r(:, :)
+    end type multiroot_hybrids_warm_t
 
     ! System with analytic Jacobian: returns F(x) in f(n) and dF/dx in
     ! jac(n,n) with jac(i,j) = dF_i/dx_j.  ctx carries parameters (active for
@@ -216,7 +225,16 @@ contains
     ! five Jacobian evaluations or ten iterations (hybrd's nslow2/nslow1), a
     ! step at rounding level, or max_iter trial points (one F evaluation
     ! each, plus n per Jacobian).
-    subroutine multiroot_hybrids(fn, n, x0, x, status, xtol, ftol, max_iter, ctx)
+    !
+    ! warm (optional): when valid with matching n, its factors replace the
+    ! initial forward-difference Jacobian, saving n evaluations.  The refresh
+    ! after two poor steps still applies, so a stale estimate costs
+    ! evaluations, not accuracy.  On return, also after a failure, it holds
+    ! the latest estimate without the secant updates of steps that cut |F|_2
+    ! by less than 10%: near the rounding floor those carry noise, not slope.
+    ! Non-finite factors invalidate it.
+    subroutine multiroot_hybrids(fn, n, x0, x, status, xtol, ftol, max_iter, &
+            ctx, warm)
         procedure(multiroot_fn_t)          :: fn
         integer,                intent(in) :: n
         real(dp),               intent(in) :: x0(n)
@@ -225,6 +243,7 @@ contains
         real(dp), intent(in), optional     :: xtol, ftol
         integer,  intent(in), optional     :: max_iter
         class(*), intent(in), optional     :: ctx
+        type(multiroot_hybrids_warm_t), intent(inout), optional :: warm
 
         ! MINPACK hybrd constants: initial bound factor and ratio thresholds.
         real(dp), parameter :: FACTOR = 100.0_dp
@@ -235,7 +254,7 @@ contains
         real(dp) :: xt, ft, eps, delta, xnorm, fnorm, fnorm1, pnorm
         real(dp) :: actred, prered, ratio
         integer  :: it, max_it, nsucc, ncsuc, ncfail, nslow1, nslow2, j
-        logical  :: jeval, sing
+        logical  :: jeval, sing, reuse, clean
 
         call status_set(status, FORTNUM_OK, "")
         x = x0
@@ -252,16 +271,28 @@ contains
         ncfail = 0
         nslow1 = 0
         nslow2 = 0
+        reuse = .false.
+        if (present(warm)) then
+            if (warm%valid .and. allocated(warm%q)) reuse = size(warm%q, 1) == n
+        end if
 
         do
-            jeval = .true.
-            call fd_jacobian_forward(fn, n, x, f, jac, ctx)
             ! As in hybrd, the bound restarts until a step has been accepted.
             if (nsucc == 0) then
                 delta = FACTOR * xnorm
                 if (delta == 0.0_dp) delta = FACTOR
             end if
-            call qr_householder(n, jac, q, r)
+            if (reuse) then
+                jeval = .false.
+                q = warm%q
+                r = warm%r
+                reuse = .false.
+            else
+                jeval = .true.
+                call fd_jacobian_forward(fn, n, x, f, jac, ctx)
+                call qr_householder(n, jac, q, r)
+            end if
+            clean = .true.
             sing = any([(r(j, j) == 0.0_dp, j = 1, n)])
             qtf = matmul(f, q)
 
@@ -305,7 +336,13 @@ contains
                     xnorm = norm2(x)
                     fnorm = fnorm1
                     nsucc = nsucc + 1
-                    if (maxval(abs(f)) <= ft) return
+                    if (maxval(abs(f)) <= ft) then
+                        if (present(warm) .and. clean) then
+                            if (actred >= P1) call broyden_update()
+                            call save_warm()
+                        end if
+                        return
+                    end if
                 end if
 
                 nslow1 = nslow1 + 1
@@ -333,13 +370,12 @@ contains
                 end if
                 if (ncfail == 2) exit
 
-                ! Broyden update J + (dF - J p) p^T / |p|^2 in factored form:
-                ! R + u v^T with u = Q^T(dF - J p)/|p|, v = p/|p|.
-                qtft = matmul(ftrial, q)
-                u = (qtft - pred) / pnorm
-                v = p / pnorm
-                if (ratio >= P0001) qtf = qtft
-                call qr_rank_one_update(n, q, r, qtf, u, v)
+                ! Keep the estimate from before the first noise-level update.
+                if (present(warm) .and. clean .and. actred < P1) then
+                    call save_warm()
+                    clean = .false.
+                end if
+                call broyden_update()
                 sing = any([(r(j, j) == 0.0_dp, j = 1, n)])
                 jeval = .false.
             end do
@@ -347,8 +383,28 @@ contains
 
     contains
 
+        ! Broyden update J + (dF - J p) p^T / |p|^2 in factored form:
+        ! R + u v^T with u = Q^T(dF - J p)/|p|, v = p/|p|.
+        subroutine broyden_update()
+            qtft = matmul(ftrial, q)
+            u = (qtft - pred) / pnorm
+            v = p / pnorm
+            if (ratio >= P0001) qtf = qtft
+            call qr_rank_one_update(n, q, r, qtf, u, v)
+        end subroutine broyden_update
+
+        subroutine save_warm()
+            warm%valid = all(abs(q) <= huge(1.0_dp)) .and. &
+                all(abs(r) <= huge(1.0_dp))
+            if (warm%valid) then
+                warm%q = q
+                warm%r = r
+            end if
+        end subroutine save_warm
+
         subroutine fail(reason)
             character(len=*), intent(in) :: reason
+            if (present(warm) .and. clean) call save_warm()
             if (sing) then
                 call status_set(status, FORTNUM_DOMAIN_ERROR, &
                     "multiroot_hybrids: singular Jacobian; " // reason)
@@ -651,7 +707,7 @@ contains
 
         reliable = .true.
         if (.not. present(reciprocal_condition) .and. &
-                .not. present(minimum_reciprocal_condition)) return
+            .not. present(minimum_reciprocal_condition)) return
         call estimate_rcond_1(a, measured)
         if (present(reciprocal_condition)) reciprocal_condition = measured
         if (present(minimum_reciprocal_condition)) then
