@@ -408,6 +408,11 @@ add_executable(test_fortnum_multiroot_hybrids_warm roots/test_fortnum_multiroot_
 target_link_libraries(test_fortnum_multiroot_hybrids_warm PRIVATE fortnum)
 add_test(NAME fortnum_multiroot_hybrids_warm COMMAND test_fortnum_multiroot_hybrids_warm)
 
+# multiroot_hybrids convergence on the step size (step_tol)
+add_executable(test_fortnum_multiroot_hybrids_step_tol roots/test_fortnum_multiroot_hybrids_step_tol.f90)
+target_link_libraries(test_fortnum_multiroot_hybrids_step_tol PRIVATE fortnum)
+add_test(NAME fortnum_multiroot_hybrids_step_tol COMMAND test_fortnum_multiroot_hybrids_step_tol)
+
 # --- small dense linalg (host + !$acc routine seq) ---
 add_executable(test_fortnum_linalg linalg/test_fortnum_linalg.f90)
 target_link_libraries(test_fortnum_linalg PRIVATE fortnum)
