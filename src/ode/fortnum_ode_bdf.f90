@@ -166,6 +166,7 @@ contains
         real(dp), allocatable :: high(:), prediction(:), estimate(:)
         real(dp), allocatable :: offset(:), weights(:)
         real(dp) :: h, ratio, alpha, beta, milne, direction, factor, error, power
+        real(dp) :: proposed, remaining, gap, clock_roundoff
         integer :: n, attempt, failure
 
         report = bdf_report_t()
@@ -194,9 +195,16 @@ contains
             work%trial_r(n), work%d(n), work%rhs(n))
 
         do attempt = 1, options%max_steps
-            h = direction*min(state%next_step, options%max_step, abs(target - state%t))
+            proposed = min(state%next_step, options%max_step)
+            remaining = target - state%t
+            h = direction*min(proposed, abs(remaining))
             if (state%previous_step /= 0.0_dp) &
                 h = direction*min(abs(h), 2.0_dp*abs(state%previous_step))
+            gap = abs(remaining) - abs(h)
+            clock_roundoff = 8*spacing(max(abs(state%t), abs(target)))
+            ! Solve to the actual endpoint instead of adding a clock-roundoff step.
+            if (gap <= clock_roundoff .and. &
+                gap <= sqrt(epsilon(h))*abs(h)) h = remaining
             if (state%t + h == state%t .or. abs(h) < options%min_step) then
                 call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
                     'BDF step underflow or minimum step reached')
@@ -245,6 +253,7 @@ contains
             if (error > 0.0_dp) &
                 factor = max(0.2_dp, min(2.0_dp, 0.6_dp*error**(-power)))
             state%next_step = min(options%max_step, factor*abs(h))
+            if (.not. options%adaptive) state%next_step = proposed
             if (error > 1.0_dp) then
                 report%rejected_error = report%rejected_error + 1
                 cycle

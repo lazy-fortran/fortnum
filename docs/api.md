@@ -430,6 +430,9 @@ shifted-Jacobian setup/action and an optional right preconditioner. Call
 on failure. The [BDF contract](design/ode.md#matrix-free-implicit-bdf-integration)
 defines state-dependent mass derivatives, the BDF2 local error estimate,
 startup derivative setup, step limits, nonlinear forcing and failure reports.
+Fixed-step continuation retains the proposed step after endpoint clipping.
+Clock-roundoff alignment uses the actual interval to the requested endpoint,
+with the clock and relative-step bounds specified in that contract.
 
 For autonomous `y' = f(y)`, extend `exprb_problem_t` with
 `evaluate(y,f,status)`, `linearize(y,status)` and Jacobian `apply(input,output)`.
