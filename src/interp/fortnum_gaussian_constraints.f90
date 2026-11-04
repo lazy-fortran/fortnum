@@ -3,7 +3,7 @@ module fortnum_gaussian_constraints
     use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
     implicit none
     private
-    public :: brownian_factor, constrain_discrepancy
+    public :: brownian_factor, constrain_discrepancy, constraint_nullspace
     interface
         subroutine dgesvd(jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, work, lwork, info)
             import dp
@@ -15,6 +15,31 @@ module fortnum_gaussian_constraints
         end subroutine
     end interface
 contains
+    subroutine constraint_nullspace(protected, basis, status)
+        !! Euclidean orthonormal complement of a fixed protected tangent space.
+        real(dp), intent(in) :: protected(:, :)
+        real(dp), allocatable, intent(out) :: basis(:, :)
+        integer, intent(out) :: status
+        real(dp), allocatable :: a(:, :), u(:, :), s(:), work(:)
+        real(dp) :: vt(1, 1), query(1)
+        integer :: m, n, rank, info
+        status = 1
+        m = size(protected, 1); n = size(protected, 2)
+        if (m < 1 .or. n < 1) return
+        if (.not. all(ieee_is_finite(protected))) return
+        a = protected
+        allocate (u(m, m), s(min(m, n)))
+        call dgesvd('A', 'N', m, n, a, m, s, u, m, vt, 1, query, -1, info)
+        if (info /= 0) return
+        allocate (work(max(1, int(query(1)))))
+        call dgesvd('A', 'N', m, n, a, m, s, u, m, vt, 1, work, size(work), info)
+        if (info /= 0) return
+        rank = 0
+        if (s(1) > 0) rank = count(s > max(m, n)*epsilon(1._dp)*s(1))
+        basis = u(:, rank + 1:)
+        status = 0
+    end subroutine
+
     subroutine brownian_factor(time, initial_sd, drift_sd, factor, status)
         real(dp), intent(in)::time(:), initial_sd, drift_sd
         real(dp), allocatable, intent(out)::factor(:, :)
@@ -68,7 +93,7 @@ contains
             do i = 1, k
                 if (s(i) <= max(m, n)*epsilon(1._dp)*s(1)) cycle
                 b = b - matmul(reshape(u(:, i), [m, 1]), &
-                               reshape(matmul(u(:, i), b), [1, size(b, 2)]))
+                    reshape(matmul(u(:, i), b), [1, size(b, 2)]))
             end do
         end if
         constrained = matmul(chol, b)
