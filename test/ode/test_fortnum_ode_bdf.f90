@@ -11,7 +11,7 @@ module bdf_fixtures
         integer :: mode = 1, fail_setup = 0, fail_evaluate = 0
         logical :: fail_precondition = .false., zero_operator = .false.
         logical :: use_preconditioner = .true.
-        real(dp) :: stiffness = 1000.0_dp, alpha = 0.0_dp
+        real(dp) :: stiffness = 1000.0_dp, alpha = 0.0_dp, time_scale = 1.0_dp
         real(dp), allocatable :: matrix(:, :), factors(:, :)
         integer, allocatable :: pivots(:)
     contains
@@ -58,6 +58,8 @@ contains
             end do
         case (5)
             residual = ydot - (1 + 2*t)
+        case (6)
+            residual = ydot - 1/self%time_scale
         end select
     end subroutine evaluate
 
@@ -105,7 +107,7 @@ contains
                 self%matrix(i, modulo(i - 2, n) + 1) = -diffusion
                 self%matrix(i, modulo(i, n) + 1) = -diffusion
             end do
-        case (5)
+        case (5, 6)
             self%matrix(1, 1) = alpha
         end select
         self%factors = self%matrix
@@ -175,6 +177,8 @@ program test_fortnum_ode_bdf
     use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan
     implicit none
 
+    call check_endpoint_grid()
+    call check_endpoint_proposal()
     call check_order()
     call check_step_scaling()
     call check_estimator()
@@ -186,6 +190,89 @@ program test_fortnum_ode_bdf
     print '(a)', 'fortnum_ode_bdf: all tests passed'
 
 contains
+
+    subroutine check_endpoint_grid()
+        type(problem_t) :: problem
+        type(bdf_options_t) :: options
+        type(bdf_state_t) :: state
+        type(bdf_report_t) :: report
+        type(fortnum_status_t) :: status
+        real(dp), parameter :: units(*) = [scale(1.0_dp, -300), &
+            scale(1.0_dp, -100), 1.0_dp, scale(1.0_dp, 100), scale(1.0_dp, 300)]
+        real(dp), parameter :: origins(*) = [-1.0e6_dp, -17.0_dp, &
+            0.0_dp, 17.0_dp, 1.0e6_dp]
+        real(dp) :: unit, origin, h, target, exact
+        integer :: i, j, direction, k
+
+        problem%mode = 6
+        options%adaptive = .false.
+        options%rtol = 1.0e-10_dp; options%atol = 1.0e-12_dp
+        options%max_steps = 32
+        do i = 1, size(units)
+            unit = units(i)
+            problem%time_scale = unit
+            h = 0.1_dp*unit
+            options%initial_step = h; options%max_step = h
+            do j = 1, size(origins)
+                origin = origins(j)*unit
+                do direction = -1, 1, 2
+                    call bdf_init(state, origin, [2.0_dp], options, status, &
+                        derivative=[1/unit])
+                    call require(status%code == FORTNUM_OK, 'decimal grid start')
+                    do k = 1, 12
+                        target = origin + direction*k*h
+                        call bdf_integrate_to(problem, state, target, options, &
+                            report, status)
+                        call require(status%code == FORTNUM_OK, 'decimal grid continuation')
+                        if (report%accepted /= 1) print *, i, j, direction, k, report
+                        call require(report%accepted == 1 .and. &
+                            report%rejected_newton == 0, 'no clock-roundoff substep')
+                        exact = 2 + (target - origin)/unit
+                        call require(abs(state%y(1) - exact) < 1.0e-10_dp, &
+                            'linear solution at actual requested time')
+                        call require(state%t == target, 'requested decimal endpoint')
+                        call require(state%next_step == h, 'retain nominal step proposal')
+                    end do
+                end do
+            end do
+        end do
+    end subroutine check_endpoint_grid
+
+    subroutine check_endpoint_proposal()
+        type(problem_t) :: problem
+        type(bdf_options_t) :: options
+        type(bdf_state_t) :: state
+        type(bdf_report_t) :: report
+        type(fortnum_status_t) :: status
+        real(dp) :: h, target
+
+        problem%mode = 6
+        options%adaptive = .false.
+        options%initial_step = 0.1_dp; options%max_step = 0.1_dp
+        options%rtol = 1.0e-10_dp; options%atol = 1.0e-12_dp
+        call bdf_init(state, 0.0_dp, [2.0_dp], options, status, derivative=[1.0_dp])
+        call require(status%code == FORTNUM_OK, 'clipped start')
+        call bdf_integrate_to(problem, state, 0.35_dp, options, report, status)
+        call require(status%code == FORTNUM_OK, 'genuine clipped endpoint')
+        call require(report%accepted == 4, 'retain genuine endpoint step')
+        call require(abs(state%y(1) - 2.35_dp) < 1.0e-10_dp, 'clipped linear solution')
+        call require(state%next_step == 0.1_dp, 'clipping does not reset fixed proposal')
+        call bdf_integrate_to(problem, state, 0.45_dp, options, report, status)
+        call require(status%code == FORTNUM_OK .and. report%accepted == 1, &
+            'continue with original proposal after clipping')
+        call require(abs(state%y(1) - 2.45_dp) < 1.0e-10_dp, 'continued linear solution')
+
+        h = spacing(1.0_dp)
+        options%initial_step = h; options%max_step = h
+        problem%time_scale = h
+        call bdf_init(state, 1.0_dp, [2.0_dp], options, status, derivative=[1/h])
+        call require(status%code == FORTNUM_OK, 'resolved clock-scale start')
+        target = 1 + 2*h
+        call bdf_integrate_to(problem, state, target, options, report, status)
+        call require(status%code == FORTNUM_OK .and. report%accepted == 2, &
+            'do not coalesce two resolvable clock-scale steps')
+        call require(abs(state%y(1) - 4) < 1.0e-10_dp, 'clock-scale exact solution')
+    end subroutine check_endpoint_proposal
 
     subroutine check_estimator()
         type(problem_t) :: problem

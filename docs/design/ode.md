@@ -187,7 +187,16 @@ BDF2 zero-stability ratio `1+sqrt(2)`, even after endpoint clipping or a retry.
 Nonlinear failure reduces the step by four. `adaptive=.false.` disables the
 error test, retains the proposed step magnitude after acceptance, and still
 rejects failed nonlinear solves. Set `initial_step=max_step` for
-constant-step convergence studies. `min_step` is enforced even on a clipped
+constant-step convergence studies. Endpoint clipping and the growth-ratio limit
+do not replace the fixed-step proposal saved for the next attempt; a nonlinear
+retry still reduces that proposal. Before solving, an endpoint gap within eight
+Fortran `spacing` units of the clock and `sqrt(epsilon)*abs(h)` is included in
+the actual step, where `epsilon` is machine precision. The solve then uses
+`h=target-t`, rather than taking a separate microscopic endpoint step. This may
+exceed a nominal step or ratio cap by that rounding allowance, while preserving
+the zero-stability margin. No interval is skipped, and genuinely distinct
+clock-scale steps are not coalesced by this relative-step guard.
+`min_step` is enforced even on a clipped
 final step; a step that cannot advance floating-point time also fails.
 `max_steps` bounds all attempts per call, including rejections. Invalid data
 return `FORTNUM_DOMAIN_ERROR`; underflow, minimum-step or budget exhaustion
