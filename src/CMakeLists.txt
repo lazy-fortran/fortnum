@@ -25,6 +25,7 @@ target_sources(fortnum PRIVATE
     generated/fortnum_mf_distance.f90
     generated/fortnum_mf_covariance.f90
     generated/fortnum_mf_autoregressive.f90
+    interp/fortnum_ar1.f90
     interp/fortnum_multifidelity.f90
     interp/fortnum_gaussian_constraints.f90
     ad/fortnum_active_vector.f90
