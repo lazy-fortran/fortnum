@@ -56,7 +56,12 @@ initial point followed by accepted endpoints.
 The solver supports forward and backward time integration. It clips the final
 step to the requested endpoint. Domain errors cover missing callbacks, empty
 states, invalid tolerances, and invalid controls. Step exhaustion or a forced
-step below `hmin` returns a convergence error.
+step below `hmin` returns a convergence error. A nonpositive step or an increment
+that cannot advance the current floating-point time also returns a convergence
+error before attempting another step. Such an attempt adds no accepted endpoint;
+the returned trace retains the initial point and any earlier accepted steps.
+A final step to the nearest representable endpoint remains supported in either
+direction.
 
 ## Other methods
 
