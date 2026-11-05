@@ -8,7 +8,8 @@ program test_fortnum_ode_cash_karp
     !   - invalid input is rejected before stepping
 
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
-    use fortnum_status, only: fortnum_status_t, FORTNUM_OK, FORTNUM_DOMAIN_ERROR
+    use fortnum_status, only: fortnum_status_t, FORTNUM_OK, FORTNUM_DOMAIN_ERROR, &
+        FORTNUM_CONVERGENCE_ERROR
     use fortnum_ode, only: ode_problem_t, ode_workspace_t, ode_solution_t, &
         ode_integrate, ode_solve
     implicit none
@@ -22,6 +23,7 @@ program test_fortnum_ode_cash_karp
     call check_solve_wrapper(nfail)
     call check_backward(nfail)
     call check_bad_input(nfail)
+    call check_time_resolution(nfail)
 
     if (nfail > 0) then
         write (error_unit, "(i0,a)") nfail, " test(s) failed"
@@ -247,5 +249,57 @@ contains
                     nfail = nfail + 1
                 end if
             end subroutine check_bad_input
+
+            subroutine check_time_resolution(nfail)
+                integer, intent(inout) :: nfail
+                type(ode_problem_t) :: problem
+                type(ode_workspace_t) :: workspace
+                type(ode_solution_t) :: solution
+                type(fortnum_status_t) :: status
+                integer :: origin, direction
+                real(dp) :: exact
+
+                problem%rhs => rhs_decay
+                problem%y0 = [1.0_dp]
+                problem%max_steps = 8
+                do origin = -1, 1, 2
+                    do direction = -1, 1, 2
+                        problem%t0 = real(origin, dp)
+                        problem%t1 = problem%t0 + real(direction, dp)
+                        problem%hmax = spacing(problem%t0)/4.0_dp
+                        problem%h0 = problem%hmax
+                        call ode_integrate(problem, workspace, solution, status)
+                        if (status%code /= FORTNUM_CONVERGENCE_ERROR .or. &
+                            solution%nsteps /= 0) then
+                            write (error_unit, *) 'FAIL unresolved time increment:', &
+                                origin, direction, status%code, solution%nsteps
+                            nfail = nfail + 1
+                        end if
+                        if (size(solution%t) /= 1) then
+                            write (error_unit, *) 'FAIL non-advancing accepted times'
+                            nfail = nfail + 1
+                        end if
+
+                        ! The nearest representable endpoint must remain reachable.
+                        problem%t1 = nearest(problem%t0, real(direction, dp))
+                        problem%hmax = abs(problem%t1 - problem%t0)
+                        problem%h0 = problem%hmax
+                        call ode_integrate(problem, workspace, solution, status)
+                        if (status%code /= FORTNUM_OK .or. solution%nsteps /= 1) then
+                            write (error_unit, *) 'FAIL representable time increment:', &
+                                origin, direction, status%code, solution%nsteps
+                            nfail = nfail + 1
+                            cycle
+                        end if
+                        exact = exp(-(problem%t1 - problem%t0))
+                        if (solution%t(2) /= problem%t1 .or. &
+                            abs(solution%y(1, 2) - exact) > 2.0_dp*epsilon(exact)) then
+                            write (error_unit, *) 'FAIL nearest endpoint decay solution'
+                            nfail = nfail + 1
+                        end if
+                    end do
+                end do
+            end subroutine check_time_resolution
+
 
         end program test_fortnum_ode_cash_karp

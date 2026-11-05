@@ -443,7 +443,11 @@ contains
             ! Clip the final step to land exactly on t1.
             final_step = abs(problem%t1 - t) <= h
             if (final_step) h = abs(problem%t1 - t)
-            if (h <= 0.0_dp) exit
+            if (h <= 0.0_dp .or. t + dir*h == t) then
+                call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
+                    "ode_integrate: step cannot advance time")
+                exit
+            end if
 
             call cash_karp_step(problem%rhs, t, &
                 solution%y(:,nstep+1), dir * h, .false., &
