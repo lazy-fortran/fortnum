@@ -464,6 +464,10 @@ add_executable(test_fortnum_polynomial interp/test_fortnum_polynomial.f90)
 target_link_libraries(test_fortnum_polynomial PRIVATE fortnum)
 add_test(NAME fortnum_polynomial COMMAND test_fortnum_polynomial)
 
+add_executable(test_fortnum_cubic_spline interp/test_fortnum_cubic_spline.f90)
+target_link_libraries(test_fortnum_cubic_spline PRIVATE fortnum)
+add_test(NAME fortnum_cubic_spline COMMAND test_fortnum_cubic_spline)
+
 add_executable(test_fortnum_interp interp/test_fortnum_interp.f90)
 target_link_libraries(test_fortnum_interp PRIVATE fortnum)
 add_test(NAME fortnum_interp COMMAND test_fortnum_interp)
