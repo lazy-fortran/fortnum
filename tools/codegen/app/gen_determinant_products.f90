@@ -1,6 +1,5 @@
 program gen_determinant_products
     use fortsym_string, only: str, chars
-    use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, sym
     use fortsym_parse, only: parse_expr
     use fortsym_products, only: directional_derivative, vjp
@@ -12,11 +11,9 @@ program gen_determinant_products
         fortsym_revision, generated_path, cost_block_text, insert_cost_block
     implicit none
 
-    type(arena_t), target :: arena
     type(symengine_engine_t) :: engine
 
-    call arena%init()
-    engine = make_symengine_engine(arena)
+    engine = make_symengine_engine()
     call generate_det2()
     call generate_det3()
 
@@ -71,7 +68,7 @@ contains
         integer :: k
 
         do k = 1, size(names)
-            expressions(k) = sym(arena, names(k))
+            expressions(k) = sym(names(k))
         end do
     end subroutine make_symbols
 
@@ -81,7 +78,7 @@ contains
         character(:), allocatable :: message
         logical :: ok
 
-        expression = parse_expr(arena, text, ok, message)
+        expression = parse_expr(text, ok, message)
         if (.not. ok) error stop message
     end function parsed
 
@@ -157,7 +154,7 @@ contains
         integer :: unit, ios, k
 
         values(1) = determinant
-        cotangents(1) = sym(arena, "u")
+        cotangents(1) = sym("u")
         roots = vjp(values, variables, cotangents)
         symbolic = roots
         operations = count_operations(roots)

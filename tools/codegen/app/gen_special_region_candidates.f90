@@ -1,7 +1,6 @@
 program gen_special_region_candidates
     use, intrinsic :: iso_fortran_env, only: dp => real64
     use fortsym_string, only: str, chars
-    use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, sym, real_expr, exp, log, &
         operator(+), operator(*), operator(**)
     use fortsym_products, only: directional_derivative, vjp
@@ -12,28 +11,26 @@ program gen_special_region_candidates
         generated_path, cost_block_text, insert_cost_block
     implicit none
 
-    type(arena_t), target :: arena
     type(symengine_engine_t) :: engine
     type(expr_t) :: x, value, m
     type(expr_t) :: variables(1), directions(1), cotangents(1), values(1)
     type(expr_t) :: product(1)
     real(dp) :: gamma_25
 
-    call arena%init()
-    engine = make_symengine_engine(arena)
-    x = sym(arena, "x")
+    engine = make_symengine_engine()
+    x = sym("x")
     gamma_25 = gamma(2.5_dp)
-    m = real_expr(arena, gamma_25)*exp(x)*x**(-1.5_dp)
-    value = log(real_expr(arena, 1.0_dp) + m*m)
+    m = real_expr(gamma_25)*exp(x)*x**(-1.5_dp)
+    value = log(real_expr(1.0_dp) + m*m)
     variables(1) = x
     values(1) = value
 
-    directions(1) = sym(arena, "v")
+    directions(1) = sym("v")
     product(1) = directional_derivative(value, variables, directions)
     call simplify(product)
     call write_product("jvp", "v", product)
 
-    cotangents(1) = sym(arena, "u")
+    cotangents(1) = sym("u")
     product = vjp(values, variables, cotangents)
     call simplify(product)
     call write_product("vjp", "u", product)

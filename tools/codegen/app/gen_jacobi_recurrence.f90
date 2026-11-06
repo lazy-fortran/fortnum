@@ -1,14 +1,12 @@
 program gen_jacobi_recurrence
-    use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, operator(*), operator(+), &
         operator(-), operator(/), sym
     use fortsym_kernel, only: emit_kernel, kernel_spec_t, KERNEL_SUBROUTINE
-    use fortsym_string, only: chars, str, str_t
+    use fortsym_string, only: chars, str, str_t, words
     use fortnum_codegen_provenance, only: codegen_log, fortsym_revision, &
         generated_path, cost_block_text, insert_cost_block
     implicit none
 
-    type(arena_t), target :: arena
     type(expr_t) :: alpha, beta, current, current_scale, current_x
     type(expr_t) :: current_scale_scale, current_x_scale, current_x_x
     type(expr_t) :: degree, denominator, factor, linear_scale, linear_x
@@ -20,24 +18,23 @@ program gen_jacobi_recurrence
     character(:), allocatable :: code, filename
     integer :: ios, unit
 
-    call arena%init()
-    degree = sym(arena, "degree")
-    alpha = sym(arena, "alpha")
-    beta = sym(arena, "beta")
-    x = sym(arena, "x")
-    scale = sym(arena, "scale")
-    previous = sym(arena, "previous")
-    current = sym(arena, "current")
-    previous_x = sym(arena, "previous_x")
-    current_x = sym(arena, "current_x")
-    previous_scale = sym(arena, "previous_scale")
-    current_scale = sym(arena, "current_scale")
-    previous_x_x = sym(arena, "previous_x_x")
-    current_x_x = sym(arena, "current_x_x")
-    previous_x_scale = sym(arena, "previous_x_scale")
-    current_x_scale = sym(arena, "current_x_scale")
-    previous_scale_scale = sym(arena, "previous_scale_scale")
-    current_scale_scale = sym(arena, "current_scale_scale")
+    degree = sym("degree")
+    alpha = sym("alpha")
+    beta = sym("beta")
+    x = sym("x")
+    scale = sym("scale")
+    previous = sym("previous")
+    current = sym("current")
+    previous_x = sym("previous_x")
+    current_x = sym("current_x")
+    previous_scale = sym("previous_scale")
+    current_scale = sym("current_scale")
+    previous_x_x = sym("previous_x_x")
+    current_x_x = sym("current_x_x")
+    previous_x_scale = sym("previous_x_scale")
+    current_x_scale = sym("current_x_scale")
+    previous_scale_scale = sym("previous_scale_scale")
+    current_scale_scale = sym("current_scale_scale")
 
     denominator = 2*degree*(degree + alpha + beta)* &
         (2*degree + alpha + beta - 2)
@@ -60,9 +57,7 @@ program gen_jacobi_recurrence
     spec%elemental_procedure = .true.
     spec%openmp_declare_target = .true.
     spec%openacc_routine_seq = .true.
-    arguments(:6) = [ &
-        str("degree"), str("alpha"), str("beta"), str("x"), &
-        str("previous"), str("current")]
+    arguments(:6) = words("degree alpha beta x previous current")
     outputs(1) = str("next")
     spec%args = arguments(:6)
     spec%outputs = outputs(:1)
@@ -85,9 +80,7 @@ program gen_jacobi_recurrence
     roots(1) = numerator/denominator
     spec%name = str("scaled_jacobi_recurrence_kernel")
     spec%module_name = str("fortnum_generated_scaled_jacobi_recurrence")
-    arguments(:7) = [ &
-        str("degree"), str("alpha"), str("beta"), str("x"), &
-        str("scale"), str("previous"), str("current")]
+    arguments(:7) = words("degree alpha beta x scale previous current")
     spec%args = arguments(:7)
     filename = generated_path( &
         "fortnum_scaled_jacobi_recurrence_kernel.f90")
@@ -116,12 +109,9 @@ program gen_jacobi_recurrence
     spec%name = str("scaled_jacobi_gradient_recurrence_kernel")
     spec%module_name = str( &
         "fortnum_generated_scaled_jacobi_gradient_recurrence")
-    arguments(:11) = [ &
-        str("degree"), str("alpha"), str("beta"), str("x"), &
-        str("scale"), str("previous"), str("current"), &
-        str("previous_x"), str("current_x"), str("previous_scale"), &
-        str("current_scale")]
-    outputs(:3) = [str("next"), str("next_x"), str("next_scale")]
+    arguments(:11) = words("degree alpha beta x scale previous current " &
+        //"previous_x current_x previous_scale current_scale")
+    outputs(:3) = words("next next_x next_scale")
     spec%args = arguments(:11)
     spec%outputs = outputs(:3)
     filename = generated_path( &
@@ -150,15 +140,12 @@ program gen_jacobi_recurrence
     spec%name = str("scaled_jacobi_hessian_recurrence_kernel")
     spec%module_name = str( &
         "fortnum_generated_scaled_jacobi_hessian_recurrence")
-    arguments = [ &
-        str("degree"), str("alpha"), str("beta"), str("x"), &
-        str("scale"), str("previous"), str("current"), &
-        str("previous_x"), str("current_x"), str("previous_scale"), &
-        str("current_scale"), str("previous_x_x"), str("current_x_x"), &
-        str("previous_x_scale"), str("current_x_scale"), &
-        str("previous_scale_scale"), str("current_scale_scale")]
-    outputs = [str("next"), str("next_x"), str("next_scale"), &
-        str("next_x_x"), str("next_x_scale"), str("next_scale_scale")]
+    arguments = words("degree alpha beta x scale previous current " &
+        //"previous_x current_x previous_scale current_scale " &
+        //"previous_x_x current_x_x previous_x_scale current_x_scale " &
+        //"previous_scale_scale current_scale_scale")
+    outputs = words("next next_x next_scale next_x_x next_x_scale " &
+        //"next_scale_scale")
     spec%args = arguments
     spec%outputs = outputs
     filename = generated_path( &

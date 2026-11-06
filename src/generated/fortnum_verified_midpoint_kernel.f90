@@ -1,5 +1,5 @@
 ! Generator: gen_verified_midpoint; do not edit.
-! Generator revision: fortsym@6e23a184d25ed735c43714b454b41cbcff2b209e
+! Generator revision: fortsym@a24e64dbd0b8dba0f7d7e686b1f71c0331b5c336
 ! cost: {
 !   "n_sym": {"flops": 17, "adds": 6, "muls": 8, "divs": 2, "transcendental": {}},
 !   "n_emit": {"flops": 17, "instructions": 17},

@@ -1,6 +1,5 @@
 program gen_eigen_bounds
     use fortsym_string, only: str, str_t, chars
-    use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, sym, num, sqrt, sin, operator(+), operator(-), &
                             operator(*), operator(/), operator(**)
     use fortsym_diff, only: diff
@@ -12,21 +11,19 @@ program gen_eigen_bounds
     use fortnum_codegen_provenance, only: fortsym_revision, generated_path, &
                                           cost_block_text, insert_cost_block
     implicit none
-    type(arena_t), target :: arena
     type(symengine_engine_t) :: engine
     type(expr_t) :: r, ml, xn, rho, t, a, b, z, d, c, lam, x, k, f, identity, term
     type(expr_t) :: roots(2), vars(4), tangents(4), cot(2)
     type(expr_t), allocatable :: forward(:), reverse(:), products(:)
     integer :: precision, j
-    call arena%init()
-    engine = make_symengine_engine(arena)
-    r = sym(arena, 'r')
-    ml = sym(arena, 'ml')
-    xn = sym(arena, 'xn')
+    engine = make_symengine_engine()
+    r = sym('r')
+    ml = sym('ml')
+    xn = sym('xn')
     rho = r/(sqrt(ml)*xn)
-    t = sym(arena, 'theta')
-    a = sym(arena, 'left')
-    b = sym(arena, 'right')
+    t = sym('theta')
+    a = sym('left')
+    b = sym('right')
     ! Verify exact algebraic identities, never accepting a numerical probe.
     call zero('metric residual scaling', rho*rho*ml*xn*xn - r*r)
     roots = [t - r*r/(b - t), t + r*r/(t - a)]
@@ -34,9 +31,9 @@ program gen_eigen_bounds
     call zero('Temple upper', (roots(2) - t)*(t - a) - r*r)
     ! Toeplitz modes v_j=z^j-z^-j: lambda=d+c(z+z^-1).
     ! Dirichlet endpoints give z=exp(i*pi*k/(n+1)), hence lambda=d+2c cos(...).
-    z = sym(arena, 'z')
-    d = sym(arena, 'd')
-    c = sym(arena, 'c')
+    z = sym('z')
+    d = sym('d')
+    c = sym('c')
     lam = d + c*(z + 1/z)
     do j = 1, 6
         identity = c*(z**(j - 1) - z**(1 - j)) + &
@@ -44,16 +41,16 @@ program gen_eigen_bounds
         call zero('Toeplitz recurrence', identity)
     end do
     ! Continuous interval Laplacian: -d2 sin(k*x)=k^2 sin(k*x).
-    x = sym(arena, 'x')
-    k = sym(arena, 'k')
+    x = sym('x')
+    k = sym('k')
     f = sin(k*x)
     call zero('interval Laplacian', diff(diff(f, x), x) + k*k*f)
     ! Axisymmetric disc Laplacian: J0(sqrt(lambda)*r) power series.
     ! The degree-16 partial sum satisfies the ODE up to its final term.
-    term = num(arena, 1)
+    term = num(1)
     f = term
     do j = 1, 8
-        term = -term*lam*x*x/num(arena, 4*j*j)
+        term = -term*lam*x*x/num(4*j*j)
         f = f + term
     end do
     call zero('disc Bessel recurrence',diff(diff(f,x),x)+diff(f,x)/x+lam*f-lam*term)
@@ -67,9 +64,8 @@ program gen_eigen_bounds
        call emit('temple', roots, [str('r'), str('theta'), str('left'), str('right')], &
                   [str('lower'), str('upper')], precision)
         vars = [r, t, a, b]
-        tangents = [sym(arena, 'tr'), sym(arena, 'ttheta'), &
-                    sym(arena, 'tleft'), sym(arena, 'tright')]
-        cot = [sym(arena, 'ulower'), sym(arena, 'uupper')]
+        tangents = [sym('tr'), sym('ttheta'), sym('tleft'), sym('tright')]
+        cot = [sym('ulower'), sym('uupper')]
         forward = jvp(roots, vars, tangents)
         reverse = vjp(roots, vars, cot)
         products = [roots, forward, reverse]

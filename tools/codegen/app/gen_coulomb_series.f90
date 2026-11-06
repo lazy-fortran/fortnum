@@ -1,5 +1,4 @@
 program gen_coulomb_series
-    use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, sym, operator(+), operator(-), &
                             operator(*), operator(/)
     use fortsym_kernel, only: kernel_spec_t, emit_kernel
@@ -7,15 +6,13 @@ program gen_coulomb_series
     use fortnum_codegen_provenance, only: fortsym_revision, generated_path, &
         cost_block_text, insert_cost_block
     implicit none
-    type(arena_t), target :: a
     type(expr_t) :: n, eta, rho, f1, f2, v1, v2, roots(2)
     type(kernel_spec_t) :: spec
     integer :: unit
     character(:), allocatable :: code
-    call a%init()
-    n = sym(a, 'n'); eta = sym(a, 'eta'); rho = sym(a, 'rho')
-    f1 = sym(a, 'f1'); f2 = sym(a, 'f2')
-    v1 = sym(a, 'v1'); v2 = sym(a, 'v2')
+    n = sym('n'); eta = sym('eta'); rho = sym('rho')
+    f1 = sym('f1'); f2 = sym('f2')
+    v1 = sym('v1'); v2 = sym('v2')
     roots = [(2*eta*rho*f1 - rho*rho*f2)/(n*(n + 1)), &
              (2*eta*rho*v1 - rho*rho*v2 - 2*eta*rho*(2*n - 1)*f1)/(n*(n - 1))]
     spec%name = str('coulomb_series_step')
