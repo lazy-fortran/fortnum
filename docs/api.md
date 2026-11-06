@@ -653,6 +653,13 @@ barycentric interpolation formula (weights scaled to \(\max|bw|=1\)), and
 \(d_{ij}=L_j'(x_i)\) with negative-row-sum diagonal. With
 `gauss_lobatto_legendre` nodes these give the spectral-element/DVR basis.
 
+`fortnum_cubic_spline` exports `cubic_spline_t`, `cubic_spline_init(x, y, sp,
+status)` and `cubic_spline_eval(sp, xq, value, deriv)`: interpolating cubic
+splines with not-a-knot end conditions for several value columns `y(n, :)` on
+one strictly increasing node set (n >= 4). Cubic polynomials are reproduced
+exactly; `status` is 1 for fewer than four nodes, 2 for nodes that do not
+increase and 3 for a shape mismatch.
+
 `fortnum_bspline` exports:
 
 - `bspline_workspace_t`
