@@ -1,6 +1,7 @@
 module fortnum_gsvd
     !! Generalized singular value decomposition of a real matrix pair (A, B)
-    !! with A m-by-n and B p-by-n, over LAPACK DGGSVD3.
+    !! with A m-by-n and B p-by-n, over LAPACK DGGSVD3 (DGGSVD on LAPACK < 3.6,
+    !! such as Apple Accelerate; both return the same factors).
     !!
     !! On success, with r = k + l the numerical rank of [A; B]:
     !!
@@ -18,7 +19,7 @@ module fortnum_gsvd
     !!
     !! Status contract matches fortnum_bvls (0 success): BVLS_INVALID_ARGUMENT
     !! for bad shapes or nonfinite data, BVLS_MAX_ITERATIONS when the Jacobi
-    !! sweep in DGGSVD3 fails to converge. BVLS_INFEASIBLE is not used.
+    !! sweep in DGGSVD3 (DGGSVD) fails to converge. BVLS_INFEASIBLE is not used.
     use fortnum_kinds, only: dp
     use fortnum_bvls, only: BVLS_OK, BVLS_MAX_ITERATIONS, BVLS_INVALID_ARGUMENT
     use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
@@ -28,6 +29,18 @@ module fortnum_gsvd
     public :: generalized_svd
 
     interface
+#ifdef FORTNUM_LAPACK_NO_DGGSVD3
+        subroutine dggsvd(jobu, jobv, jobq, m, n, p, k, l, a, lda, b, ldb, alpha, &
+                beta, u, ldu, v, ldv, q, ldq, work, iwork, info)
+            import :: dp
+            character, intent(in) :: jobu, jobv, jobq
+            integer, intent(in) :: m, n, p, lda, ldb, ldu, ldv, ldq
+            integer, intent(out) :: k, l, iwork(*), info
+            real(dp), intent(inout) :: a(lda, *), b(ldb, *)
+            real(dp), intent(out) :: alpha(*), beta(*), u(ldu, *), v(ldv, *)
+            real(dp), intent(out) :: q(ldq, *), work(*)
+        end subroutine dggsvd
+#else
         subroutine dggsvd3(jobu, jobv, jobq, m, n, p, k, l, a, lda, b, ldb, alpha, &
                 beta, u, ldu, v, ldv, q, ldq, work, lwork, iwork, info)
             import :: dp
@@ -38,6 +51,7 @@ module fortnum_gsvd
             real(dp), intent(out) :: alpha(*), beta(*), u(ldu, *), v(ldv, *)
             real(dp), intent(out) :: q(ldq, *), work(*)
         end subroutine dggsvd3
+#endif
     end interface
 
 contains
@@ -52,7 +66,9 @@ contains
         real(dp), allocatable :: aw(:, :), bw(:, :), q(:, :), work(:), rfull(:, :)
         real(dp), allocatable :: al(:), be(:)
         integer, allocatable :: iwork(:)
+#ifndef FORTNUM_LAPACK_NO_DGGSVD3
         real(dp) :: wq(1)
+#endif
         integer :: m, n, p, r, i
 
         m = size(a, 1)
@@ -67,11 +83,17 @@ contains
         aw = a
         bw = b
         allocate (al(n), be(n), u(m, m), v(p, p), q(n, n), iwork(n))
+#ifdef FORTNUM_LAPACK_NO_DGGSVD3
+        allocate (work(max(3*n, m, p) + n))
+        call dggsvd('U', 'V', 'Q', m, n, p, k, l, aw, m, bw, p, al, be, u, m, v, p, &
+            q, n, work, iwork, info)
+#else
         call dggsvd3('U', 'V', 'Q', m, n, p, k, l, aw, m, bw, p, al, be, u, m, v, p, &
             q, n, wq, -1, iwork, info)
         allocate (work(max(1, int(wq(1)))))
         call dggsvd3('U', 'V', 'Q', m, n, p, k, l, aw, m, bw, p, al, be, u, m, v, p, &
             q, n, work, size(work), iwork, info)
+#endif
         if (info /= 0) then
             info = BVLS_MAX_ITERATIONS
             return
