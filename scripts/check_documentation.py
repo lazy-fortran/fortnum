@@ -153,7 +153,8 @@ def check_docs_map(root: Path) -> list[str]:
 
 def source_text(root: Path) -> str:
     parts = []
-    for path in sorted((root / "src").rglob("*.f90")):
+    src = root / "src"
+    for path in sorted([*src.rglob("*.f90"), *src.rglob("*.F90")]):
         parts.append(path.read_text(encoding="utf-8"))
     header = root / "include/fortnum.h"
     if header.is_file():

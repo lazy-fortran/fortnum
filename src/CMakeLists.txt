@@ -198,7 +198,7 @@ target_sources(fortnum PRIVATE
     linalg/fortnum_cholesky.f90
     linalg/fortnum_gram_factor.f90
     linalg/fortnum_psd_factor.f90
-    linalg/fortnum_gsvd.f90
+    linalg/fortnum_gsvd.F90
     linalg/fortnum_krylov.f90
     linalg/fortnum_parallel_vector.f90
     linalg/fortnum_symmetric_eigen.f90
@@ -304,6 +304,9 @@ endif()
 # roots/fortnum_roots_complex.f90 calls LAPACK ZGGEV; link LAPACK (with BLAS)
 # into the library so every consumer resolves the symbol.
 target_link_libraries(fortnum PUBLIC LAPACK::LAPACK fortnum_gpu_backend)
+if(NOT FORTNUM_LAPACK_HAS_DGGSVD3)
+    target_compile_definitions(fortnum PRIVATE FORTNUM_LAPACK_NO_DGGSVD3)
+endif()
 
 # Host OpenMP for the Krylov vector kernels (fortnum_parallel_vector).  The
 # deterministic reductions give the same bits with and without OpenMP.

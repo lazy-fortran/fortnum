@@ -624,8 +624,9 @@ The status `info` is `BVLS_OK`, `BVLS_MAX_ITERATIONS` (last feasible iterate),
 `BVLS_INFEASIBLE` or `BVLS_INVALID_ARGUMENT`; `active` reports -1/0/+1 for
 lower/free/upper. Rank-deficient free subproblems get the minimum-norm
 solution (`rcond` cutoff). `fortnum_gsvd` provides `generalized_svd`, a
-LAPACK DGGSVD3 wrapper returning `A = U C X^T`, `B = V S X^T` with
-`C^2 + S^2 = I`, the generalized singular values and the status codes above.
+LAPACK DGGSVD3 (DGGSVD before LAPACK 3.6) wrapper returning `A = U C X^T`,
+`B = V S X^T` with `C^2 + S^2 = I`, the generalized singular values and the
+status codes above.
 
 `fortnum_cholesky` provides `cholesky_factorization_t` and the corresponding
 `cholesky_factorize`, `cholesky_solve_vector`, `cholesky_solve_matrix`,

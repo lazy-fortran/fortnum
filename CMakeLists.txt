@@ -143,6 +143,25 @@ if(FORTNUM_GPU_BACKEND STREQUAL "OPENACC"
 endif()
 find_package(LAPACK REQUIRED)
 
+# LAPACK < 3.6 (Apple Accelerate among them) has no DGGSVD3; fortnum_gsvd then
+# calls DGGSVD, which returns the same factors. Recheck whenever the selected
+# libraries change.
+include(CheckFortranFunctionExists)
+include(CMakePushCheckState)
+if(NOT "${LAPACK_LIBRARIES}" STREQUAL "${_FORTNUM_DGGSVD3_CHECKED_WITH}")
+    unset(FORTNUM_LAPACK_HAS_DGGSVD3 CACHE)
+    set(_FORTNUM_DGGSVD3_CHECKED_WITH "${LAPACK_LIBRARIES}" CACHE INTERNAL "")
+endif()
+cmake_push_check_state(RESET)
+set(CMAKE_REQUIRED_LIBRARIES ${LAPACK_LIBRARIES})
+set(CMAKE_REQUIRED_QUIET ON)
+check_fortran_function_exists(dggsvd3 FORTNUM_LAPACK_HAS_DGGSVD3)
+cmake_pop_check_state()
+if(NOT FORTNUM_LAPACK_HAS_DGGSVD3)
+    message(STATUS "fortnum: LAPACK lacks DGGSVD3 (LAPACK < 3.6); "
+        "generalized_svd uses DGGSVD")
+endif()
+
 # Quad precision (binary128) is optional: NVHPC's nvfortran has no real128 and
 # rejects the kind at compile time. Without it the binary128 interval, rigorous
 # FFT, Fourier-series and Coulomb modules are not built (fortnum_interval_qp,
