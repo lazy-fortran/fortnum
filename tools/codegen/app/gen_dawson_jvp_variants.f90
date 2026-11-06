@@ -1,6 +1,5 @@
 program gen_dawson_jvp_variants
     use fortsym_string, only: str, chars
-    use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, sym, num, exp, operator(+), operator(-), &
         operator(*)
     use fortsym_products, only: directional_derivative
@@ -12,7 +11,6 @@ program gen_dawson_jvp_variants
         fortsym_revision, generated_path, cost_block_text, insert_cost_block
     implicit none
 
-    type(arena_t), target :: arena
     type(symengine_engine_t) :: engine
     type(expr_t) :: x, d, tx, td, value
     type(expr_t) :: variables(2), tangents(2), values(1)
@@ -22,12 +20,11 @@ program gen_dawson_jvp_variants
     logical :: emit_temporary_variants
 
     call read_output_directory(output_directory, emit_temporary_variants)
-    call arena%init()
-    engine = make_symengine_engine(arena)
-    x = sym(arena, "x")
-    d = sym(arena, "d")
-    tx = sym(arena, "tx")
-    td = sym(arena, "td")
+    engine = make_symengine_engine()
+    x = sym("x")
+    d = sym("d")
+    tx = sym("tx")
+    td = sym("td")
     value = exp(-d*d) + x*d
     variables = [x, d]
     tangents = [tx, td]
@@ -37,7 +34,7 @@ program gen_dawson_jvp_variants
     result = engine%simplify(raw)
     if (.not. result%ok) error stop "SymEngine did not simplify raw variant"
     simplified = result%value
-    factored = d*tx + td*(x - num(arena, 2)*d*exp(-d*d))
+    factored = d*tx + td*(x - num(2)*d*exp(-d*d))
 
     call prove_equivalent(engine, raw, simplified, "simplified")
     call prove_equivalent(engine, raw, factored, "factored")

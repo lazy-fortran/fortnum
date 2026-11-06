@@ -1,6 +1,5 @@
 program gen_lagrange4_interpolation
-    use fortsym_string, only: str_t, str, chars
-    use fortsym_arena, only: arena_t
+    use fortsym_string, only: str_t, str, chars, itoa, words
     use fortsym_expr, only: expr_t, sym, num, operator(+), operator(-), &
         operator(*), operator(/)
     use fortsym_products, only: jvp, vjp
@@ -18,7 +17,6 @@ program gen_lagrange4_interpolation
         fortsym_revision, generated_path, cost_block_text, insert_cost_block
     implicit none
 
-    type(arena_t), target :: arena
     type(symengine_engine_t) :: engine
     type(expr_t) :: x, value, basis, u
     type(expr_t) :: samples(4), nodes(4), variables(5), tangents(5)
@@ -27,18 +25,17 @@ program gen_lagrange4_interpolation
     type(expr_t) :: jvp_roots(2), vjp_roots(6)
     integer :: i, j
 
-    call arena%init()
-    engine = make_symengine_engine(arena)
-    x = sym(arena, "x")
+    engine = make_symengine_engine()
+    x = sym("x")
     variables(1) = x
-    tangents(1) = sym(arena, "tx")
-    nodes = [num(arena, -1), num(arena, 0), num(arena, 1), num(arena, 2)]
-    value = num(arena, 0)
+    tangents(1) = sym("tx")
+    nodes = [num(-1), num(0), num(1), num(2)]
+    value = num(0)
     do i = 1, 4
-        samples(i) = sym(arena, indexed_name("y", i))
+        samples(i) = sym("y"//itoa(i))
         variables(i + 1) = samples(i)
-        tangents(i + 1) = sym(arena, indexed_name("ty", i))
-        basis = num(arena, 1)
+        tangents(i + 1) = sym("ty"//itoa(i))
+        basis = num(1)
         do j = 1, 4
             if (j == i) cycle
             basis = basis*(x - nodes(j))/(nodes(i) - nodes(j))
@@ -46,7 +43,7 @@ program gen_lagrange4_interpolation
         value = value + samples(i)*basis
     end do
     values(1) = value
-    u = sym(arena, "u")
+    u = sym("u")
     cotangents(1) = u
     jvp_product = jvp(values, variables, tangents)
     vjp_products = vjp(values, variables, cotangents)
@@ -61,9 +58,8 @@ program gen_lagrange4_interpolation
         "fortnum_lagrange4_vjp_kernel.f90", &
         "fortnum_lagrange4_vjp_kernel", &
         "fortnum_generated_lagrange4_vjp", &
-        [str("x"), str("y1"), str("y2"), str("y3"), str("y4"), str("u")], &
-        [str("value"), str("adjoint_x"), str("adjoint_y1"), &
-        str("adjoint_y2"), str("adjoint_y3"), str("adjoint_y4")], &
+        words("x y1 y2 y3 y4 u"), &
+        words("value adjoint_x adjoint_y1 adjoint_y2 adjoint_y3 adjoint_y4"), &
         vjp_roots)
 
     ! The historical dual-annotated JVP leaf is retained so existing consumers
@@ -72,29 +68,17 @@ program gen_lagrange4_interpolation
         "fortnum_lagrange4_jvp_kernel.f90", &
         "fortnum_lagrange4_jvp_kernel", &
         "fortnum_generated_lagrange4_jvp", &
-        [str("x"), str("y1"), str("y2"), str("y3"), str("y4"), &
-        str("tx"), str("ty1"), str("ty2"), str("ty3"), str("ty4")], &
-        [str("value"), str("jvp")], jvp_roots)
+        words("x y1 y2 y3 y4 tx ty1 ty2 ty3 ty4"), &
+        words("value jvp"), jvp_roots)
 
     ! The JVP kernel is the demonstration kernel for the multi-target claim:
     ! one expression lowered once, then emitted to all four targets.
     call write_kernel_targets( &
         "lagrange4_jvp_kernel", &
-        [str("x"), str("y1"), str("y2"), str("y3"), str("y4"), &
-        str("tx"), str("ty1"), str("ty2"), str("ty3"), str("ty4")], &
-        [str("value"), str("jvp")], jvp_roots)
+        words("x y1 y2 y3 y4 tx ty1 ty2 ty3 ty4"), &
+        words("value jvp"), jvp_roots)
 
 contains
-
-    function indexed_name(prefix, index) result(name)
-        character(*), intent(in) :: prefix
-        integer, intent(in) :: index
-        character(:), allocatable :: name
-        character(1) :: index_text
-
-        write (index_text, "(i0)") index
-        name = prefix//index_text
-    end function indexed_name
 
     subroutine simplify_roots(symbolic_engine, roots)
         type(symengine_engine_t), intent(inout) :: symbolic_engine
@@ -185,6 +169,7 @@ contains
         logical :: ok
         character(:), allocatable :: message, code
         character(:), allocatable :: module_name, subroutine_name, filename
+        integer :: banner_end
 
         subroutine_name = "fortnum_"//stem//suffix
         module_name = "fortnum_generated_lagrange4_jvp"//suffix
@@ -205,15 +190,18 @@ contains
         if (.not. ok) error stop "cannot emit Fortran "//target_tag//": "//message
 
         ! The IR emitter writes a bare subroutine; wrap it in a module so the
-        ! artifact is `use`able by Fortran consumers and tests.
-        code = "module "//module_name//new_line("a")// &
+        ! artifact is `use`able by Fortran consumers and tests. The banner
+        ! stays on top, where fo looks for the generated-file marker.
+        code = insert_cost_block(chars(source), cost_block_text(roots, roots))
+        banner_end = banner_length(code)
+        code = code(:banner_end)// &
+            "module "//module_name//new_line("a")// &
             "    implicit none"//new_line("a")// &
             "    private"//new_line("a")// &
             "    public :: "//subroutine_name//new_line("a")// &
             "contains"//new_line("a")// &
-            chars(source)// &
+            code(banner_end + 1:)// &
             "end module "//module_name//new_line("a")
-        code = insert_cost_block(code, cost_block_text(roots, roots))
         call write_artifact(filename, code)
     end subroutine write_fortran_target
 
@@ -245,6 +233,19 @@ contains
             cost_block_text(roots, roots, "//"), "//")
         call write_artifact("fortnum_"//stem//"_cuda.cu", code)
     end subroutine write_cuda_target
+
+    pure function banner_length(code) result(length)
+        character(*), intent(in) :: code
+        integer :: length, line_end
+
+        length = 0
+        do while (length < len(code))
+            if (code(length + 1:length + 1) /= "!") exit
+            line_end = index(code(length + 1:), new_line("a"))
+            if (line_end == 0) exit
+            length = length + line_end
+        end do
+    end function banner_length
 
     subroutine write_artifact(filename, code)
         character(*), intent(in) :: filename, code

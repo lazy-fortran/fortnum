@@ -1,6 +1,5 @@
 program gen_multi_input_scalar
-    use fortsym_string, only: str_t, str, chars
-    use fortsym_arena, only: arena_t
+    use fortsym_string, only: str_t, str, chars, itoa
     use fortsym_expr, only: expr_t, sym, operator(+), operator(*), &
         operator(/), operator(**), sin
     use fortsym_products, only: jvp, vjp
@@ -23,7 +22,6 @@ contains
 
     subroutine generate_size(nactive)
         integer, intent(in) :: nactive
-        type(arena_t), target :: arena
         type(symengine_engine_t) :: engine
         type(expr_t), allocatable :: x(:), direction(:), variables(:)
         type(expr_t), allocatable :: tangent(:), cotangent(:)
@@ -35,19 +33,18 @@ contains
         character(2) :: size_text
         integer :: i
 
-        call arena%init()
-        engine = make_symengine_engine(arena)
+        engine = make_symengine_engine()
         allocate (x(nactive), direction(nactive), variables(nactive))
         allocate (tangent(nactive), cotangent(1))
         allocate (jvp_args(2*nactive), vjp_args(nactive + 1))
         allocate (jvp_outputs(2), vjp_outputs(nactive + 1))
         write (size_text, "(i0)") nactive
 
-        sum_x = sym(arena, "zero")
-        value = sym(arena, "zero")
+        sum_x = sym("zero")
+        value = sym("zero")
         do i = 1, nactive
-            x(i) = sym(arena, indexed_name("x", i))
-            direction(i) = sym(arena, indexed_name("v", i))
+            x(i) = sym("x"//itoa(i))
+            direction(i) = sym("v"//itoa(i))
             if (i == 1) then
                 sum_x = x(i)
                 value = sin(x(i))
@@ -57,13 +54,13 @@ contains
             end if
             variables(i) = x(i)
             tangent(i) = direction(i)
-            jvp_args(i) = str(indexed_name("x", i))
-            jvp_args(nactive + i) = str(indexed_name("v", i))
-            vjp_args(i) = str(indexed_name("x", i))
-            vjp_outputs(i + 1) = str(indexed_name("adjoint", i))
+            jvp_args(i) = str("x"//itoa(i))
+            jvp_args(nactive + i) = str("v"//itoa(i))
+            vjp_args(i) = str("x"//itoa(i))
+            vjp_outputs(i + 1) = str("adjoint"//itoa(i))
         end do
         value = value + sum_x**2/2
-        u = sym(arena, "u")
+        u = sym("u")
         cotangent(1) = u
         vjp_args(nactive + 1) = str("u")
         jvp_outputs = [str("value"), str("jvp")]
@@ -88,15 +85,6 @@ contains
             vjp_args, vjp_outputs, vjp_roots, engine)
     end subroutine generate_size
 
-    function indexed_name(prefix, index) result(name)
-        character(*), intent(in) :: prefix
-        integer, intent(in) :: index
-        character(:), allocatable :: name
-        character(2) :: index_text
-
-        write (index_text, "(i0)") index
-        name = prefix//trim(index_text)
-    end function indexed_name
 
     subroutine write_variant(filename, name, module_name, arguments, outputs, &
             expressions, engine)

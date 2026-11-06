@@ -1,6 +1,5 @@
 program gen_special_outer
     use fortsym_string, only: str, chars
-    use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, sym, operator(+), operator(-), &
         operator(*), operator(**), sin
     use fortsym_products, only: jvp, vjp
@@ -13,7 +12,6 @@ program gen_special_outer
         fortsym_revision, generated_path, cost_block_text, insert_cost_block
     implicit none
 
-    type(arena_t), target :: arena
     type(symengine_engine_t) :: engine
     type(expr_t) :: x, f, df, v, u, value
     type(expr_t) :: values(1), variables(1), tangents(1), cotangents(1)
@@ -31,13 +29,12 @@ program gen_special_outer
     character(len=5), parameter :: fused_vjp_outputs(2) = ["value", "vjp  "]
     character(len=3), parameter :: vjp_output(1) = ["vjp"]
 
-    call arena%init()
-    engine = make_symengine_engine(arena)
-    x = sym(arena, "x")
-    f = sym(arena, "f")
-    df = sym(arena, "df")
-    v = sym(arena, "v")
-    u = sym(arena, "u")
+    engine = make_symengine_engine()
+    x = sym("x")
+    f = sym("f")
+    df = sym("df")
+    v = sym("v")
+    u = sym("u")
 
     ! f is the already-computed Dawson value. This preserves the numerical
     ! approximation as an operator boundary. Every emitted candidate below is

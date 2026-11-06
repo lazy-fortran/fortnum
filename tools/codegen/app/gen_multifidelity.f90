@@ -1,6 +1,5 @@
 program gen_multifidelity
     use fortsym_string, only: str_t, str, chars
-    use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, sym, num, exp, operator(+), operator(-), &
                             operator(*), operator(/), operator(**)
     use fortsym_diff, only: diff
@@ -8,16 +7,14 @@ program gen_multifidelity
     use fortnum_codegen_provenance, only: fortsym_revision, cost_block_text, &
                                           insert_cost_block, generated_path
     implicit none
-    type(arena_t), target :: arena
     type(expr_t) :: x(3), f
-    call arena%init()
-    x = [sym(arena, 'x'), sym(arena, 'center'), sym(arena, 'length')]
-    f = ((x(1) - x(2))/x(3))**2/num(arena, 2)
+    x = [sym('x'), sym('center'), sym('length')]
+    f = ((x(1) - x(2))/x(3))**2/num(2)
     call emit('mf_distance', x, f)
-    x = [sym(arena, 'distance'), sym(arena, 'amplitude'), sym(arena, 'unused')]
+    x = [sym('distance'), sym('amplitude'), sym('unused')]
     f = x(2)**2*exp(-x(1))
     call emit('mf_covariance', x(:2), f)
-    x = [sym(arena, 'rho'), sym(arena, 'low'), sym(arena, 'correction')]
+    x = [sym('rho'), sym('low'), sym('correction')]
     f = x(1)*x(2) + x(3)
     call emit('mf_autoregressive', x, f)
 contains

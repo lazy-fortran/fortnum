@@ -1,6 +1,5 @@
 program gen_stable_sqrt_difference
     use fortsym_string, only: str_t, str, chars
-    use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, sym, num, sqrt, operator(+), operator(-)
     use fortsym_stability, only: rationalize_sqrt_difference
     use fortsym_kernel, only: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE
@@ -10,17 +9,15 @@ program gen_stable_sqrt_difference
         generated_path, cost_block_text, insert_cost_block
     implicit none
 
-    type(arena_t), target :: arena
     type(symengine_engine_t) :: engine
     type(engine_result_t) :: simplified
     type(expr_t) :: x, a, b
     type(expr_t) :: raw(1), stable(1)
 
-    call arena%init()
-    engine = make_symengine_engine(arena)
-    x = sym(arena, "x")
-    a = num(arena, 1) + x
-    b = num(arena, 1)
+    engine = make_symengine_engine()
+    x = sym("x")
+    a = num(1) + x
+    b = num(1)
     raw(1) = sqrt(a) - sqrt(b)
     stable(1) = rationalize_sqrt_difference(a, b)
     simplified = engine%simplify(raw(1))

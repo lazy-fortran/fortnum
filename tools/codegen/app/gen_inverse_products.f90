@@ -2,7 +2,6 @@ program gen_inverse_products
     ! contracted-jvp-direct: -A^{-1} (dA) A^{-1}, never a full Jacobian.
     ! contracted-vjp-direct: -A^{-T} U A^{-T}, never a full Jacobian.
     use fortsym_string, only: str, chars
-    use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, sym, operator(-), operator(*)
     use fortsym_kernel, only: kernel_spec_t, emit_kernel, count_operations, &
         operation_count_t, KERNEL_SUBROUTINE
@@ -12,11 +11,9 @@ program gen_inverse_products
         fortsym_revision, generated_path, cost_block_text, insert_cost_block
     implicit none
 
-    type(arena_t), target :: arena
     type(symengine_engine_t) :: engine
 
-    call arena%init()
-    engine = make_symengine_engine(arena)
+    engine = make_symengine_engine()
     call generate_kernel(2, .false., &
         generated_path("fortnum_inv2_jvp_kernel.f90"), &
         "fortnum_inv2_jvp_kernel", "fortnum_generated_inv2_jvp")
@@ -47,9 +44,9 @@ contains
 
         do q = 1, n*n
             write (symbol_name, "(a,i0)") "r", q
-            inverse_entries(q) = sym(arena, trim(symbol_name))
+            inverse_entries(q) = sym(trim(symbol_name))
             write (symbol_name, "(a,i0)") "v", q
-            directions(q) = sym(arena, trim(symbol_name))
+            directions(q) = sym(trim(symbol_name))
         end do
 
         do j = 1, n

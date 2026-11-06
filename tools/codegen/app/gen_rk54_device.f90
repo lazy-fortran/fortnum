@@ -13,21 +13,18 @@ program gen_rk54_device
     !> the residuals are rationals through FLINT, so it is a proof and not a
     !> tolerance.
     use, intrinsic :: iso_fortran_env, only: dp => real64
-    use fortsym_arena, only: arena_t
     use fortsym_exact, only: exact_to_real
     use fortsym_expr, only: expr_t, sym, real_expr, operator(+), operator(*)
     use fortsym_kernel, only: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE
     use fortsym_rk, only: butcher_t, rk_from_rows, rk_is_consistent, &
         rk_attains_order, rk_error_weights, rk_is_fsal, rk_is_zero
-    use fortsym_string, only: str_t, str, chars
+    use fortsym_string, only: str_t, str, chars, itoa
     use fortnum_codegen_provenance, only: codegen_log, generated_path, &
         cost_block_text, insert_cost_block
     implicit none
 
-    type(arena_t), target :: arena
     type(butcher_t) :: cash_karp, dormand_prince
 
-    call arena%init()
 
     call build_cash_karp(cash_karp)
     call verify(cash_karp, "Cash-Karp", 5, 4, expect_fsal=.false.)
@@ -129,12 +126,10 @@ contains
         integer, intent(in) :: stage
         type(expr_t) :: roots(1)
         type(str_t), allocatable :: names(:)
-        character(len=2) :: stage_text
 
-        roots(1) = sym(arena, "y") + scaled_sum(tableau%a(stage, :))
+        roots(1) = sym("y") + scaled_sum(tableau%a(stage, :))
         names = argument_names(as_columns(tableau%a(stage, :)))
-        write (stage_text, "(i0)") stage
-        call write_kernel(prefix//"_stage"//trim(stage_text), names, &
+        call write_kernel(prefix//"_stage"//itoa(stage), names, &
                           [str("ystage")], roots)
     end subroutine emit_stage
 
@@ -149,7 +144,7 @@ contains
         error_weights = rk_error_weights(tableau, ok)
         if (.not. ok) error stop prefix//": embedded weights are missing"
 
-        roots(1) = sym(arena, "y") + scaled_sum(tableau%b)
+        roots(1) = sym("y") + scaled_sum(tableau%b)
         roots(2) = scaled_sum(error_weights)
         names = argument_names(as_columns(tableau%b, error_weights))
         call write_kernel(prefix//"_finish", names, &
@@ -222,7 +217,7 @@ contains
             do w = 1, size(weight_sets, 2)
                 if (.not. rk_is_zero(weight_sets(j, w))) used = .true.
             end do
-            if (used) names = [names, str("k"//integer_text(j))]
+            if (used) names = [names, str("k"//itoa(j))]
         end do
     end function argument_names
 
@@ -239,7 +234,7 @@ contains
         started = .false.
         do j = 1, size(weights)
             if (rk_is_zero(weights(j))) cycle
-            stage_name = str("k"//integer_text(j))
+            stage_name = str("k"//itoa(j))
             ! Round the exact weight to a double here, once, rather than
             ! emitting the rational and leaving a division in the inner loop.
             ! Under strict IEEE a compiler may not fold 37.0_dp/378.0_dp,
@@ -247,27 +242,18 @@ contains
             ! the emitted rational costs a division per stage per component on
             ! every step. The rounding error is one ulp on a coefficient, far
             ! under the truncation error of the method itself.
-            coefficient = real_expr(arena, exact_to_real(chars(weights(j)), ok))
+            coefficient = real_expr(exact_to_real(chars(weights(j)), ok))
             if (.not. ok) error stop "weight is not an exact rational"
             if (started) then
-                total = total + coefficient*sym(arena, chars(stage_name))
+                total = total + coefficient*sym(chars(stage_name))
             else
-                total = coefficient*sym(arena, chars(stage_name))
+                total = coefficient*sym(chars(stage_name))
                 started = .true.
             end if
         end do
         if (.not. started) error stop "every weight vanished"
-        expression = sym(arena, "h")*total
+        expression = sym("h")*total
     end function scaled_sum
-
-    pure function integer_text(value) result(text)
-        integer, intent(in) :: value
-        character(:), allocatable :: text
-        character(len=12) :: buffer
-
-        write (buffer, "(i0)") value
-        text = trim(buffer)
-    end function integer_text
 
     subroutine write_kernel(short_name, names, outputs, roots)
         character(*), intent(in) :: short_name

@@ -1,7 +1,6 @@
 program gen_erf_products
     use, intrinsic :: iso_fortran_env, only: dp => real64
     use fortsym_string, only: str, chars
-    use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, sym, real_expr, erf, erfc, &
         operator(*), operator(/)
     use fortsym_parse, only: parse_expr
@@ -13,13 +12,11 @@ program gen_erf_products
         generated_path, cost_block_text, insert_cost_block
     implicit none
 
-    type(arena_t), target :: arena
     type(symengine_engine_t) :: engine
     type(expr_t) :: x
 
-    call arena%init()
-    engine = make_symengine_engine(arena)
-    x = sym(arena, "x(1)")
+    engine = make_symengine_engine()
+    x = sym("x(1)")
     call generate_products("erf", erf(x))
     call generate_products("erfc", erfc(x))
 
@@ -32,13 +29,13 @@ contains
         type(expr_t) :: product(1)
 
         variables(1) = x
-        directions(1) = sym(arena, "v(1)")
+        directions(1) = sym("v(1)")
         product(1) = directional_derivative(value, variables, directions)
         call simplify_product(product)
         call write_product(stem, "jvp", "v", product)
 
         values(1) = value
-        cotangents(1) = sym(arena, "u(1)")
+        cotangents(1) = sym("u(1)")
         product = vjp(values, variables, cotangents)
         call simplify_product(product)
         call write_product(stem, "vjp", "u", product)
@@ -52,9 +49,9 @@ contains
         logical :: ok
         integer :: k
 
-        symbolic_prefactor = parse_expr(arena, "2/sqrt(pi)", ok, message)
+        symbolic_prefactor = parse_expr("2/sqrt(pi)", ok, message)
         if (.not. ok) error stop message
-        folded_constant = real_expr(arena, 2.0_dp/sqrt(acos(-1.0_dp)))
+        folded_constant = real_expr(2.0_dp/sqrt(acos(-1.0_dp)))
         do k = 1, size(product)
             product(k) = product(k)/symbolic_prefactor*folded_constant
             result = engine%simplify(product(k))

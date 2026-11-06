@@ -1,5 +1,4 @@
 program gen_verified_midpoint
-    use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, sym, operator(+), operator(-), &
         operator(*), operator(/), operator(**)
     use fortsym_string, only: str, chars
@@ -8,7 +7,6 @@ program gen_verified_midpoint
     use fortnum_codegen_provenance, only: generated_path, cost_block_text
     implicit none
 
-    type(arena_t), target :: arena
     type(expr_t) :: left, right, width, value, curvature, acc, center, remainder
     character(40) :: revision
     integer :: unit, lock_unit, ios
@@ -19,10 +17,9 @@ program gen_verified_midpoint
     read (lock_unit, '(a)', iostat=ios) revision
     close (lock_unit)
     if (ios /= 0) error stop 'cannot parse fortsym-verified-midpoint.lock'
-    call arena%init()
-    left = sym(arena, 'left'); right = sym(arena, 'right')
-    width = sym(arena, 'width'); value = sym(arena, 'value')
-    curvature = sym(arena, 'curvature'); acc = sym(arena, 'acc')
+    left = sym('left'); right = sym('right')
+    width = sym('width'); value = sym('value')
+    curvature = sym('curvature'); acc = sym('acc')
     center = acc + width*value
     remainder = curvature*width**3/24
 

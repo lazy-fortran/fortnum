@@ -189,7 +189,7 @@ include(FetchContent)
 if(NOT TARGET fortgen_runtime)
     FetchContent_Declare(fortgen_runtime
         GIT_REPOSITORY https://github.com/lazy-fortran/fortgen.git
-        GIT_TAG 68a38f1a2fc71e6a35c79653392687875dad7e7b
+        GIT_TAG cb0db04146448b2e89871f133211f7900a716122
         SOURCE_SUBDIR runtime)
     FetchContent_MakeAvailable(fortgen_runtime)
 endif()

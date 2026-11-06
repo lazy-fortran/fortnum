@@ -1,6 +1,5 @@
 program gen_implicit_root_residual
     use fortsym_string, only: str_t, str, chars
-    use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, sym, num, operator(+), operator(-), &
         operator(*), operator(**)
     use fortsym_products, only: jvp, vjp, implicit_tangent_rhs
@@ -13,7 +12,6 @@ program gen_implicit_root_residual
         fortsym_revision, generated_path, cost_block_text, insert_cost_block
     implicit none
 
-    type(arena_t), target :: arena
     type(expr_t) :: x, p, dp, residual
     type(expr_t) :: p1, p2, tp1, tp2, u, scalar_residual
     type(expr_t) :: x1, x2, u1, u2
@@ -56,17 +54,16 @@ program gen_implicit_root_residual
     character(:), allocatable :: output, code
     integer :: unit, ios, i
 
-    call arena%init()
-    engine = make_symengine_engine(arena)
-    x = sym(arena, "x")
-    p = sym(arena, "p")
-    dp = sym(arena, "tp")
+    engine = make_symengine_engine()
+    x = sym("x")
+    p = sym("p")
+    dp = sym("tp")
     residual = x*x - p
     x_variables(1) = x
     p_variables(1) = p
     parameter_tangent(1) = dp
     residuals(1) = residual
-    unit_tangent(1) = num(arena, 1)
+    unit_tangent(1) = num(1)
     residual_x = jvp(residuals, x_variables, unit_tangent)
     tangent_rhs = implicit_tangent_rhs( &
         residuals, p_variables, parameter_tangent)
@@ -112,11 +109,11 @@ program gen_implicit_root_residual
     call codegen_log("wrote "//output)
     call codegen_log_count("post-CSE structural operations: ", operations%total)
 
-    p1 = sym(arena, "p1")
-    p2 = sym(arena, "p2")
-    tp1 = sym(arena, "tp1")
-    tp2 = sym(arena, "tp2")
-    u = sym(arena, "u")
+    p1 = sym("p1")
+    p2 = sym("p2")
+    tp1 = sym("tp1")
+    tp2 = sym("tp2")
+    u = sym("u")
     scalar_residual = x**3 + p1*x - p2
     scalar_residuals(1) = scalar_residual
     scalar_x_variables(1) = x
@@ -161,22 +158,22 @@ program gen_implicit_root_residual
         scalar_vjp_args, scalar_vjp_outputs, scalar_vjp_outputs, &
         scalar_vjp_roots)
 
-    x1 = sym(arena, "x(1)")
-    x2 = sym(arena, "x(2)")
-    u1 = sym(arena, "u(1)")
-    u2 = sym(arena, "u(2)")
+    x1 = sym("x(1)")
+    x2 = sym("x(2)")
+    u1 = sym("u(1)")
+    u2 = sym("u(2)")
     vector_residuals(1) = x1**2 + x2 - p1
     vector_residuals(2) = x1 + x2**2 - p2
     vector_x_variables(1) = x1
     vector_x_variables(2) = x2
     vector_p_variables(1) = p1
     vector_p_variables(2) = p2
-    vector_p_tangents(1) = sym(arena, "tp(1)")
-    vector_p_tangents(2) = sym(arena, "tp(2)")
-    vector_state_direction_one(1) = num(arena, 1)
-    vector_state_direction_one(2) = num(arena, 0)
-    vector_state_direction_two(1) = num(arena, 0)
-    vector_state_direction_two(2) = num(arena, 1)
+    vector_p_tangents(1) = sym("tp(1)")
+    vector_p_tangents(2) = sym("tp(2)")
+    vector_state_direction_one(1) = num(1)
+    vector_state_direction_one(2) = num(0)
+    vector_state_direction_two(1) = num(0)
+    vector_state_direction_two(2) = num(1)
     vector_cotangents(1) = u1
     vector_cotangents(2) = u2
     vector_jacobian_column_one = jvp( &

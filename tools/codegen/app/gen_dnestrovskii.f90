@@ -1,7 +1,6 @@
 program gen_dnestrovskii
     use, intrinsic :: iso_fortran_env, only: dp => real64
     use fortsym_string, only: str, chars
-    use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, sym, real_expr, exp, erfc, sqrt, operator(+), &
                             operator(-), operator(*), operator(/), operator(**)
     use fortsym_diff, only: diff
@@ -9,7 +8,6 @@ program gen_dnestrovskii
     use fortnum_codegen_provenance, only: generated_path, cost_block_text, &
                                           insert_cost_block, fortsym_revision
     implicit none
-    type(arena_t), target :: arena
     type(expr_t) :: x, f, g, term
     real(dp) :: c(33), q
     real(dp), parameter :: loss(2) = [2.36327180120735470306422331112_dp, &
@@ -17,16 +15,15 @@ program gen_dnestrovskii
     integer :: i, j, k, input
     character(40) :: name
 
-    call arena%init()
-    x = sym(arena, 'x')
+    x = sym('x')
     open (newunit=input, file='data/dnestrovskii.dat', status='old')
     do i = 1, 2
         q = real(i, dp) + 1.5_dp
         do j = 1, 8
             read (input, *) c
-            f = real_expr(arena, c(1))
+            f = real_expr(c(1))
             do k = 2, size(c)
-                f = f*x + real_expr(arena, c(k))
+                f = f*x + real_expr(c(k))
             end do
             write (name, '(A,I0,A,I0)') 'fortnum_dnestro_re_', 2*i + 3, '_', j
             call emit(trim(name), f)
@@ -35,13 +32,13 @@ program gen_dnestrovskii
         term = -x
         f = term
         do k = 1, 31
-            term = term*x*real_expr(arena, q + k - 1)
+            term = term*x*real_expr(q + k - 1)
             f = f + term
         end do
         write (name, '(A,I0)') 'fortnum_dnestro_tail_', 2*i + 3
         call emit(trim(name), f)
-        g = -real_expr(arena, loss(i))* &
-            x**real_expr(arena, q - 1)*exp(-x)
+        g = -real_expr(loss(i))* &
+            x**real_expr(q - 1)*exp(-x)
         write (name, '(A,I0)') 'fortnum_dnestro_im_', 2*i + 3
         call emit(trim(name), g)
     end do
@@ -49,9 +46,9 @@ program gen_dnestrovskii
         q = real(i, dp) + 1.5_dp
         do j = 2, 8
             read (input, *) c
-            f = real_expr(arena, c(1))
+            f = real_expr(c(1))
             do k = 2, size(c)
-                f = f*x + real_expr(arena, c(k))
+                f = f*x + real_expr(c(k))
             end do
             write (name, '(A,I0,A,I0)') 'fortnum_dnestro_pos_', 2*i + 3, '_', j
             call emit(trim(name), f)
@@ -59,17 +56,17 @@ program gen_dnestrovskii
         term = x
         f = term
         do k = 1, 31
-            term = -term*x*real_expr(arena, q + k - 1)
+            term = -term*x*real_expr(q + k - 1)
             f = f + term
         end do
         write (name, '(A,I0)') 'fortnum_dnestro_pos_tail_', 2*i + 3
         call emit(trim(name), f)
     end do
-    f = real_expr(arena, 2.0_dp/3.0_dp)*(1 - 2*x + &
-                 real_expr(arena, 3.54490770181103205459633496668_dp)*x**real_expr(arena, 1.5_dp)* &
-                                         exp(x)*erfc(sqrt(x)))
+    f = real_expr(2.0_dp/3.0_dp)*(1 - 2*x + &
+        real_expr(3.54490770181103205459633496668_dp)*x**real_expr(1.5_dp)* &
+        exp(x)*erfc(sqrt(x)))
     call emit('fortnum_dnestro_pos_5_1', f)
-    f = real_expr(arena, 0.4_dp)*(1 - x*f)
+    f = real_expr(0.4_dp)*(1 - x*f)
     call emit('fortnum_dnestro_pos_7_1', f)
     close (input)
 contains
