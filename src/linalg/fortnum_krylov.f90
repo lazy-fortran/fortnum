@@ -47,6 +47,12 @@ module fortnum_krylov
             real(dp), intent(out) :: output(:)
         end subroutine real_preconditioner_t
 
+        subroutine complex_global_sum_t(values)
+            !! Sum values over all processes that share a distributed vector.
+            import :: dp
+            complex(dp), intent(inout) :: values(:)
+        end subroutine complex_global_sum_t
+
         subroutine complex_preconditioner_t(input, output)
             import :: dp
             complex(dp), intent(in) :: input(:)
@@ -80,6 +86,7 @@ module fortnum_krylov
     public :: complex_fgmres_operator
     public :: complex_gmres_operator
     public :: complex_preconditioner_t
+    public :: complex_global_sum_t
     public :: real_fgmres_operator
     public :: complex_matvec_t
     public :: real_conjugate_gradient
@@ -1241,8 +1248,11 @@ contains
     subroutine complex_fgmres( &
             matvec, preconditioner, right_hand_side, solution, tolerance, &
             max_iterations, restart, info, iterations, residual_norm, &
-            stagnation_ratio)
+            stagnation_ratio, global_sum)
         !! Complex counterpart of real_fgmres_operator (same contract).
+        !! global_sum, when present, sums partial inner products of vectors
+        !! distributed over processes (e.g. an MPI allreduce); every norm and
+        !! inner product of the method passes through it.
         class(complex_linear_operator_t), intent(inout) :: matvec
         class(complex_linear_operator_t), intent(inout) :: preconditioner
         complex(dp), intent(in) :: right_hand_side(:)
@@ -1252,6 +1262,7 @@ contains
         integer, intent(out) :: info, iterations
         real(dp), intent(out) :: residual_norm
         real(dp), intent(in), optional :: stagnation_ratio
+        procedure(complex_global_sum_t), optional :: global_sum
 
         complex(dp), allocatable :: basis(:, :), preconditioned(:, :)
         complex(dp), allocatable :: givens_sine(:), hessenberg(:, :)
@@ -1282,7 +1293,7 @@ contains
             work(size(solution)), y(restart), rotated_rhs(restart + 1), &
             coefficients(restart + 1), &
             givens_cosine(restart), givens_sine(restart))
-        right_hand_side_norm = norm2(abs(right_hand_side))
+        right_hand_side_norm = global_norm(right_hand_side)
         target = tolerance*max(right_hand_side_norm, 1.0_dp)
         if (right_hand_side_norm == 0.0_dp) then
             solution = cmplx(0.0_dp, 0.0_dp, dp)
@@ -1293,7 +1304,7 @@ contains
 
         call matvec%apply(solution, work)
         residual = right_hand_side - work
-        residual_norm = norm2(abs(residual))
+        residual_norm = global_norm(residual)
         do while (iterations < max_iterations)
             if (residual_norm <= target) then
                 info = KRYLOV_OK
@@ -1323,6 +1334,7 @@ contains
                             dot_product(basis(:, previous), work)
                     end do
                     !$omp end parallel do
+                    if (present(global_sum)) call global_sum(coefficients(1:inner))
                     !$omp parallel do default(shared) private(row, previous) &
                     !$omp& if(size(work)*inner > 20000)
                     do row = 1, size(work)
@@ -1339,7 +1351,7 @@ contains
                             hessenberg(1:inner, inner) + coefficients(1:inner)
                     end if
                 end do
-                basis_norm = norm2(abs(work))
+                basis_norm = global_norm(work)
                 hessenberg(inner + 1, inner) = &
                     cmplx(basis_norm, 0.0_dp, dp)
                 if (basis_norm > 64.0_dp*epsilon(1.0_dp)) then
@@ -1386,7 +1398,7 @@ contains
             solution = solution + matmul(preconditioned(:, :used), y(:used))
             call matvec%apply(solution, work)
             residual = right_hand_side - work
-            residual_norm = norm2(abs(residual))
+            residual_norm = global_norm(residual)
             if (residual_norm <= target) then
                 info = KRYLOV_OK
                 return
@@ -1401,12 +1413,25 @@ contains
             end if
         end do
         info = KRYLOV_MAX_ITERATIONS
+    contains
+        function global_norm(vector) result(norm)
+            complex(dp), intent(in) :: vector(:)
+            real(dp) :: norm
+            complex(dp) :: partial(1)
+            if (.not. present(global_sum)) then
+                norm = norm2(abs(vector))
+                return
+            end if
+            partial(1) = cmplx(sum(abs(vector)**2), 0.0_dp, dp)
+            call global_sum(partial)
+            norm = sqrt(real(partial(1), dp))
+        end function global_norm
     end subroutine complex_fgmres
 
     subroutine complex_fgmres_operator( &
             matvec, preconditioner, right_hand_side, solution, tolerance, &
             max_iterations, restart, info, iterations, residual_norm, &
-            stagnation_ratio)
+            stagnation_ratio, global_sum)
         !! Complex counterpart of real_fgmres_operator (same contract).
         procedure(complex_matvec_t) :: matvec
         procedure(complex_preconditioner_t) :: preconditioner
@@ -1417,6 +1442,7 @@ contains
         integer, intent(out) :: info, iterations
         real(dp), intent(out) :: residual_norm
         real(dp), intent(in), optional :: stagnation_ratio
+        procedure(complex_global_sum_t), optional :: global_sum
         type(complex_procedure_operator_t) :: operator_adapter, preconditioner_adapter
 
         operator_adapter%apply_procedure => matvec
@@ -1424,7 +1450,7 @@ contains
         call complex_fgmres(operator_adapter, preconditioner_adapter, &
             right_hand_side, solution, tolerance, &
             max_iterations, restart, info, iterations, residual_norm, &
-            stagnation_ratio)
+            stagnation_ratio, global_sum)
     end subroutine complex_fgmres_operator
 
     pure subroutine complex_givens(first, second, cosine, sine, rotated)

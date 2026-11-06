@@ -537,6 +537,10 @@ provides restarted complex GMRES using reorthogonalized modified
 Gram--Schmidt and complex Givens rotations. Structured kernel operators and
 device-resident callbacks are planned consumers of these contracts.
 `real_gmres_operator` uses classical Gram--Schmidt with one reorthogonalization.
+`complex_fgmres_operator` (right-preconditioned, flexible) accepts an optional
+`global_sum` procedure (`complex_global_sum_t`) that sums partial results over
+processes sharing a distributed vector, for example an MPI allreduce; all its
+norms and inner products pass through it, so each process holds only its part.
 
 `real_minres` is preconditioned MINRES (Paige--Saunders) for a symmetric,
 possibly indefinite or singular operator object, with an optional SPD

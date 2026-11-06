@@ -14,6 +14,8 @@ program test_fortnum_fgmres
     real(dp) :: rot(2, 2)
     integer :: info, it_plain, it_jac, it_var, i, j, it
     complex(dp), parameter :: czero = (0.0_dp, 0.0_dp)
+    complex(dp) :: cx_local(5)
+    integer :: it_local, sum_calls = 0
 
     ! (1a) SPD, exact inverse: one iteration
     spd = 0.0_dp
@@ -57,6 +59,17 @@ program test_fortnum_fgmres
         info, it, res)
     call require(info == KRYLOV_OK .and. it > 1, "complex restarted identity")
     call require(maxval(abs(cx - cref)) < 1.0e-10_dp, "complex restarted solution")
+    ! global_sum: a sum that doubles every partial result is what two processes
+    ! holding identical copies of the vector would see, so the iteration and
+    ! its solution must not change.
+    cx_local = cx
+    it_local = it
+    cx = czero
+    call complex_fgmres_operator(c_mv, c_id, cb, cx, 1.0e-12_dp, 40, 3, &
+        info, it, res, global_sum=double_sum)
+    call require(info == KRYLOV_OK .and. it == it_local, "global_sum: same iterations")
+    call require(maxval(abs(cx - cx_local)) < 1.0e-12_dp, "global_sum: same solution")
+    call require(sum_calls > 0, "global_sum is used")
 
     ! (2) convection-diffusion, block Jacobi vs none
     call build_convdiff()
@@ -200,6 +213,12 @@ contains
         real(dp), intent(out) :: v(:)
         v = u
     end subroutine rot_id
+
+    subroutine double_sum(values)
+        complex(dp), intent(inout) :: values(:)
+        sum_calls = sum_calls + 1
+        values = 2*values
+    end subroutine double_sum
 
     subroutine require(condition, description)
         logical, intent(in) :: condition
