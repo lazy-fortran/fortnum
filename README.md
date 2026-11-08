@@ -69,7 +69,7 @@ end program example
 | kinds and status | `fortnum_kinds`, `fortnum_status` |
 | special functions | `fortnum_special` and its domain modules |
 | quadrature and integration | `fortnum_quadrature`, `fortnum_integrate`, `fortnum_integrate_gk`, `fortnum_cquad`, `fortnum_levin` |
-| transforms | `fortnum_fft` |
+| transforms | `fortnum_fft`, `fortnum_fourier` |
 | ODEs | `fortnum_ode` and method modules |
 | roots | `fortnum_roots`, `fortnum_multiroot`, `fortnum_roots_complex` |
 | interpolation | `fortnum_interp`, `fortnum_polynomial`, `fortnum_bspline`, `fortnum_bspline_lsq` |

@@ -258,6 +258,10 @@ add_executable(test_fortnum_fft fft/test_fortnum_fft.f90)
 target_link_libraries(test_fortnum_fft PRIVATE fortnum)
 add_test(NAME fortnum_fft COMMAND test_fortnum_fft)
 
+add_executable(test_fortnum_fourier fft/test_fortnum_fourier.f90)
+target_link_libraries(test_fortnum_fourier PRIVATE fortnum)
+add_test(NAME fortnum_fourier COMMAND test_fortnum_fourier)
+
 add_executable(test_fortnum_fft_oracle oracle/test_fortnum_fft_oracle.f90)
 target_link_libraries(test_fortnum_fft_oracle PRIVATE fortnum)
 add_test(NAME fortnum_fft_oracle

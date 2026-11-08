@@ -35,6 +35,7 @@ target_sources(fortnum PRIVATE
     bindings/fortnum_capi_bspline.f90
     bindings/fortnum_capi_rk8pd.f90
     fft/fortnum_fft.f90
+    fft/fortnum_fourier.f90
     fft/fortnum_fft8_kernel.f90
     fortnum_ad_backend.f90
     fortnum_minimize.f90
