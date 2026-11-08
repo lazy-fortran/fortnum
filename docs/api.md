@@ -342,7 +342,13 @@ allocation for mixed-radix and Bluestein transforms. The plan remains read-only;
 each concurrent transform needs a separate workspace. Reinitialize the workspace
 when the plan's transform or convolution length changes. Existing calls without
 scratch retain their behavior.
+## Fourier collocation
 
+`fortnum_fourier` exports `fourier_derivative(n, d)`, the first-derivative
+collocation matrix of the trigonometric interpolant on `n` odd equispaced
+periodic nodes `theta_j = 2 pi (j - 1)/n`. The matrix is exactly antisymmetric
+with a zero diagonal and zero row sums; callers must reject even `n` before
+calling.
 `sign=-1` applies the unnormalized forward transform and `sign=+1` applies the
 unnormalized inverse transform. The JVP uses the same sign. The VJP uses the
 opposite sign with no extra `1/n` factor. Applying forward then inverse and
