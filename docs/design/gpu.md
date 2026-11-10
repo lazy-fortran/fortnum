@@ -70,6 +70,16 @@ Released NVHPC supplies both validated NVIDIA paths. OpenMP target is accepted
 only with `nvfortran`; other compilers fail configuration until they pass the
 same gates on released software.
 
+GNU gfortran 12.2 with the nvptx offload compiler (Debian
+`gcc-12-offload-nvptx`, RTX PRO 6000) does not pass them: 7 of the 9 OpenMP
+device tests pass, `openmp_multi_input_offload` stops on an illegal device memory
+access and `openmp_implicit_root_offload` disagrees with its closed form. Linking
+it at all needs `-foffload-options=-lm`, because the device math library that
+supplies `sin`, `cos` and the fused `sincos` is not linked by default, and
+`-Wl,--push-state,--no-as-needed,-lgomp,--pop-state`, because with `--as-needed`
+(Debian's default) libgomp is dropped before the offload registration object
+that needs it.
+
 ## Acceptance gates
 
 Every supported leaf and backend requires:
