@@ -44,6 +44,13 @@ add_test(
         -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/test_gpu_backend_configure.cmake")
 
 add_test(
+    NAME gpu_backend_host_only_cxx_link
+    COMMAND "${CMAKE_COMMAND}"
+        "-DFORTNUM_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
+        "-DTEST_BINARY_ROOT=${PROJECT_BINARY_DIR}/gpu-backend-configure"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/test_host_only_cxx_link.cmake")
+
+add_test(
     NAME derivative_kernel_inventory
     COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/ad/check_derivative_kernel_inventory.sh"
         "${PROJECT_SOURCE_DIR}")

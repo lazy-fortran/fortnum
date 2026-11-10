@@ -22,12 +22,13 @@ add_library(fortnum_gpu_backend INTERFACE)
 # GNU compiles device code for every "!$omp declare target" leaf whenever
 # -fopenmp is active and an offload compiler (e.g. nvptx-none) is installed,
 # so a host-only build would still run mkoffload at link time. NONE means host
-# only: disable GNU offloading for fortnum and everything that links it.
+# only: disable GNU offloading for fortnum and everything that links it. Only
+# the link flag stops mkoffload, so it must reach C++-linked consumers too.
 if(FORTNUM_GPU_BACKEND STREQUAL "NONE")
     target_compile_options(fortnum_gpu_backend INTERFACE
         $<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-foffload=disable>)
     target_link_options(fortnum_gpu_backend INTERFACE
-        $<$<OR:$<LINK_LANG_AND_ID:Fortran,GNU>,$<LINK_LANG_AND_ID:C,GNU>>:-foffload=disable>)
+        $<$<OR:$<LINK_LANG_AND_ID:Fortran,GNU>,$<LINK_LANG_AND_ID:C,GNU>,$<LINK_LANG_AND_ID:CXX,GNU>>:-foffload=disable>)
 endif()
 
 if(FORTNUM_GPU_BACKEND STREQUAL "OPENACC")
