@@ -111,11 +111,24 @@ pivoting. A step is accepted only when the first relative correction is below
 either converges to `tol`, predicts its next correction below `tol`, or stops
 contracting once the previous correction was below 1e-7 (roundoff). The step
 size aims at a first correction of `step_target`, assuming an error of order
-h^9. A path fails when the step falls below `h_min * t` or after `max_steps`
-steps. The minimum step is relative to t, so a start fibre at a very
-different coefficient scale can be left with tiny steps. At the end of each
+h^9. A path fails when the step falls below `h_min` times the distance in t
+to the nearer end of the segment, or after `max_steps` steps. So a start fibre
+at a very different coefficient scale can be left with tiny steps, and an
+endpoint can be approached over many orders of magnitude: the tracker keeps
+t in the first half of a segment and the remaining distance 1 - t in the
+second, and forms the coefficients from the nearer end. At the end of each
 segment Newton refines the point to `final_tol`, and the last relative
 correction is reported as its accuracy.
+
+Near an ill-conditioned point the residual formed in double precision is
+dominated by roundoff, so Newton stalls above roundoff level or, worse, sees a
+residual that has rounded to zero. When Newton stalls, the tracker therefore
+forms every further residual of that path with all products and sums in quad
+precision (`real128`) and keeps the double Jacobian and its LU factors. This
+is iterative refinement, so the point reaches double accuracy as long as the
+scaled condition number stays well below 1/epsilon. The final refinement of
+every segment uses the quad-precision residual, so the reported accuracy is
+not an artefact of a residual that rounded to zero.
 
 Monodromy accepts a loop endpoint only if its final correction is below
 `dup_tol`. Two points are one solution when every coordinate agrees to the

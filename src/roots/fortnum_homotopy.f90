@@ -17,7 +17,7 @@ module fortnum_homotopy
     ! relative correction is below max_first_correction, which keeps path
     ! jumping rare, and Newton converges or stagnates at roundoff. The step
     ! size aims at a first correction of step_target.
-    use, intrinsic :: iso_fortran_env, only: int64, output_unit
+    use, intrinsic :: iso_fortran_env, only: int64, output_unit, real128
     use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
     use fortnum_kinds, only: dp
     use fortnum_multiroot, only: argsort
@@ -38,6 +38,9 @@ module fortnum_homotopy
     real(dp), parameter :: TINY_SCALE = 1.0e-300_dp
     ! A non-contracting Newton correction is roundoff once it is this small.
     real(dp), parameter :: ROUNDOFF_ACCEPT = 1.0e-7_dp
+    ! Extra Newton iterations once the residual is formed in quad precision.
+    integer, parameter :: EXTENDED_ITERS = 4
+    integer, parameter :: qp = real128
     real(dp), parameter :: STEP_SAFETY = 0.8_dp
     real(dp), parameter :: STEP_GROW_MAX = 4.0_dp
     real(dp), parameter :: STEP_SHRINK_MIN = 0.1_dp
@@ -72,7 +75,8 @@ module fortnum_homotopy
         ! Step-size control aims at this first relative correction.
         real(dp) :: step_target = 1.0e-5_dp
         real(dp) :: h_init = 0.05_dp
-        ! A path fails when its step falls below h_min * t.
+        ! A path fails when its step falls below h_min times the distance in t
+        ! to the nearer end of the segment.
         real(dp) :: h_min = 1.0e-13_dp
         integer :: max_steps = 20000
         integer :: newton_iters = 4
@@ -108,6 +112,10 @@ module fortnum_homotopy
         real(dp), allocatable :: rs(:), cs(:)
         integer, allocatable :: ipiv(:)
         integer(int64) :: nfact = 0
+        ! Set once Newton on this path has needed the quad-precision residual;
+        ! from then on every residual of the path is formed that way, so the
+        ! step control sees prediction error rather than roundoff.
+        logical :: ext = .false.
     end type track_work_t
 
 contains
@@ -251,6 +259,32 @@ contains
         if (.not. sys%finalized) error stop "poly_system_eval: system not finalised"
         call eval_terms(sys, x, c, f, jac, rowscale, dc, ft)
     end subroutine poly_system_eval
+
+    ! F(x; c) with every product and sum in quad precision, rounded to double
+    ! once at the end.
+    pure subroutine eval_residual_ext(sys, x, c, f)
+        type(poly_system_t), intent(in) :: sys
+        complex(dp), intent(in) :: x(:), c(:)
+        complex(dp), intent(out) :: f(:)
+
+        complex(qp) :: acc, mono
+        integer :: i, k, l, lo, m
+
+        do i = 1, sys%n
+            acc = (0.0_qp, 0.0_qp)
+            do k = sys%eq_ptr(i), sys%eq_ptr(i + 1) - 1
+                mono = cmplx(c(sys%coef(k)), kind=qp)
+                lo = sys%fac_ptr(k)
+                m = sys%fac_ptr(k + 1) - lo
+                do l = 1, m
+                    mono = mono * cmplx(x(sys%fac_var(lo + l - 1)), kind=qp) &
+                        **sys%fac_exp(lo + l - 1)
+                end do
+                acc = acc + mono
+            end do
+            f(i) = cmplx(acc, kind=dp)
+        end do
+    end subroutine eval_residual_ext
 
     pure subroutine eval_terms(sys, x, c, f, jac, rs, dc, ft)
         type(poly_system_t), intent(in) :: sys
@@ -486,16 +520,21 @@ contains
         real(dp), intent(out) :: first, last
 
         real(dp) :: nrm, prev, total, a
-        integer :: it, j, n
-        logical :: fok
+        integer :: it, j, n, itmax
+        logical :: fok, ext
 
         n = sys%n
         ok = .false.
         first = huge(1.0_dp)
         last = huge(1.0_dp)
         prev = huge(1.0_dp)
-        do it = 1, maxit
+        ext = w%ext
+        itmax = maxit
+        it = 0
+        do while (it < itmax)
+            it = it + 1
             call eval_terms(sys, x, c, w%f, w%jac, w%rs)
+            if (ext) call eval_residual_ext(sys, x, c, w%f)
             call scale_and_factor(n, x, w, fok)
             if (.not. fok) return
             do j = 1, n
@@ -524,6 +563,17 @@ contains
             end if
             if (it > 1) then
                 if (nrm > 0.5_dp * prev) then
+                    ! Stalled above roundoff: the residual in double cannot
+                    ! resolve an ill-conditioned point. Iterative refinement
+                    ! with the residual in quad precision and the same double
+                    ! Jacobian reaches double accuracy instead.
+                    if (.not. ext .and. prev >= ROUNDOFF_ACCEPT) then
+                        ext = .true.
+                        w%ext = .true.
+                        itmax = it + EXTENDED_ITERS
+                        prev = nrm
+                        cycle
+                    end if
                     ok = (prev < ROUNDOFF_ACCEPT)
                     return
                 end if
@@ -674,7 +724,13 @@ contains
         integer, intent(out) :: nsteps
         real(dp), intent(out) :: acc
 
-        real(dp) :: t, h, tn, first, last
+        ! The position is held as t in the first half of the segment and as the
+        ! remaining distance s = 1 - t in the second, and the coefficients are
+        ! formed from the nearer end. Both ends are then resolved down to
+        ! tiny(1.0_dp) without cancellation, which a start fibre at another
+        ! coefficient scale and an endpoint whose coordinates are many orders
+        ! of magnitude apart both need.
+        real(dp) :: t, s, h, tn, sn, first, last
         logical :: cok, have_series
         integer :: k, n
 
@@ -682,6 +738,7 @@ contains
         ok = .false.
         nsteps = 0
         acc = huge(1.0_dp)
+        w%ext = .false.
         do k = 1, sys%ncoef
             w%dc(k) = cb(k) - ca(k)
             w%c(k) = ca(k)
@@ -691,27 +748,38 @@ contains
             w, cok, first, last)
         if (.not. cok) return
         t = 0.0_dp
+        s = 1.0_dp
         h = opts%h_init
         have_series = .false.
-        do while (t < 1.0_dp)
+        do while (s > 0.0_dp)
             if (nsteps >= opts%max_steps) return
-            ! Relative to t, so a start fibre at another coefficient scale can
-            ! be left with steps far below h_min.
-            if (h < opts%h_min * t) return
-            if (.not. (t + h > t)) return
+            if (h < opts%h_min * min(t, s)) return
+            if (t < 0.5_dp) then
+                if (.not. (t + h > t)) return
+            else
+                if (.not. (s - h < s)) return
+            end if
             if (.not. have_series) then
                 call taylor_series(sys, x, w)
                 have_series = .true.
             end if
             nsteps = nsteps + 1
-            if (h >= 1.0_dp - t) then
-                h = 1.0_dp - t
+            if (h >= s) then
+                h = s
                 tn = 1.0_dp
+                sn = 0.0_dp
                 w%c(1:sys%ncoef) = cb(1:sys%ncoef)
-            else
+            else if (t + h <= 0.5_dp) then
                 tn = t + h
+                sn = 1.0_dp - tn
                 do k = 1, sys%ncoef
                     w%c(k) = ca(k) + tn * w%dc(k)
+                end do
+            else
+                sn = s - h
+                tn = 1.0_dp - sn
+                do k = 1, sys%ncoef
+                    w%c(k) = cb(k) - sn * w%dc(k)
                 end do
             end if
             call predict(n, w, h)
@@ -720,6 +788,7 @@ contains
             if (cok) then
                 x(1:n) = w%xp(1:n)
                 t = tn
+                s = sn
                 have_series = .false.
                 h = h * min(STEP_GROW_MAX, max(0.5_dp, &
                     step_factor(first, opts%step_target)))
@@ -730,6 +799,11 @@ contains
                 h = 0.5_dp * h
             end if
         end do
+        ! The final refinement always forms the residual in quad precision: at
+        ! an ill-conditioned point the residual in double can round to zero
+        ! long before the point is accurate, which would end Newton early and
+        ! report a false accuracy.
+        w%ext = .true.
         call correct(sys, x, cb, opts%final_newton_iters, opts%final_tol, &
             huge(1.0_dp), w, cok, first, last)
         acc = last

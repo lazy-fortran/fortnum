@@ -28,6 +28,8 @@ program test_fortnum_homotopy
     call test_vieta_ill_scaled(nfail)
     call test_dense_bezout(nfail)
     call test_thread_determinism(nfail)
+    call test_endpoint_resolution(nfail)
+    call test_ill_conditioned_point(nfail)
 
     if (nfail > 0) then
         write (error_unit, "(i0,a)") nfail, " test(s) failed"
@@ -122,6 +124,76 @@ contains
     end subroutine test_plant
 
     ! x^k = a: every computed root matches exactly one closed-form root.
+    ! x = c and y = 1 + c with c moved from 1 to 1e-30: the endpoint x = 1e-30
+    ! lies far below the resolution of t near 1, so it is reached only when
+    ! the tracker resolves the remaining distance to the target.
+    subroutine test_endpoint_resolution(nfail)
+        integer, intent(inout) :: nfail
+
+        type(poly_system_t) :: sys
+        type(homotopy_options_t) :: opts
+        complex(dp) :: x(2), ca(5), cb(5)
+        real(dp) :: acc
+        logical :: ok
+        integer :: nsteps
+
+        call poly_system_init(sys, 2)
+        call poly_system_add_term(sys, 1, [1], 1)
+        call poly_system_add_term(sys, 1, NO_VARS, 2)
+        call poly_system_add_term(sys, 2, [2], 3)
+        call poly_system_add_term(sys, 2, [1], 4)
+        call poly_system_add_term(sys, 2, NO_VARS, 5)
+        call poly_system_finalize(sys)
+        ! x - c = 0 and y - x - 1 = 0
+        ca = [(1.0_dp, 0.0_dp), (-1.0_dp, 0.0_dp), (1.0_dp, 0.0_dp), &
+            (-1.0_dp, 0.0_dp), (-1.0_dp, 0.0_dp)]
+        cb = ca
+        cb(2) = cmplx(-1.0e-30_dp, 0.0_dp, dp)
+        x = [(1.0_dp, 0.0_dp), (2.0_dp, 0.0_dp)]
+        call homotopy_track(sys, x, ca, cb, opts, ok, nsteps, acc)
+        if (.not. ok) then
+            call fail("endpoint resolution: path failed", nfail)
+        else if (abs(x(1) - 1.0e-30_dp) > 1.0e-12_dp * 1.0e-30_dp .or. &
+                 abs(x(2) - 1.0_dp) > 1.0e-12_dp) then
+            call fail("endpoint resolution: wrong endpoint", nfail)
+        end if
+    end subroutine test_endpoint_resolution
+
+    ! x + y = 2, x + (1 + delta) y = 2 + delta with delta = 2**-30: exact
+    ! coefficients, the unique solution (1, 1), and a condition number near
+    ! 4e9. With the residual in double, Newton stalls near 5e-7 relative; the
+    ! corrector must still reach (1, 1) to double accuracy.
+    subroutine test_ill_conditioned_point(nfail)
+        integer, intent(inout) :: nfail
+
+        type(poly_system_t) :: sys
+        type(homotopy_options_t) :: opts
+        complex(dp) :: x(2), c(6)
+        real(dp) :: acc, delta
+        logical :: ok
+        integer :: nsteps
+
+        call poly_system_init(sys, 2)
+        call poly_system_add_term(sys, 1, [1], 1)
+        call poly_system_add_term(sys, 1, [2], 2)
+        call poly_system_add_term(sys, 1, NO_VARS, 3)
+        call poly_system_add_term(sys, 2, [1], 4)
+        call poly_system_add_term(sys, 2, [2], 5)
+        call poly_system_add_term(sys, 2, NO_VARS, 6)
+        call poly_system_finalize(sys)
+        delta = 2.0_dp**(-30)
+        c = [(1.0_dp, 0.0_dp), (1.0_dp, 0.0_dp), (-2.0_dp, 0.0_dp), &
+            (1.0_dp, 0.0_dp), cmplx(1.0_dp + delta, 0.0_dp, dp), &
+            cmplx(-(2.0_dp + delta), 0.0_dp, dp)]
+        x = [cmplx(1.0_dp + 1.0e-6_dp, 0.0_dp, dp), cmplx(1.0_dp - 1.0e-6_dp, 0.0_dp, dp)]
+        call homotopy_track(sys, x, c, c, opts, ok, nsteps, acc)
+        if (.not. ok) then
+            call fail("ill-conditioned point: not converged", nfail)
+        else if (maxval(abs(x - (1.0_dp, 0.0_dp))) > 1.0e-12_dp) then
+            call fail("ill-conditioned point: inaccurate", nfail)
+        end if
+    end subroutine test_ill_conditioned_point
+
     subroutine test_univariate(nfail)
         integer, intent(inout) :: nfail
 
