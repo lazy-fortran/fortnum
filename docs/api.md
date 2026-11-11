@@ -501,6 +501,13 @@ They differentiate the residual equation at the converged root.
 `fortnum_multiroot_rc` is a fixed-capacity reverse-communication solver.
 `fortnum_roots_complex` finds zeros inside a complex rectangle.
 
+`fortnum_homotopy` finds all isolated solutions of square polynomial systems
+with coefficients as homotopy parameters: `poly_system_t` with
+`poly_system_init`, `poly_system_add_term`, `poly_system_finalize` and
+`poly_system_eval`; `homotopy_plant`, `homotopy_monodromy`, `homotopy_move`
+and `homotopy_track` with `homotopy_options_t` and `homotopy_stats_t`. See
+[homotopy.md](homotopy.md).
+
 ## Linear algebra
 
 `fortnum_linalg` provides fixed-size primitives and a fixed-capacity LU object:
