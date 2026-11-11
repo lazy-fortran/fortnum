@@ -1,6 +1,7 @@
 module fortnum_phi
     use fortnum_kinds, only: dp
     use fortnum_krylov, only: real_linear_operator_t
+    use fortnum_matrix_exponential, only: matrix_exponential
     use fortnum_parallel_vector, only: parallel_vector_norm2, &
         parallel_vector_gemv_t, parallel_vector_gemv_n, &
         PARALLEL_VECTOR_CHUNK
@@ -34,15 +35,6 @@ module fortnum_phi
 
     public :: phi_action
 
-    interface
-        subroutine dgesv(n, nrhs, a, lda, ipiv, b, ldb, info)
-            import :: dp
-            integer, intent(in) :: n, nrhs, lda, ldb
-            integer, intent(out) :: ipiv(*)
-            real(dp), intent(inout) :: a(lda, *), b(ldb, *)
-            integer, intent(out) :: info
-        end subroutine
-    end interface
 contains
     subroutine phi_action(operator, tau, vectors, result, info, options, report)
         !! Columns 0:p represent sum_k phi_k(tau*A)*vectors(:,k).
@@ -157,7 +149,7 @@ contains
                 ! Two integrated defect terms guard cancellation of the leading term.
                 projection(j + 1, j) = step*residual
                 projection(j + 2, j + 1) = step
-                call dense_exponential(projection(1:j + 2, 1:j + 2), &
+                call matrix_exponential(projection(1:j + 2, 1:j + 2), &
                     e(1:j + 2, 1:j + 2), dense_info)
                 if (dense_info /= 0) then
                     info = PHI_NONFINITE
@@ -239,63 +231,5 @@ contains
             output(n + p) = 0.0_dp
             output(n + 1:n + p - 1) = input(n + 2:n + p)
         end if
-    end subroutine
-
-    subroutine dense_exponential(a, value, info)
-        real(dp), intent(in) :: a(:, :)
-        real(dp), intent(out) :: value(:, :)
-        integer, intent(out) :: info
-        real(dp), parameter :: b(0:13) = [ &
-            64764752532480000.0_dp, 32382376266240000.0_dp, &
-            7771770303897600.0_dp, 1187353796428800.0_dp, &
-            129060195264000.0_dp, 10559470521600.0_dp, &
-            670442572800.0_dp, 33522128640.0_dp, 1323241920.0_dp, &
-            40840800.0_dp, 960960.0_dp, 16380.0_dp, 182.0_dp, 1.0_dp]
-        real(dp), allocatable :: x(:, :), a2(:, :), a4(:, :), a6(:, :)
-        real(dp), allocatable :: u(:, :), v(:, :), identity(:, :), denominator(:, :)
-        real(dp) :: anorm
-        integer, allocatable :: pivots(:)
-        integer :: n, squarings, i
-        n = size(a, 1)
-        info = 1
-        if (.not. all(ieee_is_finite(a))) return
-        anorm = maxval(sum(abs(a), dim=1))
-        if (.not. ieee_is_finite(anorm)) return
-        ! Higham's degree-13 diagonal Pade approximation, theta_13 = 5.3719...
-        squarings = 0
-        if (anorm > 5.371920351148152_dp) &
-            squarings = ceiling(log(anorm/5.371920351148152_dp)/log(2.0_dp))
-        allocate (x(n, n), a2(n, n), a4(n, n), a6(n, n), u(n, n), v(n, n))
-        allocate (identity(n, n), denominator(n, n), pivots(n))
-        x = scale(a, -squarings)
-        identity = 0.0_dp
-        do i = 1, n
-            identity(i, i) = 1.0_dp
-        end do
-        a2 = matmul(x, x)
-        a4 = matmul(a2, a2)
-        a6 = matmul(a4, a2)
-        u = b(13)*a6 + b(11)*a4 + b(9)*a2
-        v = matmul(a6, u)
-        u = v + b(7)*a6 + b(5)*a4 + b(3)*a2 + b(1)*identity
-        v = matmul(x, u)
-        u = v
-        v = b(12)*a6 + b(10)*a4 + b(8)*a2
-        denominator = matmul(a6, v)
-        v = denominator + b(6)*a6 + b(4)*a4 + b(2)*a2 + b(0)*identity
-        denominator = v - u
-        x = v + u
-        call dgesv(n, n, denominator, n, pivots, x, n, info)
-        if (info /= 0) return
-        do i = 1, squarings
-            a2 = matmul(x, x)
-            x = a2
-            if (.not. all(ieee_is_finite(x))) then
-                info = 1
-                return
-            end if
-        end do
-        value = x
-        if (.not. all(ieee_is_finite(value))) info = 1
     end subroutine
 end module
