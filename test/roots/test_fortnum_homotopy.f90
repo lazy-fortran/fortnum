@@ -196,45 +196,51 @@ contains
         end if
     end subroutine test_ill_conditioned_point
 
-    ! From x + y = 3, x + 2 y = 5 to x + y = 2, x + (1 + delta) y = 2 + delta
-    ! with delta = 2**-50: the solution moves from (1, 2) to (1, 1), and the
-    ! condition number at the end is near 4e15, beyond double precision. The
-    ! path must reach (1, 1) with the quad-precision fallback and fail
-    ! without it.
+    ! From x**2 + y = 6, x**2 + 2 y = 8 to x**2 + y = 6,
+    ! x**2 + y + delta y = 6 + delta with delta = 2**-60 in separate terms: the
+    ! solution moves from (2, 2) to (sqrt 5, 1). In double the Jacobian row
+    ! 2 x, 1 + delta rounds to the first row, while in quad precision the
+    ! condition number is near 1e18, so quad Newton reaches the irrational
+    ! endpoint only to about 1e-16. The path must reach (sqrt 5, 1) with the
+    ! quad-precision fallback and fail without it.
     subroutine test_quad_fallback(nfail)
         integer, intent(inout) :: nfail
 
         type(poly_system_t) :: sys
         type(homotopy_options_t) :: opts
-        complex(dp) :: sols(2, 1), out(2, 1), ca(6), cb(6)
+        complex(dp) :: sols(2, 1), out(2, 1), ca(8), cb(8), want(2)
         real(dp) :: acc(1), delta
         logical :: ok(1)
 
         call poly_system_init(sys, 2)
-        call poly_system_add_term(sys, 1, [1], 1)
+        call poly_system_add_term(sys, 1, [1, 1], 1)
         call poly_system_add_term(sys, 1, [2], 2)
         call poly_system_add_term(sys, 1, NO_VARS, 3)
-        call poly_system_add_term(sys, 2, [1], 4)
+        call poly_system_add_term(sys, 2, [1, 1], 4)
         call poly_system_add_term(sys, 2, [2], 5)
-        call poly_system_add_term(sys, 2, NO_VARS, 6)
+        call poly_system_add_term(sys, 2, [2], 6)
+        call poly_system_add_term(sys, 2, NO_VARS, 7)
+        call poly_system_add_term(sys, 2, NO_VARS, 8)
         call poly_system_finalize(sys)
-        delta = 2.0_dp**(-50)
-        ca = [(1.0_dp, 0.0_dp), (1.0_dp, 0.0_dp), (-3.0_dp, 0.0_dp), &
-            (1.0_dp, 0.0_dp), (2.0_dp, 0.0_dp), (-5.0_dp, 0.0_dp)]
-        cb = [(1.0_dp, 0.0_dp), (1.0_dp, 0.0_dp), (-2.0_dp, 0.0_dp), &
-            (1.0_dp, 0.0_dp), cmplx(1.0_dp + delta, 0.0_dp, dp), &
-            cmplx(-(2.0_dp + delta), 0.0_dp, dp)]
-        sols(:, 1) = [(1.0_dp, 0.0_dp), (2.0_dp, 0.0_dp)]
+        delta = 2.0_dp**(-60)
+        ca = [(1.0_dp, 0.0_dp), (1.0_dp, 0.0_dp), (-6.0_dp, 0.0_dp), &
+            (1.0_dp, 0.0_dp), (1.0_dp, 0.0_dp), (1.0_dp, 0.0_dp), &
+            (-8.0_dp, 0.0_dp), (0.0_dp, 0.0_dp)]
+        cb = [(1.0_dp, 0.0_dp), (1.0_dp, 0.0_dp), (-6.0_dp, 0.0_dp), &
+            (1.0_dp, 0.0_dp), (1.0_dp, 0.0_dp), cmplx(delta, 0.0_dp, dp), &
+            (-6.0_dp, 0.0_dp), cmplx(-delta, 0.0_dp, dp)]
+        sols(:, 1) = [(2.0_dp, 0.0_dp), (2.0_dp, 0.0_dp)]
+        want = [cmplx(sqrt(5.0_dp), 0.0_dp, dp), (1.0_dp, 0.0_dp)]
         call homotopy_move(sys, sols, 1, ca, cb, opts, out, ok, acc)
         if (.not. ok(1)) then
             call fail("quad fallback: path failed", nfail)
-        else if (maxval(abs(out(:, 1) - (1.0_dp, 0.0_dp))) > 1.0e-12_dp) then
+        else if (maxval(abs(out(:, 1) - want)) > 1.0e-12_dp * 3.0_dp) then
             call fail("quad fallback: inaccurate endpoint", nfail)
         end if
         opts%quad_fallback = .false.
         call homotopy_move(sys, sols, 1, ca, cb, opts, out, ok, acc)
         if (ok(1)) then
-            if (maxval(abs(out(:, 1) - (1.0_dp, 0.0_dp))) <= 1.0e-12_dp) &
+            if (maxval(abs(out(:, 1) - want)) <= 1.0e-12_dp * 3.0_dp) &
                 call fail("quad fallback: double alone already succeeds", nfail)
         end if
     end subroutine test_quad_fallback

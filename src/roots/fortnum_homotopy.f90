@@ -840,7 +840,11 @@ contains
         ! Start position on the segment (default: its start); xd lies on it.
         real(dp), intent(in), optional :: t0, s0
 
-        real(qp), parameter :: TOL = 1.0e-22_qp, FINAL_TOL = 1.0e-27_qp
+        ! The result is rounded to double, so quad Newton aims just below double
+        ! accuracy; at scaled condition numbers near 1e14, quad precision itself
+        ! cannot resolve corrections much below 1e-20.
+        real(qp), parameter :: TOL = 1.0e-16_qp, FINAL_TOL = 1.0e-19_qp
+        real(qp), parameter :: ACCEPT = 1.0e-13_qp, FINAL_ACCEPT = 1.0e-16_qp
         real(qp), parameter :: GROW_BELOW = 1.0e-6_qp, H_MIN = 1.0e-30_qp
         complex(qp), allocatable :: x(:), x0(:), xp(:), k1(:), k2(:), k3(:), k4(:)
         complex(qp), allocatable :: caq(:), cbq(:), dq(:), c(:)
@@ -872,7 +876,7 @@ contains
         end if
         call coef_at(t, s, c)
         call newton_qp(sys, x, c, opts%final_newton_iters, TOL, huge(1.0_qp), &
-            good, first, last)
+            ACCEPT, good, first, last)
         if (.not. good) return
         h = min(real(opts%h_init, qp), 0.1_qp * max(min(t, s), H_MIN))
         if (t == 0.0_qp) h = real(opts%h_init, qp)
@@ -906,7 +910,7 @@ contains
             if (good) then
                 xp = x0 + h / 6.0_qp * (k1 + 2.0_qp * k2 + 2.0_qp * k3 + k4)
                 call newton_qp(sys, xp, c, opts%newton_iters, TOL, &
-                    real(opts%max_first_correction, qp), good, first, last)
+                    real(opts%max_first_correction, qp), ACCEPT, good, first, last)
             end if
             if (good) then
                 x = xp
@@ -919,7 +923,7 @@ contains
             end if
         end do
         call newton_qp(sys, x, cbq, opts%final_newton_iters, FINAL_TOL, &
-            huge(1.0_qp), good, first, last)
+            huge(1.0_qp), FINAL_ACCEPT, good, first, last)
         xd(1:n) = cmplx(x, kind=dp)
         acc = real(last, dp)
         ok = .true.
@@ -1051,14 +1055,15 @@ contains
         call solve_scaled_qp(jac, rs, x, -ft, v, good)
     end subroutine velocity_qp
 
-    ! Newton in quad precision with relative corrections; ok when the
-    ! correction falls below tol or stops contracting below 1e-25.
-    pure subroutine newton_qp(sys, x, c, maxit, tol, max_first, good, first, last)
+    ! Newton in quad precision with relative corrections; good when the
+    ! correction falls below tol or stops contracting below accept.
+    pure subroutine newton_qp(sys, x, c, maxit, tol, max_first, accept, good, &
+            first, last)
         type(poly_system_t), intent(in) :: sys
         complex(qp), intent(inout) :: x(:)
         complex(qp), intent(in) :: c(:)
         integer, intent(in) :: maxit
-        real(qp), intent(in) :: tol, max_first
+        real(qp), intent(in) :: tol, max_first, accept
         logical, intent(out) :: good
         real(qp), intent(out) :: first, last
 
@@ -1089,7 +1094,7 @@ contains
             end if
             if (it > 1) then
                 if (nrm > 0.5_qp * prev) then
-                    good = (prev < 1.0e-25_qp)
+                    good = (prev < accept)
                     return
                 end if
             end if
