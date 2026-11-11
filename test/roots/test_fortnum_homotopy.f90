@@ -30,6 +30,8 @@ program test_fortnum_homotopy
     call test_thread_determinism(nfail)
     call test_endpoint_resolution(nfail)
     call test_ill_conditioned_point(nfail)
+    call test_quad_fallback(nfail)
+    call test_coinciding_endpoints(nfail)
 
     if (nfail > 0) then
         write (error_unit, "(i0,a)") nfail, " test(s) failed"
@@ -193,6 +195,76 @@ contains
             call fail("ill-conditioned point: inaccurate", nfail)
         end if
     end subroutine test_ill_conditioned_point
+
+    ! From x + y = 3, x + 2 y = 5 to x + y = 2, x + (1 + delta) y = 2 + delta
+    ! with delta = 2**-50: the solution moves from (1, 2) to (1, 1), and the
+    ! condition number at the end is near 4e15, beyond double precision. The
+    ! path must reach (1, 1) with the quad-precision fallback and fail
+    ! without it.
+    subroutine test_quad_fallback(nfail)
+        integer, intent(inout) :: nfail
+
+        type(poly_system_t) :: sys
+        type(homotopy_options_t) :: opts
+        complex(dp) :: sols(2, 1), out(2, 1), ca(6), cb(6)
+        real(dp) :: acc(1), delta
+        logical :: ok(1)
+
+        call poly_system_init(sys, 2)
+        call poly_system_add_term(sys, 1, [1], 1)
+        call poly_system_add_term(sys, 1, [2], 2)
+        call poly_system_add_term(sys, 1, NO_VARS, 3)
+        call poly_system_add_term(sys, 2, [1], 4)
+        call poly_system_add_term(sys, 2, [2], 5)
+        call poly_system_add_term(sys, 2, NO_VARS, 6)
+        call poly_system_finalize(sys)
+        delta = 2.0_dp**(-50)
+        ca = [(1.0_dp, 0.0_dp), (1.0_dp, 0.0_dp), (-3.0_dp, 0.0_dp), &
+            (1.0_dp, 0.0_dp), (2.0_dp, 0.0_dp), (-5.0_dp, 0.0_dp)]
+        cb = [(1.0_dp, 0.0_dp), (1.0_dp, 0.0_dp), (-2.0_dp, 0.0_dp), &
+            (1.0_dp, 0.0_dp), cmplx(1.0_dp + delta, 0.0_dp, dp), &
+            cmplx(-(2.0_dp + delta), 0.0_dp, dp)]
+        sols(:, 1) = [(1.0_dp, 0.0_dp), (2.0_dp, 0.0_dp)]
+        call homotopy_move(sys, sols, 1, ca, cb, opts, out, ok, acc)
+        if (.not. ok(1)) then
+            call fail("quad fallback: path failed", nfail)
+        else if (maxval(abs(out(:, 1) - (1.0_dp, 0.0_dp))) > 1.0e-12_dp) then
+            call fail("quad fallback: inaccurate endpoint", nfail)
+        end if
+        opts%quad_fallback = .false.
+        call homotopy_move(sys, sols, 1, ca, cb, opts, out, ok, acc)
+        if (ok(1)) then
+            if (maxval(abs(out(:, 1) - (1.0_dp, 0.0_dp))) <= 1.0e-12_dp) &
+                call fail("quad fallback: double alone already succeeds", nfail)
+        end if
+    end subroutine test_quad_fallback
+
+    ! The same start point twice: both paths end at one root of x**2 = 2, so
+    ! homotopy_move must report both endpoints as coinciding, and the other
+    ! root once when it is started separately.
+    subroutine test_coinciding_endpoints(nfail)
+        integer, intent(inout) :: nfail
+
+        type(poly_system_t) :: sys
+        type(homotopy_options_t) :: opts
+        type(homotopy_stats_t) :: stats
+        complex(dp) :: sols(1, 3), out(1, 3), ca(2), cb(2)
+        real(dp) :: acc(3)
+        logical :: ok(3)
+
+        call poly_system_init(sys, 1)
+        call poly_system_add_term(sys, 1, [1, 1], 1)
+        call poly_system_add_term(sys, 1, NO_VARS, 2)
+        call poly_system_finalize(sys)
+        ca = [(1.0_dp, 0.0_dp), (-1.0_dp, 0.0_dp)]
+        cb = [(1.0_dp, 0.0_dp), (-2.0_dp, 0.0_dp)]
+        sols(1, :) = [(1.0_dp, 0.0_dp), (1.0_dp, 0.0_dp), (-1.0_dp, 0.0_dp)]
+        call homotopy_move(sys, sols, 3, ca, cb, opts, out, ok, acc, stats)
+        if (.not. all(ok)) call fail("coinciding endpoints: path failed", nfail)
+        if (stats%jumps /= 2) call fail("coinciding endpoints: not reported", nfail)
+        if (abs(out(1, 3) + sqrt(2.0_dp)) > 1.0e-12_dp) &
+            call fail("coinciding endpoints: wrong third root", nfail)
+    end subroutine test_coinciding_endpoints
 
     subroutine test_univariate(nfail)
         integer, intent(inout) :: nfail

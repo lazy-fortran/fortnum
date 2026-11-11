@@ -40,6 +40,8 @@ module fortnum_homotopy
     real(dp), parameter :: ROUNDOFF_ACCEPT = 1.0e-7_dp
     ! Extra Newton iterations once the residual is formed in quad precision.
     integer, parameter :: EXTENDED_ITERS = 4
+    ! Rounds of re-tracking paths whose endpoints coincide.
+    integer, parameter :: JUMP_ROUNDS = 3
     integer, parameter :: qp = real128
     real(dp), parameter :: STEP_SAFETY = 0.8_dp
     real(dp), parameter :: STEP_GROW_MAX = 4.0_dp
@@ -90,6 +92,9 @@ module fortnum_homotopy
         ! Two points are one solution when they agree to this relative
         ! distance in every coordinate.
         real(dp) :: dup_tol = 1.0e-6_dp
+        ! homotopy_move re-tracks a path that fails in double precision with
+        ! every operation in quad precision.
+        logical :: quad_fallback = .true.
     end type homotopy_options_t
 
     type :: homotopy_stats_t
@@ -714,7 +719,8 @@ contains
         end if
     end function step_factor
 
-    pure subroutine track_segment(sys, x, ca, cb, opts, w, ok, nsteps, acc)
+    pure subroutine track_segment(sys, x, ca, cb, opts, w, ok, nsteps, acc, &
+            t_reached, s_reached)
         type(poly_system_t), intent(in) :: sys
         complex(dp), intent(inout) :: x(:)
         complex(dp), intent(in) :: ca(:), cb(:)
@@ -723,6 +729,8 @@ contains
         logical, intent(out) :: ok
         integer, intent(out) :: nsteps
         real(dp), intent(out) :: acc
+        ! On failure x is the last accepted point and these give its position.
+        real(dp), intent(out), optional :: t_reached, s_reached
 
         ! The position is held as t in the first half of the segment and as the
         ! remaining distance s = 1 - t in the second, and the coefficients are
@@ -749,9 +757,13 @@ contains
         if (.not. cok) return
         t = 0.0_dp
         s = 1.0_dp
+        if (present(t_reached)) t_reached = t
+        if (present(s_reached)) s_reached = s
         h = opts%h_init
         have_series = .false.
         do while (s > 0.0_dp)
+            if (present(t_reached)) t_reached = t
+            if (present(s_reached)) s_reached = s
             if (nsteps >= opts%max_steps) return
             if (h < opts%h_min * min(t, s)) return
             if (t < 0.5_dp) then
@@ -809,6 +821,281 @@ contains
         acc = last
         ok = .true.
     end subroutine track_segment
+
+    ! Fallback tracker with every operation in quad precision, for paths on
+    ! which double precision is exhausted (scaled condition numbers near
+    ! 1/epsilon(1.0_dp)). It is the double tracker's method in its simplest
+    ! form: an RK4 predictor on dx/dt = -J^{-1} dF/dt, a Newton corrector with
+    ! the same row and column scaling, step halving and doubling, and the
+    ! position held as t in the first half of the segment and 1 - t in the
+    ! second. acc is the final relative Newton correction.
+    subroutine track_segment_qp(sys, xd, ca, cb, opts, ok, nsteps, acc, t0, s0)
+        type(poly_system_t), intent(in) :: sys
+        complex(dp), intent(inout) :: xd(:)
+        complex(dp), intent(in) :: ca(:), cb(:)
+        type(homotopy_options_t), intent(in) :: opts
+        logical, intent(out) :: ok
+        integer, intent(out) :: nsteps
+        real(dp), intent(out) :: acc
+        ! Start position on the segment (default: its start); xd lies on it.
+        real(dp), intent(in), optional :: t0, s0
+
+        real(qp), parameter :: TOL = 1.0e-22_qp, FINAL_TOL = 1.0e-27_qp
+        real(qp), parameter :: GROW_BELOW = 1.0e-6_qp, H_MIN = 1.0e-30_qp
+        complex(qp), allocatable :: x(:), x0(:), xp(:), k1(:), k2(:), k3(:), k4(:)
+        complex(qp), allocatable :: caq(:), cbq(:), dq(:), c(:)
+        real(qp) :: t, s, h, tn, sn, first, last
+        logical :: good
+        integer :: n, nc
+
+        n = sys%n
+        nc = sys%ncoef
+        allocate (x(n), x0(n), xp(n), k1(n), k2(n), k3(n), k4(n))
+        allocate (caq(nc), cbq(nc), dq(nc), c(nc))
+        caq = cmplx(ca(1:nc), kind=qp)
+        cbq = cmplx(cb(1:nc), kind=qp)
+        dq = cbq - caq
+        x = cmplx(xd(1:n), kind=qp)
+        ok = .false.
+        nsteps = 0
+        acc = huge(1.0_dp)
+        t = 0.0_qp
+        s = 1.0_qp
+        if (present(t0) .and. present(s0)) then
+            if (s0 < 0.5_dp) then
+                s = real(s0, qp)
+                t = 1.0_qp - s
+            else
+                t = real(t0, qp)
+                s = 1.0_qp - t
+            end if
+        end if
+        call coef_at(t, s, c)
+        call newton_qp(sys, x, c, opts%final_newton_iters, TOL, huge(1.0_qp), &
+            good, first, last)
+        if (.not. good) return
+        h = min(real(opts%h_init, qp), 0.1_qp * max(min(t, s), H_MIN))
+        if (t == 0.0_qp) h = real(opts%h_init, qp)
+        do while (s > 0.0_qp)
+            if (nsteps >= opts%max_steps) return
+            if (h < H_MIN * min(t, s)) return
+            nsteps = nsteps + 1
+            if (h >= s) then
+                h = s
+                tn = 1.0_qp
+                sn = 0.0_qp
+            else if (t + h <= 0.5_qp) then
+                tn = t + h
+                sn = 1.0_qp - tn
+            else
+                sn = s - h
+                tn = 1.0_qp - sn
+            end if
+            x0 = x
+            call coef_at(t, s, c)
+            call velocity_qp(sys, x0, c, dq, k1, good)
+            if (good) then
+                call coef_at(t + 0.5_qp * h, s - 0.5_qp * h, c)
+                call velocity_qp(sys, x0 + 0.5_qp * h * k1, c, dq, k2, good)
+            end if
+            if (good) call velocity_qp(sys, x0 + 0.5_qp * h * k2, c, dq, k3, good)
+            if (good) then
+                call coef_at(tn, sn, c)
+                call velocity_qp(sys, x0 + h * k3, c, dq, k4, good)
+            end if
+            if (good) then
+                xp = x0 + h / 6.0_qp * (k1 + 2.0_qp * k2 + 2.0_qp * k3 + k4)
+                call newton_qp(sys, xp, c, opts%newton_iters, TOL, &
+                    real(opts%max_first_correction, qp), good, first, last)
+            end if
+            if (good) then
+                x = xp
+                t = tn
+                s = sn
+                if (first < GROW_BELOW) h = 2.0_qp * h
+            else
+                x = x0
+                h = 0.5_qp * h
+            end if
+        end do
+        call newton_qp(sys, x, cbq, opts%final_newton_iters, FINAL_TOL, &
+            huge(1.0_qp), good, first, last)
+        xd(1:n) = cmplx(x, kind=dp)
+        acc = real(last, dp)
+        ok = .true.
+
+    contains
+
+        ! c(t) from the nearer end of the segment.
+        pure subroutine coef_at(tt, ss, cc)
+            real(qp), intent(in) :: tt, ss
+            complex(qp), intent(out) :: cc(:)
+
+            if (tt <= 0.5_qp) then
+                cc = caq + tt * dq
+            else
+                cc = cbq - ss * dq
+            end if
+        end subroutine coef_at
+    end subroutine track_segment_qp
+
+    ! F(x; c), J = dF/dx, ft = F(x; dc) and the row scales, in quad precision.
+    pure subroutine eval_qp(sys, x, c, dc, f, jac, ft, rs)
+        type(poly_system_t), intent(in) :: sys
+        complex(qp), intent(in) :: x(:), c(:), dc(:)
+        complex(qp), intent(out) :: f(:), jac(:, :), ft(:)
+        real(qp), intent(out) :: rs(:)
+
+        complex(qp) :: mono, part, cm
+        integer :: i, k, l, j, lo, m, v, e
+
+        f = (0.0_qp, 0.0_qp)
+        ft = (0.0_qp, 0.0_qp)
+        jac = (0.0_qp, 0.0_qp)
+        rs = 0.0_qp
+        do i = 1, sys%n
+            do k = sys%eq_ptr(i), sys%eq_ptr(i + 1) - 1
+                lo = sys%fac_ptr(k)
+                m = sys%fac_ptr(k + 1) - lo
+                mono = (1.0_qp, 0.0_qp)
+                do l = 1, m
+                    mono = mono * x(sys%fac_var(lo + l - 1))**sys%fac_exp(lo + l - 1)
+                end do
+                cm = c(sys%coef(k)) * mono
+                f(i) = f(i) + cm
+                ft(i) = ft(i) + dc(sys%coef(k)) * mono
+                rs(i) = max(rs(i), abs(cm))
+                do l = 1, m
+                    v = sys%fac_var(lo + l - 1)
+                    e = sys%fac_exp(lo + l - 1)
+                    part = c(sys%coef(k)) * real(e, qp) * x(v)**(e - 1)
+                    do j = 1, m
+                        if (j == l) cycle
+                        part = part * x(sys%fac_var(lo + j - 1))**sys%fac_exp(lo + j - 1)
+                    end do
+                    jac(i, v) = jac(i, v) + part
+                end do
+            end do
+        end do
+    end subroutine eval_qp
+
+    ! Solve (D_r J D_c) z = D_r b with row scales 1/rs and column scales |x|,
+    ! by Gaussian elimination with partial pivoting; returns D_c z.
+    pure subroutine solve_scaled_qp(jac, rs, x, b, dx, good)
+        complex(qp), intent(in) :: jac(:, :), b(:), x(:)
+        real(qp), intent(in) :: rs(:)
+        complex(qp), intent(out) :: dx(:)
+        logical, intent(out) :: good
+
+        complex(qp) :: a(size(b), size(b)), z(size(b)), tmp, piv, fac
+        real(qp) :: cs(size(b)), r(size(b)), best
+        integer :: i, j, k, p, n
+
+        n = size(b)
+        good = .false.
+        dx = (0.0_qp, 0.0_qp)
+        r = 1.0_qp / max(rs, maxval(rs) * 1.0e-4000_qp, tiny(1.0_qp))
+        cs = max(abs(x), tiny(1.0_qp))
+        do j = 1, n
+            do i = 1, n
+                a(i, j) = jac(i, j) * cs(j) * r(i)
+            end do
+        end do
+        z = b * r
+        do k = 1, n
+            p = k
+            best = abs(a(k, k))
+            do i = k + 1, n
+                if (abs(a(i, k)) > best) then
+                    best = abs(a(i, k))
+                    p = i
+                end if
+            end do
+            if (.not. (best > 0.0_qp)) return
+            if (p /= k) then
+                do j = 1, n
+                    tmp = a(k, j)
+                    a(k, j) = a(p, j)
+                    a(p, j) = tmp
+                end do
+                tmp = z(k)
+                z(k) = z(p)
+                z(p) = tmp
+            end if
+            piv = a(k, k)
+            do i = k + 1, n
+                fac = a(i, k) / piv
+                if (fac == (0.0_qp, 0.0_qp)) cycle
+                a(i, k + 1:n) = a(i, k + 1:n) - fac * a(k, k + 1:n)
+                z(i) = z(i) - fac * z(k)
+            end do
+        end do
+        do k = n, 1, -1
+            z(k) = (z(k) - sum(a(k, k + 1:n) * z(k + 1:n))) / a(k, k)
+        end do
+        if (.not. all(ieee_is_finite(real(z, dp)))) return
+        dx = z * cs
+        good = .true.
+    end subroutine solve_scaled_qp
+
+    pure subroutine velocity_qp(sys, x, c, dc, v, good)
+        type(poly_system_t), intent(in) :: sys
+        complex(qp), intent(in) :: x(:), c(:), dc(:)
+        complex(qp), intent(out) :: v(:)
+        logical, intent(out) :: good
+
+        complex(qp) :: f(sys%n), jac(sys%n, sys%n), ft(sys%n)
+        real(qp) :: rs(sys%n)
+
+        call eval_qp(sys, x, c, dc, f, jac, ft, rs)
+        call solve_scaled_qp(jac, rs, x, -ft, v, good)
+    end subroutine velocity_qp
+
+    ! Newton in quad precision with relative corrections; ok when the
+    ! correction falls below tol or stops contracting below 1e-25.
+    pure subroutine newton_qp(sys, x, c, maxit, tol, max_first, good, first, last)
+        type(poly_system_t), intent(in) :: sys
+        complex(qp), intent(inout) :: x(:)
+        complex(qp), intent(in) :: c(:)
+        integer, intent(in) :: maxit
+        real(qp), intent(in) :: tol, max_first
+        logical, intent(out) :: good
+        real(qp), intent(out) :: first, last
+
+        complex(qp) :: f(sys%n), jac(sys%n, sys%n), ft(sys%n), dx(sys%n), zero(size(c))
+        real(qp) :: rs(sys%n), nrm, prev
+        logical :: sok
+        integer :: it
+
+        zero = (0.0_qp, 0.0_qp)
+        good = .false.
+        first = huge(1.0_qp)
+        last = huge(1.0_qp)
+        prev = huge(1.0_qp)
+        do it = 1, maxit
+            call eval_qp(sys, x, c, zero, f, jac, ft, rs)
+            call solve_scaled_qp(jac, rs, x, -f, dx, sok)
+            if (.not. sok) return
+            nrm = maxval(abs(dx) / max(abs(x), tiny(1.0_qp)))
+            x = x + dx
+            if (it == 1) then
+                first = nrm
+                if (first > max_first) return
+            end if
+            last = nrm
+            if (nrm < tol) then
+                good = .true.
+                return
+            end if
+            if (it > 1) then
+                if (nrm > 0.5_qp * prev) then
+                    good = (prev < 1.0e-25_qp)
+                    return
+                end if
+            end if
+            prev = nrm
+        end do
+    end subroutine newton_qp
 
     ! Track one solution x of F(x; ca) = 0 to F(x; cb) = 0 along the straight
     ! coefficient segment. acc is the final relative Newton correction.
@@ -903,9 +1190,13 @@ contains
         real(dp), intent(out), optional :: acc(:)
         type(homotopy_stats_t), intent(out), optional :: stats
 
-        real(dp), allocatable :: a(:)
-        integer, allocatable :: steps(:)
-        integer(int64), allocatable :: facts(:)
+        real(dp), allocatable :: a(:), as(:)
+        integer, allocatable :: steps(:), sub(:), ss(:)
+        integer(int64), allocatable :: facts(:), fs(:)
+        complex(dp), allocatable :: xs(:, :), os(:, :)
+        logical, allocatable :: member(:), oks(:)
+        type(homotopy_options_t) :: careful
+        integer :: round, njump, i
 
         call check_inputs(sys, size(sols, 1), size(ca), size(cb), "homotopy_move")
         if (size(sols, 2) < nsol .or. size(out, 2) < nsol .or. size(ok) < nsol) &
@@ -915,6 +1206,31 @@ contains
         !$omp parallel default(shared)
         call move_worker(sys, sols, nsol, ca, cb, opts, out, ok, a, steps, facts)
         !$omp end parallel
+        ! Coinciding endpoints mean that a path jumped to another branch: the
+        ! straight segment maps the start fibre one to one. Every member of a
+        ! coinciding group is tracked again with a smaller step target.
+        njump = 0
+        do round = 1, JUMP_ROUNDS
+            call coinciding(sys%n, out, ok, nsol, opts%dup_tol, member, njump)
+            if (njump == 0) exit
+            careful = opts
+            careful%step_target = opts%step_target / 100.0_dp**round
+            careful%max_first_correction = opts%max_first_correction / 10.0_dp**round
+            careful%max_steps = opts%max_steps * 10
+            sub = pack([(i, i=1, nsol)], member(1:nsol))
+            allocate (xs(sys%n, size(sub)), os(sys%n, size(sub)), oks(size(sub)), &
+                as(size(sub)), ss(size(sub)), fs(size(sub)))
+            xs = sols(1:sys%n, sub)
+            !$omp parallel default(shared)
+            call move_worker(sys, xs, size(sub), ca, cb, careful, os, oks, as, ss, fs)
+            !$omp end parallel
+            out(1:sys%n, sub) = os
+            ok(sub) = oks
+            a(sub) = as
+            steps(sub) = steps(sub) + ss
+            facts(sub) = facts(sub) + fs
+            deallocate (xs, os, oks, as, ss, fs)
+        end do
         if (present(acc)) acc(1:nsol) = a
         if (present(stats)) then
             stats%loops = 0
@@ -922,8 +1238,54 @@ contains
             stats%failed = count(.not. ok(1:nsol))
             stats%steps = sum(int(steps, int64))
             stats%factorizations = sum(facts)
+            stats%jumps = njump
         end if
     end subroutine homotopy_move
+
+    ! member(i) is true when endpoint i coincides with another successful
+    ! endpoint within the relative distance tol; njump counts such endpoints.
+    subroutine coinciding(n, out, ok, nsol, tol, member, njump)
+        integer, intent(in) :: n, nsol
+        complex(dp), intent(in) :: out(:, :)
+        logical, intent(in) :: ok(:)
+        real(dp), intent(in) :: tol
+        logical, allocatable, intent(out) :: member(:)
+        integer, intent(out) :: njump
+
+        real(dp), allocatable :: w1(:), keys(:)
+        complex(dp), allocatable :: w2(:)
+        integer, allocatable :: idx(:), perm(:)
+        real(dp) :: window
+        integer :: j, k, m
+
+        allocate (member(nsol), w1(n), w2(n))
+        member = .false.
+        njump = 0
+        ! Fixed weights in [1/2, 1] and fixed phases; any choice gives a valid
+        ! key, and the window bounds its change for coinciding points.
+        do j = 1, n
+            w1(j) = 0.5_dp + 0.5_dp * modulo(0.6180339887498949_dp * j, 1.0_dp)
+            w2(j) = exp(cmplx(0.0_dp, TWO_PI * modulo(0.4142135623730951_dp * j, 1.0_dp), dp))
+        end do
+        window = key_window(w1, tol)
+        idx = pack([(j, j=1, nsol)], ok(1:nsol))
+        m = size(idx)
+        allocate (keys(m), perm(m))
+        do j = 1, m
+            keys(j) = point_key(out(1:n, idx(j)), w1, w2)
+        end do
+        call argsort(keys, perm)
+        do j = 1, m
+            do k = j + 1, m
+                if (keys(perm(k)) - keys(perm(j)) > window) exit
+                if (same_point(out(1:n, idx(perm(j))), out(1:n, idx(perm(k))), tol)) then
+                    member(idx(perm(j))) = .true.
+                    member(idx(perm(k))) = .true.
+                end if
+            end do
+        end do
+        njump = count(member)
+    end subroutine coinciding
 
     subroutine move_worker(sys, sols, nsol, ca, cb, opts, out, ok, acc, steps, &
             facts)
@@ -941,7 +1303,8 @@ contains
         type(track_work_t) :: w
         complex(dp), allocatable :: x(:)
         integer(int64) :: f0
-        integer :: i
+        integer :: i, nq
+        real(dp) :: tr, sr
 
         call work_init(w, sys)
         allocate (x(sys%n))
@@ -949,8 +1312,14 @@ contains
         do i = 1, nsol
             x = sols(1:sys%n, i)
             f0 = w%nfact
-            call track_segment(sys, x, ca, cb, opts, w, ok(i), steps(i), acc(i))
+            call track_segment(sys, x, ca, cb, opts, w, ok(i), steps(i), acc(i), &
+                tr, sr)
             facts(i) = w%nfact - f0
+            if (.not. ok(i) .and. opts%quad_fallback) then
+                ! Resume from the last point accepted in double precision.
+                call track_segment_qp(sys, x, ca, cb, opts, ok(i), nq, acc(i), tr, sr)
+                steps(i) = steps(i) + nq
+            end if
             out(1:sys%n, i) = x
         end do
         !$omp end do
