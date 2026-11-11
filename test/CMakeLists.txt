@@ -424,6 +424,12 @@ add_executable(test_fortnum_multiroot_hybrids_step_tol roots/test_fortnum_multir
 target_link_libraries(test_fortnum_multiroot_hybrids_step_tol PRIVATE fortnum)
 add_test(NAME fortnum_multiroot_hybrids_step_tol COMMAND test_fortnum_multiroot_hybrids_step_tol)
 
+# polynomial homotopy continuation: closed-form roots, Bezout and Vieta counts,
+# an ill-scaled target, and identical results on 1 and 4 threads
+add_executable(test_fortnum_homotopy roots/test_fortnum_homotopy.f90)
+target_link_libraries(test_fortnum_homotopy PRIVATE fortnum OpenMP::OpenMP_Fortran)
+add_test(NAME fortnum_homotopy COMMAND test_fortnum_homotopy)
+
 # --- small dense linalg (host + !$acc routine seq) ---
 add_executable(test_fortnum_linalg linalg/test_fortnum_linalg.f90)
 target_link_libraries(test_fortnum_linalg PRIVATE fortnum)
