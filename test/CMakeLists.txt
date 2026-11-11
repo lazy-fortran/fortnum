@@ -726,6 +726,10 @@ fortnum_require_real128(test_gram_factor:fortnum_gram_factor)
 add_executable(bench_gram_factor "${PROJECT_SOURCE_DIR}/benchmark/bench_gram_factor.f90")
 target_link_libraries(bench_gram_factor PRIVATE fortnum)
 
+add_executable(test_fortnum_matrix_exponential linalg/test_fortnum_matrix_exponential.f90)
+target_link_libraries(test_fortnum_matrix_exponential PRIVATE fortnum)
+add_test(NAME fortnum_matrix_exponential COMMAND test_fortnum_matrix_exponential)
+
 add_executable(test_fortnum_phi linalg/test_fortnum_phi.f90)
 target_link_libraries(test_fortnum_phi PRIVATE fortnum)
 add_test(NAME fortnum_phi COMMAND test_fortnum_phi)
