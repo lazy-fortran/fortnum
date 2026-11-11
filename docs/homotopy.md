@@ -130,6 +130,20 @@ scaled condition number stays well below 1/epsilon. The final refinement of
 every segment uses the quad-precision residual, so the reported accuracy is
 not an artefact of a residual that rounded to zero.
 
+Where the scaled condition number approaches 1/epsilon, even the double Jacobian
+and LU factors are too inaccurate. `homotopy_move` then resumes a path that
+failed in double precision from its last accepted point with a tracker whose
+every operation is in quad precision (RK4 predictor, scaled Newton corrector);
+`quad_fallback = .false.` turns this off. The fallback is slower but runs only
+on the paths that need it.
+
+A straight coefficient segment maps the start solutions one to one onto the
+end solutions, so two coinciding endpoints mean that a path jumped to another
+branch. `homotopy_move` detects coinciding endpoints by sorting (as the
+monodromy deduplication does) and tracks every member of such a group again
+with a step target 100 times smaller, for up to three rounds. Endpoints that
+still coincide are counted in `stats%jumps`.
+
 Monodromy accepts a loop endpoint only if its final correction is below
 `dup_tol`. Two points are one solution when every coordinate agrees to the
 relative distance `dup_tol`. Deduplication sorts by a real key, a fixed
