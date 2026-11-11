@@ -202,6 +202,7 @@ target_sources(fortnum PRIVATE
     linalg/fortnum_psd_factor.f90
     linalg/fortnum_gsvd.F90
     linalg/fortnum_krylov.f90
+    linalg/fortnum_matrix_exponential.f90
     linalg/fortnum_parallel_vector.f90
     linalg/fortnum_symmetric_eigen.f90
     linalg/fortnum_linalg.f90

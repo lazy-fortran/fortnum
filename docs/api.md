@@ -573,6 +573,22 @@ curvature for `A x = -g` from zero. A non-finite operator or preconditioner
 output (the way a callback reports failure) or `r^T M r < 0` is
 `KRYLOV_BREAKDOWN`.
 
+`fortnum_matrix_exponential` evaluates the exponential of a small dense
+real or complex matrix:
+
+```fortran
+use fortnum_matrix_exponential, only: matrix_exponential
+
+call matrix_exponential(a, value, info)   ! value = exp(a)
+```
+
+It scales `a` until its 1-norm is below 5.37, applies Higham's degree-13
+diagonal Pade approximant and squares back. `info` is nonzero for a
+non-square or non-finite input, a singular Pade denominator or a
+non-finite result. Many squarings of a non-normal matrix lose accuracy:
+a test matrix with eigenvalues -1e6, -1+3i and 2i is reproduced to
+2e-10 relative. `fortnum_phi` uses it for the projected exponentials.
+
 `fortnum_phi` evaluates matrix-free phi-function combinations:
 
 ```fortran
