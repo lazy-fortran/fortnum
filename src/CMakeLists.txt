@@ -232,6 +232,7 @@ target_sources(fortnum PRIVATE
     sampling/fortnum_nuts.f90
     sampling/fortnum_psis.f90
     roots/fortnum_fixed_point.f90
+    roots/fortnum_homotopy.f90
     roots/fortnum_multiroot.f90
     roots/fortnum_multiroot_rc.f90
     roots/fortnum_roots.f90

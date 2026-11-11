@@ -17,7 +17,8 @@ Status: research code under active development; interfaces may change.
 - ODE integrators (DOP853, RK8PD, VODE, DDEABM, Gauss-Radau, extrapolation,
   geometric integrators) with events and sensitivities; matrix-free implicit
   BDF2 with adaptive steps for nonsingular mass-matrix systems.
-- Roots and multidimensional roots, B-splines, Krylov solvers and matrix-free
+- Roots and multidimensional roots, all solutions of polynomial systems by
+  homotopy continuation, B-splines, Krylov solvers and matrix-free
   eigenproblems, Toeplitz and tensor-product operators.
 - Random numbers with explicit state, NUTS sampling, Gaussian-process
   multi-fidelity prediction.
@@ -71,7 +72,7 @@ end program example
 | quadrature and integration | `fortnum_quadrature`, `fortnum_integrate`, `fortnum_integrate_gk`, `fortnum_cquad`, `fortnum_levin` |
 | transforms | `fortnum_fft`, `fortnum_fourier` |
 | ODEs | `fortnum_ode` and method modules |
-| roots | `fortnum_roots`, `fortnum_multiroot`, `fortnum_roots_complex` |
+| roots | `fortnum_roots`, `fortnum_multiroot`, `fortnum_roots_complex`, `fortnum_homotopy` |
 | interpolation | `fortnum_interp`, `fortnum_polynomial`, `fortnum_bspline`, `fortnum_bspline_lsq` |
 | linear algebra | `fortnum_linalg`, `fortnum_cholesky`, `fortnum_krylov`, `fortnum_symmetric_eigen`, `fortnum_tensor_product`, `fortnum_toeplitz` |
 | random numbers | `fortnum_rng` |
