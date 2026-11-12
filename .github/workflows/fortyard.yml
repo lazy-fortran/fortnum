@@ -1,0 +1,106 @@
+# fortyard checks on GitHub's hosted runners. fortyard pushes a check's commit
+# as branch fortyard/check/<id>, with -macos or -windows for those machines and
+# -verify for a verification of main, reads the result back and deletes run
+# and branch. This file must equal deploy/github/fortyard.yml of fortyard:
+# fortyard runs no check whose copy differs.
+name: fortyard
+on:
+  push:
+    branches: ['fortyard/check/**']
+permissions: {}
+jobs:
+  check:
+    runs-on: ${{ contains(github.ref_name, '-macos') && 'macos-latest' || (contains(github.ref_name, '-windows') && 'windows-latest' || 'ubuntu-latest') }}
+    timeout-minutes: 360
+    env:
+      FPM_VERSION: 0.13.0
+      GIT_TERMINAL_PROMPT: 0
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Places
+        run: |
+          # fo's main, which fortyard keeps building with its dependencies'
+          # mains; a release falls behind them.
+          fo=$(git ls-remote https://github.com/lazy-fortran/fo.git refs/heads/main | cut -f1)
+          test -n "$fo"
+          echo "FO_COMMIT=$fo" >> "$GITHUB_ENV"
+          echo "FY_TOOLS=$RUNNER_TOOL_CACHE/fortyard-fo-$fo" >> "$GITHUB_ENV"
+          echo "FO_CACHE_DIR=$RUNNER_TEMP/fo-cache" >> "$GITHUB_ENV"
+          echo "CCACHE_DIR=$RUNNER_TEMP/ccache" >> "$GITHUB_ENV"
+          case "$GITHUB_REF_NAME" in
+            *-macos*) class=github-macos-arm64 ;;
+            *-windows*) class=github-windows ;;
+            *) class=github-linux ;;
+          esac
+          echo "FORTYARD_RUNNER_CLASS=$class" >> "$GITHUB_ENV"
+      - name: Toolchain cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.FY_TOOLS }}
+          key: fortyard-tools-${{ runner.os }}-${{ runner.arch }}-fo-${{ env.FO_COMMIT }}-fpm-${{ env.FPM_VERSION }}
+      - name: Build cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ${{ env.FO_CACHE_DIR }}
+            ${{ env.CCACHE_DIR }}
+            build/dependencies
+          key: fortyard-build-${{ github.repository }}-${{ env.FORTYARD_RUNNER_CLASS }}-fo-${{ env.FO_COMMIT }}-${{ hashFiles('fpm.toml') }}-${{ github.sha }}
+          restore-keys: |
+            fortyard-build-${{ github.repository }}-${{ env.FORTYARD_RUNNER_CLASS }}-fo-${{ env.FO_COMMIT }}-${{ hashFiles('fpm.toml') }}-
+            fortyard-build-${{ github.repository }}-${{ env.FORTYARD_RUNNER_CLASS }}-fo-${{ env.FO_COMMIT }}-
+      - name: fo
+        run: |
+          # fo at FO_COMMIT, built once per machine kind and commit with fpm's
+          # release binary of the pinned checksum.
+          if [ ! -x "$FY_TOOLS/bin/fo" ] && [ ! -x "$FY_TOOLS/bin/fo.exe" ]; then
+            case "$RUNNER_OS-$RUNNER_ARCH" in
+              Linux-X64) asset=linux-x86_64-gcc-12
+                sum=2e50a8649ac4136b9cf6b63c5d1b01adf26c02eedc18f32e16261c0ce655d46d ;;
+              macOS-ARM64) asset=macos-arm64-gcc-12
+                sum=f6763de9d198ae35f9ffb246d6468ae89d15c5a8456e2a8fea23c319ce7362eb ;;
+              Windows-X64) asset=windows-x86_64-gcc-12.exe
+                sum=89f34d8cc3cface54a06785e9e1d7a2c16a07e6acd18f7c5d7e5cf95a5eaa671 ;;
+              *) echo "no fpm for $RUNNER_OS-$RUNNER_ARCH" >&2; exit 1 ;;
+            esac
+            mkdir -p "$FY_TOOLS/bin"
+            curl -fsSL -o "$FY_TOOLS/bin/fpm" \
+              "https://github.com/fortran-lang/fpm/releases/download/v$FPM_VERSION/fpm-$FPM_VERSION-$asset"
+            echo "$sum  $FY_TOOLS/bin/fpm" | shasum -a 256 -c -
+            chmod +x "$FY_TOOLS/bin/fpm"
+            if [ "$RUNNER_OS" = macOS ]; then
+              for v in 15 14 13 12; do
+                if command -v "gfortran-$v" > /dev/null; then export FPM_FC="gfortran-$v"; break; fi
+              done
+            fi
+            git init --quiet "$RUNNER_TEMP/fo-src"
+            git -C "$RUNNER_TEMP/fo-src" fetch --quiet --depth 1 \
+              https://github.com/lazy-fortran/fo.git "$FO_COMMIT"
+            git -C "$RUNNER_TEMP/fo-src" checkout --quiet FETCH_HEAD
+            (cd "$RUNNER_TEMP/fo-src" && "$FY_TOOLS/bin/fpm" install --profile release --prefix "$FY_TOOLS")
+          fi
+          echo "$FY_TOOLS/bin" >> "$GITHUB_PATH"
+      - name: Check
+        run: |
+          case "$GITHUB_REF_NAME" in
+            *-verify) kind=verify ;;
+            *) kind=check ;;
+          esac
+          if [ -f ".fortyard/$kind" ]; then
+            exec "./.fortyard/$kind"
+          fi
+          if [ ! -f fpm.toml ]; then
+            echo "No $kind is configured (.fortyard/$kind or fpm.toml)." >&2
+            exit 1
+          fi
+          if [ "$kind" = verify ]; then
+            fo build && FO_TEST_RERUN=1 fo test
+          else
+            fo build && fo test
+          fi
