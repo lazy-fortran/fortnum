@@ -34,11 +34,21 @@ module fortnum_blas
         end subroutine tile_update_kernel
     end interface
 
+    abstract interface
+        subroutine tile_strided_kernel(k, a, lda, b, c, ldc) bind(c)
+            import :: c_int64_t, c_double
+            integer(c_int64_t), value :: k, lda, ldc
+            real(c_double), intent(in) :: a(*), b(*)
+            real(c_double), intent(inout) :: c(*)
+        end subroutine tile_strided_kernel
+    end interface
+
     interface
-        function fortnum_blas_dtile(mr, nr, isa, update) bind(c, name='fortnum_blas_dtile') result(kernel)
+        function fortnum_blas_dtile(mr, nr, isa, update, strided_update, strided_acc) &
+                bind(c, name='fortnum_blas_dtile') result(kernel)
             import :: c_funptr, c_int32_t
             integer(c_int32_t), intent(out) :: mr, nr, isa
-            type(c_funptr), intent(out) :: update
+            type(c_funptr), intent(out) :: update, strided_update, strided_acc
             type(c_funptr) :: kernel
         end function fortnum_blas_dtile
     end interface
@@ -48,6 +58,8 @@ module fortnum_blas
     integer, parameter :: KC_DEPTH = 512, MC_ROWS = 120, NC_COLS = 4032
     !> Largest tile (rows times columns) any emitted kernel uses.
     integer, parameter :: MAX_TILE = 256
+    !> Products with at most this many columns read A unpacked.
+    integer, parameter :: THIN_N = 96
     !> Work per thread below which fewer threads are used (tens of microseconds).
     real(dp), parameter :: THREAD_FLOPS = 2.0e6_dp
 
@@ -59,6 +71,8 @@ module fortnum_blas
     procedure(tile_kernel), pointer, save :: tile => null()
     !> The same tile adding to C in place, used for full tiles.
     procedure(tile_update_kernel), pointer, save :: tile_c => null()
+    !> The tile reading A unpacked: added to C, and to a tile buffer.
+    procedure(tile_strided_kernel), pointer, save :: tile_sc => null(), tile_sa => null()
 
 contains
 
@@ -74,16 +88,18 @@ contains
 
     subroutine select_tile()
         integer(c_int32_t) :: mr, nr, isa
-        type(c_funptr) :: kernel, update
+        type(c_funptr) :: kernel, update, strided_update, strided_acc
         integer :: status
         if (tile_ready) return
         !$omp critical (fortnum_blas_tile_selection)
         if (.not. tile_ready) then
-            kernel = fortnum_blas_dtile(mr, nr, isa, update)
+            kernel = fortnum_blas_dtile(mr, nr, isa, update, strided_update, strided_acc)
             if (.not. c_associated(kernel)) &
                 error stop 'fortnum_blas: no register-tile kernel for this CPU (needs AVX2+FMA, AVX-512 or NEON)'
             call c_f_procpointer(kernel, tile)
             call c_f_procpointer(update, tile_c)
+            call c_f_procpointer(strided_update, tile_sc)
+            call c_f_procpointer(strided_acc, tile_sa)
             tile_mr = mr
             tile_nr = nr
             tile_isa = isa
@@ -123,6 +139,11 @@ contains
         if (alpha == 0 .or. k == 0) return
 
         call select_tile()
+        ! thin products: A is read unpacked, only B is packed
+        if (.not. ta .and. n <= THIN_N .and. m >= tile_mr) then
+            call thin_gemm()
+            return
+        end if
         mstep = tile_mr
         nstep = tile_nr
         nthreads = thread_count(2.0_dp*m*real(n, dp)*k)
@@ -191,6 +212,60 @@ contains
         if (profile) call report_profile('dgemm', m, n, k, prof)
 
     contains
+
+        ! C += alpha A op(B) for n <= THIN_N without packing A: B (alpha folded
+        ! in) is packed per depth block, full row tiles of A are read in place
+        ! by the strided kernels, the last partial row tile is packed.
+        subroutine thin_gemm()
+            real(dp), allocatable :: bt(:), ap1(:)
+            real(dp) :: acc(MAX_TILE)
+            integer :: pcc, kcc, npbt, jrr, irr, mfull, i0, j0, nrr, jj, nth
+            npbt = (n + tile_nr - 1)/tile_nr
+            mfull = (m/tile_mr)*tile_mr
+            allocate (bt(tile_nr*KC_DEPTH*npbt), ap1(tile_mr*KC_DEPTH))
+            nth = thread_count(2.0_dp*m*real(n, dp)*k)
+            do pcc = 1, k, KC_DEPTH
+                kcc = min(KC_DEPTH, k - pcc + 1)
+                do jrr = 1, npbt
+                    call pack_b_real(tb, b, ldb, pcc, kcc, 1 + (jrr - 1)*tile_nr, &
+                        min(tile_nr, n - (jrr - 1)*tile_nr), bt((jrr - 1)*tile_nr*kcc + 1:))
+                end do
+                if (alpha /= 1) bt(1:tile_nr*kcc*npbt) = alpha*bt(1:tile_nr*kcc*npbt)
+                !$omp parallel do num_threads(nth) if(nth > 1) schedule(static) private(i0, jrr, j0, nrr, jj, acc)
+                do irr = 1, mfull/tile_mr
+                    i0 = 1 + (irr - 1)*tile_mr
+                    do jrr = 1, npbt
+                        j0 = 1 + (jrr - 1)*tile_nr
+                        nrr = min(tile_nr, n - j0 + 1)
+                        if (nrr == tile_nr) then
+                            call tile_sc(int(kcc, c_int64_t), a(i0, pcc), int(lda, c_int64_t), &
+                                bt((jrr - 1)*tile_nr*kcc + 1:), c(i0, j0), int(ldc, c_int64_t))
+                        else
+                            call tile_sa(int(kcc, c_int64_t), a(i0, pcc), int(lda, c_int64_t), &
+                                bt((jrr - 1)*tile_nr*kcc + 1:), acc, int(tile_mr, c_int64_t))
+                            do jj = 1, nrr
+                                c(i0:i0 + tile_mr - 1, j0 + jj - 1) = c(i0:i0 + tile_mr - 1, j0 + jj - 1) + &
+                                    acc((jj - 1)*tile_mr + 1:jj*tile_mr)
+                            end do
+                        end if
+                    end do
+                end do
+                !$omp end parallel do
+                if (mfull < m) then
+                    ! the last rows through a packed panel (alpha is already in B)
+                    call pack_a_real(.false., a, lda, 1.0_dp, mfull + 1, m - mfull, pcc, kcc, ap1)
+                    do jrr = 1, npbt
+                        j0 = 1 + (jrr - 1)*tile_nr
+                        nrr = min(tile_nr, n - j0 + 1)
+                        call tile(int(kcc, c_int64_t), ap1, bt((jrr - 1)*tile_nr*kcc + 1:), acc)
+                        do jj = 1, nrr
+                            c(mfull + 1:m, j0 + jj - 1) = c(mfull + 1:m, j0 + jj - 1) + &
+                                acc((jj - 1)*tile_mr + 1:(jj - 1)*tile_mr + m - mfull)
+                        end do
+                    end do
+                end if
+            end do
+        end subroutine thin_gemm
 
         subroutine update_real(ir, jr, jc, nc, kc, apanel, bpanel)
             integer, intent(in) :: ir, jr, jc, nc, kc
