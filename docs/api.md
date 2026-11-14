@@ -543,7 +543,15 @@ extensions stops with an error. `fortnum_blas3` adds the level-3 routines
 `fortnum_dsyrk`, `fortnum_dsyr2k` and `fortnum_zherk` on top of GEMM, and
 `fortnum_blas12` the level-1 and level-2 routines (dot products, AXPY, scaling,
 copy, swap, overflow-safe norms, IxAMAX, DROT, GEMV, DSYMV, ZHEMV, TRSV, DGER,
-ZGERU, ZGERC), all with reference BLAS arguments. LAPACK follows (issue 167).
+ZGERU, ZGERC), all with reference BLAS arguments.
+
+### Native LAPACK
+
+`fortnum_lapack_lu` provides LU with partial pivoting, dense and banded, real
+and complex, with reference LAPACK arguments and info codes:
+`fortnum_dgetrf`/`zgetrf` (blocked, trailing update by GEMM), `getf2`,
+`laswp`, `getrs`, `gesv`, `getri`, and the band routines `gbtrf`, `gbtrs`,
+`gbsv`. The remaining LAPACK routines follow (issue 167).
 
 `fortnum_cholesky` provides a reusable positive-definite factorization with
 vector and matrix solves and a log-determinant operation.

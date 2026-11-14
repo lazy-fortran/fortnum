@@ -25,6 +25,7 @@ target_sources(fortnum PRIVATE
     blas/fortnum_blas.f90
     blas/fortnum_blas12.f90
     blas/fortnum_blas3.F90
+    lapack/fortnum_lapack_lu.F90
     blas/fortnum_blas_cpu.c
     generated/fortnum_dtile_avx2_8x6.c
     generated/fortnum_dtile_avx512_24x8.c
