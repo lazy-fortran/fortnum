@@ -36,7 +36,6 @@ measured evidence.
 | [Machine counts](design/machine_count.md) | `N_machine` floating-point instruction counts from disassembly |
 | [Adaptive integration](design/integrate.md) | Integration state, status, traces, and derivative semantics |
 | [ODE](design/ode.md) | Solver state, events, traces, and sensitivity semantics |
-| [Fortran Synthesis pilot](design/fortran_synthesis_pilot.md) | Verification and evaluation of the consumer synthesis slice (order conditions, equivalence checks, Why3 tableau identities, hand-written vs generated) |
 | [Geometric time](design/geometric_time.md) | Structure-preserving geometric time integration and products |
 | [RNG](design/rng.md) | Explicit state, stream splitting, and reproducibility |
 | [Verified computing](design/verified.md) | Enclosure semantics, inventory, module layout, and migration of the certified-computing layer |
@@ -45,8 +44,6 @@ measured evidence.
 
 | Document | Scope |
 | --- | --- |
-| [ROADMAP](../ROADMAP.md) | Authoritative checklist and execution rules |
-| [Differentiation plan](design/differentiation_plan.md) | Current differentiation architecture and implementation sequence |
 | [Kernel inventory](design/derivative_kernel_inventory.csv) | Machine-checked derivative source ownership |
 | [fortad testbed](design/fortad_testbed.md) | The fortad derivative path and how to switch to it |
 | [Evidence catalog](design/differentiation_benchmarks.md) | Benchmark records and validation coverage |

@@ -74,7 +74,6 @@ def maintained_markdown(root: Path) -> list[Path]:
     paths = [
         root / "README.md",
         root / "CONTRIBUTING.md",
-        root / "ROADMAP.md",
         root / "benchmark/README.md",
     ]
     paths.extend(sorted((root / "docs").rglob("*.md")))

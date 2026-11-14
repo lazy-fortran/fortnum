@@ -44,7 +44,6 @@ to reproduce the reports.
 ## Further reading
 
 - [Derivative contract](design/ad.md)
-- [Differentiation plan](design/differentiation_plan.md)
 - [Kernel ownership inventory](design/derivative_kernel_inventory.csv)
 - [CPU/GPU contract](design/gpu.md)
 - [Evidence report](design/differentiation_report.md)

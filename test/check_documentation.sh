@@ -11,7 +11,7 @@ base="${temp_dir}/base"
 
 mkdir -p "${base}/benchmark/report" "${base}/tools/codegen/app"
 cp "${source_root}/README.md" "${source_root}/CONTRIBUTING.md" \
-    "${source_root}/ROADMAP.md" "${source_root}/AGENTS.md" \
+    "${source_root}/AGENTS.md" \
     "${source_root}/LICENSE" "${base}/"
 cp -a "${source_root}/docs" "${source_root}/src" "${source_root}/scripts" \
     "${source_root}/.github" "${source_root}/include" "${base}/"

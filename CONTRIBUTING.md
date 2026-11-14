@@ -6,14 +6,12 @@ numerical module.
 
 ## Workflow
 
-1. Select one unchecked item in [ROADMAP.md](ROADMAP.md), or one narrowly
-   scoped issue.
+1. Pick one narrowly scoped issue.
 2. Make the smallest complete change.
 3. Add an independent behavioral oracle.
 4. Update the affected user, design, and benchmark documentation.
-5. Run focused checks while developing.
-6. Run the full gate before committing.
-7. Check off the ROADMAP item, commit, push `main`, and install.
+5. Run focused checks while developing and the full gate before proposing the
+   change.
 
 The full local gate is:
 

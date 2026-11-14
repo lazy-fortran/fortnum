@@ -47,6 +47,17 @@ fpm test --profile release --runner "python3 scripts/fpm_test_runner.py"
 CMake options, GPU backends, quad-precision support and macOS notes are in
 [docs/building.md](docs/building.md).
 
+### Dependencies
+
+BLAS and LAPACK are the last external libraries fortnum needs. They will be
+replaced by native fortnum routines: cache-blocked and SIMD-vectorised
+kernels, generated with [fortsym](https://github.com/lazy-fortran/fortsym)
+and [fortgen](https://github.com/lazy-fortran/fortgen) where possible, at
+least as fast as OpenBLAS and MKL, and building on every supported
+architecture including WebAssembly (wasm32). A separate benchmark repository
+will compare them with the BLAS and LAPACK implementations whose licences
+allow it. Until then the system BLAS/LAPACK is required.
+
 ## Usage
 
 Each numerical area has its own module:

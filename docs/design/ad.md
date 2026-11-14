@@ -194,4 +194,4 @@ See [gpu.md](gpu.md) for the device contract.
 6. test branches, regimes, singularities, and adjoint identities
 7. benchmark realistic workload classes
 8. record selection evidence
-9. update the API, inventory, and ROADMAP
+9. update the API and the inventory
