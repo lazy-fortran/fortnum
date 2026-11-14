@@ -42,6 +42,11 @@ program test_fortnum_blas
     call check_real('N', 'N', 40, 30, 0, 2.0_dp, -1.0_dp)
     call check_complex('c', 'n', 20, 30, 40, (1.0_dp, 0.0_dp), (0.0_dp, 0.0_dp))
     call check_complex('N', 'N', 20, 30, 40, (0.0_dp, 0.0_dp), (0.0_dp, 2.0_dp))
+    if (last == size(sizes, 2)) then
+        ! large enough for several threads (above 2.5e7 flops per thread)
+        call check_real('N', 'T', 400, 300, 250, 1.0_dp, 0.5_dp)
+        call check_complex('C', 'N', 250, 200, 300, (1.0_dp, 1.0_dp), (0.0_dp, 0.0_dp))
+    end if
     print '(a)', 'fortnum_dgemm and fortnum_zgemm match the quad-precision sums'
 
 contains

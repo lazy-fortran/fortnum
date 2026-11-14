@@ -9,7 +9,8 @@ module fortnum_blas
     use, intrinsic :: iso_c_binding, only: c_int64_t, c_int32_t, c_double, &
         c_funptr, c_associated, c_f_procpointer
     use fortnum_kinds, only: dp
-    !$ use omp_lib, only: omp_in_parallel
+    !$ use omp_lib, only: omp_in_parallel, omp_get_max_threads, omp_get_thread_num, &
+    !$     omp_get_num_threads
     implicit none
     private
 
@@ -37,8 +38,8 @@ module fortnum_blas
     integer, parameter :: KC_DEPTH = 256, MC_ROWS = 120, NC_COLS = 4032
     !> Largest tile (rows times columns) any emitted kernel uses.
     integer, parameter :: MAX_TILE = 256
-    !> Products below this many flops per thread run on one thread.
-    real(dp), parameter :: THREAD_FLOPS = 4.0e6_dp
+    !> Work per thread below which fewer threads are used (tens of microseconds).
+    real(dp), parameter :: THREAD_FLOPS = 2.0e6_dp
 
     logical, save :: tile_ready = .false.
     integer, save :: tile_mr = 0, tile_nr = 0, tile_isa = 0
@@ -81,8 +82,9 @@ contains
         real(dp), intent(in) :: alpha, beta
         real(dp), intent(in) :: a(lda, *), b(ldb, *)
         real(dp), intent(inout) :: c(ldc, *)
-        logical :: ta, tb, threaded
-        integer :: jc, pc, ic, nc, kc, mc, mstep, nstep, npa, npb, jr, j
+        logical :: ta, tb
+        integer :: jc, pc, ic, nc, kc, mc, mstep, nstep, npa, npb, jr, ir, j
+        integer :: nthreads, mcb, mt, i0, i1, rlo, rhi, qlo, qhi, me, pr, pq
         real(dp), allocatable :: ap(:), bp(:)
 
         ta = transposed(transa, 'fortnum_dgemm', 1, .false.)
@@ -102,59 +104,73 @@ contains
         call select_tile()
         mstep = tile_mr
         nstep = tile_nr
-        threaded = use_threads(2.0_dp*m*real(n, dp)*k)
-        allocate (ap(tile_mr*KC_DEPTH*((min(m, mc_size(mstep)) + mstep - 1)/mstep)))
+        nthreads = thread_count(2.0_dp*m*real(n, dp)*k)
+        mcb = mc_size(mstep)
         allocate (bp(tile_nr*KC_DEPTH*((min(n, nc_size(nstep)) + nstep - 1)/nstep)))
+        mt = (m + mstep - 1)/mstep
+        ! One region per call. All threads pack each KC x NC block of B
+        ! together; C is then split over a pr x pq grid of threads, each of
+        ! which packs its own rows of A in MC chunks and multiplies them with
+        ! its range of B panels. Two barriers per block of B, balance to one
+        ! tile row or column.
+        !$omp parallel num_threads(nthreads) if(nthreads > 1) default(shared) &
+        !$omp private(jc, pc, nc, kc, npb, jr, ir, i0, i1, rlo, rhi, qlo, qhi, me, pr, pq, ap)
+        allocate (ap(tile_mr*KC_DEPTH*(mcb/mstep)))
+        me = 0
+        pr = 1
+        pq = 1
+        !$ me = omp_get_thread_num()
+        !$ call thread_grid(omp_get_num_threads(), mt, (min(n, nc_size(nstep)) + nstep - 1)/nstep, pr, pq)
+        rlo = (me/pq)*mt/pr + 1
+        rhi = (me/pq + 1)*mt/pr
         do jc = 1, n, nc_size(nstep)
             nc = min(nc_size(nstep), n - jc + 1)
             npb = (nc + nstep - 1)/nstep
+            qlo = mod(me, pq)*npb/pq + 1
+            qhi = (mod(me, pq) + 1)*npb/pq
             do pc = 1, k, KC_DEPTH
                 kc = min(KC_DEPTH, k - pc + 1)
-                !$omp parallel do if(threaded) schedule(static)
+                !$omp do schedule(static)
                 do jr = 1, npb
                     call pack_b_real(tb, b, ldb, pc, kc, jc + (jr - 1)*nstep, &
                         min(nstep, nc - (jr - 1)*nstep), bp((jr - 1)*tile_nr*kc + 1:))
                 end do
-                !$omp end parallel do
-                do ic = 1, m, mc_size(mstep)
-                    mc = min(mc_size(mstep), m - ic + 1)
-                    npa = (mc + mstep - 1)/mstep
-                    !$omp parallel if(threaded)
-                    !$omp do schedule(static)
-                    do jr = 1, npa
-                        call pack_a_real(ta, a, lda, alpha, ic + (jr - 1)*mstep, &
-                            min(mstep, mc - (jr - 1)*mstep), pc, kc, ap((jr - 1)*tile_mr*kc + 1:))
+                !$omp end do
+                do i0 = rlo, rhi, mcb/mstep
+                    i1 = min(rhi, i0 + mcb/mstep - 1)
+                    do ir = i0, i1
+                        call pack_a_real(ta, a, lda, alpha, 1 + (ir - 1)*mstep, &
+                                min(mstep, m - (ir - 1)*mstep), pc, kc, ap((ir - i0)*tile_mr*kc + 1:))
                     end do
-                    !$omp end do
-                    !$omp do schedule(dynamic, 1)
-                    do jr = 1, npb
-                        call macro_real(jr)
+                    do jr = qlo, qhi
+                        do ir = i0, i1
+                            call update_real(ir, jr, jc, nc, kc, ap((ir - i0)*tile_mr*kc + 1:))
+                        end do
                     end do
-                    !$omp end do
-                    !$omp end parallel
                 end do
+                !$omp barrier
             end do
         end do
+        deallocate (ap)
+        !$omp end parallel
 
     contains
 
-        subroutine macro_real(jr)
-            integer, intent(in) :: jr
+        subroutine update_real(ir, jr, jc, nc, kc, apanel)
+            integer, intent(in) :: ir, jr, jc, nc, kc
+            real(dp), intent(in) :: apanel(*)
             real(dp) :: acc(MAX_TILE)
-            integer :: ir, i0, j0, mrr, nrr, jj
+            integer :: i0, j0, mrr, nrr, jj
+            i0 = 1 + (ir - 1)*mstep
             j0 = jc + (jr - 1)*nstep
+            mrr = min(mstep, m - i0 + 1)
             nrr = min(nstep, nc - (jr - 1)*nstep)
-            do ir = 1, npa
-                i0 = ic + (ir - 1)*mstep
-                mrr = min(mstep, mc - (ir - 1)*mstep)
-                call tile(int(kc, c_int64_t), ap((ir - 1)*tile_mr*kc + 1:), &
-                    bp((jr - 1)*tile_nr*kc + 1:), acc)
-                do jj = 1, nrr
-                    c(i0:i0 + mrr - 1, j0 + jj - 1) = c(i0:i0 + mrr - 1, j0 + jj - 1) + &
-                        acc((jj - 1)*tile_mr + 1:(jj - 1)*tile_mr + mrr)
-                end do
+            call tile(int(kc, c_int64_t), apanel, bp((jr - 1)*tile_nr*kc + 1:), acc)
+            do jj = 1, nrr
+                c(i0:i0 + mrr - 1, j0 + jj - 1) = c(i0:i0 + mrr - 1, j0 + jj - 1) + &
+                    acc((jj - 1)*tile_mr + 1:(jj - 1)*tile_mr + mrr)
             end do
-        end subroutine macro_real
+        end subroutine update_real
 
     end subroutine fortnum_dgemm
 
@@ -165,8 +181,9 @@ contains
         complex(dp), intent(in) :: alpha, beta
         complex(dp), intent(in) :: a(lda, *), b(ldb, *)
         complex(dp), intent(inout) :: c(ldc, *)
-        logical :: ta, tb, ca, cb, threaded
-        integer :: jc, pc, ic, nc, kc, mc, mstep, nstep, npa, npb, jr, j
+        logical :: ta, tb, ca, cb
+        integer :: jc, pc, ic, nc, kc, mc, mstep, nstep, npa, npb, jr, ir, j
+        integer :: nthreads, mcb, mt, i0, i1, rlo, rhi, qlo, qhi, me, pr, pq
         real(dp), allocatable :: ap(:), bp(:)
 
         ta = transposed(transa, 'fortnum_zgemm', 1, .true., ca)
@@ -187,66 +204,78 @@ contains
         ! a real tile mr x nr holds a complex tile mr/2 x nr/2
         mstep = tile_mr/2
         nstep = tile_nr/2
-        threaded = use_threads(8.0_dp*m*real(n, dp)*k)
-        allocate (ap(tile_mr*KC_DEPTH*((min(m, mc_size(mstep)) + mstep - 1)/mstep)))
+        nthreads = thread_count(8.0_dp*m*real(n, dp)*k)
+        mcb = mc_size(mstep)
         allocate (bp(tile_nr*KC_DEPTH*((min(n, nc_size(nstep)) + nstep - 1)/nstep)))
+        mt = (m + mstep - 1)/mstep
+        ! One region per call. All threads pack each KC x NC block of B
+        ! together; C is then split over a pr x pq grid of threads, each of
+        ! which packs its own rows of A in MC chunks and multiplies them with
+        ! its range of B panels. Two barriers per block of B, balance to one
+        ! tile row or column.
+        !$omp parallel num_threads(nthreads) if(nthreads > 1) default(shared) &
+        !$omp private(jc, pc, nc, kc, npb, jr, ir, i0, i1, rlo, rhi, qlo, qhi, me, pr, pq, ap)
+        allocate (ap(tile_mr*KC_DEPTH*(mcb/mstep)))
+        me = 0
+        pr = 1
+        pq = 1
+        !$ me = omp_get_thread_num()
+        !$ call thread_grid(omp_get_num_threads(), mt, (min(n, nc_size(nstep)) + nstep - 1)/nstep, pr, pq)
+        rlo = (me/pq)*mt/pr + 1
+        rhi = (me/pq + 1)*mt/pr
         do jc = 1, n, nc_size(nstep)
             nc = min(nc_size(nstep), n - jc + 1)
             npb = (nc + nstep - 1)/nstep
+            qlo = mod(me, pq)*npb/pq + 1
+            qhi = (mod(me, pq) + 1)*npb/pq
             do pc = 1, k, KC_DEPTH
                 kc = min(KC_DEPTH, k - pc + 1)
-                !$omp parallel do if(threaded) schedule(static)
+                !$omp do schedule(static)
                 do jr = 1, npb
                     call pack_b_complex(tb, cb, b, ldb, pc, kc, jc + (jr - 1)*nstep, &
                         min(nstep, nc - (jr - 1)*nstep), nstep, bp((jr - 1)*tile_nr*kc + 1:))
                 end do
-                !$omp end parallel do
-                do ic = 1, m, mc_size(mstep)
-                    mc = min(mc_size(mstep), m - ic + 1)
-                    npa = (mc + mstep - 1)/mstep
-                    !$omp parallel if(threaded)
-                    !$omp do schedule(static)
-                    do jr = 1, npa
-                        call pack_a_complex(ta, ca, a, lda, alpha, ic + (jr - 1)*mstep, &
-                            min(mstep, mc - (jr - 1)*mstep), mstep, pc, kc, ap((jr - 1)*tile_mr*kc + 1:))
+                !$omp end do
+                do i0 = rlo, rhi, mcb/mstep
+                    i1 = min(rhi, i0 + mcb/mstep - 1)
+                    do ir = i0, i1
+                        call pack_a_complex(ta, ca, a, lda, alpha, 1 + (ir - 1)*mstep, &
+                                min(mstep, m - (ir - 1)*mstep), mstep, pc, kc, ap((ir - i0)*tile_mr*kc + 1:))
                     end do
-                    !$omp end do
-                    !$omp do schedule(dynamic, 1)
-                    do jr = 1, npb
-                        call macro_complex(jr)
+                    do jr = qlo, qhi
+                        do ir = i0, i1
+                            call update_complex(ir, jr, jc, nc, kc, ap((ir - i0)*tile_mr*kc + 1:))
+                        end do
                     end do
-                    !$omp end do
-                    !$omp end parallel
                 end do
+                !$omp barrier
             end do
         end do
+        deallocate (ap)
+        !$omp end parallel
 
     contains
 
-        subroutine macro_complex(jr)
-            integer, intent(in) :: jr
+        subroutine update_complex(ir, jr, jc, nc, kc, apanel)
+            integer, intent(in) :: ir, jr, jc, nc, kc
+            real(dp), intent(in) :: apanel(*)
             real(dp) :: acc(MAX_TILE)
-            integer :: ir, i0, j0, mrr, nrr, ii, jj, rr, ri, ir_, ii_
+            integer :: i0, j0, mrr, nrr, ii, jj, rr, ri
+            i0 = 1 + (ir - 1)*mstep
             j0 = jc + (jr - 1)*nstep
+            mrr = min(mstep, m - i0 + 1)
             nrr = min(nstep, nc - (jr - 1)*nstep)
-            do ir = 1, npa
-                i0 = ic + (ir - 1)*mstep
-                mrr = min(mstep, mc - (ir - 1)*mstep)
-                call tile(int(kc, c_int64_t), ap((ir - 1)*tile_mr*kc + 1:), &
-                    bp((jr - 1)*tile_nr*kc + 1:), acc)
-                do jj = 1, nrr
-                    ! columns jj (real part of B) and nstep+jj (imaginary part)
-                    rr = (jj - 1)*tile_mr
-                    ri = (nstep + jj - 1)*tile_mr
-                    do ii = 1, mrr
-                        ir_ = ii
-                        ii_ = mstep + ii
-                        c(i0 + ii - 1, j0 + jj - 1) = c(i0 + ii - 1, j0 + jj - 1) + &
-                            cmplx(acc(rr + ir_) - acc(ri + ii_), acc(ri + ir_) + acc(rr + ii_), dp)
-                    end do
+            call tile(int(kc, c_int64_t), apanel, bp((jr - 1)*tile_nr*kc + 1:), acc)
+            do jj = 1, nrr
+                ! columns jj (real part of B) and nstep+jj (imaginary part)
+                rr = (jj - 1)*tile_mr
+                ri = (nstep + jj - 1)*tile_mr
+                do ii = 1, mrr
+                    c(i0 + ii - 1, j0 + jj - 1) = c(i0 + ii - 1, j0 + jj - 1) + &
+                        cmplx(acc(rr + ii) - acc(ri + mstep + ii), acc(ri + ii) + acc(rr + mstep + ii), dp)
                 end do
             end do
-        end subroutine macro_complex
+        end subroutine update_complex
 
     end subroutine fortnum_zgemm
 
@@ -362,11 +391,34 @@ contains
         size = step*max(1, NC_COLS/step)
     end function nc_size
 
-    logical function use_threads(flops) result(threaded)
+    !> Thread grid pr x pq = nt over mt tile rows and nb tile columns with the
+    !> fewest tiles on the critical path, preferring fewer row groups (each
+    !> column group packs its rows of A again).
+    pure subroutine thread_grid(nt, mt, nb, pr, pq)
+        integer, intent(in) :: nt, mt, nb
+        integer, intent(out) :: pr, pq
+        integer :: r, q, cost, best
+        pr = 1
+        pq = nt
+        best = huge(1)
+        do r = 1, nt
+            if (mod(nt, r) /= 0) cycle
+            q = nt/r
+            cost = ((mt + r - 1)/r)*((nb + q - 1)/q)
+            if (cost < best) then
+                best = cost
+                pr = r
+                pq = q
+            end if
+        end do
+    end subroutine thread_grid
+
+    integer function thread_count(flops) result(count)
         real(dp), intent(in) :: flops
-        threaded = .false.
-        !$ threaded = flops > THREAD_FLOPS .and. .not. omp_in_parallel()
-    end function use_threads
+        count = 1
+        !$ if (.not. omp_in_parallel()) &
+        !$     count = max(1, min(omp_get_max_threads(), int(min(flops/THREAD_FLOPS, 1.0e6_dp))))
+    end function thread_count
 
     ! True for a transposed operand. Reference BLAS accepts N, T and C in
     ! either case; for real data C means T.
