@@ -60,8 +60,9 @@ module fortnum_blas
     end interface
 
     !> Depth of a packed block, and the targets for the A and B block sizes
-    !> (rounded to whole tiles); per-machine values come from fortnum-bench.
-    integer, parameter :: KC_DEPTH = 512, MC_ROWS = 120, NC_COLS = 4032
+    !> (rounded to whole tiles), set with the tile; per-machine values come
+    !> from fortnum-bench.
+    integer, save :: kc_depth = 512, mc_rows = 120, nc_cols = 4032
     !> Largest tile (rows times columns) any emitted kernel uses.
     integer, parameter :: MAX_TILE = 512
     !> Products with at most this many columns read A unpacked.
@@ -114,6 +115,13 @@ contains
             tile_mr = mr
             tile_nr = nr
             tile_isa = isa
+            if (isa == 4) then
+                ! AMX streams its panels from L2; one pass over C for k up to
+                ! 2048 (2000^3 on one M3 core: 373 instead of 348 GFLOP/s)
+                kc_depth = 2048
+                mc_rows = 128
+                nc_cols = 2048
+            end if
             call get_environment_variable('FORTNUM_BLAS_PROFILE', status=status)
             profile = status == 0
             tile_ready = .true.
@@ -164,7 +172,7 @@ contains
         nstep = tile_nr
         nthreads = thread_count(2.0_dp*m*real(n, dp)*k)
         mcb = mc_size(mstep)
-        bsize = tile_nr*KC_DEPTH*((min(n, nc_size(nstep)) + nstep - 1)/nstep)
+        bsize = tile_nr*kc_depth*((min(n, nc_size(nstep)) + nstep - 1)/nstep)
         ! two B buffers: threads may pack the next block while others finish this one
         allocate (bp(2*bsize))
         mt = (m + mstep - 1)/mstep
@@ -180,7 +188,7 @@ contains
         ! tile row or column.
         !$omp parallel num_threads(nthreads) if(nthreads > 1) default(shared) &
         !$omp private(jc, pc, nc, kc, npb, jr, ir, i0, i1, chunk, me, ap, epoch, boff, tp, w0, w1)
-        allocate (ap(tile_mr*KC_DEPTH*(mcb/mstep)))
+        allocate (ap(tile_mr*kc_depth*(mcb/mstep)))
         tp = 0
         me = 0
         !$ me = omp_get_thread_num()
@@ -188,8 +196,8 @@ contains
         do jc = 1, n, nc_size(nstep)
             nc = min(nc_size(nstep), n - jc + 1)
             npb = (nc + nstep - 1)/nstep
-            do pc = 1, k, KC_DEPTH
-                kc = min(KC_DEPTH, k - pc + 1)
+            do pc = 1, k, kc_depth
+                kc = min(kc_depth, k - pc + 1)
                 boff = mod(epoch, 2)*bsize
                 epoch = epoch + 1
                 if (profile) w0 = wall()
@@ -238,10 +246,10 @@ contains
             integer :: pcc, kcc, npbt, jrr, irr, mfull, i0, j0, nrr, jj, nth
             npbt = (n + tile_nr - 1)/tile_nr
             mfull = (m/tile_mr)*tile_mr
-            allocate (bt(tile_nr*KC_DEPTH*npbt), ap1(tile_mr*KC_DEPTH))
+            allocate (bt(tile_nr*kc_depth*npbt), ap1(tile_mr*kc_depth))
             nth = thread_count(2.0_dp*m*real(n, dp)*k)
-            do pcc = 1, k, KC_DEPTH
-                kcc = min(KC_DEPTH, k - pcc + 1)
+            do pcc = 1, k, kc_depth
+                kcc = min(kc_depth, k - pcc + 1)
                 do jrr = 1, npbt
                     call pack_b_real(tb, b, ldb, pcc, kcc, 1 + (jrr - 1)*tile_nr, &
                         min(tile_nr, n - (jrr - 1)*tile_nr), bt((jrr - 1)*tile_nr*kcc + 1:))
@@ -292,10 +300,10 @@ contains
             integer :: pcc, kcc, npat, irr, jrr, nfull, i0, j0, mrr, ii, jj, nth
             npat = (m + tile_mr - 1)/tile_mr
             nfull = (n/tile_nr)*tile_nr
-            allocate (at(tile_mr*KC_DEPTH*npat), bp1(tile_nr*KC_DEPTH))
+            allocate (at(tile_mr*kc_depth*npat), bp1(tile_nr*kc_depth))
             nth = thread_count(2.0_dp*m*real(n, dp)*k)
-            do pcc = 1, k, KC_DEPTH
-                kcc = min(KC_DEPTH, k - pcc + 1)
+            do pcc = 1, k, kc_depth
+                kcc = min(kc_depth, k - pcc + 1)
                 do irr = 1, npat
                     call pack_a_real(ta, a, lda, alpha, 1 + (irr - 1)*tile_mr, &
                         min(tile_mr, m - (irr - 1)*tile_mr), pcc, kcc, at((irr - 1)*tile_mr*kcc + 1:))
@@ -392,7 +400,7 @@ contains
         nstep = tile_nr/2
         nthreads = thread_count(8.0_dp*m*real(n, dp)*k)
         mcb = mc_size(mstep)
-        bsize = tile_nr*KC_DEPTH*((min(n, nc_size(nstep)) + nstep - 1)/nstep)
+        bsize = tile_nr*kc_depth*((min(n, nc_size(nstep)) + nstep - 1)/nstep)
         ! two B buffers: threads may pack the next block while others finish this one
         allocate (bp(2*bsize))
         mt = (m + mstep - 1)/mstep
@@ -407,15 +415,15 @@ contains
         ! tile row or column.
         !$omp parallel num_threads(nthreads) if(nthreads > 1) default(shared) &
         !$omp private(jc, pc, nc, kc, npb, jr, ir, i0, i1, chunk, me, ap, epoch, boff)
-        allocate (ap(tile_mr*KC_DEPTH*(mcb/mstep)))
+        allocate (ap(tile_mr*kc_depth*(mcb/mstep)))
         me = 0
         !$ me = omp_get_thread_num()
         epoch = 0
         do jc = 1, n, nc_size(nstep)
             nc = min(nc_size(nstep), n - jc + 1)
             npb = (nc + nstep - 1)/nstep
-            do pc = 1, k, KC_DEPTH
-                kc = min(KC_DEPTH, k - pc + 1)
+            do pc = 1, k, kc_depth
+                kc = min(kc_depth, k - pc + 1)
                 boff = mod(epoch, 2)*bsize
                 epoch = epoch + 1
                 !$omp do schedule(static)
@@ -604,12 +612,12 @@ contains
 
     pure integer function mc_size(step) result(size)
         integer, intent(in) :: step
-        size = step*max(1, MC_ROWS/step)
+        size = step*max(1, mc_rows/step)
     end function mc_size
 
     pure integer function nc_size(step) result(size)
         integer, intent(in) :: step
-        size = step*max(1, NC_COLS/step)
+        size = step*max(1, nc_cols/step)
     end function nc_size
 
     !> Thread grid pr x pq = nt over mt tile rows and nb tile columns with the
