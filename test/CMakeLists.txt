@@ -764,10 +764,13 @@ add_test(NAME fortnum_blas COMMAND test_fortnum_blas)
 # the AVX2 tile on CPUs that would pick AVX-512
 add_test(NAME fortnum_blas_avx2 COMMAND test_fortnum_blas)
 set_tests_properties(fortnum_blas_avx2 PROPERTIES ENVIRONMENT FORTNUM_BLAS_ISA=avx2)
+# the NEON tile on Apple CPUs that would pick AMX
+add_test(NAME fortnum_blas_neon COMMAND test_fortnum_blas)
+set_tests_properties(fortnum_blas_neon PROPERTIES ENVIRONMENT FORTNUM_BLAS_ISA=neon)
 add_test(NAME fortnum_blas_slow COMMAND test_fortnum_blas full)
 set_tests_properties(fortnum_blas_slow PROPERTIES ENVIRONMENT OMP_NUM_THREADS=4)
 fortnum_require_real128(test_fortnum_blas:fortnum_blas test_fortnum_blas:fortnum_blas_avx2
-    test_fortnum_blas:fortnum_blas_slow)
+    test_fortnum_blas:fortnum_blas_neon test_fortnum_blas:fortnum_blas_slow)
 
 add_executable(test_gram_factor linalg/test_gram_factor.f90)
 target_link_libraries(test_gram_factor PRIVATE fortnum)

@@ -63,7 +63,7 @@ module fortnum_blas
     !> (rounded to whole tiles); per-machine values come from fortnum-bench.
     integer, parameter :: KC_DEPTH = 512, MC_ROWS = 120, NC_COLS = 4032
     !> Largest tile (rows times columns) any emitted kernel uses.
-    integer, parameter :: MAX_TILE = 256
+    integer, parameter :: MAX_TILE = 512
     !> Products with at most this many columns read A unpacked.
     integer, parameter :: THIN_N = 96
     !> Work per thread below which fewer threads are used (tens of microseconds).
@@ -156,7 +156,7 @@ contains
             return
         end if
         ! products with few rows: B is read unpacked, only A is packed
-        if (.not. tb .and. m <= THIN_N .and. n >= tile_nr) then
+        if (.not. tb .and. m <= THIN_N .and. n >= tile_nr .and. associated(tile_bc)) then
             call wide_gemm()
             return
         end if
