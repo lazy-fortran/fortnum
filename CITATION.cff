@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "Please cite the archived release used in your work."
+type: software
+title: "fortnum: numerical library for modern Fortran"
+authors:
+  - family-names: Albert
+    given-names: Christopher
+repository-code: "https://github.com/lazy-fortran/fortnum"
+url: "https://github.com/lazy-fortran/fortnum"
+license: MIT
