@@ -102,8 +102,8 @@ contains
         real(dp), intent(in) :: a(lda, *), b(ldb, *)
         real(dp), intent(inout) :: c(ldc, *)
         logical :: ta, tb
-        integer :: jc, pc, ic, nc, kc, mc, mstep, nstep, npa, npb, jr, ir, j
-        integer :: nthreads, mcb, mt, i0, i1, qlo, qhi, me, item, chunk, part, packed, nchunk, ngroup
+        integer :: jc, pc, nc, kc, mstep, nstep, npb, jr, ir, j
+        integer :: nthreads, mcb, mt, i0, i1, me, chunk, nchunk, ct, epoch, bsize, boff
         real(dp) :: tp(4), w0, w1
         real(dp), allocatable :: prof(:, :)
         real(dp), allocatable :: ap(:), bp(:)
@@ -127,9 +127,14 @@ contains
         nstep = tile_nr
         nthreads = thread_count(2.0_dp*m*real(n, dp)*k)
         mcb = mc_size(mstep)
-        allocate (bp(tile_nr*KC_DEPTH*((min(n, nc_size(nstep)) + nstep - 1)/nstep)))
+        bsize = tile_nr*KC_DEPTH*((min(n, nc_size(nstep)) + nstep - 1)/nstep)
+        ! two B buffers: threads may pack the next block while others finish this one
+        allocate (bp(2*bsize))
         mt = (m + mstep - 1)/mstep
-        nchunk = (mt + mcb/mstep - 1)/(mcb/mstep)
+        ! chunks of A as tall as MC allows but about four per thread, so that
+        ! dynamic claiming balances unequal cores while A is packed only once
+        ct = max(1, min(mcb/mstep, (mt + 4*nthreads - 1)/(4*nthreads)))
+        nchunk = (mt + ct - 1)/ct
         if (profile) allocate (prof(4, 0:nthreads - 1), source=0.0_dp)
         ! One region per call. All threads pack each KC x NC block of B
         ! together; C is then split over a pr x pq grid of threads, each of
@@ -137,56 +142,47 @@ contains
         ! its range of B panels. Two barriers per block of B, balance to one
         ! tile row or column.
         !$omp parallel num_threads(nthreads) if(nthreads > 1) default(shared) &
-        !$omp private(jc, pc, nc, kc, npb, jr, ir, i0, i1, item, chunk, part, qlo, qhi, packed, me, ap, tp, w0, w1)
+        !$omp private(jc, pc, nc, kc, npb, jr, ir, i0, i1, chunk, me, ap, epoch, boff, tp, w0, w1)
         allocate (ap(tile_mr*KC_DEPTH*(mcb/mstep)))
         tp = 0
         me = 0
         !$ me = omp_get_thread_num()
+        epoch = 0
         do jc = 1, n, nc_size(nstep)
             nc = min(nc_size(nstep), n - jc + 1)
             npb = (nc + nstep - 1)/nstep
-            ! about four items per thread; slower cores simply take fewer
-            ngroup = max(1, min(npb, (4*nthreads + nchunk - 1)/nchunk))
             do pc = 1, k, KC_DEPTH
                 kc = min(KC_DEPTH, k - pc + 1)
+                boff = mod(epoch, 2)*bsize
+                epoch = epoch + 1
                 if (profile) w0 = wall()
                 !$omp do schedule(static)
                 do jr = 1, npb
                     call pack_b_real(tb, b, ldb, pc, kc, jc + (jr - 1)*nstep, &
-                        min(nstep, nc - (jr - 1)*nstep), bp((jr - 1)*tile_nr*kc + 1:))
+                        min(nstep, nc - (jr - 1)*nstep), bp(boff + (jr - 1)*tile_nr*kc + 1:))
                 end do
                 !$omp end do nowait
                 if (profile) call lap(tp(1), w0)
                 !$omp barrier
                 if (profile) call lap(tp(4), w0)
-                packed = -1
                 !$omp do schedule(dynamic, 1)
-                do item = 0, nchunk*ngroup - 1
-                    chunk = item/ngroup
-                    part = mod(item, ngroup)
-                    qlo = part*npb/ngroup + 1
-                    qhi = (part + 1)*npb/ngroup
-                    if (qhi < qlo) cycle
-                    i0 = 1 + chunk*(mcb/mstep)
-                    i1 = min(mt, i0 + mcb/mstep - 1)
-                    if (packed /= chunk) then
-                        do ir = i0, i1
-                            call pack_a_real(ta, a, lda, alpha, 1 + (ir - 1)*mstep, &
-                                    min(mstep, m - (ir - 1)*mstep), pc, kc, ap((ir - i0)*tile_mr*kc + 1:))
-                        end do
-                        packed = chunk
-                    end if
+                do chunk = 0, nchunk - 1
+                    i0 = 1 + chunk*ct
+                    i1 = min(mt, i0 + ct - 1)
+                    do ir = i0, i1
+                        call pack_a_real(ta, a, lda, alpha, 1 + (ir - 1)*mstep, &
+                                min(mstep, m - (ir - 1)*mstep), pc, kc, ap((ir - i0)*tile_mr*kc + 1:))
+                    end do
                     if (profile) call lap(tp(2), w0)
-                    do jr = qlo, qhi
+                    do jr = 1, npb
                         do ir = i0, i1
-                            call update_real(ir, jr, jc, nc, kc, ap((ir - i0)*tile_mr*kc + 1:))
+                            call update_real(ir, jr, jc, nc, kc, ap((ir - i0)*tile_mr*kc + 1:), &
+                                bp(boff + (jr - 1)*tile_nr*kc + 1:))
                         end do
                     end do
                     if (profile) call lap(tp(3), w0)
                 end do
                 !$omp end do nowait
-                !$omp barrier
-                if (profile) call lap(tp(4), w0)
             end do
         end do
         deallocate (ap)
@@ -196,9 +192,9 @@ contains
 
     contains
 
-        subroutine update_real(ir, jr, jc, nc, kc, apanel)
+        subroutine update_real(ir, jr, jc, nc, kc, apanel, bpanel)
             integer, intent(in) :: ir, jr, jc, nc, kc
-            real(dp), intent(in) :: apanel(*)
+            real(dp), intent(in) :: apanel(*), bpanel(*)
             real(dp) :: acc(MAX_TILE)
             integer :: i0, j0, mrr, nrr, jj
             i0 = 1 + (ir - 1)*mstep
@@ -206,11 +202,11 @@ contains
             mrr = min(mstep, m - i0 + 1)
             nrr = min(nstep, nc - (jr - 1)*nstep)
             if (mrr == mstep .and. nrr == nstep) then
-                call tile_c(int(kc, c_int64_t), apanel, bp((jr - 1)*tile_nr*kc + 1:), c(i0, j0), &
+                call tile_c(int(kc, c_int64_t), apanel, bpanel, c(i0, j0), &
                     int(ldc, c_int64_t))
                 return
             end if
-            call tile(int(kc, c_int64_t), apanel, bp((jr - 1)*tile_nr*kc + 1:), acc)
+            call tile(int(kc, c_int64_t), apanel, bpanel, acc)
             do jj = 1, nrr
                 c(i0:i0 + mrr - 1, j0 + jj - 1) = c(i0:i0 + mrr - 1, j0 + jj - 1) + &
                     acc((jj - 1)*tile_mr + 1:(jj - 1)*tile_mr + mrr)
@@ -227,8 +223,8 @@ contains
         complex(dp), intent(in) :: a(lda, *), b(ldb, *)
         complex(dp), intent(inout) :: c(ldc, *)
         logical :: ta, tb, ca, cb
-        integer :: jc, pc, ic, nc, kc, mc, mstep, nstep, npa, npb, jr, ir, j
-        integer :: nthreads, mcb, mt, i0, i1, qlo, qhi, me, item, chunk, part, packed, nchunk, ngroup
+        integer :: jc, pc, nc, kc, mstep, nstep, npb, jr, ir, j
+        integer :: nthreads, mcb, mt, i0, i1, me, chunk, nchunk, ct, epoch, bsize, boff
         real(dp), allocatable :: ap(:), bp(:)
 
         ta = transposed(transa, 'fortnum_zgemm', 1, .true., ca)
@@ -251,57 +247,54 @@ contains
         nstep = tile_nr/2
         nthreads = thread_count(8.0_dp*m*real(n, dp)*k)
         mcb = mc_size(mstep)
-        allocate (bp(tile_nr*KC_DEPTH*((min(n, nc_size(nstep)) + nstep - 1)/nstep)))
+        bsize = tile_nr*KC_DEPTH*((min(n, nc_size(nstep)) + nstep - 1)/nstep)
+        ! two B buffers: threads may pack the next block while others finish this one
+        allocate (bp(2*bsize))
         mt = (m + mstep - 1)/mstep
-        nchunk = (mt + mcb/mstep - 1)/(mcb/mstep)
+        ! chunks of A as tall as MC allows but about four per thread, so that
+        ! dynamic claiming balances unequal cores while A is packed only once
+        ct = max(1, min(mcb/mstep, (mt + 4*nthreads - 1)/(4*nthreads)))
+        nchunk = (mt + ct - 1)/ct
         ! One region per call. All threads pack each KC x NC block of B
         ! together; C is then split over a pr x pq grid of threads, each of
         ! which packs its own rows of A in MC chunks and multiplies them with
         ! its range of B panels. Two barriers per block of B, balance to one
         ! tile row or column.
         !$omp parallel num_threads(nthreads) if(nthreads > 1) default(shared) &
-        !$omp private(jc, pc, nc, kc, npb, jr, ir, i0, i1, item, chunk, part, qlo, qhi, packed, me, ap)
+        !$omp private(jc, pc, nc, kc, npb, jr, ir, i0, i1, chunk, me, ap, epoch, boff)
         allocate (ap(tile_mr*KC_DEPTH*(mcb/mstep)))
         me = 0
         !$ me = omp_get_thread_num()
+        epoch = 0
         do jc = 1, n, nc_size(nstep)
             nc = min(nc_size(nstep), n - jc + 1)
             npb = (nc + nstep - 1)/nstep
-            ! about four items per thread; slower cores simply take fewer
-            ngroup = max(1, min(npb, (4*nthreads + nchunk - 1)/nchunk))
             do pc = 1, k, KC_DEPTH
                 kc = min(KC_DEPTH, k - pc + 1)
+                boff = mod(epoch, 2)*bsize
+                epoch = epoch + 1
                 !$omp do schedule(static)
                 do jr = 1, npb
                     call pack_b_complex(tb, cb, b, ldb, pc, kc, jc + (jr - 1)*nstep, &
-                        min(nstep, nc - (jr - 1)*nstep), nstep, bp((jr - 1)*tile_nr*kc + 1:))
+                        min(nstep, nc - (jr - 1)*nstep), nstep, bp(boff + (jr - 1)*tile_nr*kc + 1:))
                 end do
                 !$omp end do
-                packed = -1
                 !$omp do schedule(dynamic, 1)
-                do item = 0, nchunk*ngroup - 1
-                    chunk = item/ngroup
-                    part = mod(item, ngroup)
-                    qlo = part*npb/ngroup + 1
-                    qhi = (part + 1)*npb/ngroup
-                    if (qhi < qlo) cycle
-                    i0 = 1 + chunk*(mcb/mstep)
-                    i1 = min(mt, i0 + mcb/mstep - 1)
-                    if (packed /= chunk) then
+                do chunk = 0, nchunk - 1
+                    i0 = 1 + chunk*ct
+                    i1 = min(mt, i0 + ct - 1)
+                    do ir = i0, i1
+                        call pack_a_complex(ta, ca, a, lda, alpha, 1 + (ir - 1)*mstep, &
+                                min(mstep, m - (ir - 1)*mstep), mstep, pc, kc, ap((ir - i0)*tile_mr*kc + 1:))
+                    end do
+                    do jr = 1, npb
                         do ir = i0, i1
-                            call pack_a_complex(ta, ca, a, lda, alpha, 1 + (ir - 1)*mstep, &
-                                    min(mstep, m - (ir - 1)*mstep), mstep, pc, kc, ap((ir - i0)*tile_mr*kc + 1:))
-                        end do
-                        packed = chunk
-                    end if
-                    do jr = qlo, qhi
-                        do ir = i0, i1
-                            call update_complex(ir, jr, jc, nc, kc, ap((ir - i0)*tile_mr*kc + 1:))
+                            call update_complex(ir, jr, jc, nc, kc, ap((ir - i0)*tile_mr*kc + 1:), &
+                                bp(boff + (jr - 1)*tile_nr*kc + 1:))
                         end do
                     end do
                 end do
                 !$omp end do nowait
-                !$omp barrier
             end do
         end do
         deallocate (ap)
@@ -309,16 +302,16 @@ contains
 
     contains
 
-        subroutine update_complex(ir, jr, jc, nc, kc, apanel)
+        subroutine update_complex(ir, jr, jc, nc, kc, apanel, bpanel)
             integer, intent(in) :: ir, jr, jc, nc, kc
-            real(dp), intent(in) :: apanel(*)
+            real(dp), intent(in) :: apanel(*), bpanel(*)
             real(dp) :: acc(MAX_TILE)
             integer :: i0, j0, mrr, nrr, ii, jj, rr, ri
             i0 = 1 + (ir - 1)*mstep
             j0 = jc + (jr - 1)*nstep
             mrr = min(mstep, m - i0 + 1)
             nrr = min(nstep, nc - (jr - 1)*nstep)
-            call tile(int(kc, c_int64_t), apanel, bp((jr - 1)*tile_nr*kc + 1:), acc)
+            call tile(int(kc, c_int64_t), apanel, bpanel, acc)
             do jj = 1, nrr
                 ! columns jj (real part of B) and nstep+jj (imaginary part)
                 rr = (jj - 1)*tile_mr

@@ -538,8 +538,12 @@ kernels that fortgen emits in assembly (AVX2 with FMA, AVX-512, NEON); the
 kernel for the running CPU is chosen at the first call, and
 `fortnum_blas_tile(mr, nr, isa)` reports it. `FORTNUM_BLAS_ISA=avx2` selects
 the AVX2 kernel on a CPU that also has AVX-512. A CPU with none of these
-extensions stops with an error. The remaining BLAS and LAPACK routines follow
-(issue 167).
+extensions stops with an error. `fortnum_blas3` adds the level-3 routines
+`fortnum_dtrsm`, `fortnum_ztrsm`, `fortnum_dtrmm`, `fortnum_ztrmm`,
+`fortnum_dsyrk`, `fortnum_dsyr2k` and `fortnum_zherk` on top of GEMM, and
+`fortnum_blas12` the level-1 and level-2 routines (dot products, AXPY, scaling,
+copy, swap, overflow-safe norms, IxAMAX, DROT, GEMV, DSYMV, ZHEMV, TRSV, DGER,
+ZGERU, ZGERC), all with reference BLAS arguments. LAPACK follows (issue 167).
 
 `fortnum_cholesky` provides a reusable positive-definite factorization with
 vector and matrix solves and a log-determinant operation.
