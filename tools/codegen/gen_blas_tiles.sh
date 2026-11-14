@@ -6,7 +6,7 @@
 # Usage: gen_blas_tiles.sh FORTGEN_TILE [OUTPUT_DIR]
 # FORTGEN_TILE is the fortgen-tile program of fortgen at FORTGEN_REVISION.
 set -euo pipefail
-FORTGEN_REVISION=57cbf966016a2b90a3502be102d7cb0a941c24b5
+FORTGEN_REVISION=9710a71de748a14d18c149998bbf44e929ef70d4
 tile=$1
 out=${2:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../src/generated" && pwd)}
 emit() {
