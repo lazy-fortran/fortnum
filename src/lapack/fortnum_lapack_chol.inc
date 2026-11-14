@@ -38,48 +38,51 @@
         end do
     end subroutine POTF2
 
-    !> Blocked Cholesky (xPOTRF): per block of columns, the diagonal block is
-    !> updated by a rank-k update and factored directly, the block beside it
-    !> by GEMM and a triangular solve.
+    !> Cholesky (xPOTRF) through the recursive POTRF2.
     subroutine POTRF(uplo, n, a, lda, info)
         character, intent(in) :: uplo
         integer, intent(in) :: n, lda
         SCALAR, intent(inout) :: a(lda, *)
         integer, intent(out) :: info
         logical :: upper
-        integer :: j, jb, rest
         call check_uplo_n(uplo, n, lda, 4, upper, info)
         if (info /= 0 .or. n == 0) return
-        do j = 1, n, CHOL_NB
-            jb = min(CHOL_NB, n - j + 1)
-            rest = n - j - jb + 1
-            if (upper) then
-                call RANKK('U', TRANS_C, jb, j - 1, -1.0_dp, a(1, j), lda, 1.0_dp, a(j, j), lda)
-                call POTF2('U', jb, a(j, j), lda, info)
-                if (info /= 0) then
-                    info = info + j - 1
-                    return
-                end if
-                if (rest > 0) then
-                    if (j > 1) call GEMM(TRANS_C, 'N', jb, rest, j - 1, -ONE, a(1, j), lda, a(1, j + jb), lda, &
-                        ONE, a(j, j + jb), lda)
-                    call TRSM('L', 'U', TRANS_C, 'N', jb, rest, ONE, a(j, j), lda, a(j, j + jb), lda)
-                end if
-            else
-                call RANKK('L', 'N', jb, j - 1, -1.0_dp, a(j, 1), lda, 1.0_dp, a(j, j), lda)
-                call POTF2('L', jb, a(j, j), lda, info)
-                if (info /= 0) then
-                    info = info + j - 1
-                    return
-                end if
-                if (rest > 0) then
-                    if (j > 1) call GEMM('N', TRANS_C, rest, jb, j - 1, -ONE, a(j + jb, 1), lda, a(j, 1), lda, &
-                        ONE, a(j + jb, j), lda)
-                    call TRSM('R', 'L', TRANS_C, 'N', rest, jb, ONE, a(j, j), lda, a(j + jb, j), lda)
-                end if
-            end if
-        end do
+        call POTRF2(uplo, n, a, lda, info)
     end subroutine POTRF
+
+    !> Recursive Cholesky (xPOTRF2): the leading half, a triangular solve for
+    !> the off-diagonal block, a rank-k update of the trailing half, and the
+    !> trailing half recursively.
+    recursive subroutine POTRF2(uplo, n, a, lda, info)
+        character, intent(in) :: uplo
+        integer, intent(in) :: n, lda
+        SCALAR, intent(inout) :: a(lda, *)
+        integer, intent(out) :: info
+        integer :: n1, n2, iinfo
+        info = 0
+        if (n == 0) return
+        if (n <= 32) then
+            ! small blocks directly: the recursion would be all call overhead
+            call POTF2(uplo, n, a, lda, info)
+            return
+        end if
+        n1 = n/2
+        n2 = n - n1
+        call POTRF2(uplo, n1, a, lda, iinfo)
+        if (iinfo /= 0) then
+            info = iinfo
+            return
+        end if
+        if (uplo == 'U' .or. uplo == 'u') then
+            call TRSM('L', 'U', TRANS_C, 'N', n1, n2, ONE, a, lda, a(1, n1 + 1), lda)
+            call RANKK('U', TRANS_C, n2, n1, -1.0_dp, a(1, n1 + 1), lda, 1.0_dp, a(n1 + 1, n1 + 1), lda)
+        else
+            call TRSM('R', 'L', TRANS_C, 'N', n2, n1, ONE, a, lda, a(n1 + 1, 1), lda)
+            call RANKK('L', 'N', n2, n1, -1.0_dp, a(n1 + 1, 1), lda, 1.0_dp, a(n1 + 1, n1 + 1), lda)
+        end if
+        call POTRF2(uplo, n2, a(n1 + 1, n1 + 1), lda, iinfo)
+        if (iinfo /= 0) info = iinfo + n1
+    end subroutine POTRF2
 
     !> Solve A X = B with the Cholesky factor of POTRF (xPOTRS).
     subroutine POTRS(uplo, n, nrhs, a, lda, b, ldb, info)

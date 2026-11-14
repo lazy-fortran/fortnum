@@ -10,14 +10,12 @@ module fortnum_lapack_chol
     implicit none
     private
 
-    public :: fortnum_dpotrf, fortnum_dpotf2, fortnum_dpotrs, fortnum_dposv, fortnum_dpotri
+    public :: fortnum_dpotrf, fortnum_dpotrf2, fortnum_dpotf2, fortnum_dpotrs, fortnum_dposv, fortnum_dpotri
     public :: fortnum_dtrtri, fortnum_dtrtrs, fortnum_dpocon, fortnum_dpstrf
-    public :: fortnum_zpotrf, fortnum_zpotf2, fortnum_zpotrs, fortnum_zposv, fortnum_zpotri
+    public :: fortnum_zpotrf, fortnum_zpotrf2, fortnum_zpotf2, fortnum_zpotrs, fortnum_zposv, fortnum_zpotri
     public :: fortnum_ztrtri, fortnum_ztrtrs
     public :: norm1_inverse_estimate, znorm1_inverse_estimate
 
-    !> Column block of the blocked Cholesky.
-    integer, parameter :: CHOL_NB = 64
 
 
 contains
@@ -32,6 +30,7 @@ contains
 #define RANKK fortnum_dsyrk
 #define POTF2 fortnum_dpotf2
 #define POTRF fortnum_dpotrf
+#define POTRF2 fortnum_dpotrf2
 #define POTRS fortnum_dpotrs
 #define POSV fortnum_dposv
 #define POTRI fortnum_dpotri
@@ -48,6 +47,7 @@ contains
 #undef RANKK
 #undef POTF2
 #undef POTRF
+#undef POTRF2
 #undef POTRS
 #undef POSV
 #undef POTRI
@@ -63,6 +63,7 @@ contains
 #define RANKK fortnum_zherk
 #define POTF2 fortnum_zpotf2
 #define POTRF fortnum_zpotrf
+#define POTRF2 fortnum_zpotrf2
 #define POTRS fortnum_zpotrs
 #define POSV fortnum_zposv
 #define POTRI fortnum_zpotri

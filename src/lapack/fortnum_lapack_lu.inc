@@ -2,14 +2,13 @@
 ! through the macros of fortnum_lapack_lu.F90. Arguments and info codes are
 ! those of reference LAPACK; an illegal argument returns info = -position.
 
-    !> A = P L U with partial pivoting, blocked: 64-column panels are factored
-    !> directly, the trailing matrix is updated by TRSM and GEMM.
+    !> A = P L U with partial pivoting through the recursive GETRF2, so that
+    !> also the panel work is TRSM and GEMM.
     subroutine GETRF(m, n, a, lda, ipiv, info)
         integer, intent(in) :: m, n, lda
         SCALAR, intent(inout) :: a(lda, *)
         integer, intent(out) :: ipiv(*)
         integer, intent(out) :: info
-        integer :: j, jb, iinfo, mn
         info = 0
         if (m < 0) then
             info = -1
@@ -19,21 +18,69 @@
             info = -4
         end if
         if (info /= 0 .or. m == 0 .or. n == 0) return
-        mn = min(m, n)
-        do j = 1, mn, LU_NB
-            jb = min(LU_NB, mn - j + 1)
-            call GETF2(m - j + 1, jb, a(j, j), lda, ipiv(j), iinfo)
-            if (info == 0 .and. iinfo > 0) info = iinfo + j - 1
-            ipiv(j:j + jb - 1) = ipiv(j:j + jb - 1) + j - 1
-            if (j > 1) call LASWP(j - 1, a, lda, j, j + jb - 1, ipiv, 1)
-            if (j + jb <= n) then
-                call LASWP(n - j - jb + 1, a(1, j + jb), lda, j, j + jb - 1, ipiv, 1)
-                call TRSM('L', 'L', 'N', 'U', jb, n - j - jb + 1, ONE, a(j, j), lda, a(j, j + jb), lda)
-                if (j + jb <= m) call GEMM('N', 'N', m - j - jb + 1, n - j - jb + 1, jb, -ONE, &
-                    a(j + jb, j), lda, a(j, j + jb), lda, ONE, a(j + jb, j + jb), lda)
-            end if
-        end do
+        call GETRF2(m, n, a, lda, ipiv, info)
     end subroutine GETRF
+
+    !> Recursive LU with partial pivoting (xGETRF2): the left half of the
+    !> columns recursively, then LASWP, TRSM and one GEMM update the right
+    !> half, which is factored recursively in turn.
+    recursive subroutine GETRF2(m, n, a, lda, ipiv, info)
+        integer, intent(in) :: m, n, lda
+        SCALAR, intent(inout) :: a(lda, *)
+        integer, intent(out) :: ipiv(*)
+        integer, intent(out) :: info
+        integer :: n1, n2, iinfo, mn, i, p
+        SCALAR :: t
+        real(dp) :: big
+        info = 0
+        if (m == 0 .or. n == 0) return
+        mn = min(m, n)
+        if (m == 1) then
+            ipiv(1) = 1
+            if (a(1, 1) == ZERO) info = 1
+            return
+        end if
+        if (n == 1) then
+            p = 1
+            big = ABS1(a(1, 1))
+            do i = 2, m
+                if (ABS1(a(i, 1)) > big) then
+                    big = ABS1(a(i, 1))
+                    p = i
+                end if
+            end do
+            ipiv(1) = p
+            if (a(p, 1) /= ZERO) then
+                if (p /= 1) then
+                    t = a(1, 1)
+                    a(1, 1) = a(p, 1)
+                    a(p, 1) = t
+                end if
+                if (abs(a(1, 1)) >= tiny(1.0_dp)) then
+                    a(2:m, 1) = (ONE/a(1, 1))*a(2:m, 1)
+                else
+                    a(2:m, 1) = a(2:m, 1)/a(1, 1)
+                end if
+            else
+                info = 1
+            end if
+            return
+        end if
+        n1 = mn/2
+        n2 = n - n1
+        call GETRF2(m, n1, a, lda, ipiv, iinfo)
+        if (info == 0 .and. iinfo > 0) info = iinfo
+        call LASWP(n2, a(1, n1 + 1), lda, 1, n1, ipiv, 1)
+        call TRSM('L', 'L', 'N', 'U', n1, n2, ONE, a, lda, a(1, n1 + 1), lda)
+        call GEMM('N', 'N', m - n1, n2, n1, -ONE, a(n1 + 1, 1), lda, a(1, n1 + 1), lda, ONE, &
+            a(n1 + 1, n1 + 1), lda)
+        call GETRF2(m - n1, n2, a(n1 + 1, n1 + 1), lda, ipiv(n1 + 1), iinfo)
+        if (info == 0 .and. iinfo > 0) info = iinfo + n1
+        do i = n1 + 1, mn
+            ipiv(i) = ipiv(i) + n1
+        end do
+        call LASWP(n1, a, lda, n1 + 1, mn, ipiv, 1)
+    end subroutine GETRF2
 
     !> Unblocked LU of an m x n panel (LAPACK xGETF2): pivot by the largest
     !> ABS1, scale by the reciprocal unless the pivot is tiny.

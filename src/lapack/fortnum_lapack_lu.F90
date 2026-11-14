@@ -1,5 +1,6 @@
 module fortnum_lapack_lu
-    ! LU factorization and solves on fortnum's BLAS: DGETRF/ZGETRF,
+    ! LU factorization and solves on fortnum's BLAS: DGETRF/ZGETRF (recursive),
+    ! DGETRF2/ZGETRF2,
     ! DGETRS/ZGETRS, DGESV/ZGESV, DGETRI/ZGETRI, DLASWP/ZLASWP and the band
     ! versions DGBTRF/ZGBTRF, DGBTRS/ZGBTRS, DGBSV/ZGBSV, with the arguments
     ! and info codes of reference LAPACK (prefix fortnum_).
@@ -9,13 +10,11 @@ module fortnum_lapack_lu
     implicit none
     private
 
-    public :: fortnum_dgetrf, fortnum_dgetf2, fortnum_dlaswp, fortnum_dgetrs, fortnum_dgesv
+    public :: fortnum_dgetrf, fortnum_dgetrf2, fortnum_dgetf2, fortnum_dlaswp, fortnum_dgetrs, fortnum_dgesv
     public :: fortnum_dgetri, fortnum_dgbtrf, fortnum_dgbtrs, fortnum_dgbsv
-    public :: fortnum_zgetrf, fortnum_zgetf2, fortnum_zlaswp, fortnum_zgetrs, fortnum_zgesv
+    public :: fortnum_zgetrf, fortnum_zgetrf2, fortnum_zgetf2, fortnum_zlaswp, fortnum_zgetrs, fortnum_zgesv
     public :: fortnum_zgetri, fortnum_zgbtrf, fortnum_zgbtrs, fortnum_zgbsv
 
-    !> Panel width of the blocked factorization.
-    integer, parameter :: LU_NB = 64
 
 contains
 
@@ -28,6 +27,7 @@ contains
 #define TRSM fortnum_dtrsm
 #define GETRF fortnum_dgetrf
 #define GETF2 fortnum_dgetf2
+#define GETRF2 fortnum_dgetrf2
 #define LASWP fortnum_dlaswp
 #define GETRS fortnum_dgetrs
 #define GESV fortnum_dgesv
@@ -45,6 +45,7 @@ contains
 #undef TRSM
 #undef GETRF
 #undef GETF2
+#undef GETRF2
 #undef LASWP
 #undef GETRS
 #undef GESV
@@ -61,6 +62,7 @@ contains
 #define TRSM fortnum_ztrsm
 #define GETRF fortnum_zgetrf
 #define GETF2 fortnum_zgetf2
+#define GETRF2 fortnum_zgetrf2
 #define LASWP fortnum_zlaswp
 #define GETRS fortnum_zgetrs
 #define GESV fortnum_zgesv

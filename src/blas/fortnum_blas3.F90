@@ -13,8 +13,8 @@ module fortnum_blas3
 
     !> Order of the diagonal blocks handled directly; the rest is GEMM.
     integer, parameter :: TRI_NB = 64
-    !> Column blocks of the rank-k updates.
-    integer, parameter :: SYRK_NB = 128
+    !> Order below which the rank-k updates compute diagonal blocks in full.
+    integer, parameter :: SYRK_LEAF = 32
 
 contains
 
@@ -112,8 +112,6 @@ contains
         real(dp), intent(inout) :: c(ldc, *)
         logical, intent(in) :: two
         logical :: upper, notrans
-        integer :: j0, jb, i, j
-        real(dp), allocatable :: t(:, :)
 
         upper = flag(uplo, 'U', 'L', name, 1)
         select case (trans)
@@ -131,39 +129,49 @@ contains
         if (ldc < max(1, n)) call argument_error(name, merge(12, 10, two))
         if (n == 0) return
         if ((alpha == 0 .or. k == 0) .and. beta == 1) return
-        allocate (t(SYRK_NB, SYRK_NB))
-        do j0 = 1, n, SYRK_NB
-            jb = min(SYRK_NB, n - j0 + 1)
-            ! the diagonal block through a full product, then its triangle
-            t(1:jb, 1:jb) = 0
-            if (alpha /= 0 .and. k > 0) then
-                call dprod(notrans, k, a, lda, j0, b, ldb, j0, jb, jb, alpha, 0.0_dp, t, SYRK_NB)
-                if (two) call dprod(notrans, k, b, ldb, j0, a, lda, j0, jb, jb, alpha, 1.0_dp, t, SYRK_NB)
-            end if
-            do j = 1, jb
-                do i = merge(1, j, upper), merge(j, jb, upper)
-                    if (beta == 0) then
-                        c(j0 + i - 1, j0 + j - 1) = t(i, j)
-                    else
-                        c(j0 + i - 1, j0 + j - 1) = beta*c(j0 + i - 1, j0 + j - 1) + t(i, j)
-                    end if
-                end do
-            end do
-            ! the block of the triangle beside it
-            if (upper .and. j0 > 1) then
-                call rect(1, j0 - 1)
-            else if (.not. upper .and. j0 + jb <= n) then
-                call rect(j0 + jb, n - j0 - jb + 1)
-            end if
-        end do
+        call tri(1, n)
 
     contains
 
-        subroutine rect(r0, nr)
-            integer, intent(in) :: r0, nr
+        ! the triangle of order nb at (r0, r0): halves recursively, one GEMM for
+        ! the block between them; only blocks of order <= SYRK_LEAF are
+        ! computed in full (waste about SYRK_LEAF / n of the flops)
+        recursive subroutine tri(r0, nb)
+            integer, intent(in) :: r0, nb
+            integer :: n1, i, j
+            real(dp) :: t(SYRK_LEAF, SYRK_LEAF)
+            if (nb <= SYRK_LEAF) then
+                t(1:nb, 1:nb) = 0
+                if (alpha /= 0 .and. k > 0) then
+                    call dprod(notrans, k, a, lda, r0, b, ldb, r0, nb, nb, alpha, 0.0_dp, t, SYRK_LEAF)
+                    if (two) call dprod(notrans, k, b, ldb, r0, a, lda, r0, nb, nb, alpha, 1.0_dp, t, SYRK_LEAF)
+                end if
+                do j = 1, nb
+                    do i = merge(1, j, upper), merge(j, nb, upper)
+                        if (beta == 0) then
+                            c(r0 + i - 1, r0 + j - 1) = t(i, j)
+                        else
+                            c(r0 + i - 1, r0 + j - 1) = beta*c(r0 + i - 1, r0 + j - 1) + t(i, j)
+                        end if
+                    end do
+                end do
+                return
+            end if
+            n1 = nb/2
+            call tri(r0, n1)
+            if (upper) then
+                call rect(r0, n1, r0 + n1, nb - n1)
+            else
+                call rect(r0 + n1, nb - n1, r0, n1)
+            end if
+            call tri(r0 + n1, nb - n1)
+        end subroutine tri
+
+        subroutine rect(r0, nr, c0, nc)
+            integer, intent(in) :: r0, nr, c0, nc
             integer :: jj
             if (alpha == 0 .or. k == 0) then
-                do jj = j0, j0 + jb - 1
+                do jj = c0, c0 + nc - 1
                     if (beta == 0) then
                         c(r0:r0 + nr - 1, jj) = 0
                     else
@@ -172,8 +180,8 @@ contains
                 end do
                 return
             end if
-            call dprod(notrans, k, a, lda, r0, b, ldb, j0, nr, jb, alpha, beta, c(r0, j0), ldc)
-            if (two) call dprod(notrans, k, b, ldb, r0, a, lda, j0, nr, jb, alpha, 1.0_dp, c(r0, j0), ldc)
+            call dprod(notrans, k, a, lda, r0, b, ldb, c0, nr, nc, alpha, beta, c(r0, c0), ldc)
+            if (two) call dprod(notrans, k, b, ldb, r0, a, lda, c0, nr, nc, alpha, 1.0_dp, c(r0, c0), ldc)
         end subroutine rect
 
     end subroutine fortnum_dsyr2k_impl
@@ -188,8 +196,7 @@ contains
         complex(dp), intent(in) :: a(lda, *)
         complex(dp), intent(inout) :: c(ldc, *)
         logical :: upper, notrans
-        integer :: j0, jb, i, j, r0, nr
-        complex(dp), allocatable :: t(:, :)
+        integer :: j
 
         upper = flag(uplo, 'U', 'L', 'ZHERK', 1)
         select case (trans)
@@ -211,44 +218,57 @@ contains
             end do
             return
         end if
-        allocate (t(SYRK_NB, SYRK_NB))
-        do j0 = 1, n, SYRK_NB
-            jb = min(SYRK_NB, n - j0 + 1)
-            t(1:jb, 1:jb) = 0
-            if (alpha /= 0 .and. k > 0) &
-                call zprod(notrans, k, a, lda, j0, j0, jb, jb, cmplx(alpha, 0.0_dp, dp), &
-                    (0.0_dp, 0.0_dp), t, SYRK_NB)
-            do j = 1, jb
-                do i = merge(1, j, upper), merge(j, jb, upper)
-                    if (beta == 0) then
-                        c(j0 + i - 1, j0 + j - 1) = t(i, j)
-                    else
-                        c(j0 + i - 1, j0 + j - 1) = beta*c(j0 + i - 1, j0 + j - 1) + t(i, j)
-                    end if
+        call tri(1, n)
+
+    contains
+
+        recursive subroutine tri(r0, nb)
+            integer, intent(in) :: r0, nb
+            integer :: n1, i, j
+            complex(dp) :: t(SYRK_LEAF, SYRK_LEAF)
+            if (nb <= SYRK_LEAF) then
+                t(1:nb, 1:nb) = 0
+                if (alpha /= 0 .and. k > 0) &
+                    call zprod(notrans, k, a, lda, r0, r0, nb, nb, cmplx(alpha, 0.0_dp, dp), &
+                        (0.0_dp, 0.0_dp), t, SYRK_LEAF)
+                do j = 1, nb
+                    do i = merge(1, j, upper), merge(j, nb, upper)
+                        if (beta == 0) then
+                            c(r0 + i - 1, r0 + j - 1) = t(i, j)
+                        else
+                            c(r0 + i - 1, r0 + j - 1) = beta*c(r0 + i - 1, r0 + j - 1) + t(i, j)
+                        end if
+                    end do
+                    c(r0 + j - 1, r0 + j - 1) = cmplx(real(c(r0 + j - 1, r0 + j - 1), dp), 0.0_dp, dp)
                 end do
-                c(j0 + j - 1, j0 + j - 1) = cmplx(real(c(j0 + j - 1, j0 + j - 1), dp), 0.0_dp, dp)
-            end do
+                return
+            end if
+            n1 = nb/2
+            call tri(r0, n1)
             if (upper) then
-                r0 = 1
-                nr = j0 - 1
+                call rect(r0, n1, r0 + n1, nb - n1)
             else
-                r0 = j0 + jb
-                nr = n - j0 - jb + 1
+                call rect(r0 + n1, nb - n1, r0, n1)
             end if
-            if (nr <= 0) cycle
+            call tri(r0 + n1, nb - n1)
+        end subroutine tri
+
+        subroutine rect(r0, nr, c0, nc)
+            integer, intent(in) :: r0, nr, c0, nc
+            integer :: jj
             if (alpha == 0 .or. k == 0) then
-                do j = j0, j0 + jb - 1
+                do jj = c0, c0 + nc - 1
                     if (beta == 0) then
-                        c(r0:r0 + nr - 1, j) = 0
+                        c(r0:r0 + nr - 1, jj) = 0
                     else
-                        c(r0:r0 + nr - 1, j) = beta*c(r0:r0 + nr - 1, j)
+                        c(r0:r0 + nr - 1, jj) = beta*c(r0:r0 + nr - 1, jj)
                     end if
                 end do
-            else
-                call zprod(notrans, k, a, lda, r0, j0, nr, jb, cmplx(alpha, 0.0_dp, dp), &
-                    cmplx(beta, 0.0_dp, dp), c(r0, j0), ldc)
+                return
             end if
-        end do
+            call zprod(notrans, k, a, lda, r0, c0, nr, nc, cmplx(alpha, 0.0_dp, dp), &
+                cmplx(beta, 0.0_dp, dp), c(r0, c0), ldc)
+        end subroutine rect
 
     end subroutine fortnum_zherk
 

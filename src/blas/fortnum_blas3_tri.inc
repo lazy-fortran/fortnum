@@ -99,67 +99,66 @@
 
     contains
 
-        pure SCALAR function opa(r, c)
-            integer, intent(in) :: r, c
-            if (notrans) then
-                opa = a(r, c)
-            else if (conj) then
-                opa = CONJ(a(c, r))
-            else
-                opa = a(c, r)
-            end if
-        end function opa
-
-        ! op(A)(i0:i0+ib-1, same) X = B(i0:i0+ib-1, :), forward if lower.
+        ! op(A)(i0:i0+ib-1, same) X = B(i0:i0+ib-1, :): the inverse of the
+        ! diagonal block, formed once, applied by GEMM (as optimized BLAS do)
         subroutine solve_left(i0, ib, lower)
             integer, intent(in) :: i0, ib
             logical, intent(in) :: lower
-            integer :: i, l, jj
-            SCALAR :: x
-            do jj = 1, n
-                if (lower) then
-                    do i = i0, i0 + ib - 1
-                        x = b(i, jj)
-                        do l = i0, i - 1
-                            x = x - opa(i, l)*b(l, jj)
-                        end do
-                        if (.not. unit) x = x/opa(i, i)
-                        b(i, jj) = x
-                    end do
-                else
-                    do i = i0 + ib - 1, i0, -1
-                        x = b(i, jj)
-                        do l = i + 1, i0 + ib - 1
-                            x = x - opa(i, l)*b(l, jj)
-                        end do
-                        if (.not. unit) x = x/opa(i, i)
-                        b(i, jj) = x
-                    end do
-                end if
-            end do
+            SCALAR :: tinv(TRI_NB, TRI_NB), w(TRI_NB, n)
+            call inverse_block(i0, ib, lower, tinv)
+            w(1:ib, 1:n) = b(i0:i0 + ib - 1, 1:n)
+            call GEMM('N', 'N', ib, n, ib, ONE, tinv, TRI_NB, w, TRI_NB, ZERO, b(i0, 1), ldb)
         end subroutine solve_left
 
-        ! X op(A)(j0:j0+jb-1, same) = B(:, j0:j0+jb-1), forward if upper.
+        ! X op(A)(j0:j0+jb-1, same) = B(:, j0:j0+jb-1)
         subroutine solve_right(j0, jb, upper_op)
             integer, intent(in) :: j0, jb
             logical, intent(in) :: upper_op
-            integer :: c, l
-            if (upper_op) then
-                do c = j0, j0 + jb - 1
-                    do l = j0, c - 1
-                        b(1:m, c) = b(1:m, c) - opa(l, c)*b(1:m, l)
-                    end do
-                    if (.not. unit) b(1:m, c) = b(1:m, c)/opa(c, c)
-                end do
-            else
-                do c = j0 + jb - 1, j0, -1
-                    do l = c + 1, j0 + jb - 1
-                        b(1:m, c) = b(1:m, c) - opa(l, c)*b(1:m, l)
-                    end do
-                    if (.not. unit) b(1:m, c) = b(1:m, c)/opa(c, c)
-                end do
-            end if
+            SCALAR :: tinv(TRI_NB, TRI_NB)
+            SCALAR, allocatable :: w(:, :)
+            call inverse_block(j0, jb, .not. upper_op, tinv)
+            allocate (w(m, jb))
+            w = b(1:m, j0:j0 + jb - 1)
+            call GEMM('N', 'N', m, jb, jb, ONE, w, m, tinv, TRI_NB, ZERO, b(1, j0), ldb)
         end subroutine solve_right
+
+        ! tinv := inverse of op(A)(k0:k0+nb-1, same), a lower (or upper)
+        ! triangle, by column-oriented substitution on the identity
+        subroutine inverse_block(k0, nb, lower, tinv)
+            integer, intent(in) :: k0, nb
+            logical, intent(in) :: lower
+            SCALAR, intent(out) :: tinv(TRI_NB, TRI_NB)
+            SCALAR :: t(TRI_NB, TRI_NB)
+            integer :: r, c, j
+            do c = 1, nb
+                do r = 1, nb
+                    if (notrans) then
+                        t(r, c) = a(k0 + r - 1, k0 + c - 1)
+                    else if (conj) then
+                        t(r, c) = CONJ(a(k0 + c - 1, k0 + r - 1))
+                    else
+                        t(r, c) = a(k0 + c - 1, k0 + r - 1)
+                    end if
+                end do
+                if (unit) t(c, c) = ONE
+            end do
+            tinv(1:nb, 1:nb) = ZERO
+            do j = 1, nb
+                tinv(j, j) = ONE
+                if (lower) then
+                    ! forward: column j of inv(T) has zeros above j
+                    do c = j, nb
+                        tinv(c, j) = tinv(c, j)/t(c, c)
+                        tinv(c + 1:nb, j) = tinv(c + 1:nb, j) - tinv(c, j)*t(c + 1:nb, c)
+                    end do
+                else
+                    do c = j, 1, -1
+                        tinv(c, j) = tinv(c, j)/t(c, c)
+                        tinv(1:c - 1, j) = tinv(1:c - 1, j) - tinv(c, j)*t(1:c - 1, c)
+                    end do
+                end if
+            end do
+        end subroutine inverse_block
 
     end subroutine TRSM
 
