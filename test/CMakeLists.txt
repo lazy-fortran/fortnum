@@ -718,6 +718,11 @@ add_executable(test_newton_mr test_newton_mr.f90)
 target_link_libraries(test_newton_mr PRIVATE fortnum)
 add_test(NAME fortnum_newton_mr COMMAND test_newton_mr)
 
+add_executable(test_fortnum_lapack_chol linalg/test_fortnum_lapack_chol.f90)
+target_link_libraries(test_fortnum_lapack_chol PRIVATE fortnum)
+add_test(NAME fortnum_lapack_chol COMMAND test_fortnum_lapack_chol)
+fortnum_require_real128(test_fortnum_lapack_chol:fortnum_lapack_chol)
+
 add_executable(test_fortnum_lapack_lu linalg/test_fortnum_lapack_lu.f90)
 target_link_libraries(test_fortnum_lapack_lu PRIVATE fortnum)
 add_test(NAME fortnum_lapack_lu COMMAND test_fortnum_lapack_lu)

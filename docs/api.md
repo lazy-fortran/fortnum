@@ -551,7 +551,13 @@ ZGERU, ZGERC), all with reference BLAS arguments.
 and complex, with reference LAPACK arguments and info codes:
 `fortnum_dgetrf`/`zgetrf` (blocked, trailing update by GEMM), `getf2`,
 `laswp`, `getrs`, `gesv`, `getri`, and the band routines `gbtrf`, `gbtrs`,
-`gbsv`. The remaining LAPACK routines follow (issue 167).
+`gbsv`. `fortnum_lapack_chol` provides Cholesky and triangular inverses:
+`potrf` (blocked on the rank-k update, GEMM and TRSM), `potf2`, `potrs`,
+`posv`, `potri`, `trtri`, `trtrs` for real and complex, the condition estimate
+`fortnum_dpocon`, the pivoted Cholesky `fortnum_dpstrf`, and the 1-norm
+estimators `norm1_inverse_estimate` and `znorm1_inverse_estimate` (reverse
+communication, as LAPACK xLACN2). The remaining LAPACK routines follow
+(issue 167).
 
 `fortnum_cholesky` provides a reusable positive-definite factorization with
 vector and matrix solves and a log-determinant operation.
