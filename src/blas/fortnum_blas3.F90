@@ -11,8 +11,10 @@ module fortnum_blas3
     public :: fortnum_dtrsm, fortnum_ztrsm, fortnum_dtrmm, fortnum_ztrmm
     public :: fortnum_dsyrk, fortnum_dsyr2k, fortnum_zherk
 
-    !> Order of the diagonal blocks handled directly; the rest is GEMM.
+    !> Order of the diagonal blocks TRMM handles directly; the rest is GEMM.
     integer, parameter :: TRI_NB = 64
+    !> Rows or columns TRSM solves by substitution; it halves larger triangles.
+    integer, parameter :: TRSM_LEAF = 16
     !> Order below which the rank-k updates compute diagonal blocks in full.
     integer, parameter :: SYRK_LEAF = 32
 
