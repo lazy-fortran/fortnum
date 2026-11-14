@@ -561,8 +561,15 @@ Bunch-Kaufman factorization `fortnum_dsytf2`, the panel `fortnum_dlasyf`,
 `fortnum_dsytrf` and `fortnum_dsytrs` with the pivot encoding of LAPACK;
 `fortnum_lapack_refine` the norms `dlange`/`zlange`, the condition estimates
 `dgecon`/`zgecon`, refinement with error bounds `dgerfs` and `dsyrfs`, the
-equilibration `dgeequ`/`dlaqge` and the expert driver `dgesvx`. The remaining
-LAPACK routines follow (issue 167).
+equilibration `dgeequ`/`dlaqge` and the expert driver `dgesvx`.
+`fortnum_lapack_qr` provides Householder QR: `larfg`, `geqr2`, `larft`,
+`larfb`, the blocked `geqrf`, `dormqr`/`zunmqr`, `dorgqr`/`zungqr`, the column
+pivoted `fortnum_dgeqp3` and the least squares driver `fortnum_dgels`.
+`fortnum_lapack_syev` provides the symmetric and Hermitian eigensolvers:
+`dsytrd`/`zhetrd`, `dorgtr`/`zungtr`, `dsygst`/`zhegst`, the tridiagonal
+`dsteqr`/`zsteqr`, `dsterf`, `dstev`, and the drivers `dsyev`, `zheev`,
+`dsyevd`, `dsygv`, `zhegv`, `dsbevd`, `dsbevx`. The remaining LAPACK routines
+follow (issue 167).
 
 `fortnum_cholesky` provides a reusable positive-definite factorization with
 vector and matrix solves and a log-determinant operation.
