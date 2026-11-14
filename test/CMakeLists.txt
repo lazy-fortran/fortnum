@@ -725,6 +725,7 @@ add_test(NAME fortnum_blas COMMAND test_fortnum_blas)
 add_test(NAME fortnum_blas_avx2 COMMAND test_fortnum_blas)
 set_tests_properties(fortnum_blas_avx2 PROPERTIES ENVIRONMENT FORTNUM_BLAS_ISA=avx2)
 add_test(NAME fortnum_blas_slow COMMAND test_fortnum_blas full)
+set_tests_properties(fortnum_blas_slow PROPERTIES ENVIRONMENT OMP_NUM_THREADS=4)
 fortnum_require_real128(test_fortnum_blas:fortnum_blas test_fortnum_blas:fortnum_blas_avx2
     test_fortnum_blas:fortnum_blas_slow)
 
