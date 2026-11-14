@@ -23,15 +23,14 @@
 
     !> Recursive LU with partial pivoting (xGETRF2): the left half of the
     !> columns recursively, then LASWP, TRSM and one GEMM update the right
-    !> half, which is factored recursively in turn.
+    !> half, which is factored recursively in turn; panels of at most
+    !> GETRF_LEAF columns are factored unblocked.
     recursive subroutine GETRF2(m, n, a, lda, ipiv, info)
         integer, intent(in) :: m, n, lda
         SCALAR, intent(inout) :: a(lda, *)
         integer, intent(out) :: ipiv(*)
         integer, intent(out) :: info
-        integer :: n1, n2, iinfo, mn, i, p
-        SCALAR :: t
-        real(dp) :: big
+        integer :: n1, n2, iinfo, mn, i
         info = 0
         if (m == 0 .or. n == 0) return
         mn = min(m, n)
@@ -40,30 +39,8 @@
             if (a(1, 1) == ZERO) info = 1
             return
         end if
-        if (n == 1) then
-            p = 1
-            big = ABS1(a(1, 1))
-            do i = 2, m
-                if (ABS1(a(i, 1)) > big) then
-                    big = ABS1(a(i, 1))
-                    p = i
-                end if
-            end do
-            ipiv(1) = p
-            if (a(p, 1) /= ZERO) then
-                if (p /= 1) then
-                    t = a(1, 1)
-                    a(1, 1) = a(p, 1)
-                    a(p, 1) = t
-                end if
-                if (abs(a(1, 1)) >= tiny(1.0_dp)) then
-                    a(2:m, 1) = (ONE/a(1, 1))*a(2:m, 1)
-                else
-                    a(2:m, 1) = a(2:m, 1)/a(1, 1)
-                end if
-            else
-                info = 1
-            end if
+        if (n <= GETRF_LEAF) then
+            call GETF2(m, n, a, lda, ipiv, info)
             return
         end if
         n1 = mn/2

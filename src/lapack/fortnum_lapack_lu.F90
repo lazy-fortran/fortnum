@@ -15,6 +15,11 @@ module fortnum_lapack_lu
     public :: fortnum_zgetrf, fortnum_zgetrf2, fortnum_zgetf2, fortnum_zlaswp, fortnum_zgetrs, fortnum_zgesv
     public :: fortnum_zgetri, fortnum_zgbtrf, fortnum_zgbtrs, fortnum_zgbsv
 
+    !> Widest panel GETRF2 factors unblocked: narrower ones make TRSM and GEMM
+    !> calls too small to pay (order 200 on one core, against OpenBLAS on Zen 3
+    !> and Accelerate on M3: 0.35 and 0.11 at 1 column, 0.74 and 0.32 at 16)
+    integer, parameter :: GETRF_LEAF = 16
+
 
 contains
 
