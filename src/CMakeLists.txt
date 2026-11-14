@@ -22,6 +22,11 @@ target_link_libraries(fortnum PUBLIC fortgen_runtime)
 target_sources(fortnum PRIVATE
     ${FORTNUM_BUILD_SELECTION_SOURCE}
     # module sources (alphabetical, one per line; append here)
+    blas/fortnum_blas.f90
+    blas/fortnum_blas_cpu.c
+    generated/fortnum_dtile_avx2_8x6.c
+    generated/fortnum_dtile_avx512_24x8.c
+    generated/fortnum_dtile_neon_8x6.c
     generated/fortnum_mf_distance.f90
     generated/fortnum_mf_covariance.f90
     generated/fortnum_mf_autoregressive.f90

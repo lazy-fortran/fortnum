@@ -530,6 +530,17 @@ A^T\lambda=u.
 
 They never form an inverse for the derivative of a solve.
 
+### Native BLAS
+
+`fortnum_blas` provides `fortnum_dgemm` and `fortnum_zgemm` with the arguments
+and semantics of reference BLAS `DGEMM` and `ZGEMM`. They run on register-tile
+kernels that fortgen emits in assembly (AVX2 with FMA, AVX-512, NEON); the
+kernel for the running CPU is chosen at the first call, and
+`fortnum_blas_tile(mr, nr, isa)` reports it. `FORTNUM_BLAS_ISA=avx2` selects
+the AVX2 kernel on a CPU that also has AVX-512. A CPU with none of these
+extensions stops with an error. The remaining BLAS and LAPACK routines follow
+(issue 167).
+
 `fortnum_cholesky` provides a reusable positive-definite factorization with
 vector and matrix solves and a log-determinant operation.
 
