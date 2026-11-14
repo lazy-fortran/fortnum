@@ -556,8 +556,13 @@ and complex, with reference LAPACK arguments and info codes:
 `posv`, `potri`, `trtri`, `trtrs` for real and complex, the condition estimate
 `fortnum_dpocon`, the pivoted Cholesky `fortnum_dpstrf`, and the 1-norm
 estimators `norm1_inverse_estimate` and `znorm1_inverse_estimate` (reverse
-communication, as LAPACK xLACN2). The remaining LAPACK routines follow
-(issue 167).
+communication, as LAPACK xLACN2). `fortnum_lapack_ldlt` provides the
+Bunch-Kaufman factorization `fortnum_dsytf2`, the panel `fortnum_dlasyf`,
+`fortnum_dsytrf` and `fortnum_dsytrs` with the pivot encoding of LAPACK;
+`fortnum_lapack_refine` the norms `dlange`/`zlange`, the condition estimates
+`dgecon`/`zgecon`, refinement with error bounds `dgerfs` and `dsyrfs`, the
+equilibration `dgeequ`/`dlaqge` and the expert driver `dgesvx`. The remaining
+LAPACK routines follow (issue 167).
 
 `fortnum_cholesky` provides a reusable positive-definite factorization with
 vector and matrix solves and a log-determinant operation.
