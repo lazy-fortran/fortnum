@@ -1,5 +1,7 @@
 # fortnum
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24223519.svg)](https://doi.org/10.5281/zenodo.24223519)
+
 A Fortran 2018 numerical library: special functions, quadrature and adaptive
 integration, FFTs, ODEs, root finding, interpolation and splines, linear algebra,
 random numbers and sampling. It is written to replace GSL-, QUADPACK- and
@@ -116,3 +118,11 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+## Citation
+
+Cite fortnum through its Zenodo record,
+[doi:10.5281/zenodo.24223519](https://doi.org/10.5281/zenodo.24223519), which
+always resolves to the latest release; release 0.2.0 is
+[doi:10.5281/zenodo.24223520](https://doi.org/10.5281/zenodo.24223520).
+`CITATION.cff` holds the full citation metadata.

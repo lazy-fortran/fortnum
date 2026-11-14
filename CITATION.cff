@@ -8,5 +8,6 @@ authors:
 repository-code: "https://github.com/lazy-fortran/fortnum"
 url: "https://github.com/lazy-fortran/fortnum"
 license: MIT
+doi: "10.5281/zenodo.24223519"
 version: "0.2.0"
 date-released: "2026-11-14"
