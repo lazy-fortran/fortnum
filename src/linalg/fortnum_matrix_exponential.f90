@@ -105,7 +105,7 @@ contains
         info = 1
         value = 0
         if (size(a, 2) /= n .or. any(shape(value) /= [n, n])) return
-        if (.not. (all(ieee_is_finite(a%re)) .and. all(ieee_is_finite(a%im)))) return
+        if (.not. (all(ieee_is_finite(real(a))) .and. all(ieee_is_finite(aimag(a))))) return
         anorm = maxval(sum(abs(a), dim=1))
         if (.not. ieee_is_finite(anorm)) return
         squarings = squarings_for(anorm)
@@ -131,7 +131,7 @@ contains
             x = matmul(x, x)
         end do
         info = 0
-        if (.not. (all(ieee_is_finite(x%re)) .and. all(ieee_is_finite(x%im)))) info = 1
+        if (.not. (all(ieee_is_finite(real(x))) .and. all(ieee_is_finite(aimag(x))))) info = 1
         value = x
     end subroutine
 end module fortnum_matrix_exponential

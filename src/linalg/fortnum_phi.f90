@@ -77,7 +77,7 @@ contains
         allocate (correction(dimension), projection(dimension + 2, dimension + 2))
         allocate (e(dimension + 2, dimension + 2))
         augmented%operator => operator
-        augmented%vectors(1:, 0:) => vectors
+        augmented%vectors => vectors
         augmented%n = n
         augmented%p = p
         augmented%tau = tau
