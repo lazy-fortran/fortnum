@@ -718,6 +718,16 @@ add_executable(test_newton_mr test_newton_mr.f90)
 target_link_libraries(test_newton_mr PRIVATE fortnum)
 add_test(NAME fortnum_newton_mr COMMAND test_newton_mr)
 
+add_executable(test_fortnum_blas linalg/test_fortnum_blas.f90)
+target_link_libraries(test_fortnum_blas PRIVATE fortnum)
+add_test(NAME fortnum_blas COMMAND test_fortnum_blas)
+# the AVX2 tile on CPUs that would pick AVX-512
+add_test(NAME fortnum_blas_avx2 COMMAND test_fortnum_blas)
+set_tests_properties(fortnum_blas_avx2 PROPERTIES ENVIRONMENT FORTNUM_BLAS_ISA=avx2)
+add_test(NAME fortnum_blas_slow COMMAND test_fortnum_blas full)
+fortnum_require_real128(test_fortnum_blas:fortnum_blas test_fortnum_blas:fortnum_blas_avx2
+    test_fortnum_blas:fortnum_blas_slow)
+
 add_executable(test_gram_factor linalg/test_gram_factor.f90)
 target_link_libraries(test_gram_factor PRIVATE fortnum)
 add_test(NAME fortnum_gram_factor COMMAND test_gram_factor)
