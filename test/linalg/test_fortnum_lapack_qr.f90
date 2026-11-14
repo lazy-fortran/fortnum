@@ -138,7 +138,8 @@ contains
                         real(dp) :: c0(m, 7)
                         c0 = cl
                         call fortnum_dormqr('L', tr, m, 7, k, f, m, tau, cl, m, work, size(work), info)
-                        call require(maxval(abs(real(cl, qp) - matmul(merge(qq, transpose(qq), tr == 'N'), real(c0, qp)))) <= 64*m*eps, &
+                        call require(maxval(abs(real(cl, qp) - matmul(merge(qq, transpose(qq), tr == 'N'), &
+                            real(c0, qp)))) <= 64*m*eps, &
                             'dormqr L '//tr)
                     end block
                 else
@@ -147,7 +148,8 @@ contains
                         call fill(cr, 0.9_dp)
                         c0 = cr
                         call fortnum_dormqr('R', tr, 7, m, k, f, m, tau, cr, 7, work, size(work), info)
-                        call require(maxval(abs(real(cr, qp) - matmul(real(c0, qp), merge(qq, transpose(qq), tr == 'N')))) <= 64*m*eps, &
+                        call require(maxval(abs(real(cr, qp) - matmul(real(c0, qp), &
+                            merge(qq, transpose(qq), tr == 'N')))) <= 64*m*eps, &
                             'dormqr R '//tr)
                     end block
                 end if

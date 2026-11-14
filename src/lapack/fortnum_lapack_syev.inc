@@ -117,7 +117,7 @@
         integer, intent(out) :: info
         logical :: upper
         SCALAR, allocatable :: q(:, :), v(:), w(:)
-        integer :: i, j
+        integer :: i, j, c
         info = 0
         upper = uplo == 'U' .or. uplo == 'u'
         if (.not. (upper .or. uplo == 'L' .or. uplo == 'l')) then
@@ -152,7 +152,7 @@
             end if
             if (tau(i) == ZERO) cycle
             w = matmul(q, v)
-            do concurrent(integer :: c = 1:n)
+            do concurrent(c = 1:n)
                 q(:, c) = q(:, c) - tau(i)*w*CONJ(v(c))
             end do
         end do

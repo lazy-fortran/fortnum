@@ -6,7 +6,7 @@
 # Usage: gen_blas_tiles.sh FORTGEN_TILE [OUTPUT_DIR]
 # FORTGEN_TILE is the fortgen-tile program of fortgen at FORTGEN_REVISION.
 set -euo pipefail
-FORTGEN_REVISION=251795df432071a5ca9bcef3947d8147aea7d9db
+FORTGEN_REVISION=c81e6b52044908c8336a0bbc8d9a0a2dbbf5b4b2
 tile=$1
 out=${2:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../src/generated" && pwd)}
 emit() {
@@ -34,3 +34,10 @@ emit fortnum_dtile_neon_8x6_sc aarch64_neon 8 6 update_c,a_strided
 emit fortnum_dtile_avx2_8x6_sa x86_64_avx2_fma 8 6 a_strided
 emit fortnum_dtile_avx512_24x8_sa x86_64_avx512 24 8 a_strided
 emit fortnum_dtile_neon_8x6_sa aarch64_neon 8 6 a_strided
+# B read unpacked with its leading dimension, for products with few rows
+emit fortnum_dtile_avx2_8x6_bc x86_64_avx2_fma 8 6 update_c,b_strided
+emit fortnum_dtile_avx512_24x8_bc x86_64_avx512 24 8 update_c,b_strided
+emit fortnum_dtile_neon_8x6_bc aarch64_neon 8 6 update_c,b_strided
+emit fortnum_dtile_avx2_8x6_ba x86_64_avx2_fma 8 6 b_strided
+emit fortnum_dtile_avx512_24x8_ba x86_64_avx512 24 8 b_strided
+emit fortnum_dtile_neon_8x6_ba aarch64_neon 8 6 b_strided

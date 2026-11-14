@@ -139,7 +139,7 @@ contains
         x = b
         f = a
         call fortnum_zposv(uplo, n, 2, f, n, x, n, info)
-        call require(info == 0 .and. maxval(abs(matmul(cmplx(a, kind=qp), cmplx(x, kind=qp)) - b)) <= &
+        call require(info == 0 .and. maxval(abs(matmul(cmplx(a, kind=qp), cmplx(x, kind=qp)) - cmplx(b, kind=qp))) <= &
             16*n*eps*maxval(sum(abs(cmplx(a, kind=qp)), 2))*maxval(abs(cmplx(x, kind=qp))), 'zposv')
         inv = f
         call fortnum_zpotri(uplo, n, inv, n, info)
