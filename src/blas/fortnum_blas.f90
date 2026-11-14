@@ -25,25 +25,40 @@ module fortnum_blas
         end subroutine tile_kernel
     end interface
 
+    abstract interface
+        subroutine tile_update_kernel(k, a, b, c, ldc) bind(c)
+            import :: c_int64_t, c_double
+            integer(c_int64_t), value :: k, ldc
+            real(c_double), intent(in) :: a(*), b(*)
+            real(c_double), intent(inout) :: c(*)
+        end subroutine tile_update_kernel
+    end interface
+
     interface
-        function fortnum_blas_dtile(mr, nr, isa) bind(c, name='fortnum_blas_dtile') result(kernel)
+        function fortnum_blas_dtile(mr, nr, isa, update) bind(c, name='fortnum_blas_dtile') result(kernel)
             import :: c_funptr, c_int32_t
             integer(c_int32_t), intent(out) :: mr, nr, isa
+            type(c_funptr), intent(out) :: update
             type(c_funptr) :: kernel
         end function fortnum_blas_dtile
     end interface
 
     !> Depth of a packed block, and the targets for the A and B block sizes
     !> (rounded to whole tiles); per-machine values come from fortnum-bench.
-    integer, parameter :: KC_DEPTH = 256, MC_ROWS = 120, NC_COLS = 4032
+    integer, parameter :: KC_DEPTH = 512, MC_ROWS = 120, NC_COLS = 4032
     !> Largest tile (rows times columns) any emitted kernel uses.
     integer, parameter :: MAX_TILE = 256
     !> Work per thread below which fewer threads are used (tens of microseconds).
     real(dp), parameter :: THREAD_FLOPS = 2.0e6_dp
 
+    !> FORTNUM_BLAS_PROFILE set: per-thread wall time in packing B, packing A,
+    !> kernel with C update, and barriers, printed after each GEMM.
+    logical, save :: profile = .false.
     logical, save :: tile_ready = .false.
     integer, save :: tile_mr = 0, tile_nr = 0, tile_isa = 0
     procedure(tile_kernel), pointer, save :: tile => null()
+    !> The same tile adding to C in place, used for full tiles.
+    procedure(tile_update_kernel), pointer, save :: tile_c => null()
 
 contains
 
@@ -59,17 +74,21 @@ contains
 
     subroutine select_tile()
         integer(c_int32_t) :: mr, nr, isa
-        type(c_funptr) :: kernel
+        type(c_funptr) :: kernel, update
+        integer :: status
         if (tile_ready) return
         !$omp critical (fortnum_blas_tile_selection)
         if (.not. tile_ready) then
-            kernel = fortnum_blas_dtile(mr, nr, isa)
+            kernel = fortnum_blas_dtile(mr, nr, isa, update)
             if (.not. c_associated(kernel)) &
                 error stop 'fortnum_blas: no register-tile kernel for this CPU (needs AVX2+FMA, AVX-512 or NEON)'
             call c_f_procpointer(kernel, tile)
+            call c_f_procpointer(update, tile_c)
             tile_mr = mr
             tile_nr = nr
             tile_isa = isa
+            call get_environment_variable('FORTNUM_BLAS_PROFILE', status=status)
+            profile = status == 0
             tile_ready = .true.
         end if
         !$omp end critical (fortnum_blas_tile_selection)
@@ -84,7 +103,9 @@ contains
         real(dp), intent(inout) :: c(ldc, *)
         logical :: ta, tb
         integer :: jc, pc, ic, nc, kc, mc, mstep, nstep, npa, npb, jr, ir, j
-        integer :: nthreads, mcb, mt, i0, i1, rlo, rhi, qlo, qhi, me, pr, pq
+        integer :: nthreads, mcb, mt, i0, i1, qlo, qhi, me, item, chunk, part, packed, nchunk, ngroup
+        real(dp) :: tp(4), w0, w1
+        real(dp), allocatable :: prof(:, :)
         real(dp), allocatable :: ap(:), bp(:)
 
         ta = transposed(transa, 'fortnum_dgemm', 1, .false.)
@@ -108,51 +129,70 @@ contains
         mcb = mc_size(mstep)
         allocate (bp(tile_nr*KC_DEPTH*((min(n, nc_size(nstep)) + nstep - 1)/nstep)))
         mt = (m + mstep - 1)/mstep
+        nchunk = (mt + mcb/mstep - 1)/(mcb/mstep)
+        if (profile) allocate (prof(4, 0:nthreads - 1), source=0.0_dp)
         ! One region per call. All threads pack each KC x NC block of B
         ! together; C is then split over a pr x pq grid of threads, each of
         ! which packs its own rows of A in MC chunks and multiplies them with
         ! its range of B panels. Two barriers per block of B, balance to one
         ! tile row or column.
         !$omp parallel num_threads(nthreads) if(nthreads > 1) default(shared) &
-        !$omp private(jc, pc, nc, kc, npb, jr, ir, i0, i1, rlo, rhi, qlo, qhi, me, pr, pq, ap)
+        !$omp private(jc, pc, nc, kc, npb, jr, ir, i0, i1, item, chunk, part, qlo, qhi, packed, me, ap, tp, w0, w1)
         allocate (ap(tile_mr*KC_DEPTH*(mcb/mstep)))
+        tp = 0
         me = 0
-        pr = 1
-        pq = 1
         !$ me = omp_get_thread_num()
-        !$ call thread_grid(omp_get_num_threads(), mt, (min(n, nc_size(nstep)) + nstep - 1)/nstep, pr, pq)
-        rlo = (me/pq)*mt/pr + 1
-        rhi = (me/pq + 1)*mt/pr
         do jc = 1, n, nc_size(nstep)
             nc = min(nc_size(nstep), n - jc + 1)
             npb = (nc + nstep - 1)/nstep
-            qlo = mod(me, pq)*npb/pq + 1
-            qhi = (mod(me, pq) + 1)*npb/pq
+            ! about four items per thread; slower cores simply take fewer
+            ngroup = max(1, min(npb, (4*nthreads + nchunk - 1)/nchunk))
             do pc = 1, k, KC_DEPTH
                 kc = min(KC_DEPTH, k - pc + 1)
+                if (profile) w0 = wall()
                 !$omp do schedule(static)
                 do jr = 1, npb
                     call pack_b_real(tb, b, ldb, pc, kc, jc + (jr - 1)*nstep, &
                         min(nstep, nc - (jr - 1)*nstep), bp((jr - 1)*tile_nr*kc + 1:))
                 end do
-                !$omp end do
-                do i0 = rlo, rhi, mcb/mstep
-                    i1 = min(rhi, i0 + mcb/mstep - 1)
-                    do ir = i0, i1
-                        call pack_a_real(ta, a, lda, alpha, 1 + (ir - 1)*mstep, &
-                                min(mstep, m - (ir - 1)*mstep), pc, kc, ap((ir - i0)*tile_mr*kc + 1:))
-                    end do
+                !$omp end do nowait
+                if (profile) call lap(tp(1), w0)
+                !$omp barrier
+                if (profile) call lap(tp(4), w0)
+                packed = -1
+                !$omp do schedule(dynamic, 1)
+                do item = 0, nchunk*ngroup - 1
+                    chunk = item/ngroup
+                    part = mod(item, ngroup)
+                    qlo = part*npb/ngroup + 1
+                    qhi = (part + 1)*npb/ngroup
+                    if (qhi < qlo) cycle
+                    i0 = 1 + chunk*(mcb/mstep)
+                    i1 = min(mt, i0 + mcb/mstep - 1)
+                    if (packed /= chunk) then
+                        do ir = i0, i1
+                            call pack_a_real(ta, a, lda, alpha, 1 + (ir - 1)*mstep, &
+                                    min(mstep, m - (ir - 1)*mstep), pc, kc, ap((ir - i0)*tile_mr*kc + 1:))
+                        end do
+                        packed = chunk
+                    end if
+                    if (profile) call lap(tp(2), w0)
                     do jr = qlo, qhi
                         do ir = i0, i1
                             call update_real(ir, jr, jc, nc, kc, ap((ir - i0)*tile_mr*kc + 1:))
                         end do
                     end do
+                    if (profile) call lap(tp(3), w0)
                 end do
+                !$omp end do nowait
                 !$omp barrier
+                if (profile) call lap(tp(4), w0)
             end do
         end do
         deallocate (ap)
+        if (profile) prof(:, me) = tp
         !$omp end parallel
+        if (profile) call report_profile('dgemm', m, n, k, prof)
 
     contains
 
@@ -165,6 +205,11 @@ contains
             j0 = jc + (jr - 1)*nstep
             mrr = min(mstep, m - i0 + 1)
             nrr = min(nstep, nc - (jr - 1)*nstep)
+            if (mrr == mstep .and. nrr == nstep) then
+                call tile_c(int(kc, c_int64_t), apanel, bp((jr - 1)*tile_nr*kc + 1:), c(i0, j0), &
+                    int(ldc, c_int64_t))
+                return
+            end if
             call tile(int(kc, c_int64_t), apanel, bp((jr - 1)*tile_nr*kc + 1:), acc)
             do jj = 1, nrr
                 c(i0:i0 + mrr - 1, j0 + jj - 1) = c(i0:i0 + mrr - 1, j0 + jj - 1) + &
@@ -183,7 +228,7 @@ contains
         complex(dp), intent(inout) :: c(ldc, *)
         logical :: ta, tb, ca, cb
         integer :: jc, pc, ic, nc, kc, mc, mstep, nstep, npa, npb, jr, ir, j
-        integer :: nthreads, mcb, mt, i0, i1, rlo, rhi, qlo, qhi, me, pr, pq
+        integer :: nthreads, mcb, mt, i0, i1, qlo, qhi, me, item, chunk, part, packed, nchunk, ngroup
         real(dp), allocatable :: ap(:), bp(:)
 
         ta = transposed(transa, 'fortnum_zgemm', 1, .true., ca)
@@ -208,26 +253,22 @@ contains
         mcb = mc_size(mstep)
         allocate (bp(tile_nr*KC_DEPTH*((min(n, nc_size(nstep)) + nstep - 1)/nstep)))
         mt = (m + mstep - 1)/mstep
+        nchunk = (mt + mcb/mstep - 1)/(mcb/mstep)
         ! One region per call. All threads pack each KC x NC block of B
         ! together; C is then split over a pr x pq grid of threads, each of
         ! which packs its own rows of A in MC chunks and multiplies them with
         ! its range of B panels. Two barriers per block of B, balance to one
         ! tile row or column.
         !$omp parallel num_threads(nthreads) if(nthreads > 1) default(shared) &
-        !$omp private(jc, pc, nc, kc, npb, jr, ir, i0, i1, rlo, rhi, qlo, qhi, me, pr, pq, ap)
+        !$omp private(jc, pc, nc, kc, npb, jr, ir, i0, i1, item, chunk, part, qlo, qhi, packed, me, ap)
         allocate (ap(tile_mr*KC_DEPTH*(mcb/mstep)))
         me = 0
-        pr = 1
-        pq = 1
         !$ me = omp_get_thread_num()
-        !$ call thread_grid(omp_get_num_threads(), mt, (min(n, nc_size(nstep)) + nstep - 1)/nstep, pr, pq)
-        rlo = (me/pq)*mt/pr + 1
-        rhi = (me/pq + 1)*mt/pr
         do jc = 1, n, nc_size(nstep)
             nc = min(nc_size(nstep), n - jc + 1)
             npb = (nc + nstep - 1)/nstep
-            qlo = mod(me, pq)*npb/pq + 1
-            qhi = (mod(me, pq) + 1)*npb/pq
+            ! about four items per thread; slower cores simply take fewer
+            ngroup = max(1, min(npb, (4*nthreads + nchunk - 1)/nchunk))
             do pc = 1, k, KC_DEPTH
                 kc = min(KC_DEPTH, k - pc + 1)
                 !$omp do schedule(static)
@@ -236,18 +277,30 @@ contains
                         min(nstep, nc - (jr - 1)*nstep), nstep, bp((jr - 1)*tile_nr*kc + 1:))
                 end do
                 !$omp end do
-                do i0 = rlo, rhi, mcb/mstep
-                    i1 = min(rhi, i0 + mcb/mstep - 1)
-                    do ir = i0, i1
-                        call pack_a_complex(ta, ca, a, lda, alpha, 1 + (ir - 1)*mstep, &
-                                min(mstep, m - (ir - 1)*mstep), mstep, pc, kc, ap((ir - i0)*tile_mr*kc + 1:))
-                    end do
+                packed = -1
+                !$omp do schedule(dynamic, 1)
+                do item = 0, nchunk*ngroup - 1
+                    chunk = item/ngroup
+                    part = mod(item, ngroup)
+                    qlo = part*npb/ngroup + 1
+                    qhi = (part + 1)*npb/ngroup
+                    if (qhi < qlo) cycle
+                    i0 = 1 + chunk*(mcb/mstep)
+                    i1 = min(mt, i0 + mcb/mstep - 1)
+                    if (packed /= chunk) then
+                        do ir = i0, i1
+                            call pack_a_complex(ta, ca, a, lda, alpha, 1 + (ir - 1)*mstep, &
+                                    min(mstep, m - (ir - 1)*mstep), mstep, pc, kc, ap((ir - i0)*tile_mr*kc + 1:))
+                        end do
+                        packed = chunk
+                    end if
                     do jr = qlo, qhi
                         do ir = i0, i1
                             call update_complex(ir, jr, jc, nc, kc, ap((ir - i0)*tile_mr*kc + 1:))
                         end do
                     end do
                 end do
+                !$omp end do nowait
                 !$omp barrier
             end do
         end do
@@ -380,6 +433,36 @@ contains
             end do
         end do
     end subroutine pack_b_complex
+
+    real(dp) function wall()
+        integer(8) :: count, rate
+        call system_clock(count, rate)
+        wall = real(count, dp)/real(rate, dp)
+    end function wall
+
+    ! Adds the time since w0 to t and restarts the clock.
+    subroutine lap(t, w0)
+        real(dp), intent(inout) :: t, w0
+        real(dp) :: w1
+        w1 = wall()
+        t = t + (w1 - w0)
+        w0 = w1
+    end subroutine lap
+
+    subroutine report_profile(name, m, n, k, prof)
+        character(*), intent(in) :: name
+        integer, intent(in) :: m, n, k
+        real(dp), intent(in) :: prof(:, 0:)
+        character(len=12), parameter :: phase(4) = [character(len=12) :: 'pack B', 'pack A', 'kernel+C', 'barriers']
+        integer :: i
+        print '(a, " m=", i0, " n=", i0, " k=", i0, ", ", i0, " threads; seconds per thread (min mean max):")', &
+            name, m, n, k, size(prof, 2)
+        do i = 1, 4
+            print '(2x, a12, 3f10.5)', phase(i), minval(prof(i, :)), sum(prof(i, :))/size(prof, 2), &
+                maxval(prof(i, :))
+        end do
+        print '(2x, a, *(f6.1))', 'kernel ms by thread:', 1000*prof(3, :)
+    end subroutine report_profile
 
     pure integer function mc_size(step) result(size)
         integer, intent(in) :: step

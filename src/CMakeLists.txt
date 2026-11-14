@@ -27,6 +27,9 @@ target_sources(fortnum PRIVATE
     generated/fortnum_dtile_avx2_8x6.c
     generated/fortnum_dtile_avx512_24x8.c
     generated/fortnum_dtile_neon_8x6.c
+    generated/fortnum_dtile_avx2_8x6_c.c
+    generated/fortnum_dtile_avx512_24x8_c.c
+    generated/fortnum_dtile_neon_8x6_c.c
     generated/fortnum_mf_distance.f90
     generated/fortnum_mf_covariance.f90
     generated/fortnum_mf_autoregressive.f90
