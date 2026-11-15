@@ -240,6 +240,7 @@ target_sources(fortnum PRIVATE
     interp/fortnum_interp.f90
     interp/fortnum_polynomial.f90
     interp/fortnum_cubic_spline.f90
+    interp/fortnum_periodize.f90
     linalg/fortnum_bvls.f90
     linalg/fortnum_cholesky.f90
     linalg/fortnum_gram_factor.f90

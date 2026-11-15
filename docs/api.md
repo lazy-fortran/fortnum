@@ -778,6 +778,14 @@ one strictly increasing node set (n >= 4). Cubic polynomials are reproduced
 exactly; `status` is 1 for fewer than four nodes, 2 for nodes that do not
 increase and 3 for a shape mismatch.
 
+`fortnum_periodize` exports `periodize_points(x, x_mid, a, w, xs, ws, dws)`
+and `smooth_step(t, s, ds)`: the periodic continuation of functions from a
+window of period \(L=2(a+w)\) around `x_mid`, unchanged on the core
+\(|x-x_{mid}|\le a\) and blended into the neighbouring periods across bands of
+width `w` with the C-infinity step \(s(t)=\exp(-2\pi e^{-\sqrt2/t}/(1-t))\). The
+continuation at `x` is `sum(ws*f(xs))` over three points; `dws` gives its
+derivative together with \(f'\) at the same points.
+
 `fortnum_bspline` exports:
 
 - `bspline_workspace_t`

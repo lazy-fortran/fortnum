@@ -491,6 +491,10 @@ add_executable(test_fortnum_cubic_spline interp/test_fortnum_cubic_spline.f90)
 target_link_libraries(test_fortnum_cubic_spline PRIVATE fortnum)
 add_test(NAME fortnum_cubic_spline COMMAND test_fortnum_cubic_spline)
 
+add_executable(test_fortnum_periodize interp/test_fortnum_periodize.f90)
+target_link_libraries(test_fortnum_periodize PRIVATE fortnum)
+add_test(NAME fortnum_periodize COMMAND test_fortnum_periodize)
+
 add_executable(test_fortnum_interp interp/test_fortnum_interp.f90)
 target_link_libraries(test_fortnum_interp PRIVATE fortnum)
 add_test(NAME fortnum_interp COMMAND test_fortnum_interp)
