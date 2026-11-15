@@ -374,8 +374,6 @@ add_test(NAME fortnum_multiroot_oracle
         ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/deriv_central.csv
         ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/argsort.csv)
 
-# complex_region_roots solves the moment pencil with LAPACK ZGGEV; the library
-# already links LAPACK::LAPACK PUBLIC, so the test inherits it.
 add_executable(test_fortnum_complex_roots_oracle oracle/test_fortnum_complex_roots_oracle.f90)
 target_link_libraries(test_fortnum_complex_roots_oracle PRIVATE fortnum)
 add_test(NAME fortnum_complex_roots_oracle
@@ -735,6 +733,10 @@ add_executable(test_fortnum_lapack_gees linalg/test_fortnum_lapack_gees.f90)
 target_link_libraries(test_fortnum_lapack_gees PRIVATE fortnum)
 add_test(NAME fortnum_lapack_gees COMMAND test_fortnum_lapack_gees)
 fortnum_require_real128(test_fortnum_lapack_gees:fortnum_lapack_gees)
+add_executable(test_fortnum_lapack_ggev linalg/test_fortnum_lapack_ggev.f90)
+target_link_libraries(test_fortnum_lapack_ggev PRIVATE fortnum)
+add_test(NAME fortnum_lapack_ggev COMMAND test_fortnum_lapack_ggev)
+fortnum_require_real128(test_fortnum_lapack_ggev:fortnum_lapack_ggev)
 add_executable(test_fortnum_lapack_svd linalg/test_fortnum_lapack_svd.f90)
 target_link_libraries(test_fortnum_lapack_svd PRIVATE fortnum)
 add_test(NAME fortnum_lapack_svd COMMAND test_fortnum_lapack_svd)

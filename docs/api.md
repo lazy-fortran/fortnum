@@ -584,7 +584,10 @@ complex ones, as LAPACK xLAHQR) and the drivers `fortnum_dgeev` and
 interface `fortnum_zgees_select` move to the top left), the reordering
 `fortnum_ztrexc`, the eigenvectors of a triangular matrix or, multiplied by
 the Schur vectors, of the matrix itself `fortnum_ztrevc`, and the plane
-rotation `fortnum_zlartg`.
+rotation `fortnum_zlartg`. `fortnum_lapack_ggev` provides the complex
+generalized eigenproblem driver `fortnum_zggev` (QR of B, Hessenberg-triangular
+reduction, single-shift QZ with infinite eigenvalues, eigenvectors of the
+triangular pencil).
 `fortnum_lapack_svd` provides the singular value decomposition `fortnum_dgesvd`
 and `fortnum_dgesdd` and the minimum-norm least squares drivers
 `fortnum_dgelss` and `fortnum_dgelsd`, all by Householder QR followed by

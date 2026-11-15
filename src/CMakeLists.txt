@@ -34,6 +34,7 @@ target_sources(fortnum PRIVATE
     lapack/fortnum_lapack_syev.F90
     lapack/fortnum_lapack_geev.f90
     lapack/fortnum_lapack_gees.f90
+    lapack/fortnum_lapack_ggev.f90
     lapack/fortnum_lapack_svd.f90
     blas/fortnum_blas_cpu.c
     generated/fortnum_dtile_avx2_8x6.c

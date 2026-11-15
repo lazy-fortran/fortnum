@@ -40,14 +40,15 @@ module fortnum_roots_complex
     !   scalar implicit rule in fortnum_roots covers the per-root sensitivity.
     !   Inactive: m_max, tolerances, max_refine, status, multiplicities.
     !
-    ! The small generalized eigenproblem (size <= m_max) is solved with LAPACK
-    ! ZGGEV.  No module-level save, no global procedure pointers; integrand
-    ! state is carried by host association in internal procedures.
+    ! The small generalized eigenproblem (size <= m_max) is solved with
+    ! fortnum's ZGGEV.  No module-level save, no global procedure pointers;
+    ! integrand state is carried by host association in internal procedures.
 
     use, intrinsic :: iso_fortran_env, only: dp => real64
     use fortnum_status, only: fortnum_status_t, status_set, &
         FORTNUM_OK, FORTNUM_DOMAIN_ERROR, FORTNUM_CONVERGENCE_ERROR
     use fortnum_integrate_gk, only: integrate_gk, gk_function_t
+    use fortnum_lapack_ggev, only: zggev => fortnum_zggev
     implicit none
     private
 
@@ -66,24 +67,6 @@ module fortnum_roots_complex
             complex(dp), intent(out) :: fk
             class(*),    intent(in), optional :: ctx
         end subroutine complex_root_fn_t
-    end interface
-
-    ! Explicit interface for the LAPACK double-complex generalized eigensolver
-    ! (the only LAPACK routine used here).  Declared so the call type-checks
-    ! under -Werror=implicit-interface; LAPACK itself is linked, not vendored.
-    interface
-        subroutine zggev(jobvl, jobvr, n, a, lda, b, ldb, alpha, beta, &
-                vl, ldvl, vr, ldvr, work, lwork, rwork, info)
-            import :: dp
-            character,   intent(in)    :: jobvl, jobvr
-            integer,     intent(in)    :: n, lda, ldb, ldvl, ldvr, lwork
-            complex(dp), intent(inout) :: a(lda, *), b(ldb, *)
-            complex(dp), intent(out)   :: alpha(*), beta(*)
-            complex(dp), intent(out)   :: vl(ldvl, *), vr(ldvr, *)
-            complex(dp), intent(out)   :: work(*)
-            real(dp),    intent(out)   :: rwork(*)
-            integer,     intent(out)   :: info
-        end subroutine zggev
     end interface
 
     type, extends(gk_function_t) :: edge_integrand_t
@@ -402,7 +385,7 @@ contains
     ! ndist = rank of the Hankel matrix [s_{i+j}] (i,j = 0..ntot-1), found by
     ! the largest leading principal block that stays well conditioned.  The
     ! ndist distinct zeros are the generalized eigenvalues of the ndist-by-ndist
-    ! pencil H< v = z H v, solved with LAPACK ZGGEV.
+    ! pencil H< v = z H v, solved with fortnum's ZGGEV.
     subroutine distinct_zeros(s, ntot, mm, zk, ndist, status)
         complex(dp),         intent(in)     :: s(0:)
         integer,             intent(in)     :: ntot, mm
@@ -597,7 +580,7 @@ contains
         nfound = nfound + 1
     end subroutine append_root
 
-    ! Generalized eigenvalues of A v = z B v via LAPACK ZGGEV (alpha/beta).
+    ! Generalized eigenvalues of A v = z B v via fortnum's ZGGEV (alpha/beta).
     subroutine solve_pencil(a, b, n, ev, status)
         complex(dp),         intent(in)     :: a(n, n), b(n, n)
         integer,             intent(in)     :: n
