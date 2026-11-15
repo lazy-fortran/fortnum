@@ -11,6 +11,37 @@
         SCALAR, intent(in) :: alpha
         SCALAR, intent(in) :: a(lda, *)
         SCALAR, intent(inout) :: b(ldb, *)
+        real(dp), allocatable :: work(:)
+        integer :: lwork
+        lwork = 0
+        if (m > 0 .and. n > 0) lwork = TRSM_LWORK(side, m, n)
+        allocate (work(lwork))
+        call TRSM_WS(side, uplo, transa, diag, m, n, alpha, a, lda, b, ldb, work, lwork)
+    end subroutine TRSM
+
+    !> Workspace in real(dp) elements that the workspace variant of TRSM
+    !> needs for B of m x n on up to `threads` OpenMP threads (default as
+    !> GEMM's). Nondecreasing in m, n and threads.
+    integer function TRSM_LWORK(side, m, n, threads) result(lwork)
+        character, intent(in) :: side
+        integer, intent(in) :: m, n
+        integer, intent(in), optional :: threads
+        if (side == 'L' .or. side == 'l') then
+            lwork = max(GEMM_LWORK(m, n, m, threads), SCALAR_WORDS*max(0, n)*TRSM_LEAF)
+        else
+            lwork = GEMM_LWORK(m, n, n, threads)
+        end if
+    end function TRSM_LWORK
+
+    !> TRSM with caller-provided workspace work(lwork), lwork at least
+    !> TRSM_LWORK(side, m, n); no memory is allocated.
+    subroutine TRSM_WS(side, uplo, transa, diag, m, n, alpha, a, lda, b, ldb, work, lwork)
+        character, intent(in) :: side, uplo, transa, diag
+        integer, intent(in) :: m, n, lda, ldb, lwork
+        SCALAR, intent(in) :: alpha
+        SCALAR, intent(in) :: a(lda, *)
+        SCALAR, intent(inout) :: b(ldb, *)
+        real(dp), intent(inout), target :: work(lwork)
         logical :: left, upper, notrans, conj, unit
         character :: tr
         integer :: j
@@ -58,22 +89,22 @@
                     ! op(A) lower: forward
                     call solve(i0, n1)
                     if (notrans) then
-                        call GEMM('N', 'N', n2, n, n1, -ONE, a(i1, i0), lda, b(i0, 1), ldb, &
-                            ONE, b(i1, 1), ldb)
+                        call GEMM_WS('N', 'N', n2, n, n1, -ONE, a(i1, i0), lda, b(i0, 1), ldb, &
+                            ONE, b(i1, 1), ldb, work, lwork)
                     else
-                        call GEMM(tr, 'N', n2, n, n1, -ONE, a(i0, i1), lda, b(i0, 1), ldb, &
-                            ONE, b(i1, 1), ldb)
+                        call GEMM_WS(tr, 'N', n2, n, n1, -ONE, a(i0, i1), lda, b(i0, 1), ldb, &
+                            ONE, b(i1, 1), ldb, work, lwork)
                     end if
                     call solve(i1, n2)
                 else
                     ! op(A) upper: backward
                     call solve(i1, n2)
                     if (notrans) then
-                        call GEMM('N', 'N', n1, n, n2, -ONE, a(i0, i1), lda, b(i1, 1), ldb, &
-                            ONE, b(i0, 1), ldb)
+                        call GEMM_WS('N', 'N', n1, n, n2, -ONE, a(i0, i1), lda, b(i1, 1), ldb, &
+                            ONE, b(i0, 1), ldb, work, lwork)
                     else
-                        call GEMM(tr, 'N', n1, n, n2, -ONE, a(i1, i0), lda, b(i1, 1), ldb, &
-                            ONE, b(i0, 1), ldb)
+                        call GEMM_WS(tr, 'N', n1, n, n2, -ONE, a(i1, i0), lda, b(i1, 1), ldb, &
+                            ONE, b(i0, 1), ldb, work, lwork)
                     end if
                     call solve(i0, n1)
                 end if
@@ -82,22 +113,22 @@
                     ! op(A) upper: forward over columns
                     call solve(i0, n1)
                     if (notrans) then
-                        call GEMM('N', 'N', m, n2, n1, -ONE, b(1, i0), ldb, a(i0, i1), lda, &
-                            ONE, b(1, i1), ldb)
+                        call GEMM_WS('N', 'N', m, n2, n1, -ONE, b(1, i0), ldb, a(i0, i1), lda, &
+                            ONE, b(1, i1), ldb, work, lwork)
                     else
-                        call GEMM('N', tr, m, n2, n1, -ONE, b(1, i0), ldb, a(i1, i0), lda, &
-                            ONE, b(1, i1), ldb)
+                        call GEMM_WS('N', tr, m, n2, n1, -ONE, b(1, i0), ldb, a(i1, i0), lda, &
+                            ONE, b(1, i1), ldb, work, lwork)
                     end if
                     call solve(i1, n2)
                 else
                     ! op(A) lower: backward over columns
                     call solve(i1, n2)
                     if (notrans) then
-                        call GEMM('N', 'N', m, n1, n2, -ONE, b(1, i1), ldb, a(i1, i0), lda, &
-                            ONE, b(1, i0), ldb)
+                        call GEMM_WS('N', 'N', m, n1, n2, -ONE, b(1, i1), ldb, a(i1, i0), lda, &
+                            ONE, b(1, i0), ldb, work, lwork)
                     else
-                        call GEMM('N', tr, m, n1, n2, -ONE, b(1, i1), ldb, a(i0, i1), lda, &
-                            ONE, b(1, i0), ldb)
+                        call GEMM_WS('N', tr, m, n1, n2, -ONE, b(1, i1), ldb, a(i0, i1), lda, &
+                            ONE, b(1, i0), ldb, work, lwork)
                     end if
                     call solve(i0, n1)
                 end if
@@ -109,7 +140,7 @@
         subroutine substitute(i0, ni)
             integer, intent(in) :: i0, ni
             SCALAR :: t(TRSM_LEAF, TRSM_LEAF)
-            SCALAR, allocatable :: w(:, :)
+            SCALAR, pointer, contiguous :: w(:, :)
             integer :: r, c
             do c = 1, ni
                 do r = 1, ni
@@ -125,7 +156,8 @@
             if (left) then
                 ! the rows of B transposed into w, so that each step is a
                 ! vector operation along the columns of B
-                allocate (w(n, ni))
+                if (lwork < SCALAR_WORDS*n*ni) call argument_error('TRSM', 13)
+                call c_f_pointer(c_loc(work), w, [n, ni])
                 w = transpose(b(i0:i0 + ni - 1, 1:n))
                 if (upper .neqv. notrans) then
                     do c = 1, ni
@@ -160,7 +192,7 @@
             end if
         end subroutine substitute
 
-    end subroutine TRSM
+    end subroutine TRSM_WS
 
     !> B := alpha op(A) B (side L) or alpha B op(A) (side R), A triangular;
     !> reference BLAS xTRMM.

@@ -3,12 +3,15 @@ module fortnum_blas3
     ! (fortnum_dtrsm, fortnum_ztrsm, fortnum_dtrmm, fortnum_ztrmm) and the
     ! symmetric and Hermitian rank-k updates (fortnum_dsyrk, fortnum_dsyr2k,
     ! fortnum_zherk). Arguments and semantics are those of reference BLAS.
+    use, intrinsic :: iso_c_binding, only: c_loc, c_f_pointer
     use fortnum_kinds, only: dp
-    use fortnum_blas, only: fortnum_dgemm, fortnum_zgemm
+    use fortnum_blas, only: fortnum_dgemm, fortnum_zgemm, fortnum_dgemm_ws, fortnum_zgemm_ws, &
+        fortnum_dgemm_lwork, fortnum_zgemm_lwork
     implicit none
     private
 
     public :: fortnum_dtrsm, fortnum_ztrsm, fortnum_dtrmm, fortnum_ztrmm
+    public :: fortnum_dtrsm_ws, fortnum_ztrsm_ws, fortnum_dtrsm_lwork, fortnum_ztrsm_lwork
     public :: fortnum_dsyrk, fortnum_dsyr2k, fortnum_zherk
 
     !> Order of the diagonal blocks TRMM handles directly; the rest is GEMM.
@@ -21,23 +24,38 @@ module fortnum_blas3
 contains
 
 #define SCALAR real(dp)
+#define SCALAR_WORDS 1
 #define GEMM fortnum_dgemm
+#define GEMM_WS fortnum_dgemm_ws
+#define GEMM_LWORK fortnum_dgemm_lwork
 #define TRSM fortnum_dtrsm
+#define TRSM_WS fortnum_dtrsm_ws
+#define TRSM_LWORK fortnum_dtrsm_lwork
 #define TRMM fortnum_dtrmm
 #define CONJ(x) (x)
 #define ONE 1.0_dp
 #define ZERO 0.0_dp
 #include "fortnum_blas3_tri.inc"
 #undef SCALAR
+#undef SCALAR_WORDS
 #undef GEMM
+#undef GEMM_WS
+#undef GEMM_LWORK
 #undef TRSM
+#undef TRSM_WS
+#undef TRSM_LWORK
 #undef TRMM
 #undef CONJ
 #undef ONE
 #undef ZERO
 #define SCALAR complex(dp)
+#define SCALAR_WORDS 2
 #define GEMM fortnum_zgemm
+#define GEMM_WS fortnum_zgemm_ws
+#define GEMM_LWORK fortnum_zgemm_lwork
 #define TRSM fortnum_ztrsm
+#define TRSM_WS fortnum_ztrsm_ws
+#define TRSM_LWORK fortnum_ztrsm_lwork
 #define TRMM fortnum_ztrmm
 #define CONJ(x) conjg(x)
 #define ONE (1.0_dp, 0.0_dp)
