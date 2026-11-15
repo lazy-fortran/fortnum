@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # Register-tile kernels of fortnum's GEMM, emitted by fortgen in assembly.
-# The shapes are the fastest measured on Zen 3, Broadwell, Zen 5 and Apple M3
+# The shapes are the fastest measured on Zen 3, Broadwell, Zen 5, Apple M3 and,
+# for WebAssembly, in JavaScriptCore and V8
 # (fortgen docs/backends.md).
 #
 # Usage: gen_blas_tiles.sh FORTGEN_TILE [OUTPUT_DIR]
 # FORTGEN_TILE is the fortgen-tile program of fortgen at FORTGEN_REVISION.
 set -euo pipefail
-FORTGEN_REVISION=9710a71de748a14d18c149998bbf44e929ef70d4
+FORTGEN_REVISION=41c3df43441a187d37a34fb1135d24abf851d571
 tile=$1
 out=${2:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../src/generated" && pwd)}
 emit() {
@@ -46,3 +47,10 @@ emit fortnum_dtile_amx_32x16 aarch64_amx 32 16 "" 2
 emit fortnum_dtile_amx_32x16_c aarch64_amx 32 16 update_c 2
 emit fortnum_dtile_amx_32x16_sc aarch64_amx 32 16 update_c,a_strided 2
 emit fortnum_dtile_amx_32x16_sa aarch64_amx 32 16 a_strided 2
+# WebAssembly SIMD128 for browsers, including Safari on the iPad
+emit fortnum_dtile_wasm_8x4 wasm32_simd128 8 4
+emit fortnum_dtile_wasm_8x4_c wasm32_simd128 8 4 update_c
+emit fortnum_dtile_wasm_8x4_sc wasm32_simd128 8 4 update_c,a_strided
+emit fortnum_dtile_wasm_8x4_sa wasm32_simd128 8 4 a_strided
+emit fortnum_dtile_wasm_8x4_bc wasm32_simd128 8 4 update_c,b_strided
+emit fortnum_dtile_wasm_8x4_ba wasm32_simd128 8 4 b_strided

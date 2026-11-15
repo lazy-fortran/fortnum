@@ -534,8 +534,9 @@ They never form an inverse for the derivative of a solve.
 
 `fortnum_blas` provides `fortnum_dgemm` and `fortnum_zgemm` with the arguments
 and semantics of reference BLAS `DGEMM` and `ZGEMM`. They run on register-tile
-kernels that fortgen emits in assembly (AVX2 with FMA, AVX-512, NEON, and the
-AMX matrix coprocessor of Apple M1 to M3); the kernel for the running CPU is
+kernels that fortgen emits in assembly (AVX2 with FMA, AVX-512, NEON, the
+AMX matrix coprocessor of Apple M1 to M3, and WebAssembly SIMD128 for browsers,
+including Safari on the iPad); the kernel for the running CPU is
 chosen at the first call, and `fortnum_blas_tile(mr, nr, isa)` reports it.
 `FORTNUM_BLAS_ISA=avx2` selects the AVX2 kernel on a CPU that also has
 AVX-512, `FORTNUM_BLAS_ISA=neon` the NEON kernel on an Apple CPU with AMX. A CPU with none of these
@@ -545,6 +546,9 @@ extensions stops with an error. `fortnum_blas3` adds the level-3 routines
 `fortnum_blas12` the level-1 and level-2 routines (dot products, AXPY, scaling,
 copy, swap, overflow-safe norms, IxAMAX, DROT, GEMV, DSYMV, ZHEMV, TRSV, DGER,
 ZGERU, ZGERC), all with reference BLAS arguments.
+
+`tools/wasm/test_wasm.sh` builds the BLAS and LAPACK modules with LFortran and
+emscripten for WebAssembly and runs their tests under node.
 
 ### Native LAPACK
 

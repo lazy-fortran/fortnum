@@ -86,7 +86,7 @@ module fortnum_blas
 contains
 
     !> The tile in use: rows, columns and instruction set (1 AVX2, 2 AVX-512,
-    !> 3 NEON).
+    !> 3 NEON, 4 Apple AMX, 5 WebAssembly SIMD128).
     subroutine fortnum_blas_tile(mr, nr, isa)
         integer, intent(out) :: mr, nr, isa
         call select_tile()
@@ -105,7 +105,8 @@ contains
             kernel = fortnum_blas_dtile(mr, nr, isa, update, strided_update, strided_acc, &
                 bstrided_update, bstrided_acc)
             if (.not. c_associated(kernel)) &
-                error stop 'fortnum_blas: no register-tile kernel for this CPU (needs AVX2+FMA, AVX-512 or NEON)'
+                error stop 'fortnum_blas: no register-tile kernel for this CPU '// &
+                    '(needs AVX2+FMA, AVX-512, NEON or wasm SIMD128)'
             call c_f_procpointer(kernel, tile)
             call c_f_procpointer(update, tile_c)
             call c_f_procpointer(strided_update, tile_sc)

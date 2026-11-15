@@ -22,6 +22,11 @@ tile_t fortnum_dtile_neon_8x6;
 tile_c_t fortnum_dtile_neon_8x6_c;
 tile_s_t fortnum_dtile_neon_8x6_sc, fortnum_dtile_neon_8x6_sa;
 tile_b_t fortnum_dtile_neon_8x6_bc, fortnum_dtile_neon_8x6_ba;
+#elif defined(__wasm32__) && defined(__wasm_simd128__)
+tile_t fortnum_dtile_wasm_8x4;
+tile_c_t fortnum_dtile_wasm_8x4_c;
+tile_s_t fortnum_dtile_wasm_8x4_sc, fortnum_dtile_wasm_8x4_sa;
+tile_b_t fortnum_dtile_wasm_8x4_bc, fortnum_dtile_wasm_8x4_ba;
 #endif
 #if defined(__aarch64__) && defined(__APPLE__)
 #include <setjmp.h>
@@ -108,6 +113,15 @@ tile_t *fortnum_blas_dtile(int32_t *mr, int32_t *nr, int32_t *isa, tile_c_t **up
     *bstrided_update = fortnum_dtile_neon_8x6_bc;
     *bstrided_acc = fortnum_dtile_neon_8x6_ba;
     return fortnum_dtile_neon_8x6;
+#elif defined(__wasm32__) && defined(__wasm_simd128__)
+    (void)force;
+    *mr = 8; *nr = 4; *isa = 5;
+    *update = fortnum_dtile_wasm_8x4_c;
+    *strided_update = fortnum_dtile_wasm_8x4_sc;
+    *strided_acc = fortnum_dtile_wasm_8x4_sa;
+    *bstrided_update = fortnum_dtile_wasm_8x4_bc;
+    *bstrided_acc = fortnum_dtile_wasm_8x4_ba;
+    return fortnum_dtile_wasm_8x4;
 #else
     (void)force;
 #endif

@@ -54,6 +54,12 @@ target_sources(fortnum PRIVATE
     generated/fortnum_dtile_amx_32x16_c.c
     generated/fortnum_dtile_amx_32x16_sa.c
     generated/fortnum_dtile_amx_32x16_sc.c
+    generated/fortnum_dtile_wasm_8x4.c
+    generated/fortnum_dtile_wasm_8x4_c.c
+    generated/fortnum_dtile_wasm_8x4_sa.c
+    generated/fortnum_dtile_wasm_8x4_sc.c
+    generated/fortnum_dtile_wasm_8x4_ba.c
+    generated/fortnum_dtile_wasm_8x4_bc.c
     generated/fortnum_mf_distance.f90
     generated/fortnum_mf_covariance.f90
     generated/fortnum_mf_autoregressive.f90
