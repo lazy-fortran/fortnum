@@ -52,12 +52,6 @@ fpm test --profile release --runner "python3 scripts/fpm_test_runner.py"
 The runner (Python 3.11 or newer) passes the reference-data files listed under
 `[extra.fo.test-args]` in `fpm.toml` to the tests that need them.
 
-On macOS, link an installed OpenBLAS with
-`--link-flag "$(pkg-config --libs openblas)"`, because Accelerate does not
-provide the LAPACK routine `dggsvd3` used by the library. CMake builds detect
-a LAPACK without `dggsvd3` (before 3.6, Accelerate among them) and use
-`dggsvd` instead; fpm cannot probe the library.
-
 The contributor workflow, including the `fo` tool that runs static checks,
 builds and tests, is described in [CONTRIBUTING.md](../CONTRIBUTING.md).
 

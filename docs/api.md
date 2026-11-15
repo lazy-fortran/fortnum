@@ -587,7 +587,10 @@ the Schur vectors, of the matrix itself `fortnum_ztrevc`, and the plane
 rotation `fortnum_zlartg`. `fortnum_lapack_ggev` provides the complex
 generalized eigenproblem driver `fortnum_zggev` (QR of B, Hessenberg-triangular
 reduction, single-shift QZ with infinite eigenvalues, eigenvectors of the
-triangular pencil).
+triangular pencil). `fortnum_lapack_gsvd` provides the generalized singular
+value decomposition `fortnum_dggsvd3` (reduction to triangular form by QR with
+column pivoting and RQ, then 2 x 2 Jacobi rotations) with its building blocks
+`fortnum_dlags2` and `fortnum_dlasv2`.
 `fortnum_lapack_svd` provides the singular value decomposition `fortnum_dgesvd`
 and `fortnum_dgesdd` and the minimum-norm least squares drivers
 `fortnum_dgelss` and `fortnum_dgelsd`, all by Householder QR followed by
@@ -728,7 +731,7 @@ The status `info` is `BVLS_OK`, `BVLS_MAX_ITERATIONS` (last feasible iterate),
 `BVLS_INFEASIBLE` or `BVLS_INVALID_ARGUMENT`; `active` reports -1/0/+1 for
 lower/free/upper. Rank-deficient free subproblems get the minimum-norm
 solution (`rcond` cutoff). `fortnum_gsvd` provides `generalized_svd`, a
-LAPACK DGGSVD3 (DGGSVD before LAPACK 3.6) wrapper returning `A = U C X^T`,
+fortnum DGGSVD3 wrapper returning `A = U C X^T`,
 `B = V S X^T` with `C^2 + S^2 = I`, the generalized singular values and the
 status codes above.
 
