@@ -573,8 +573,13 @@ pivoted `fortnum_dgeqp3` and the least squares driver `fortnum_dgels`.
 `fortnum_lapack_syev` provides the symmetric and Hermitian eigensolvers:
 `dsytrd`/`zhetrd`, `dorgtr`/`zungtr`, `dsygst`/`zhegst`, the tridiagonal
 `dsteqr`/`zsteqr`, `dsterf`, `dstev`, and the drivers `dsyev`, `zheev`,
-`dsyevd`, `dsygv`, `zhegv`, `dsbevd`, `dsbevx`. The remaining LAPACK routines
-follow (issue 167).
+`dsyevd`, `dsygv`, `zhegv`, `dsbevd`, `dsbevx`. `fortnum_lapack_geev`
+provides the nonsymmetric eigensolvers: balancing `gebal`/`gebak`, the
+Hessenberg reduction `gehrd` with `dorghr`/`zunghr`, the Hessenberg QR
+algorithm `hseqr` (Francis double shifts for real matrices, single shifts for
+complex ones, as LAPACK xLAHQR) and the drivers `fortnum_dgeev` and
+`fortnum_zgeev`, whose eigenvectors are normalized as LAPACK's. The remaining
+LAPACK routines follow (issue 167).
 
 `fortnum_cholesky` provides a reusable positive-definite factorization with
 vector and matrix solves and a log-determinant operation.
