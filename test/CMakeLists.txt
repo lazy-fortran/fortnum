@@ -34,7 +34,15 @@ add_executable(bench_verified_midpoint
 target_link_libraries(bench_verified_midpoint PRIVATE fortnum)
 
 # OpenMP is required only by the M5 concurrency tests (thread-safety checks).
-find_package(OpenMP REQUIRED COMPONENTS Fortran)
+# WebAssembly has no OpenMP runtime and runs on one thread; there the tests
+# link the serial runtime functions of tools/wasm/omp_serial.c.
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    add_library(fortnum_omp_serial STATIC
+        "${PROJECT_SOURCE_DIR}/tools/wasm/omp_serial.c")
+    add_library(OpenMP::OpenMP_Fortran ALIAS fortnum_omp_serial)
+else()
+    find_package(OpenMP REQUIRED COMPONENTS Fortran)
+endif()
 
 add_test(
     NAME gpu_backend_configure

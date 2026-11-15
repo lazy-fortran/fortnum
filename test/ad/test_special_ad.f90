@@ -384,6 +384,7 @@ contains
     subroutine f_gamma_lower(x, y)
         real(dp), intent(in)  :: x(:)
         real(dp), intent(out) :: y(:)
+        y = 0.0_dp
         y(1) = gamma_lower(x(2), x(1))
     end subroutine f_gamma_lower
 
@@ -394,6 +395,8 @@ contains
         real(dp), intent(in)  :: v(:)
         real(dp), intent(out) :: jv(:)
         call gamma_lower_jvp(x, v, jv)
+        ! the harness compares the padded output component too
+        jv(2:) = 0.0_dp
     end subroutine gamma_lower_jvp_wrap
 
     ! gamma_lower primal padded into the square harness: y(2)=0 makes the

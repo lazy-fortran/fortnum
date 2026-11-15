@@ -41,6 +41,22 @@ built, and tests with `real128` reference data are reported by CTest as
 disabled. gfortran and ifx build the full library. fpm has no per-compiler source
 selection and always builds everything.
 
+## WebAssembly
+
+fortnum and its test suite build for WebAssembly (wasm32) with LFortran and
+emscripten through the CMake toolchain file `tools/wasm/emscripten-lfortran.cmake`;
+`tools/wasm/test_wasm.sh [BUILD_DIR] [CTEST_ARGUMENT ...]` configures, builds and
+runs the tests under node. It needs LFortran built with `WITH_TARGET_WASM`
+(`LFORTRAN`, default `lfortran` on `PATH`), the emscripten SDK (`EMSDK_PATH`) and
+node (`NODE`). LFortran's `main` lacks fixes this needs; the
+[lazy-fortran fork](https://github.com/lazy-fortran/lfortran) carries them and
+lists them in its `FORK.md`.
+With `-DFORTNUM_WASM_ENVIRONMENT=shell` or `web` the test programs are single
+files with the oracle data embedded, for a JavaScript shell such as
+JavaScriptCore's `jsc` or for a browser page. WebAssembly has no OpenMP runtime
+and runs on one thread; the OpenMP tests link the serial runtime functions of
+`tools/wasm/omp_serial.c`.
+
 ## fpm
 
 ```bash

@@ -547,8 +547,9 @@ extensions stops with an error. `fortnum_blas3` adds the level-3 routines
 copy, swap, overflow-safe norms, sums of magnitudes (DASUM, DZASUM), IxAMAX, DROT, GEMV, DSYMV, ZHEMV, TRSV, DGER,
 ZGERU, ZGERC), all with reference BLAS arguments.
 
-`tools/wasm/test_wasm.sh` builds the BLAS and LAPACK modules with LFortran and
-emscripten for WebAssembly and runs their tests under node.
+`tools/wasm/test_wasm.sh` builds fortnum and its test suite for WebAssembly
+with LFortran and emscripten and runs the tests under node (see
+[building](building.md#webassembly)).
 
 ### Native LAPACK
 
@@ -600,9 +601,7 @@ routines follow (issue 167).
 The library `fortnum_lapack77` provides these BLAS and LAPACK routines under
 their standard names (`dgemm`, `dgesv`, `dgeev`, ...), so that code calling
 them links fortnum in place of a system BLAS and LAPACK; in a WebAssembly
-build it is the only BLAS and LAPACK. Declare them with explicit interfaces:
-LFortran gives an implicitly declared external procedure an empty signature,
-which WebAssembly rejects.
+build it is the only BLAS and LAPACK.
 
 `fortnum_cholesky` provides a reusable positive-definite factorization with
 vector and matrix solves and a log-determinant operation.

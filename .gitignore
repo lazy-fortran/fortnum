@@ -1,6 +1,7 @@
 build/
 build-bench/
 build-enzyme/
+build-wasm/
 *.mod
 *.smod
 
