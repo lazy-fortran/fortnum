@@ -578,8 +578,19 @@ provides the nonsymmetric eigensolvers: balancing `gebal`/`gebak`, the
 Hessenberg reduction `gehrd` with `dorghr`/`zunghr`, the Hessenberg QR
 algorithm `hseqr` (Francis double shifts for real matrices, single shifts for
 complex ones, as LAPACK xLAHQR) and the drivers `fortnum_dgeev` and
-`fortnum_zgeev`, whose eigenvectors are normalized as LAPACK's. The remaining
-LAPACK routines follow (issue 167).
+`fortnum_zgeev`, whose eigenvectors are normalized as LAPACK's.
+`fortnum_lapack_svd` provides the singular value decomposition `fortnum_dgesvd`
+and `fortnum_dgesdd` and the minimum-norm least squares drivers
+`fortnum_dgelss` and `fortnum_dgelsd`, all by Householder QR followed by
+one-sided Jacobi rotations on the triangular factor. The remaining LAPACK
+routines follow (issue 167).
+
+The library `fortnum_lapack77` provides these BLAS and LAPACK routines under
+their standard names (`dgemm`, `dgesv`, `dgeev`, ...), so that code calling
+them links fortnum in place of a system BLAS and LAPACK; in a WebAssembly
+build it is the only BLAS and LAPACK. Declare them with explicit interfaces:
+LFortran gives an implicitly declared external procedure an empty signature,
+which WebAssembly rejects.
 
 `fortnum_cholesky` provides a reusable positive-definite factorization with
 vector and matrix solves and a log-determinant operation.

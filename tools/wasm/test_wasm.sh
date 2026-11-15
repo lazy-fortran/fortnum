@@ -19,12 +19,13 @@ flags=(--target=wasm32-unknown-emscripten --separate-compilation --realloc-lhs-a
 modules=(fortnum_kinds blas/fortnum_blas blas/fortnum_blas12 blas/fortnum_blas3
     lapack/fortnum_lapack_lu lapack/fortnum_lapack_chol lapack/fortnum_lapack_ldlt
     lapack/fortnum_lapack_qr lapack/fortnum_lapack_refine lapack/fortnum_lapack_syev
-    lapack/fortnum_lapack_geev)
+    lapack/fortnum_lapack_geev lapack/fortnum_lapack_svd lapack77/fortnum_lapack77)
 tests=("$@")
 if [ ${#tests[@]} -eq 0 ]; then
     tests=(test_fortnum_blas test_fortnum_blas12 test_fortnum_blas3 test_fortnum_lapack_lu
         test_fortnum_lapack_chol test_fortnum_lapack_ldlt test_fortnum_lapack_qr
-        test_fortnum_lapack_refine test_fortnum_lapack_syev test_fortnum_lapack_geev)
+        test_fortnum_lapack_refine test_fortnum_lapack_syev test_fortnum_lapack_geev
+        test_fortnum_lapack_svd test_fortnum_lapack77)
 fi
 cd "$out"
 objects=()

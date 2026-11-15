@@ -32,6 +32,7 @@ target_sources(fortnum PRIVATE
     lapack/fortnum_lapack_qr.F90
     lapack/fortnum_lapack_syev.F90
     lapack/fortnum_lapack_geev.f90
+    lapack/fortnum_lapack_svd.f90
     blas/fortnum_blas_cpu.c
     generated/fortnum_dtile_avx2_8x6.c
     generated/fortnum_dtile_avx512_24x8.c
@@ -362,6 +363,11 @@ if(FORTNUM_ENABLE_OPENMP)
         message(STATUS "fortnum: OpenMP not found; building serial kernels")
     endif()
 endif()
+
+# fortnum's BLAS and LAPACK under the standard names (dgesv, ...), linked in
+# place of a system BLAS and LAPACK; the only one in WebAssembly builds.
+add_library(fortnum_lapack77 STATIC lapack77/fortnum_lapack77.f90)
+target_link_libraries(fortnum_lapack77 PUBLIC fortnum)
 
 # Install the hand-written C ABI header so C/C++ consumers find it.
 install(FILES ${PROJECT_SOURCE_DIR}/include/fortnum.h DESTINATION include)
