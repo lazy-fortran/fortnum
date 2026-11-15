@@ -15,6 +15,7 @@ module fortnum_blas
     private
 
     public :: fortnum_dgemm, fortnum_zgemm, fortnum_blas_tile
+    public :: fortnum_dgemm_ws, fortnum_zgemm_ws, fortnum_dgemm_lwork, fortnum_zgemm_lwork
 
     abstract interface
         subroutine tile_kernel(k, a, b, acc) bind(c)
@@ -137,12 +138,50 @@ contains
         real(dp), intent(in) :: alpha, beta
         real(dp), intent(in) :: a(lda, *), b(ldb, *)
         real(dp), intent(inout) :: c(ldc, *)
+        real(dp), allocatable :: work(:)
+        integer :: lwork
+        lwork = 0
+        if (m > 0 .and. n > 0 .and. k > 0) &
+            lwork = fortnum_dgemm_lwork(m, n, k, thread_count(2.0_dp*m*real(n, dp)*k))
+        allocate (work(lwork))
+        call fortnum_dgemm_ws(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc, work, lwork)
+    end subroutine fortnum_dgemm
+
+    !> Workspace in real(dp) elements that fortnum_dgemm_ws needs for an
+    !> m x n x k product on up to `threads` OpenMP threads (default: as many
+    !> as a call outside a parallel region may use). Nondecreasing in each
+    !> argument, so the size for the largest dimensions covers every smaller
+    !> product.
+    integer function fortnum_dgemm_lwork(m, n, k, threads) result(lwork)
+        integer, intent(in) :: m, n, k
+        integer, intent(in), optional :: threads
+        integer :: kd, nt
+        call select_tile()
+        nt = thread_limit()
+        if (present(threads)) nt = max(1, threads)
+        kd = min(kc_depth, max(0, k))
+        lwork = max(2*b_block(max(0, n), kd, tile_nr) + nt*a_block(max(0, m), kd, tile_mr), &
+            tile_nr*kd*((min(max(0, n), THIN_N) + tile_nr - 1)/tile_nr) + tile_mr*kd, &
+            tile_mr*kd*((min(max(0, m), THIN_N) + tile_mr - 1)/tile_mr) + tile_nr*kd)
+    end function fortnum_dgemm_lwork
+
+    !> fortnum_dgemm with caller-provided packing buffers: work(lwork), lwork
+    !> at least fortnum_dgemm_lwork(m, n, k); no memory is allocated. With
+    !> less workspace than the threads need, fewer threads are used.
+    subroutine fortnum_dgemm_ws(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc, &
+            work, lwork)
+        character, intent(in) :: transa, transb
+        integer, intent(in) :: m, n, k, lda, ldb, ldc, lwork
+        real(dp), intent(in) :: alpha, beta
+        real(dp), intent(in) :: a(lda, *), b(ldb, *)
+        real(dp), intent(inout) :: c(ldc, *)
+        real(dp), intent(inout), target :: work(lwork)
         logical :: ta, tb
         integer :: jc, pc, nc, kc, mstep, nstep, npb, jr, ir, j
-        integer :: nthreads, mcb, mt, i0, i1, me, chunk, nchunk, ct, epoch, bsize, boff
+        integer :: nthreads, mcb, mt, i0, i1, me, chunk, nchunk, ct, epoch, bsize, asize, boff
         real(dp) :: tp(4), w0, w1
         real(dp), allocatable :: prof(:, :)
-        real(dp), allocatable :: ap(:), bp(:)
+        real(dp), pointer, contiguous :: ap(:), bp(:)
 
         ta = transposed(transa, 'fortnum_dgemm', 1, .false.)
         tb = transposed(transb, 'fortnum_dgemm', 2, .false.)
@@ -171,12 +210,14 @@ contains
         end if
         mstep = tile_mr
         nstep = tile_nr
-        nthreads = thread_count(2.0_dp*m*real(n, dp)*k)
         mcb = mc_size(mstep)
         ! buffers for the depth and rows the product has, not the block targets
-        bsize = tile_nr*min(kc_depth, k)*((min(n, nc_size(nstep)) + nstep - 1)/nstep)
+        bsize = b_block(n, min(kc_depth, k), nstep)
+        asize = a_block(m, min(kc_depth, k), mstep)
+        if (lwork < 2*bsize + asize) call argument_error('fortnum_dgemm_ws', 15)
+        nthreads = min(thread_count(2.0_dp*m*real(n, dp)*k), (lwork - 2*bsize)/asize)
         ! two B buffers: threads may pack the next block while others finish this one
-        allocate (bp(2*bsize))
+        bp => work(1:2*bsize)
         mt = (m + mstep - 1)/mstep
         ! chunks of A as tall as MC allows but about four per thread, so that
         ! dynamic claiming balances unequal cores while A is packed only once
@@ -190,10 +231,10 @@ contains
         ! tile row or column.
         !$omp parallel num_threads(nthreads) if(nthreads > 1) default(shared) &
         !$omp private(jc, pc, nc, kc, npb, jr, ir, i0, i1, chunk, me, ap, epoch, boff, tp, w0, w1)
-        allocate (ap(tile_mr*min(kc_depth, k)*min(mcb/mstep, (m + mstep - 1)/mstep)))
         tp = 0
         me = 0
         !$ me = omp_get_thread_num()
+        ap => work(2*bsize + me*asize + 1:2*bsize + (me + 1)*asize)
         epoch = 0
         do jc = 1, n, nc_size(nstep)
             nc = min(nc_size(nstep), n - jc + 1)
@@ -232,7 +273,6 @@ contains
                 !$omp end do nowait
             end do
         end do
-        deallocate (ap)
         if (profile) prof(:, me) = tp
         !$omp end parallel
         if (profile) call report_profile('dgemm', m, n, k, prof)
@@ -243,12 +283,15 @@ contains
         ! in) is packed per depth block, full row tiles of A are read in place
         ! by the strided kernels, the last partial row tile is packed.
         subroutine thin_gemm()
-            real(dp), allocatable :: bt(:), ap1(:)
+            real(dp), pointer, contiguous :: bt(:), ap1(:)
             real(dp) :: acc(MAX_TILE)
-            integer :: pcc, kcc, npbt, jrr, irr, mfull, i0, j0, nrr, jj, nth
+            integer :: pcc, kcc, npbt, jrr, irr, mfull, i0, j0, nrr, jj, nth, nb
             npbt = (n + tile_nr - 1)/tile_nr
             mfull = (m/tile_mr)*tile_mr
-            allocate (bt(tile_nr*min(kc_depth, k)*npbt), ap1(tile_mr*min(kc_depth, k)))
+            nb = tile_nr*min(kc_depth, k)*npbt
+            if (lwork < nb + tile_mr*min(kc_depth, k)) call argument_error('fortnum_dgemm_ws', 15)
+            bt => work(1:nb)
+            ap1 => work(nb + 1:nb + tile_mr*min(kc_depth, k))
             nth = thread_count(2.0_dp*m*real(n, dp)*k)
             do pcc = 1, k, kc_depth
                 kcc = min(kc_depth, k - pcc + 1)
@@ -297,12 +340,15 @@ contains
         ! in) is packed per depth block, full column panels of B are read in
         ! place by the B-strided kernels, the last partial panel is packed.
         subroutine wide_gemm()
-            real(dp), allocatable :: at(:), bp1(:)
+            real(dp), pointer, contiguous :: at(:), bp1(:)
             real(dp) :: acc(MAX_TILE)
-            integer :: pcc, kcc, npat, irr, jrr, nfull, i0, j0, mrr, ii, jj, nth
+            integer :: pcc, kcc, npat, irr, jrr, nfull, i0, j0, mrr, ii, jj, nth, na
             npat = (m + tile_mr - 1)/tile_mr
             nfull = (n/tile_nr)*tile_nr
-            allocate (at(tile_mr*min(kc_depth, k)*npat), bp1(tile_nr*min(kc_depth, k)))
+            na = tile_mr*min(kc_depth, k)*npat
+            if (lwork < na + tile_nr*min(kc_depth, k)) call argument_error('fortnum_dgemm_ws', 15)
+            at => work(1:na)
+            bp1 => work(na + 1:na + tile_nr*min(kc_depth, k))
             nth = thread_count(2.0_dp*m*real(n, dp)*k)
             do pcc = 1, k, kc_depth
                 kcc = min(kc_depth, k - pcc + 1)
@@ -368,7 +414,7 @@ contains
             end do
         end subroutine update_real
 
-    end subroutine fortnum_dgemm
+    end subroutine fortnum_dgemm_ws
 
     !> C := alpha op(A) op(B) + beta C, op(X) = X, X^T or X^H.
     subroutine fortnum_zgemm(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc)
@@ -377,10 +423,42 @@ contains
         complex(dp), intent(in) :: alpha, beta
         complex(dp), intent(in) :: a(lda, *), b(ldb, *)
         complex(dp), intent(inout) :: c(ldc, *)
+        real(dp), allocatable :: work(:)
+        integer :: lwork
+        lwork = 0
+        if (m > 0 .and. n > 0 .and. k > 0) &
+            lwork = fortnum_zgemm_lwork(m, n, k, thread_count(8.0_dp*m*real(n, dp)*k))
+        allocate (work(lwork))
+        call fortnum_zgemm_ws(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc, work, lwork)
+    end subroutine fortnum_zgemm
+
+    !> Workspace in real(dp) elements that fortnum_zgemm_ws needs; as
+    !> fortnum_dgemm_lwork.
+    integer function fortnum_zgemm_lwork(m, n, k, threads) result(lwork)
+        integer, intent(in) :: m, n, k
+        integer, intent(in), optional :: threads
+        integer :: kd, nt
+        call select_tile()
+        nt = thread_limit()
+        if (present(threads)) nt = max(1, threads)
+        kd = min(kc_depth, max(0, k))
+        lwork = 2*b_block(max(0, n), kd, tile_nr/2) + nt*a_block(max(0, m), kd, tile_mr/2)
+    end function fortnum_zgemm_lwork
+
+    !> fortnum_zgemm with caller-provided packing buffers, real(dp) work(lwork)
+    !> with lwork at least fortnum_zgemm_lwork(m, n, k); as fortnum_dgemm_ws.
+    subroutine fortnum_zgemm_ws(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc, &
+            work, lwork)
+        character, intent(in) :: transa, transb
+        integer, intent(in) :: m, n, k, lda, ldb, ldc, lwork
+        complex(dp), intent(in) :: alpha, beta
+        complex(dp), intent(in) :: a(lda, *), b(ldb, *)
+        complex(dp), intent(inout) :: c(ldc, *)
+        real(dp), intent(inout), target :: work(lwork)
         logical :: ta, tb, ca, cb
         integer :: jc, pc, nc, kc, mstep, nstep, npb, jr, ir, j
-        integer :: nthreads, mcb, mt, i0, i1, me, chunk, nchunk, ct, epoch, bsize, boff
-        real(dp), allocatable :: ap(:), bp(:)
+        integer :: nthreads, mcb, mt, i0, i1, me, chunk, nchunk, ct, epoch, bsize, asize, boff
+        real(dp), pointer, contiguous :: ap(:), bp(:)
 
         ta = transposed(transa, 'fortnum_zgemm', 1, .true., ca)
         tb = transposed(transb, 'fortnum_zgemm', 2, .true., cb)
@@ -400,12 +478,14 @@ contains
         ! a real tile mr x nr holds a complex tile mr/2 x nr/2
         mstep = tile_mr/2
         nstep = tile_nr/2
-        nthreads = thread_count(8.0_dp*m*real(n, dp)*k)
         mcb = mc_size(mstep)
         ! buffers for the depth and rows the product has, not the block targets
-        bsize = tile_nr*min(kc_depth, k)*((min(n, nc_size(nstep)) + nstep - 1)/nstep)
+        bsize = b_block(n, min(kc_depth, k), nstep)
+        asize = a_block(m, min(kc_depth, k), mstep)
+        if (lwork < 2*bsize + asize) call argument_error('fortnum_zgemm_ws', 15)
+        nthreads = min(thread_count(8.0_dp*m*real(n, dp)*k), (lwork - 2*bsize)/asize)
         ! two B buffers: threads may pack the next block while others finish this one
-        allocate (bp(2*bsize))
+        bp => work(1:2*bsize)
         mt = (m + mstep - 1)/mstep
         ! chunks of A as tall as MC allows but about four per thread, so that
         ! dynamic claiming balances unequal cores while A is packed only once
@@ -418,9 +498,9 @@ contains
         ! tile row or column.
         !$omp parallel num_threads(nthreads) if(nthreads > 1) default(shared) &
         !$omp private(jc, pc, nc, kc, npb, jr, ir, i0, i1, chunk, me, ap, epoch, boff)
-        allocate (ap(tile_mr*min(kc_depth, k)*min(mcb/mstep, (m + mstep - 1)/mstep)))
         me = 0
         !$ me = omp_get_thread_num()
+        ap => work(2*bsize + me*asize + 1:2*bsize + (me + 1)*asize)
         epoch = 0
         do jc = 1, n, nc_size(nstep)
             nc = min(nc_size(nstep), n - jc + 1)
@@ -453,7 +533,6 @@ contains
                 !$omp end do nowait
             end do
         end do
-        deallocate (ap)
         !$omp end parallel
 
     contains
@@ -479,7 +558,7 @@ contains
             end do
         end subroutine update_complex
 
-    end subroutine fortnum_zgemm
+    end subroutine fortnum_zgemm_ws
 
     ! A panel: rows i0 .. i0+rows-1 of alpha op(A), depth pc .. pc+kc-1, stored
     ! tile_mr per step of depth and zero-padded to the tile height.
@@ -655,6 +734,24 @@ contains
             end if
         end do
     end subroutine thread_grid
+
+    !> Packed B: two KC x NC blocks are in flight (the factor 2 is the caller's).
+    pure integer function b_block(n, kd, nstep) result(size)
+        integer, intent(in) :: n, kd, nstep
+        size = tile_nr*kd*((min(n, nc_size(nstep)) + nstep - 1)/nstep)
+    end function b_block
+
+    !> Packed A of one thread: an MC x KC block, or fewer rows if the product has fewer.
+    pure integer function a_block(m, kd, mstep) result(size)
+        integer, intent(in) :: m, kd, mstep
+        size = tile_mr*kd*min(mc_size(mstep)/mstep, (m + mstep - 1)/mstep)
+    end function a_block
+
+    !> Threads a GEMM outside a parallel region may use; 1 inside one.
+    integer function thread_limit() result(count)
+        count = 1
+        !$ if (.not. omp_in_parallel()) count = omp_get_max_threads()
+    end function thread_limit
 
     integer function thread_count(flops) result(count)
         real(dp), intent(in) :: flops

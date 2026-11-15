@@ -547,6 +547,18 @@ extensions stops with an error. `fortnum_blas3` adds the level-3 routines
 copy, swap, overflow-safe norms, sums of magnitudes (DASUM, DZASUM), IxAMAX, DROT, GEMV, DSYMV, ZHEMV, TRSV, DGER,
 ZGERU, ZGERC), all with reference BLAS arguments.
 
+GEMM and TRSM allocate their packing buffers on each call. For code that
+must not call the allocator during a computation, `fortnum_dgemm_ws`,
+`fortnum_zgemm_ws`, `fortnum_dtrsm_ws` and `fortnum_ztrsm_ws` take the
+reference arguments followed by a caller-provided `real(dp)` workspace
+`work(lwork)` and allocate nothing. `fortnum_dgemm_lwork(m, n, k [, threads])`,
+`fortnum_zgemm_lwork`, `fortnum_dtrsm_lwork(side, m, n [, threads])` and
+`fortnum_ztrsm_lwork` return the size needed for up to `threads` OpenMP threads
+(default: as many as a call outside a parallel region may use). The sizes do not
+decrease when a dimension or the thread count grows, so one workspace sized for
+the largest call serves every smaller one; with less workspace than its threads
+need, a call uses fewer threads.
+
 `tools/wasm/test_wasm.sh` builds fortnum and its test suite for WebAssembly
 with LFortran and emscripten and runs the tests under node (see
 [building](building.md#webassembly)).
