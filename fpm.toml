@@ -8,25 +8,8 @@ copyright = "Copyright 2025, lazy-fortran"
 
 [build]
 auto-tests = true
-# roots/fortnum_roots_complex.f90 calls LAPACK ZGGEV.  Ask fpm/fo for the
-# BLAS metapackage so the platform selects OpenBLAS, MKL, Accelerate, or the
-# best available system provider instead of hard-coding one installation.
-#
-# The reference netlib BLAS is unoptimized and single-threaded; the selected
-# provider is both faster on the development machine and reproducible through
-# the provider's pkg-config metadata.
-#
-# Switching exposed a fragile test rather than a real regression.
-# test_complex_linear_solve_products compared a JVP against a central
-# difference at step 2e-7 with a 2e-10 tolerance -- but the cancellation error
-# of that difference is about 3e-10, so the check sat beneath its own noise
-# floor and passed on one BLAS's rounding. It now uses Richardson
-# extrapolation at a larger step, where the error budget is orders of
-# magnitude under the tolerance, and passes on either library.
-
 [dependencies]
 fortgen = { git = "https://github.com/lazy-fortran/fortgen.git", rev = "cb0db04146448b2e89871f133211f7900a716122" }
-blas = "*"
 openmp = "*"
 
 [dev-dependencies]

@@ -46,10 +46,8 @@ jobs:
             cmake \
             g++ \
             gfortran \
-            libblas-dev \
             libflint-dev \
             libgmp-dev \
-            liblapack-dev \
             libmpfr-dev \
             ninja-build
 
@@ -133,9 +131,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             cmake \
             gfortran \
-            ninja-build \
-            liblapack-dev \
-            libblas-dev
+            ninja-build
 
         if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Configure
@@ -246,9 +242,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             cmake \
             gfortran \
-            ninja-build \
-            liblapack-dev \
-            libblas-dev
+            ninja-build
 
         if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Set up Python

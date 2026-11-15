@@ -349,9 +349,7 @@ elseif(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
         $<$<COMPILE_LANGUAGE:Fortran>:-fp-model=precise>)
 endif()
 
-# roots/fortnum_roots_complex.f90 calls LAPACK ZGGEV; link LAPACK (with BLAS)
-# into the library so every consumer resolves the symbol.
-target_link_libraries(fortnum PUBLIC LAPACK::LAPACK fortnum_gpu_backend)
+target_link_libraries(fortnum PUBLIC fortnum_gpu_backend)
 
 # Host OpenMP for the Krylov vector kernels (fortnum_parallel_vector).  The
 # deterministic reductions give the same bits with and without OpenMP.

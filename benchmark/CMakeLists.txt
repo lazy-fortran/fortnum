@@ -16,11 +16,6 @@ project(fortnum_benchmark LANGUAGES Fortran C)
 
 enable_testing()
 
-# The standalone benchmark compiles fortnum_linalg directly into bench_core.
-# Keep its link contract identical to the production fortnum target: the
-# dense real and complex solve products call LAPACK (and its BLAS dependency).
-find_package(LAPACK REQUIRED)
-
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../cmake")
 include(FortnumGpuBackend)
 
@@ -44,6 +39,9 @@ set(FORTNUM_MULTI_INPUT_SOURCES
     ${FORTNUM_CORE_DIR}/generated/fortnum_multi_input_p16_jvp_kernel.f90
     ${FORTNUM_CORE_DIR}/generated/fortnum_multi_input_p16_vjp_kernel.f90
 )
+
+# fortnum_linalg solves with fortnum's LU, whose GEMM runs on these tiles.
+file(GLOB FORTNUM_TILE_SOURCES ${FORTNUM_CORE_DIR}/generated/fortnum_dtile_*.c)
 
 # Shared core compiled once into a static library. Building it per-executable
 # made two targets emit the same .mod into the shared module directory, which
@@ -84,6 +82,12 @@ add_library(bench_core STATIC
     ${FORTNUM_CORE_DIR}/quadrature/fortnum_quadrature.f90
     ${FORTNUM_CORE_DIR}/quadrature/fortnum_integrate_gk.f90
     ${FORTNUM_CORE_DIR}/quadrature/fortnum_integrate.f90
+    ${FORTNUM_CORE_DIR}/blas/fortnum_blas.f90
+    ${FORTNUM_CORE_DIR}/blas/fortnum_blas12.f90
+    ${FORTNUM_CORE_DIR}/blas/fortnum_blas3.F90
+    ${FORTNUM_CORE_DIR}/blas/fortnum_blas_cpu.c
+    ${FORTNUM_TILE_SOURCES}
+    ${FORTNUM_CORE_DIR}/lapack/fortnum_lapack_lu.F90
     ${FORTNUM_CORE_DIR}/linalg/fortnum_linalg.f90
     ${FORTNUM_CORE_DIR}/interp/fortnum_polynomial.f90
     ${FORTNUM_CORE_DIR}/interp/fortnum_bspline.f90
@@ -113,7 +117,8 @@ add_library(bench_core STATIC
     fortnum_benchmark_memory.f90
     peak_rss.c
 )
-target_link_libraries(bench_core PUBLIC fortnum_gpu_backend LAPACK::LAPACK)
+target_include_directories(bench_core PRIVATE ${FORTNUM_CORE_DIR}/blas ${FORTNUM_CORE_DIR}/lapack)
+target_link_libraries(bench_core PUBLIC fortnum_gpu_backend)
 
 # Small independent certified-arithmetic benchmark; no production selection.
 add_library(bench_certified_core STATIC

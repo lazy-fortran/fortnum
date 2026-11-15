@@ -22,8 +22,9 @@ generated     committed fortsym numerical leaves
 testing       oracle-table support
 ```
 
-The exact source list is in `src/CMakeLists.txt`. LAPACK and BLAS are the only
-runtime numerical dependencies.
+The exact source list is in `src/CMakeLists.txt`. There is no external
+numerical dependency; BLAS and LAPACK are fortnum's own (`src/blas`,
+`src/lapack`).
 
 ## State ownership
 

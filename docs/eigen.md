@@ -58,7 +58,7 @@ vectors by separate real/imaginary actions; this favors correctness over cost.
 basis. `lanczos` uses its Hermitian specialization, with full
 reorthogonalization and thick Ritz restart. This deliberately stores full
 operator images rather than relying on a fragile three-term recurrence.
-Only the projected problem uses LAPACK (GEES/TREXC/TREVC or HEEV).
+Only the projected problem uses LAPACK routines (fortnum's GEES/TREXC/TREVC or HEEV).
 Schur vectors, rather than nonorthogonal eigenvectors, are retained on restart.
 Converged directions are soft locked by retaining them and their images;
 there is no separate hard-lock tolerance or removal from final residual checks.

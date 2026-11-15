@@ -4,7 +4,6 @@
 
 - a Fortran 2018 compiler (gfortran, ifx; `nvfortran` for OpenMP GPU builds)
 - CMake 3.22 or newer, or fpm
-- BLAS and LAPACK
 
 CMake fetches the [fortgen](https://github.com/lazy-fortran/fortgen) runtime;
 fpm takes it from `fpm.toml`.
