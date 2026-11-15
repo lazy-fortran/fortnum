@@ -14,6 +14,7 @@ module fortnum_special
 
     use fortnum_special_bessel, only: &
         bessel_in, &
+        bessel_in_scaled, &
         bessel_in_array, &
         bessel_kn, &
         bessel_in_jvp, &
@@ -81,7 +82,7 @@ module fortnum_special
     ! Bessel functions: modified I_n and K_n (integer order)
     ! Derivative policy: analytic_rule (ad.md §1, §4).
     ! Active argument: x only (n is inactive order selector).
-    public :: bessel_in, bessel_in_array, bessel_kn
+    public :: bessel_in, bessel_in_array, bessel_kn, bessel_in_scaled
     public :: bessel_in_jvp, bessel_kn_jvp
 
     ! Dawson integral F(x) = exp(-x^2) * integral_0^x exp(t^2) dt

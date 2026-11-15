@@ -28,7 +28,7 @@ module fortnum_special_bessel
     implicit none
     private
 
-    public :: bessel_in, bessel_in_array, bessel_kn
+    public :: bessel_in, bessel_in_array, bessel_kn, bessel_in_scaled
     ! analytic_rule derivatives (ad.md §2):
     !   bessel_in_jvp: d/dx I_n(x) * v = (I_{n-1}(x)+I_{n+1}(x))/2 * v  (DLMF 10.29.2)
     !   bessel_kn_jvp: d/dx K_n(x) * v = -(K_{n-1}(x)+K_{n+1}(x))/2 * v (DLMF 10.29.4)
@@ -169,6 +169,29 @@ contains
         end if
         if (x < 0.0_dp .and. mod(na, 2) == 1) value = -value
     end function bessel_in
+
+
+    ! exp(-|x|) I_n(x) for integer n, finite for every x: the asymptotic and
+    ! Miller branches produce I_n up to the factor exp(|x|), which is left out.
+    elemental function bessel_in_scaled(n, x) result(value)
+        integer,  intent(in) :: n
+        real(dp), intent(in) :: x
+        real(dp) :: value
+
+        integer  :: na
+        real(dp) :: ax
+
+        na = abs(n)
+        ax = abs(x)
+        if (ax <= series_x_max) then
+            value = exp(-ax)*series_in(na, ax)
+        else if (ax >= max(asym_x_min, asym_n_factor*real(na, dp)**2)) then
+            value = asym_sum(na, ax)/sqrt(two_pi*ax)
+        else
+            value = miller_ratio(na, ax)
+        end if
+        if (x < 0.0_dp .and. mod(na, 2) == 1) value = -value
+    end function bessel_in_scaled
 
 
     ! Fill values(0:nmax) with I_0(x)...I_nmax(x) in one pass.
@@ -327,6 +350,17 @@ contains
         real(dp), intent(in) :: ax
         real(dp) :: value
 
+        value = miller_ratio(n, ax)*exp(ax)
+    end function miller_in
+
+
+    ! exp(-x) I_n(x) by Miller's backward recurrence, normalised with
+    ! exp(x) = I_0(x) + 2 sum_k I_k(x) (DLMF 10.35.5).
+    elemental function miller_ratio(n, ax) result(value)
+        integer,  intent(in) :: n
+        real(dp), intent(in) :: ax
+        real(dp) :: value
+
         real(dp) :: p_hi, p_cur, p_lo, s, res
         integer  :: m, k
 
@@ -349,8 +383,8 @@ contains
             if (k - 1 == n) res = p_cur
         end do
         s     = s + p_cur
-        value = (res/s)*exp(ax)
-    end function miller_in
+        value = res/s
+    end function miller_ratio
 
 
     elemental function asym_in(n, ax) result(value)
@@ -359,7 +393,17 @@ contains
         real(dp), intent(in) :: ax
         real(dp) :: value
 
-        real(dp) :: mu, term, total, prev, r8x
+        value = exp(ax)/sqrt(two_pi*ax)*asym_sum(n, ax)
+    end function asym_in
+
+
+    ! The series sum_k (-1)^k a_k(n)/x^k of asym_in, summed to its smallest term.
+    elemental function asym_sum(n, ax) result(total)
+        integer,  intent(in) :: n
+        real(dp), intent(in) :: ax
+        real(dp) :: total
+
+        real(dp) :: mu, term, prev, r8x
         integer  :: k
 
         mu    = 4.0_dp*real(n, dp)**2
@@ -374,8 +418,7 @@ contains
             prev  = abs(term)
             if (prev <= epsilon(1.0_dp)*abs(total)) exit
         end do
-        value = exp(ax)/sqrt(two_pi*ax)*total
-    end function asym_in
+    end function asym_sum
 
 
     pure subroutine series_in_array(nmax, ax, values)

@@ -2,7 +2,7 @@ program test_fortnum_special_bessel
     ! Behavioral tests for fortnum_special_bessel.
     ! Exercises: symmetry, recurrence identity, small-x limits, array fill.
     use, intrinsic :: iso_fortran_env, only: dp => real64, error_unit
-    use fortnum_special_bessel, only: bessel_in, bessel_in_array, bessel_kn
+    use fortnum_special_bessel, only: bessel_in, bessel_in_array, bessel_kn, bessel_in_scaled
 
     implicit none
 
@@ -18,6 +18,7 @@ program test_fortnum_special_bessel
     call test_in_array_matches_scalar(nfail, tol)
     call test_kn_symmetry(nfail, tol)
     call test_kn_recurrence(nfail, tol)
+    call test_in_scaled(nfail, tol)
 
     if (nfail > 0) then
         write (error_unit, "(i0,a)") nfail, " test(s) failed"
@@ -27,6 +28,38 @@ program test_fortnum_special_bessel
     stop 0
 
 contains
+
+    ! exp(-|x|) I_n(x): equal to the unscaled function where both are finite,
+    ! the reference values of mpmath (40 digits) where I_n overflows, the
+    ! recurrence I_(n-1) - I_(n+1) = (2n/x) I_n, and odd parity for odd n.
+    subroutine test_in_scaled(nfail, tol)
+        integer,  intent(inout) :: nfail
+        real(dp), intent(in)    :: tol
+        real(dp), parameter :: xs(7) = [0.5_dp, 1.9_dp, 2.1_dp, 7.0_dp, 19.5_dp, 25.0_dp, &
+            600.0_dp]
+        real(dp) :: x, lhs, rhs
+        integer :: i, n
+        do i = 1, size(xs)
+            do n = 0, 6
+                call check("scaled In = exp(-x) In", bessel_in_scaled(n, xs(i)), &
+                    exp(-xs(i))*bessel_in(n, xs(i)), tol, nfail)
+            end do
+        end do
+        call check("scaled I0(1000), mpmath", bessel_in_scaled(0, 1000.0_dp), &
+            0.01261724045589125658571613128994285553801_dp, tol, nfail)
+        call check("scaled I3(60), mpmath", bessel_in_scaled(3, 60.0_dp), &
+            0.04785259275565257031770712790155282054851_dp, tol, nfail)
+        call check("scaled I1(1e5), mpmath", bessel_in_scaled(1, 1.0e5_dp), &
+            0.001261561530121817127340631579379465295479_dp, tol, nfail)
+        x = 4.0e4_dp
+        do n = 1, 4
+            lhs = bessel_in_scaled(n - 1, x) - bessel_in_scaled(n + 1, x)
+            rhs = 2*n/x*bessel_in_scaled(n, x)
+            call check("scaled recurrence at 4e4", lhs, rhs, 1.0e-9_dp, nfail)
+        end do
+        call check("scaled odd parity", bessel_in_scaled(3, -7.0_dp), &
+            -bessel_in_scaled(3, 7.0_dp), tol, nfail)
+    end subroutine test_in_scaled
 
     subroutine check(label, got, expected, tol, nfail)
         character(*), intent(in)    :: label
