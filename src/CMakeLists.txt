@@ -367,6 +367,12 @@ endif()
 # place of a system BLAS and LAPACK; the only one in WebAssembly builds.
 add_library(fortnum_lapack77 STATIC lapack77/fortnum_lapack77.f90)
 target_link_libraries(fortnum_lapack77 PUBLIC fortnum)
+# C callers (SuperLU, SuiteSparse) pass no hidden lengths of the character
+# arguments; a sibling call from a wrapper would write the length into the
+# stack frame of the caller, as known for reference BLAS called from C.
+if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(fortnum_lapack77 PRIVATE -fno-optimize-sibling-calls)
+endif()
 
 # Install the hand-written C ABI header so C/C++ consumers find it.
 install(FILES ${PROJECT_SOURCE_DIR}/include/fortnum.h DESTINATION include)
