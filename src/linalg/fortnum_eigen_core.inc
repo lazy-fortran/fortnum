@@ -38,62 +38,6 @@
             integer, intent(out) :: negative, zero, positive, info
         end subroutine
     end interface
-    interface
-        subroutine GEMM(ta, tb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc)
-            import rk
-            character, intent(in) :: ta, tb
-            integer, intent(in) :: m, n, k, lda, ldb, ldc
-            complex(rk), intent(in) :: alpha, beta, a(lda, *), b(ldb, *)
-            complex(rk), intent(inout) :: c(ldc, *)
-        end subroutine
-        subroutine GEMV(trans, m, n, alpha, a, lda, x, incx, beta, y, incy)
-            import rk
-            character, intent(in) :: trans
-            integer, intent(in) :: m, n, lda, incx, incy
-            complex(rk), intent(in) :: alpha, beta, a(lda, *), x(*)
-            complex(rk), intent(inout) :: y(*)
-        end subroutine
-        subroutine GEES(job, sort, select, n, a, lda, sdim, w, vs, ldvs, &
-                work, lwork, rwork, bwork, info)
-            import rk
-            character, intent(in) :: job, sort
-            logical, external :: select
-            integer, intent(in) :: n, lda, ldvs, lwork
-            integer, intent(out) :: sdim, info
-            complex(rk), intent(inout) :: a(lda, *)
-            complex(rk), intent(out) :: w(*), vs(ldvs, *), work(*)
-            real(rk), intent(out) :: rwork(*)
-            logical, intent(out) :: bwork(*)
-        end subroutine
-        subroutine TREXC(compq, n, t, ldt, q, ldq, ifst, ilst, info)
-            import rk
-            character, intent(in) :: compq
-            integer, intent(in) :: n, ldt, ldq, ifst, ilst
-            integer, intent(out) :: info
-            complex(rk), intent(inout) :: t(ldt, *), q(ldq, *)
-        end subroutine
-        subroutine TREVC(side, how, select, n, t, ldt, vl, ldvl, vr, ldvr, &
-                mm, m, work, rwork, info)
-            import rk
-            character, intent(in) :: side, how
-            logical, intent(inout) :: select(*)
-            integer, intent(in) :: n, ldt, ldvl, ldvr, mm
-            integer, intent(out) :: m, info
-            complex(rk), intent(in) :: t(ldt, *)
-            complex(rk), intent(inout) :: vl(ldvl, *), vr(ldvr, *)
-            complex(rk), intent(out) :: work(*)
-            real(rk), intent(out) :: rwork(*)
-        end subroutine
-        subroutine HEEV(job, uplo, n, a, lda, w, work, lwork, rwork, info)
-            import rk
-            character, intent(in) :: job, uplo
-            integer, intent(in) :: n, lda, lwork
-            integer, intent(out) :: info
-            complex(rk), intent(inout) :: a(lda, *)
-            real(rk), intent(out) :: w(*), rwork(*)
-            complex(rk), intent(out) :: work(*)
-        end subroutine
-    end interface
     type, abstract, public :: real_eigen_operator_t
     contains
         procedure(real_eigen_operator_t_binding), deferred :: apply

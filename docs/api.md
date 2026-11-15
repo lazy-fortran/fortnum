@@ -579,6 +579,12 @@ Hessenberg reduction `gehrd` with `dorghr`/`zunghr`, the Hessenberg QR
 algorithm `hseqr` (Francis double shifts for real matrices, single shifts for
 complex ones, as LAPACK xLAHQR) and the drivers `fortnum_dgeev` and
 `fortnum_zgeev`, whose eigenvectors are normalized as LAPACK's.
+`fortnum_lapack_gees` provides the complex Schur factorization
+`fortnum_zgees` (eigenvalues chosen by a `select` function of the abstract
+interface `fortnum_zgees_select` move to the top left), the reordering
+`fortnum_ztrexc`, the eigenvectors of a triangular matrix or, multiplied by
+the Schur vectors, of the matrix itself `fortnum_ztrevc`, and the plane
+rotation `fortnum_zlartg`.
 `fortnum_lapack_svd` provides the singular value decomposition `fortnum_dgesvd`
 and `fortnum_dgesdd` and the minimum-norm least squares drivers
 `fortnum_dgelss` and `fortnum_dgelsd`, all by Householder QR followed by
@@ -963,7 +969,9 @@ inherit the IEEE/compiler assumptions in [verified computing](design/verified.md
 
 `fortnum_eigen` exports real/complex FP32/FP64 `krylov_schur`, `lanczos`,
 `eigen_bounds` and `inertia_count`. `fortnum_eigen_types` owns options, counters
-and statuses. Standard and SPD generalized pencils support supplied solves,
+and statuses. The dense Rayleigh-Ritz steps use fortnum's ZGEES, ZTREXC,
+ZTREVC and ZHEEV; in FP32 `fortnum_eigen_dense_sp` computes them in FP64 and
+rounds the result. Standard and SPD generalized pencils support supplied solves,
 shift-invert and matrix-free JVP actions, with original-pencil residual checks.
 Stopping uses the normwise backward error
 `||Kx-lambda Mx|| <= tolerance*(k_scale+abs(lambda)*m_scale)*||x||`.

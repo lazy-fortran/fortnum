@@ -10,6 +10,7 @@ target_sources(fortnum PRIVATE
     generated/fortnum_eigen_temple_products_sp.f90
     generated/fortnum_eigen_temple_products_dp.f90
     linalg/fortnum_eigen_types.f90
+    linalg/fortnum_eigen_dense_sp.f90
     linalg/fortnum_eigen_sp.F90
     linalg/fortnum_eigen_dp.F90
     linalg/fortnum_eigen.f90
@@ -32,6 +33,7 @@ target_sources(fortnum PRIVATE
     lapack/fortnum_lapack_qr.F90
     lapack/fortnum_lapack_syev.F90
     lapack/fortnum_lapack_geev.f90
+    lapack/fortnum_lapack_gees.f90
     lapack/fortnum_lapack_svd.f90
     blas/fortnum_blas_cpu.c
     generated/fortnum_dtile_avx2_8x6.c
