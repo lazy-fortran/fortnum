@@ -34,6 +34,298 @@ subroutine dtrsm(side, uplo, transa, diag, m, n, alpha, a, lda, b, ldb)
     call fortnum_dtrsm(side, uplo, transa, diag, m, n, alpha, a, lda, b, ldb)
 end subroutine dtrsm
 
+real(dp) function dasum(n, x, incx)
+    use fortnum_kinds, only: dp
+    use fortnum_blas12, only: fortnum_dasum
+    integer, intent(in) :: n, incx
+    real(dp), intent(in) :: x(*)
+    dasum = fortnum_dasum(n, x, incx)
+end function dasum
+
+real(dp) function dzasum(n, x, incx)
+    use fortnum_kinds, only: dp
+    use fortnum_blas12, only: fortnum_dzasum
+    integer, intent(in) :: n, incx
+    complex(dp), intent(in) :: x(*)
+    dzasum = fortnum_dzasum(n, x, incx)
+end function dzasum
+
+real(dp) function ddot(n, x, incx, y, incy)
+    use fortnum_kinds, only: dp
+    use fortnum_blas12, only: fortnum_ddot
+    integer, intent(in) :: n, incx, incy
+    real(dp), intent(in) :: x(*), y(*)
+    ddot = fortnum_ddot(n, x, incx, y, incy)
+end function ddot
+
+real(dp) function dnrm2(n, x, incx)
+    use fortnum_kinds, only: dp
+    use fortnum_blas12, only: fortnum_dnrm2
+    integer, intent(in) :: n, incx
+    real(dp), intent(in) :: x(*)
+    dnrm2 = fortnum_dnrm2(n, x, incx)
+end function dnrm2
+
+real(dp) function dznrm2(n, x, incx)
+    use fortnum_kinds, only: dp
+    use fortnum_blas12, only: fortnum_dznrm2
+    integer, intent(in) :: n, incx
+    complex(dp), intent(in) :: x(*)
+    dznrm2 = fortnum_dznrm2(n, x, incx)
+end function dznrm2
+
+integer function idamax(n, x, incx)
+    use fortnum_kinds, only: dp
+    use fortnum_blas12, only: fortnum_idamax
+    integer, intent(in) :: n, incx
+    real(dp), intent(in) :: x(*)
+    idamax = fortnum_idamax(n, x, incx)
+end function idamax
+
+integer function izamax(n, x, incx)
+    use fortnum_kinds, only: dp
+    use fortnum_blas12, only: fortnum_izamax
+    integer, intent(in) :: n, incx
+    complex(dp), intent(in) :: x(*)
+    izamax = fortnum_izamax(n, x, incx)
+end function izamax
+
+subroutine daxpy(n, alpha, x, incx, y, incy)
+    use fortnum_kinds, only: dp
+    use fortnum_blas12, only: fortnum_daxpy
+    integer, intent(in) :: n, incx, incy
+    real(dp), intent(in) :: alpha, x(*)
+    real(dp), intent(inout) :: y(*)
+    call fortnum_daxpy(n, alpha, x, incx, y, incy)
+end subroutine daxpy
+
+subroutine zaxpy(n, alpha, x, incx, y, incy)
+    use fortnum_kinds, only: dp
+    use fortnum_blas12, only: fortnum_zaxpy
+    integer, intent(in) :: n, incx, incy
+    complex(dp), intent(in) :: alpha, x(*)
+    complex(dp), intent(inout) :: y(*)
+    call fortnum_zaxpy(n, alpha, x, incx, y, incy)
+end subroutine zaxpy
+
+subroutine dscal(n, alpha, x, incx)
+    use fortnum_kinds, only: dp
+    use fortnum_blas12, only: fortnum_dscal
+    integer, intent(in) :: n, incx
+    real(dp), intent(in) :: alpha
+    real(dp), intent(inout) :: x(*)
+    call fortnum_dscal(n, alpha, x, incx)
+end subroutine dscal
+
+subroutine zscal(n, alpha, x, incx)
+    use fortnum_kinds, only: dp
+    use fortnum_blas12, only: fortnum_zscal
+    integer, intent(in) :: n, incx
+    complex(dp), intent(in) :: alpha
+    complex(dp), intent(inout) :: x(*)
+    call fortnum_zscal(n, alpha, x, incx)
+end subroutine zscal
+
+subroutine zdscal(n, alpha, x, incx)
+    use fortnum_kinds, only: dp
+    use fortnum_blas12, only: fortnum_zdscal
+    integer, intent(in) :: n, incx
+    real(dp), intent(in) :: alpha
+    complex(dp), intent(inout) :: x(*)
+    call fortnum_zdscal(n, alpha, x, incx)
+end subroutine zdscal
+
+subroutine dcopy(n, x, incx, y, incy)
+    use fortnum_kinds, only: dp
+    use fortnum_blas12, only: fortnum_dcopy
+    integer, intent(in) :: n, incx, incy
+    real(dp), intent(in) :: x(*)
+    real(dp), intent(inout) :: y(*)
+    call fortnum_dcopy(n, x, incx, y, incy)
+end subroutine dcopy
+
+subroutine zcopy(n, x, incx, y, incy)
+    use fortnum_kinds, only: dp
+    use fortnum_blas12, only: fortnum_zcopy
+    integer, intent(in) :: n, incx, incy
+    complex(dp), intent(in) :: x(*)
+    complex(dp), intent(inout) :: y(*)
+    call fortnum_zcopy(n, x, incx, y, incy)
+end subroutine zcopy
+
+subroutine dswap(n, x, incx, y, incy)
+    use fortnum_kinds, only: dp
+    use fortnum_blas12, only: fortnum_dswap
+    integer, intent(in) :: n, incx, incy
+    real(dp), intent(inout) :: x(*), y(*)
+    call fortnum_dswap(n, x, incx, y, incy)
+end subroutine dswap
+
+subroutine zswap(n, x, incx, y, incy)
+    use fortnum_kinds, only: dp
+    use fortnum_blas12, only: fortnum_zswap
+    integer, intent(in) :: n, incx, incy
+    complex(dp), intent(inout) :: x(*), y(*)
+    call fortnum_zswap(n, x, incx, y, incy)
+end subroutine zswap
+
+subroutine drot(n, x, incx, y, incy, c, s)
+    use fortnum_kinds, only: dp
+    use fortnum_blas12, only: fortnum_drot
+    integer, intent(in) :: n, incx, incy
+    real(dp), intent(inout) :: x(*), y(*)
+    real(dp), intent(in) :: c, s
+    call fortnum_drot(n, x, incx, y, incy, c, s)
+end subroutine drot
+
+subroutine dgemv(trans, m, n, alpha, a, lda, x, incx, beta, y, incy)
+    use fortnum_kinds, only: dp
+    use fortnum_blas12, only: fortnum_dgemv
+    character, intent(in) :: trans
+    integer, intent(in) :: m, n, lda, incx, incy
+    real(dp), intent(in) :: alpha, beta, a(lda, *), x(*)
+    real(dp), intent(inout) :: y(*)
+    call fortnum_dgemv(trans, m, n, alpha, a, lda, x, incx, beta, y, incy)
+end subroutine dgemv
+
+subroutine zgemv(trans, m, n, alpha, a, lda, x, incx, beta, y, incy)
+    use fortnum_kinds, only: dp
+    use fortnum_blas12, only: fortnum_zgemv
+    character, intent(in) :: trans
+    integer, intent(in) :: m, n, lda, incx, incy
+    complex(dp), intent(in) :: alpha, beta, a(lda, *), x(*)
+    complex(dp), intent(inout) :: y(*)
+    call fortnum_zgemv(trans, m, n, alpha, a, lda, x, incx, beta, y, incy)
+end subroutine zgemv
+
+subroutine dsymv(uplo, n, alpha, a, lda, x, incx, beta, y, incy)
+    use fortnum_kinds, only: dp
+    use fortnum_blas12, only: fortnum_dsymv
+    character, intent(in) :: uplo
+    integer, intent(in) :: n, lda, incx, incy
+    real(dp), intent(in) :: alpha, beta, a(lda, *), x(*)
+    real(dp), intent(inout) :: y(*)
+    call fortnum_dsymv(uplo, n, alpha, a, lda, x, incx, beta, y, incy)
+end subroutine dsymv
+
+subroutine zhemv(uplo, n, alpha, a, lda, x, incx, beta, y, incy)
+    use fortnum_kinds, only: dp
+    use fortnum_blas12, only: fortnum_zhemv
+    character, intent(in) :: uplo
+    integer, intent(in) :: n, lda, incx, incy
+    complex(dp), intent(in) :: alpha, beta, a(lda, *), x(*)
+    complex(dp), intent(inout) :: y(*)
+    call fortnum_zhemv(uplo, n, alpha, a, lda, x, incx, beta, y, incy)
+end subroutine zhemv
+
+subroutine dtrsv(uplo, trans, diag, n, a, lda, x, incx)
+    use fortnum_kinds, only: dp
+    use fortnum_blas12, only: fortnum_dtrsv
+    character, intent(in) :: uplo, trans, diag
+    integer, intent(in) :: n, lda, incx
+    real(dp), intent(in) :: a(lda, *)
+    real(dp), intent(inout) :: x(*)
+    call fortnum_dtrsv(uplo, trans, diag, n, a, lda, x, incx)
+end subroutine dtrsv
+
+subroutine ztrsv(uplo, trans, diag, n, a, lda, x, incx)
+    use fortnum_kinds, only: dp
+    use fortnum_blas12, only: fortnum_ztrsv
+    character, intent(in) :: uplo, trans, diag
+    integer, intent(in) :: n, lda, incx
+    complex(dp), intent(in) :: a(lda, *)
+    complex(dp), intent(inout) :: x(*)
+    call fortnum_ztrsv(uplo, trans, diag, n, a, lda, x, incx)
+end subroutine ztrsv
+
+subroutine dger(m, n, alpha, x, incx, y, incy, a, lda)
+    use fortnum_kinds, only: dp
+    use fortnum_blas12, only: fortnum_dger
+    integer, intent(in) :: m, n, incx, incy, lda
+    real(dp), intent(in) :: alpha, x(*), y(*)
+    real(dp), intent(inout) :: a(lda, *)
+    call fortnum_dger(m, n, alpha, x, incx, y, incy, a, lda)
+end subroutine dger
+
+subroutine zgeru(m, n, alpha, x, incx, y, incy, a, lda)
+    use fortnum_kinds, only: dp
+    use fortnum_blas12, only: fortnum_zgeru
+    integer, intent(in) :: m, n, incx, incy, lda
+    complex(dp), intent(in) :: alpha, x(*), y(*)
+    complex(dp), intent(inout) :: a(lda, *)
+    call fortnum_zgeru(m, n, alpha, x, incx, y, incy, a, lda)
+end subroutine zgeru
+
+subroutine zgerc(m, n, alpha, x, incx, y, incy, a, lda)
+    use fortnum_kinds, only: dp
+    use fortnum_blas12, only: fortnum_zgerc
+    integer, intent(in) :: m, n, incx, incy, lda
+    complex(dp), intent(in) :: alpha, x(*), y(*)
+    complex(dp), intent(inout) :: a(lda, *)
+    call fortnum_zgerc(m, n, alpha, x, incx, y, incy, a, lda)
+end subroutine zgerc
+
+subroutine ztrsm(side, uplo, transa, diag, m, n, alpha, a, lda, b, ldb)
+    use fortnum_kinds, only: dp
+    use fortnum_blas3, only: fortnum_ztrsm
+    character, intent(in) :: side, uplo, transa, diag
+    integer, intent(in) :: m, n, lda, ldb
+    complex(dp), intent(in) :: alpha, a(lda, *)
+    complex(dp), intent(inout) :: b(ldb, *)
+    call fortnum_ztrsm(side, uplo, transa, diag, m, n, alpha, a, lda, b, ldb)
+end subroutine ztrsm
+
+subroutine dtrmm(side, uplo, transa, diag, m, n, alpha, a, lda, b, ldb)
+    use fortnum_kinds, only: dp
+    use fortnum_blas3, only: fortnum_dtrmm
+    character, intent(in) :: side, uplo, transa, diag
+    integer, intent(in) :: m, n, lda, ldb
+    real(dp), intent(in) :: alpha, a(lda, *)
+    real(dp), intent(inout) :: b(ldb, *)
+    call fortnum_dtrmm(side, uplo, transa, diag, m, n, alpha, a, lda, b, ldb)
+end subroutine dtrmm
+
+subroutine ztrmm(side, uplo, transa, diag, m, n, alpha, a, lda, b, ldb)
+    use fortnum_kinds, only: dp
+    use fortnum_blas3, only: fortnum_ztrmm
+    character, intent(in) :: side, uplo, transa, diag
+    integer, intent(in) :: m, n, lda, ldb
+    complex(dp), intent(in) :: alpha, a(lda, *)
+    complex(dp), intent(inout) :: b(ldb, *)
+    call fortnum_ztrmm(side, uplo, transa, diag, m, n, alpha, a, lda, b, ldb)
+end subroutine ztrmm
+
+subroutine dsyrk(uplo, trans, n, k, alpha, a, lda, beta, c, ldc)
+    use fortnum_kinds, only: dp
+    use fortnum_blas3, only: fortnum_dsyrk
+    character, intent(in) :: uplo, trans
+    integer, intent(in) :: n, k, lda, ldc
+    real(dp), intent(in) :: alpha, beta, a(lda, *)
+    real(dp), intent(inout) :: c(ldc, *)
+    call fortnum_dsyrk(uplo, trans, n, k, alpha, a, lda, beta, c, ldc)
+end subroutine dsyrk
+
+subroutine dsyr2k(uplo, trans, n, k, alpha, a, lda, b, ldb, beta, c, ldc)
+    use fortnum_kinds, only: dp
+    use fortnum_blas3, only: fortnum_dsyr2k
+    character, intent(in) :: uplo, trans
+    integer, intent(in) :: n, k, lda, ldb, ldc
+    real(dp), intent(in) :: alpha, beta, a(lda, *), b(ldb, *)
+    real(dp), intent(inout) :: c(ldc, *)
+    call fortnum_dsyr2k(uplo, trans, n, k, alpha, a, lda, b, ldb, beta, c, ldc)
+end subroutine dsyr2k
+
+subroutine zherk(uplo, trans, n, k, alpha, a, lda, beta, c, ldc)
+    use fortnum_kinds, only: dp
+    use fortnum_blas3, only: fortnum_zherk
+    character, intent(in) :: uplo, trans
+    integer, intent(in) :: n, k, lda, ldc
+    real(dp), intent(in) :: alpha, beta
+    complex(dp), intent(in) :: a(lda, *)
+    complex(dp), intent(inout) :: c(ldc, *)
+    call fortnum_zherk(uplo, trans, n, k, alpha, a, lda, beta, c, ldc)
+end subroutine zherk
+
 subroutine dgesv(n, nrhs, a, lda, ipiv, b, ldb, info)
     use fortnum_kinds, only: dp
     use fortnum_lapack_lu, only: fortnum_dgesv

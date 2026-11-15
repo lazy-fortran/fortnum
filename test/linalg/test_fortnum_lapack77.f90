@@ -4,6 +4,7 @@ program test_fortnum_lapack77
     ! fortnum routines they forward to: one or two routines of every family.
     use fortnum_kinds, only: dp
     use fortnum_blas, only: fortnum_dgemm, fortnum_zgemm
+    use fortnum_blas12, only: fortnum_dasum, fortnum_zgemv
     use fortnum_lapack_lu, only: fortnum_dgesv, fortnum_zgbsv
     use fortnum_lapack_chol, only: fortnum_dpotrf, fortnum_dpotrs
     use fortnum_lapack_qr, only: fortnum_dgels
@@ -12,6 +13,18 @@ program test_fortnum_lapack77
     use fortnum_lapack_svd, only: fortnum_dgelss
     implicit none
     interface
+        real(dp) function dasum(n, x, incx)
+            import :: dp
+            integer, intent(in) :: n, incx
+            real(dp), intent(in) :: x(*)
+        end function dasum
+        subroutine zgemv(trans, m, n, alpha, a, lda, x, incx, beta, y, incy)
+            import :: dp
+            character, intent(in) :: trans
+            integer, intent(in) :: m, n, lda, incx, incy
+            complex(dp), intent(in) :: alpha, beta, a(lda, *), x(*)
+            complex(dp), intent(inout) :: y(*)
+        end subroutine zgemv
         subroutine dgemm(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc)
             import :: dp
             character, intent(in) :: transa, transb
@@ -123,6 +136,12 @@ program test_fortnum_lapack77
     call zgemm('C', 'N', n, n, n, (1.0_dp, 2.0_dp), z, n, z, n, (0.5_dp, 0.0_dp), z1, n)
     call fortnum_zgemm('C', 'N', n, n, n, (1.0_dp, 2.0_dp), z, n, z, n, (0.5_dp, 0.0_dp), z2, n)
     call require(all(z1 == z2), 'zgemm')
+    call require(dasum(n, a, 2) == fortnum_dasum(n, a, 2), 'dasum')
+    zv1(:, 1) = (1.0_dp, -1.0_dp)
+    zv2(:, 1) = zv1(:, 1)
+    call zgemv('C', n, n, (2.0_dp, 0.5_dp), z, n, z(:, 2), 1, (0.5_dp, 0.0_dp), zv1, 1)
+    call fortnum_zgemv('C', n, n, (2.0_dp, 0.5_dp), z, n, z(:, 2), 1, (0.5_dp, 0.0_dp), zv2, 1)
+    call require(all(zv1(:, 1) == zv2(:, 1)), 'zgemv')
 
     a1 = a
     a2 = a

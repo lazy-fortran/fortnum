@@ -12,6 +12,7 @@ module fortnum_blas12
     public :: fortnum_daxpy, fortnum_zaxpy, fortnum_dscal, fortnum_zscal, fortnum_zdscal
     public :: fortnum_dcopy, fortnum_zcopy, fortnum_dswap, fortnum_zswap
     public :: fortnum_dnrm2, fortnum_dznrm2, fortnum_idamax, fortnum_izamax, fortnum_drot
+    public :: fortnum_dasum, fortnum_dzasum
     public :: fortnum_dgemv, fortnum_zgemv, fortnum_dsymv, fortnum_zhemv
     public :: fortnum_dtrsv, fortnum_ztrsv, fortnum_dger, fortnum_zgeru, fortnum_zgerc
 
@@ -179,6 +180,30 @@ contains
 
     !> Euclidean norm without overflow or harmful underflow: one pass keeping
     !> the largest magnitude seen and the sum of squares scaled by it.
+    !> sum |x(i)|; zero for n <= 0 or incx <= 0, as reference BLAS
+    real(dp) function fortnum_dasum(n, x, incx) result(s)
+        integer, intent(in) :: n, incx
+        real(dp), intent(in) :: x(*)
+        integer :: i
+        s = 0
+        if (n <= 0 .or. incx <= 0) return
+        do i = 1, 1 + (n - 1)*incx, incx
+            s = s + abs(x(i))
+        end do
+    end function fortnum_dasum
+
+    !> sum |re x(i)| + |im x(i)|; zero for n <= 0 or incx <= 0
+    real(dp) function fortnum_dzasum(n, x, incx) result(s)
+        integer, intent(in) :: n, incx
+        complex(dp), intent(in) :: x(*)
+        integer :: i
+        s = 0
+        if (n <= 0 .or. incx <= 0) return
+        do i = 1, 1 + (n - 1)*incx, incx
+            s = s + abs(real(x(i), dp)) + abs(aimag(x(i)))
+        end do
+    end function fortnum_dzasum
+
     real(dp) function fortnum_dnrm2(n, x, incx) result(norm)
         integer, intent(in) :: n, incx
         real(dp), intent(in) :: x(*)

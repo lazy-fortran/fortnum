@@ -544,7 +544,7 @@ extensions stops with an error. `fortnum_blas3` adds the level-3 routines
 `fortnum_dtrsm`, `fortnum_ztrsm`, `fortnum_dtrmm`, `fortnum_ztrmm`,
 `fortnum_dsyrk`, `fortnum_dsyr2k` and `fortnum_zherk` on top of GEMM, and
 `fortnum_blas12` the level-1 and level-2 routines (dot products, AXPY, scaling,
-copy, swap, overflow-safe norms, IxAMAX, DROT, GEMV, DSYMV, ZHEMV, TRSV, DGER,
+copy, swap, overflow-safe norms, sums of magnitudes (DASUM, DZASUM), IxAMAX, DROT, GEMV, DSYMV, ZHEMV, TRSV, DGER,
 ZGERU, ZGERC), all with reference BLAS arguments.
 
 `tools/wasm/test_wasm.sh` builds the BLAS and LAPACK modules with LFortran and

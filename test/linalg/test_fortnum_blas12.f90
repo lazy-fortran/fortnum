@@ -140,6 +140,12 @@ contains
         call require(abs(fortnum_dznrm2(3, z, 1) - 12.0e200_dp) <= 1e-12_dp*12e200_dp, 'dznrm2 large')
         call require(fortnum_izamax(3, [(1.0_dp, -3.0_dp), (3.0_dp, 1.0_dp), (0.0_dp, 2.0_dp)], 1) == 1, &
             'izamax keeps the first of equal |re|+|im|')
+        x = [3.0_dp, -4.0_dp, 0.5_dp, -12.0_dp, 2.0_dp]
+        call require(fortnum_dasum(5, x, 1) == 21.5_dp, 'dasum')
+        call require(fortnum_dasum(3, x, 2) == 5.5_dp, 'dasum stride')
+        call require(fortnum_dasum(2, x, -1) == 0 .and. fortnum_dasum(0, x, 1) == 0, 'dasum empty')
+        z = [(3.0_dp, -4.0_dp), (-0.5_dp, 0.0_dp), (1.0_dp, 2.0_dp)]
+        call require(fortnum_dzasum(3, z, 1) == 10.5_dp .and. fortnum_dzasum(2, z, 2) == 10, 'dzasum')
     end subroutine norms
 
     subroutine matrix_vector(m, n, incx, incy)
