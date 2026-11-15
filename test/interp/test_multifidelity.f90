@@ -134,6 +134,7 @@ contains
 
     subroutine dense_ar1()
         use fortnum_ar1, only: ar1_gp_t, ar1_covariance, rbf_covariance
+        use fortnum_lapack_chol, only: dposv => fortnum_dposv
         type(ar1_gp_t) :: model
         real(dp) :: xl(2), xh(3), xt(2), rho, amp, ell, h, fp, fm, density, pert_amp, pert_ell
         real(dp) :: low(2, 2), cross(2, 3), high(3, 3), delta(3, 3)
@@ -143,7 +144,6 @@ contains
         real(dp) :: full_cross(5, 2), expected(2, 2), y(5), deriv(5, 5, 3), grad(3)
         real(dp), allocatable :: assembled(:, :), dr(:, :)
         integer :: i, j, p, info
-        external :: dposv
         xl = [.1_dp, .8_dp]; xh = [0._dp, .4_dp, 1._dp]; xt = [.2_dp, .6_dp]
         y = [.3_dp, -.5_dp, .7_dp, -.1_dp, .2_dp]
         amp = 1.3_dp; ell = .35_dp; rho = .9_dp; h = 1.e-5_dp

@@ -3,6 +3,7 @@
 module fortnum_matrix_exponential
     use fortnum_kinds, only: dp
     use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
+    use fortnum_lapack_lu, only: dgesv => fortnum_dgesv, zgesv => fortnum_zgesv
     implicit none
     private
 
@@ -23,22 +24,6 @@ module fortnum_matrix_exponential
         40840800.0_dp, 960960.0_dp, 16380.0_dp, 182.0_dp, 1.0_dp]
     real(dp), parameter :: theta13 = 5.371920351148152_dp
 
-    interface
-        subroutine dgesv(n, nrhs, a, lda, ipiv, b, ldb, info)
-            import :: dp
-            integer, intent(in) :: n, nrhs, lda, ldb
-            integer, intent(out) :: ipiv(*)
-            real(dp), intent(inout) :: a(lda, *), b(ldb, *)
-            integer, intent(out) :: info
-        end subroutine
-        subroutine zgesv(n, nrhs, a, lda, ipiv, b, ldb, info)
-            import :: dp
-            integer, intent(in) :: n, nrhs, lda, ldb
-            integer, intent(out) :: ipiv(*)
-            complex(dp), intent(inout) :: a(lda, *), b(ldb, *)
-            integer, intent(out) :: info
-        end subroutine
-    end interface
 contains
     !> Number of squarings that brings the 1-norm below theta_13.
     pure integer function squarings_for(anorm) result(s)

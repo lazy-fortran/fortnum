@@ -5,6 +5,7 @@ module fortnum_multifidelity
     use fortnum_generated_mf_distance, only: mf_distance
     use fortnum_generated_mf_covariance, only: mf_covariance
     use fortnum_generated_mf_autoregressive, only: mf_autoregressive
+    use fortnum_lapack_chol, only: dpotrf => fortnum_dpotrf, dpotrs => fortnum_dpotrs
     implicit none
     private
     type, public :: autoregressive_gp_t
@@ -17,23 +18,6 @@ module fortnum_multifidelity
         procedure :: jvp => gp_jvp
         procedure :: vjp => gp_vjp
     end type
-    interface
-        subroutine dpotrf(uplo, n, a, lda, info)
-            import dp
-            character, intent(in) :: uplo
-            integer, intent(in) :: n, lda
-            real(dp), intent(inout) :: a(lda, *)
-            integer, intent(out) :: info
-        end subroutine
-        subroutine dpotrs(uplo, n, nrhs, a, lda, b, ldb, info)
-            import dp
-            character, intent(in) :: uplo
-            integer, intent(in) :: n, nrhs, lda, ldb
-            real(dp), intent(in) :: a(lda, *)
-            real(dp), intent(inout) :: b(ldb, *)
-            integer, intent(out) :: info
-        end subroutine
-    end interface
 contains
     subroutine gp_fit(self, x, low, high, length, amplitude, rho, nugget, status)
         class(autoregressive_gp_t), intent(inout) :: self

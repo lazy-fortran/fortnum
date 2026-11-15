@@ -1,19 +1,10 @@
 module fortnum_gaussian_constraints
     use, intrinsic :: iso_fortran_env, only: dp => real64
     use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
+    use fortnum_lapack_svd, only: dgesvd => fortnum_dgesvd
     implicit none
     private
     public :: brownian_factor, constrain_discrepancy, constraint_nullspace
-    interface
-        subroutine dgesvd(jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, work, lwork, info)
-            import dp
-            character, intent(in)::jobu, jobvt
-            integer, intent(in)::m, n, lda, ldu, ldvt, lwork
-            real(dp), intent(inout)::a(lda, *)
-            real(dp), intent(out)::s(*), u(ldu, *), vt(ldvt, *), work(*)
-            integer, intent(out)::info
-        end subroutine
-    end interface
 contains
     subroutine constraint_nullspace(protected, basis, status)
         !! Euclidean orthonormal complement of a fixed protected tangent space.

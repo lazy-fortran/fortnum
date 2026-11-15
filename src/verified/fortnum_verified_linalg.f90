@@ -37,6 +37,7 @@ module fortnum_verified_linalg
         sub_down, sqrt_up, gamma_up, unit_roundoff
     use fortnum_interval, only: interval_t, interval, entire, sqr, &
         operator(+), operator(*)
+    use fortnum_lapack_syev, only: dsyev => fortnum_dsyev
     implicit none
     private
 
@@ -83,17 +84,6 @@ module fortnum_verified_linalg
     interface eig_upper_bound
         module procedure eig_upper_bound_r, eig_upper_bound_c
     end interface eig_upper_bound
-
-    interface
-        subroutine dsyev(jobz, uplo, n, a, lda, w, work, lwork, info)
-            import :: dp
-            character, intent(in) :: jobz, uplo
-            integer, intent(in) :: n, lda, lwork
-            real(dp), intent(inout) :: a(lda, *)
-            real(dp), intent(out) :: w(*), work(*)
-            integer, intent(out) :: info
-        end subroutine dsyev
-    end interface
 
     real(dp), parameter :: u = unit_roundoff
 

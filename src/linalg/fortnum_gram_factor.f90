@@ -3,6 +3,7 @@ module fortnum_gram_factor
     use fortnum_status, only: fortnum_status_t, status_set, FORTNUM_OK, &
         FORTNUM_DOMAIN_ERROR, FORTNUM_CONVERGENCE_ERROR
     use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
+    use fortnum_lapack_qr, only: dgeqrf => fortnum_dgeqrf
     implicit none
     private
     type, public :: gram_factor_workspace_t
@@ -11,15 +12,6 @@ module fortnum_gram_factor
     contains
         procedure :: factor => gram_factor
     end type
-    interface
-        subroutine dgeqrf(m, n, a, lda, tau, work, lwork, info)
-            import :: dp
-            integer, intent(in) :: m, n, lda, lwork
-            real(dp), intent(inout) :: a(lda, *)
-            real(dp), intent(out) :: tau(*), work(*)
-            integer, intent(out) :: info
-        end subroutine
-    end interface
 contains
     subroutine gram_factor(self, w, b, status)
         class(gram_factor_workspace_t), intent(inout) :: self

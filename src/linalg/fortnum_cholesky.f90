@@ -2,35 +2,10 @@ module fortnum_cholesky
     use fortnum_kinds, only: dp
     use fortnum_status, only: fortnum_status_t, status_set, FORTNUM_OK, &
         FORTNUM_DOMAIN_ERROR, FORTNUM_CONVERGENCE_ERROR
+    use fortnum_blas3, only: dtrsm => fortnum_dtrsm
+    use fortnum_lapack_chol, only: dpotrf => fortnum_dpotrf, dpotrs => fortnum_dpotrs
     implicit none
     private
-
-    interface
-        subroutine dpotrf(uplo, n, a, lda, info)
-            import :: dp
-            character(1), intent(in) :: uplo
-            integer, intent(in) :: n, lda
-            real(dp), intent(inout) :: a(lda, *)
-            integer, intent(out) :: info
-        end subroutine dpotrf
-
-        subroutine dpotrs(uplo, n, nrhs, a, lda, b, ldb, info)
-            import :: dp
-            character(1), intent(in) :: uplo
-            integer, intent(in) :: n, nrhs, lda, ldb
-            real(dp), intent(in) :: a(lda, *)
-            real(dp), intent(inout) :: b(ldb, *)
-            integer, intent(out) :: info
-        end subroutine dpotrs
-
-        subroutine dtrsm(side, uplo, transa, diag, m, n, alpha, a, lda, b, ldb)
-            import :: dp
-            character(1), intent(in) :: side, uplo, transa, diag
-            integer, intent(in) :: m, n, lda, ldb
-            real(dp), intent(in) :: alpha, a(lda, *)
-            real(dp), intent(inout) :: b(ldb, *)
-        end subroutine dtrsm
-    end interface
 
     type, public :: cholesky_factorization_t
         real(dp), allocatable :: lower(:, :)

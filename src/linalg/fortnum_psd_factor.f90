@@ -3,20 +3,10 @@ module fortnum_psd_factor
     use fortnum_status, only: fortnum_status_t, status_set, FORTNUM_OK, &
         FORTNUM_DOMAIN_ERROR, FORTNUM_CONVERGENCE_ERROR
     use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
+    use fortnum_lapack_chol, only: dpstrf => fortnum_dpstrf
     implicit none
     private
     public :: psd_factor
-    interface
-        subroutine dpstrf(uplo, n, a, lda, piv, rank, tol, work, info)
-            import :: dp
-            character(1), intent(in) :: uplo
-            integer, intent(in) :: n, lda
-            real(dp), intent(inout) :: a(lda, *)
-            integer, intent(out) :: piv(*), rank, info
-            real(dp), intent(in) :: tol
-            real(dp), intent(out) :: work(*)
-        end subroutine
-    end interface
 contains
     subroutine psd_factor(a, b, status, rank, backward_error)
         real(dp), intent(in) :: a(:, :)

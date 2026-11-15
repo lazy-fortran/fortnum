@@ -12,8 +12,8 @@ module fortnum_bvls
     !! it is the Lawson-Hanson / Stark-Parker BVLS scheme with two-sided
     !! bounds). The working set is a set of variables held at a bound. Each
     !! iteration solves the equality-constrained least-squares problem on the
-    !! free variables by null-space elimination of C (SVD, LAPACK DGESVD) and a
-    !! minimum-norm least-squares solve (LAPACK DGELSD, rank decided by
+    !! free variables by null-space elimination of C (SVD, fortnum's DGESVD) and a
+    !! minimum-norm least-squares solve (fortnum's DGELSD, rank decided by
     !! `rcond`), takes the longest feasible step toward it, and adds the
     !! blocking bound to the working set. When no step is blocked the bound
     !! multipliers nu = grad f - C^T mu are computed (mu by least squares on
@@ -37,6 +37,7 @@ module fortnum_bvls
     !! discarded; use lambda > 0 to select a unique solution instead.
     use fortnum_kinds, only: dp
     use, intrinsic :: ieee_arithmetic, only: ieee_is_finite, ieee_is_nan
+    use fortnum_lapack_svd, only: dgelsd => fortnum_dgelsd, dgesvd => fortnum_dgesvd
     implicit none
     private
 
@@ -46,27 +47,6 @@ module fortnum_bvls
     integer, parameter, public :: BVLS_INVALID_ARGUMENT = -1
 
     public :: bounded_least_squares
-
-    interface
-        subroutine dgelsd(m, n, nrhs, a, lda, b, ldb, s, rcond, rank, work, lwork, &
-                iwork, info)
-            import :: dp
-            integer, intent(in) :: m, n, nrhs, lda, ldb, lwork
-            real(dp), intent(inout) :: a(lda, *), b(ldb, *)
-            real(dp), intent(out) :: s(*), work(*)
-            real(dp), intent(in) :: rcond
-            integer, intent(out) :: rank, iwork(*), info
-        end subroutine dgelsd
-        subroutine dgesvd(jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, work, &
-                lwork, info)
-            import :: dp
-            character, intent(in) :: jobu, jobvt
-            integer, intent(in) :: m, n, lda, ldu, ldvt, lwork
-            real(dp), intent(inout) :: a(lda, *)
-            real(dp), intent(out) :: s(*), u(ldu, *), vt(ldvt, *), work(*)
-            integer, intent(out) :: info
-        end subroutine dgesvd
-    end interface
 
 contains
 

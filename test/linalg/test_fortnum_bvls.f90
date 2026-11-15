@@ -12,25 +12,9 @@ program test_fortnum_bvls
     use fortnum_symmetric_eigen, only: symmetric_eigen
     use, intrinsic :: iso_fortran_env, only: error_unit, int64
     use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_positive_inf
+    use fortnum_lapack_chol, only: dposv => fortnum_dposv
+    use fortnum_lapack_qr, only: dgels => fortnum_dgels
     implicit none
-
-    interface
-        subroutine dgels(trans, m, n, nrhs, a, lda, b, ldb, work, lwork, info)
-            import :: dp
-            character, intent(in) :: trans
-            integer, intent(in) :: m, n, nrhs, lda, ldb, lwork
-            real(dp), intent(inout) :: a(lda, *), b(ldb, *)
-            real(dp), intent(out) :: work(*)
-            integer, intent(out) :: info
-        end subroutine dgels
-        subroutine dposv(uplo, n, nrhs, a, lda, b, ldb, info)
-            import :: dp
-            character, intent(in) :: uplo
-            integer, intent(in) :: n, nrhs, lda, ldb
-            real(dp), intent(inout) :: a(lda, *), b(ldb, *)
-            integer, intent(out) :: info
-        end subroutine dposv
-    end interface
 
     integer(int64) :: seed = 12345_int64
     real(dp) :: inf

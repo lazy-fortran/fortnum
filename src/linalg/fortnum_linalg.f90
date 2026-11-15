@@ -38,6 +38,7 @@ module fortnum_linalg
     use fortnum_generated_inv2_vjp, only: fortnum_inv2_vjp_kernel
     use fortnum_generated_inv3_jvp, only: fortnum_inv3_jvp_kernel
     use fortnum_generated_inv3_vjp, only: fortnum_inv3_vjp_kernel
+    use fortnum_lapack_lu, only: dgesv => fortnum_dgesv, zgesv => fortnum_zgesv
     implicit none
     private
 
@@ -71,22 +72,6 @@ module fortnum_linalg
         module procedure dense_solve_real_many
         module procedure dense_solve_complex_many
     end interface dense_solve
-
-    interface
-        subroutine dgesv(n, nrhs, a, lda, ipiv, b, ldb, info)
-            import :: dp
-            integer, intent(in) :: n, nrhs, lda, ldb
-            real(dp), intent(inout) :: a(lda, *), b(ldb, *)
-            integer, intent(out) :: ipiv(*), info
-        end subroutine dgesv
-
-        subroutine zgesv(n, nrhs, a, lda, ipiv, b, ldb, info)
-            import :: dp
-            integer, intent(in) :: n, nrhs, lda, ldb
-            complex(dp), intent(inout) :: a(lda, *), b(ldb, *)
-            integer, intent(out) :: ipiv(*), info
-        end subroutine zgesv
-    end interface
 
     public :: dense_solve
     public :: det2, det3, det2_jvp, det3_jvp, det2_vjp, det3_vjp
