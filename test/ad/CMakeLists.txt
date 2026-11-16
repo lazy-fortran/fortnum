@@ -2,7 +2,7 @@
 # The harness self-tests run with plain gfortran. The Enzyme smoke tests build
 # only when FORTNUM_ENABLE_ENZYME=ON and the pass plugin resolves; otherwise
 # they are skipped so the suite stays green without Enzyme installed.
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 include(FortnumEnzyme)
 
 # --- #39 derivative-test harness ---
@@ -28,7 +28,7 @@ fortnum_require_real128(test_stable_sqrt_difference:ad_stable_sqrt_difference)
 
 add_executable(test_generated_elemental_array
     test_generated_elemental_array.f90
-    ${CMAKE_SOURCE_DIR}/src/generated/fortnum_dawson_identity_jvp_kernel.f90)
+    ${PROJECT_SOURCE_DIR}/src/generated/fortnum_dawson_identity_jvp_kernel.f90)
 add_test(NAME ad_generated_elemental_array
     COMMAND test_generated_elemental_array)
 
@@ -181,9 +181,9 @@ target_link_libraries(test_derivative_registry PRIVATE fortnum)
 add_test(NAME ad_derivative_registry COMMAND test_derivative_registry)
 
 add_executable(test_enzyme_fixture_support
-    ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
-    ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
-    ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/test_enzyme_fixture_support.f90)
+    ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+    ${PROJECT_SOURCE_DIR}/benchmark/peak_rss.c
+    ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/test_enzyme_fixture_support.f90)
 add_test(NAME ad_enzyme_fixture_support COMMAND test_enzyme_fixture_support)
 set_tests_properties(ad_enzyme_fixture_support PROPERTIES
     ENVIRONMENT
@@ -197,9 +197,9 @@ if(FORTNUM_ENABLE_ENZYME)
     fortnum_add_enzyme_test(
         NAME enzyme_fixture_support
         SOURCES
-            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/test_enzyme_fixture_support.f90
+            ${PROJECT_SOURCE_DIR}/benchmark/peak_rss.c
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/test_enzyme_fixture_support.f90
         MODE forward
         OPT_LEVEL O2)
     set_tests_properties(enzyme_fixture_support PROPERTIES
@@ -218,11 +218,11 @@ if(FORTNUM_ENABLE_ENZYME)
         fortnum_add_enzyme_test(
             NAME enzyme_generated_scalar_wrappers
             SOURCES
-                ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
-                ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_rule_counter.c
-                ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+                ${PROJECT_SOURCE_DIR}/benchmark/peak_rss.c
+                ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_rule_counter.c
+                ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
                 ${_fortnum_scalar_wrapper_sources}
-                ${CMAKE_SOURCE_DIR}/cmake/enzyme/generated/test_scalar_wrappers.f90
+                ${PROJECT_SOURCE_DIR}/cmake/enzyme/generated/test_scalar_wrappers.f90
             FORWARD_RULES
                 fortnum_scalar_primal_p1=fortnum_scalar_custom_p1_forward
             MODE forward
@@ -330,58 +330,58 @@ if(FORTNUM_ENABLE_ENZYME)
         NAME enzyme_square
         SOURCES
             ${_fortnum_square_wrapper_source}
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/smoke/square.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/smoke/square.f90
         MODE reverse
         OPT_LEVEL O2)
     fortnum_add_enzyme_test(
         NAME enzyme_dot
-        SOURCES ${CMAKE_SOURCE_DIR}/cmake/enzyme/smoke/dot_product.f90
+        SOURCES ${PROJECT_SOURCE_DIR}/cmake/enzyme/smoke/dot_product.f90
         MODE forward
         OPT_LEVEL O2)
     fortnum_add_enzyme_test(
         NAME enzyme_direct_solver_jvp
         SOURCES
-            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${PROJECT_SOURCE_DIR}/benchmark/peak_rss.c
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
             ${_fortnum_direct_solver_component_wrapper_source}
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/direct_solver_jvp.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/direct_solver_jvp.f90
         MODE forward
         OPT_LEVEL O2)
     fortnum_add_enzyme_test(
         NAME enzyme_direct_solver_vjp
         SOURCES
-            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${PROJECT_SOURCE_DIR}/benchmark/peak_rss.c
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
             ${_fortnum_direct_solver_objective_wrapper_source}
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/direct_solver_vjp.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/direct_solver_vjp.f90
         MODE reverse
         OPT_LEVEL O2)
     fortnum_add_enzyme_test(
         NAME enzyme_iterative_solver_jvp
         SOURCES
-            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${PROJECT_SOURCE_DIR}/benchmark/peak_rss.c
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
             ${_fortnum_iterative_solver_component_wrapper_source}
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/iterative_solver_jvp.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/iterative_solver_jvp.f90
         MODE forward
         OPT_LEVEL O2)
     fortnum_add_enzyme_test(
         NAME enzyme_array_sum
-        SOURCES ${CMAKE_SOURCE_DIR}/cmake/enzyme/smoke/array_sum.f90
+        SOURCES ${PROJECT_SOURCE_DIR}/cmake/enzyme/smoke/array_sum.f90
         MODE reverse
         OPT_LEVEL O2)
     fortnum_add_enzyme_test(
         NAME enzyme_dawson_hybrid
         SOURCES
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_dawson_outer_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_dawson_outer_kernel.f90
             ${FORTNUM_BUILD_SELECTION_SOURCE}
-            ${CMAKE_SOURCE_DIR}/src/special/fortnum_special_dawson.f90
-            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_rule_counter.c
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/dawson_rule.c
+            ${PROJECT_SOURCE_DIR}/src/special/fortnum_special_dawson.f90
+            ${PROJECT_SOURCE_DIR}/benchmark/peak_rss.c
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_rule_counter.c
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/dawson_rule.c
             ${_fortnum_dawson_wrapper_sources}
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/dawson_outer.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/dawson_outer.f90
         FORWARD_RULES
             fortnum_dawson_kernel=fortnum_dawson_kernel_derivative
         MODE forward
@@ -389,178 +389,178 @@ if(FORTNUM_ENABLE_ENZYME)
     fortnum_add_enzyme_test(
         NAME enzyme_scalar_root_hybrid
         SOURCES
-            ${CMAKE_SOURCE_DIR}/src/fortnum_kinds.f90
-            ${CMAKE_SOURCE_DIR}/src/fortnum_status.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_scalar_root_residual_jvp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/roots/fortnum_roots.f90
-            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${PROJECT_SOURCE_DIR}/src/fortnum_kinds.f90
+            ${PROJECT_SOURCE_DIR}/src/fortnum_status.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_scalar_root_residual_jvp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/roots/fortnum_roots.f90
+            ${PROJECT_SOURCE_DIR}/benchmark/peak_rss.c
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
             ${_fortnum_scalar_root_residual_wrapper_source}
             ${_fortnum_scalar_root_newton_wrapper_source}
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/scalar_root_jvp.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/scalar_root_jvp.f90
         MODE forward
         OPT_LEVEL O2)
     fortnum_add_enzyme_test(
         NAME enzyme_scalar_root_vjp_hybrid
         SOURCES
-            ${CMAKE_SOURCE_DIR}/src/fortnum_kinds.f90
-            ${CMAKE_SOURCE_DIR}/src/fortnum_status.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_scalar_root_residual_vjp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/roots/fortnum_roots.f90
-            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${PROJECT_SOURCE_DIR}/src/fortnum_kinds.f90
+            ${PROJECT_SOURCE_DIR}/src/fortnum_status.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_scalar_root_residual_vjp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/roots/fortnum_roots.f90
+            ${PROJECT_SOURCE_DIR}/benchmark/peak_rss.c
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
             ${_fortnum_scalar_root_vjp_residual_wrapper_source}
             ${_fortnum_scalar_root_vjp_newton_wrapper_source}
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/scalar_root_vjp.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/scalar_root_vjp.f90
         MODE reverse
         OPT_LEVEL O2)
     fortnum_add_enzyme_test(
         NAME enzyme_vector_root_hybrid
         SOURCES
-            ${CMAKE_SOURCE_DIR}/src/fortnum_kinds.f90
-            ${CMAKE_SOURCE_DIR}/src/fortnum_status.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_det2_jvp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_det2_vjp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_det3_jvp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_det3_vjp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_inv2_jvp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_inv2_vjp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_inv3_jvp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_inv3_vjp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_vector_root_residual_jvp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/fortnum_ad_backend.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_det2_jvp_fortad.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_det2_vjp_fortad.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_det3_jvp_fortad.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_det3_vjp_fortad.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_inv2_jvp_fortad.f90
-            ${CMAKE_SOURCE_DIR}/src/linalg/fortnum_linalg.f90
-            ${CMAKE_SOURCE_DIR}/src/roots/fortnum_multiroot.f90
-            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${PROJECT_SOURCE_DIR}/src/fortnum_kinds.f90
+            ${PROJECT_SOURCE_DIR}/src/fortnum_status.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_det2_jvp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_det2_vjp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_det3_jvp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_det3_vjp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_inv2_jvp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_inv2_vjp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_inv3_jvp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_inv3_vjp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_vector_root_residual_jvp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/fortnum_ad_backend.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortad/fortnum_det2_jvp_fortad.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortad/fortnum_det2_vjp_fortad.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortad/fortnum_det3_jvp_fortad.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortad/fortnum_det3_vjp_fortad.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortad/fortnum_inv2_jvp_fortad.f90
+            ${PROJECT_SOURCE_DIR}/src/linalg/fortnum_linalg.f90
+            ${PROJECT_SOURCE_DIR}/src/roots/fortnum_multiroot.f90
+            ${PROJECT_SOURCE_DIR}/benchmark/peak_rss.c
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
             ${_fortnum_vector_root_jvp_wrapper_sources}
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/vector_root_jvp.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/vector_root_jvp.f90
         MODE forward
         OPT_LEVEL O2)
     fortnum_add_enzyme_test(
         NAME enzyme_vector_root_vjp_hybrid
         SOURCES
-            ${CMAKE_SOURCE_DIR}/src/fortnum_kinds.f90
-            ${CMAKE_SOURCE_DIR}/src/fortnum_status.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_det2_jvp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_det2_vjp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_det3_jvp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_det3_vjp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_inv2_jvp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_inv2_vjp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_inv3_jvp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_inv3_vjp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_vector_root_residual_jacobian_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_vector_root_residual_vjp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/fortnum_ad_backend.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_det2_jvp_fortad.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_det2_vjp_fortad.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_det3_jvp_fortad.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_det3_vjp_fortad.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_inv2_jvp_fortad.f90
-            ${CMAKE_SOURCE_DIR}/src/linalg/fortnum_linalg.f90
-            ${CMAKE_SOURCE_DIR}/src/roots/fortnum_multiroot.f90
-            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${PROJECT_SOURCE_DIR}/src/fortnum_kinds.f90
+            ${PROJECT_SOURCE_DIR}/src/fortnum_status.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_det2_jvp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_det2_vjp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_det3_jvp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_det3_vjp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_inv2_jvp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_inv2_vjp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_inv3_jvp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_inv3_vjp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_vector_root_residual_jacobian_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_vector_root_residual_vjp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/fortnum_ad_backend.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortad/fortnum_det2_jvp_fortad.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortad/fortnum_det2_vjp_fortad.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortad/fortnum_det3_jvp_fortad.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortad/fortnum_det3_vjp_fortad.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortad/fortnum_inv2_jvp_fortad.f90
+            ${PROJECT_SOURCE_DIR}/src/linalg/fortnum_linalg.f90
+            ${PROJECT_SOURCE_DIR}/src/roots/fortnum_multiroot.f90
+            ${PROJECT_SOURCE_DIR}/benchmark/peak_rss.c
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
             ${_fortnum_vector_root_vjp_wrapper_sources}
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/vector_root_vjp.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/vector_root_vjp.f90
         MODE reverse
         OPT_LEVEL O2)
     fortnum_add_enzyme_test(
         NAME enzyme_fixed_quadrature_jvp_hybrid
         SOURCES
-            ${CMAKE_SOURCE_DIR}/src/fortnum_kinds.f90
-            ${CMAKE_SOURCE_DIR}/src/quadrature/fortnum_quadrature.f90
-            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${PROJECT_SOURCE_DIR}/src/fortnum_kinds.f90
+            ${PROJECT_SOURCE_DIR}/src/quadrature/fortnum_quadrature.f90
+            ${PROJECT_SOURCE_DIR}/benchmark/peak_rss.c
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
             ${_fortnum_fixed_quadrature_wrapper_sources}
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/fixed_quadrature_jvp.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/fixed_quadrature_jvp.f90
         MODE forward
         OPT_LEVEL O2)
     fortnum_add_enzyme_test(
         NAME enzyme_fixed_quadrature_vjp_hybrid
         SOURCES
-            ${CMAKE_SOURCE_DIR}/src/fortnum_kinds.f90
-            ${CMAKE_SOURCE_DIR}/src/quadrature/fortnum_quadrature.f90
-            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${PROJECT_SOURCE_DIR}/src/fortnum_kinds.f90
+            ${PROJECT_SOURCE_DIR}/src/quadrature/fortnum_quadrature.f90
+            ${PROJECT_SOURCE_DIR}/benchmark/peak_rss.c
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
             ${_fortnum_fixed_quadrature_wrapper_sources}
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/fixed_quadrature_vjp.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/fixed_quadrature_vjp.f90
         MODE reverse
         OPT_LEVEL O2)
     fortnum_add_enzyme_test(
         NAME enzyme_adaptive_frozen_trace_jvp
         SOURCES
-            ${CMAKE_SOURCE_DIR}/src/fortnum_kinds.f90
-            ${CMAKE_SOURCE_DIR}/src/fortnum_status.f90
-            ${CMAKE_SOURCE_DIR}/src/quadrature/fortnum_integrate_gk.f90
-            ${CMAKE_SOURCE_DIR}/src/quadrature/fortnum_integrate.f90
-            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${PROJECT_SOURCE_DIR}/src/fortnum_kinds.f90
+            ${PROJECT_SOURCE_DIR}/src/fortnum_status.f90
+            ${PROJECT_SOURCE_DIR}/src/quadrature/fortnum_integrate_gk.f90
+            ${PROJECT_SOURCE_DIR}/src/quadrature/fortnum_integrate.f90
+            ${PROJECT_SOURCE_DIR}/benchmark/peak_rss.c
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
             ${_fortnum_adaptive_wrapper_sources}
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/adaptive_integrand_jvp.f90
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/adaptive_frozen_trace_jvp.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/adaptive_integrand_jvp.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/adaptive_frozen_trace_jvp.f90
         MODE forward
         OPT_LEVEL O2)
     fortnum_add_enzyme_test(
         NAME enzyme_ode_forward_sensitivity_jvp
         SOURCES
-            ${CMAKE_SOURCE_DIR}/src/fortnum_kinds.f90
-            ${CMAKE_SOURCE_DIR}/src/fortnum_status.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_det2_jvp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_det2_vjp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_det3_jvp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_det3_vjp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_inv2_jvp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_inv2_vjp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_inv3_jvp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_inv3_vjp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/fortnum_ad_backend.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_det2_jvp_fortad.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_det2_vjp_fortad.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_det3_jvp_fortad.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_det3_vjp_fortad.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortad/fortnum_inv2_jvp_fortad.f90
-            ${CMAKE_SOURCE_DIR}/src/linalg/fortnum_linalg.f90
+            ${PROJECT_SOURCE_DIR}/src/fortnum_kinds.f90
+            ${PROJECT_SOURCE_DIR}/src/fortnum_status.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_det2_jvp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_det2_vjp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_det3_jvp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_det3_vjp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_inv2_jvp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_inv2_vjp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_inv3_jvp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_inv3_vjp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/fortnum_ad_backend.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortad/fortnum_det2_jvp_fortad.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortad/fortnum_det2_vjp_fortad.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortad/fortnum_det3_jvp_fortad.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortad/fortnum_det3_vjp_fortad.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortad/fortnum_inv2_jvp_fortad.f90
+            ${PROJECT_SOURCE_DIR}/src/linalg/fortnum_linalg.f90
             # The Cash-Karp tableau is generated, and this pipeline compiles
             # its sources in isolation, so the module has to be listed before
             # the stepper that uses it.
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_rk54_ck_tableau.f90
-            ${CMAKE_SOURCE_DIR}/src/ode/fortnum_ode_cash_karp.f90
-            ${CMAKE_SOURCE_DIR}/src/ode/fortnum_ode.f90
-            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_rk54_ck_tableau.f90
+            ${PROJECT_SOURCE_DIR}/src/ode/fortnum_ode_cash_karp.f90
+            ${PROJECT_SOURCE_DIR}/src/ode/fortnum_ode.f90
+            ${PROJECT_SOURCE_DIR}/benchmark/peak_rss.c
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
             ${_fortnum_ode_forward_wrapper_source}
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/ode_forward_sensitivity_jvp.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/ode_forward_sensitivity_jvp.f90
         MODE forward
         OPT_LEVEL O2)
     fortnum_add_enzyme_test(
         NAME enzyme_bspline_fixed_span_products
         SOURCES
-            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${PROJECT_SOURCE_DIR}/benchmark/peak_rss.c
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
             ${_fortnum_bspline_wrapper_source}
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/bspline_fixed_span_products.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/bspline_fixed_span_products.f90
         MODE forward
         OPT_LEVEL O2)
     fortnum_add_enzyme_test(
         NAME enzyme_bessel_tournament
         SOURCES
-            ${CMAKE_SOURCE_DIR}/src/fortnum_kinds.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_bessel_outer_jvp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/special/fortnum_special_bessel.f90
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/bessel_kernel.f90
-            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_rule_counter.c
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/bessel_rule.c
+            ${PROJECT_SOURCE_DIR}/src/fortnum_kinds.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_bessel_outer_jvp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/special/fortnum_special_bessel.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/bessel_kernel.f90
+            ${PROJECT_SOURCE_DIR}/benchmark/peak_rss.c
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_rule_counter.c
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/bessel_rule.c
             ${_fortnum_bessel_wrapper_sources}
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/bessel_outer.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/bessel_outer.f90
         FORWARD_RULES
             fortnum_bessel_i0_kernel=fortnum_bessel_i0_kernel_derivative
         MODE forward
@@ -568,16 +568,16 @@ if(FORTNUM_ENABLE_ENZYME)
     fortnum_add_enzyme_test(
         NAME enzyme_gamma_tournament
         SOURCES
-            ${CMAKE_SOURCE_DIR}/src/fortnum_kinds.f90
-            ${CMAKE_SOURCE_DIR}/src/special/fortnum_special_gamma.f90
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/gamma_kernel.f90
-            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_rule_counter.c
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/gamma_rule.c
+            ${PROJECT_SOURCE_DIR}/src/fortnum_kinds.f90
+            ${PROJECT_SOURCE_DIR}/src/special/fortnum_special_gamma.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/gamma_kernel.f90
+            ${PROJECT_SOURCE_DIR}/benchmark/peak_rss.c
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_rule_counter.c
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/gamma_rule.c
             ${_fortnum_gamma_wrapper_sources}
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/gamma_outer.f90
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/gamma_tournament.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/gamma_outer.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/gamma_tournament.f90
         FORWARD_RULES
             fortnum_gamma_reg_p_kernel=fortnum_gamma_reg_p_kernel_derivative
         MODE forward
@@ -585,16 +585,16 @@ if(FORTNUM_ENABLE_ENZYME)
     fortnum_add_enzyme_test(
         NAME enzyme_erf_tournament
         SOURCES
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_erf_jvp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_erf_vjp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/erf_kernel.f90
-            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_rule_counter.c
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/erf_rule.c
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_erf_jvp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_erf_vjp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/erf_kernel.f90
+            ${PROJECT_SOURCE_DIR}/benchmark/peak_rss.c
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_rule_counter.c
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/erf_rule.c
             ${_fortnum_erf_wrapper_sources}
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/erf_outer.f90
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/erf_tournament.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/erf_outer.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/erf_tournament.f90
         FORWARD_RULES
             fortnum_erf_kernel=fortnum_erf_kernel_derivative
         MODE forward
@@ -602,18 +602,18 @@ if(FORTNUM_ENABLE_ENZYME)
     fortnum_add_enzyme_test(
         NAME enzyme_hyperg_tournament
         SOURCES
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_hyperg_asymptotic_outer_jvp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/generated/fortnum_hyperg_asymptotic_outer_vjp_kernel.f90
-            ${CMAKE_SOURCE_DIR}/src/fortnum_status.f90
-            ${CMAKE_SOURCE_DIR}/src/special/fortnum_special_hypergeometric_1f1.f90
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/hyperg_kernel.f90
-            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_rule_counter.c
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/hyperg_rule.c
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_hyperg_asymptotic_outer_jvp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/generated/fortnum_hyperg_asymptotic_outer_vjp_kernel.f90
+            ${PROJECT_SOURCE_DIR}/src/fortnum_status.f90
+            ${PROJECT_SOURCE_DIR}/src/special/fortnum_special_hypergeometric_1f1.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/hyperg_kernel.f90
+            ${PROJECT_SOURCE_DIR}/benchmark/peak_rss.c
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_rule_counter.c
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/hyperg_rule.c
             ${_fortnum_hyperg_wrapper_sources}
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/hyperg_outer.f90
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/hyperg_tournament.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/hyperg_outer.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/hyperg_tournament.f90
         FORWARD_RULES
             fortnum_hyperg_kernel_hybrid=fortnum_hyperg_kernel_hybrid_derivative
         MODE forward
@@ -621,30 +621,30 @@ if(FORTNUM_ENABLE_ENZYME)
     fortnum_add_enzyme_test(
         NAME enzyme_fft_jvp_tournament
         SOURCES
-            ${CMAKE_SOURCE_DIR}/src/fortnum_kinds.f90
-            ${CMAKE_SOURCE_DIR}/src/fft/fortnum_fft8_kernel.f90
-            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${PROJECT_SOURCE_DIR}/src/fortnum_kinds.f90
+            ${PROJECT_SOURCE_DIR}/src/fft/fortnum_fft8_kernel.f90
+            ${PROJECT_SOURCE_DIR}/benchmark/peak_rss.c
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
             ${_fortnum_fft_jvp_wrapper_source}
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/fft_jvp_tournament.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/fft_jvp_tournament.f90
         MODE forward
         OPT_LEVEL O2)
     fortnum_add_enzyme_test(
         NAME enzyme_hvp_forward_over_reverse
         SOURCES
-            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hvp/hvp_fixture_support.f90
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hvp/forward_over_reverse.f90
+            ${PROJECT_SOURCE_DIR}/benchmark/peak_rss.c
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hvp/hvp_fixture_support.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hvp/forward_over_reverse.f90
         MODE forward
         OPT_LEVEL O2)
     fortnum_add_enzyme_test(
         NAME enzyme_hvp_reverse_over_forward
         SOURCES
-            ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hvp/hvp_fixture_support.f90
-            ${CMAKE_SOURCE_DIR}/cmake/enzyme/hvp/reverse_over_forward.f90
+            ${PROJECT_SOURCE_DIR}/benchmark/peak_rss.c
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hvp/hvp_fixture_support.f90
+            ${PROJECT_SOURCE_DIR}/cmake/enzyme/hvp/reverse_over_forward.f90
         MODE reverse
         OPT_LEVEL O2)
     find_library(FORTNUM_FFTW3_LIBRARY NAMES fftw3)
@@ -652,12 +652,12 @@ if(FORTNUM_ENABLE_ENZYME)
         fortnum_add_enzyme_test(
             NAME enzyme_fftw8_custom_rule
             SOURCES
-                ${CMAKE_SOURCE_DIR}/benchmark/peak_rss.c
-                ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_rule_counter.c
-                ${CMAKE_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
-                ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/fftw8_kernel.c
+                ${PROJECT_SOURCE_DIR}/benchmark/peak_rss.c
+                ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_rule_counter.c
+                ${PROJECT_SOURCE_DIR}/cmake/enzyme/support/fortnum_enzyme_fixture_support.f90
+                ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/fftw8_kernel.c
                 ${_fortnum_fftw8_wrapper_source}
-                ${CMAKE_SOURCE_DIR}/cmake/enzyme/hybrid/fftw8_tournament.f90
+                ${PROJECT_SOURCE_DIR}/cmake/enzyme/hybrid/fftw8_tournament.f90
             FORWARD_RULES
                 fortnum_fftw8_objective_scalar=fortnum_fftw8_objective_scalar_derivative
             LINK_LIBRARIES
