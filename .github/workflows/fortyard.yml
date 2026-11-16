@@ -72,12 +72,21 @@ jobs:
             mkdir -p "$FY_TOOLS/bin"
             curl -fsSL -o "$FY_TOOLS/bin/fpm" \
               "https://github.com/fortran-lang/fpm/releases/download/v$FPM_VERSION/fpm-$FPM_VERSION-$asset"
-            echo "$sum  $FY_TOOLS/bin/fpm" | shasum -a 256 -c -
+            # Windows images have sha256sum, macOS images shasum.
+            if command -v sha256sum > /dev/null; then
+              echo "$sum  $FY_TOOLS/bin/fpm" | sha256sum -c -
+            else
+              echo "$sum  $FY_TOOLS/bin/fpm" | shasum -a 256 -c -
+            fi
             chmod +x "$FY_TOOLS/bin/fpm"
             if [ "$RUNNER_OS" = macOS ]; then
               for v in 15 14 13 12; do
                 if command -v "gfortran-$v" > /dev/null; then export FPM_FC="gfortran-$v"; break; fi
               done
+              # fpm's binary links Homebrew's gcc@12 runtime; the
+              # image's gfortran ships the same libgfortran.5.
+              lib=$("${FPM_FC:-gfortran}" -print-file-name=libgfortran.5.dylib)
+              export DYLD_FALLBACK_LIBRARY_PATH="${lib%/*}"
             fi
             git init --quiet "$RUNNER_TEMP/fo-src"
             git -C "$RUNNER_TEMP/fo-src" fetch --quiet --depth 1 \
