@@ -28,6 +28,11 @@ cmake --install build
 | `FORTNUM_ENABLE_OPENMP` | on | Link host OpenMP for the Krylov vector kernels when available |
 | `FORTNUM_GPU_BACKEND` | `NONE` | `NONE`, `OPENACC` or `OPENMP` |
 
+`-DBUILD_TESTING=OFF` turns the tests off as well. When fortnum is added to
+another CMake project, its tests are not part of that build, and fortnum leaves
+the consumer's `BUILD_TESTING` and CTest setup alone. To run them there, pass
+`-DFORTNUM_BUILD_TESTING=ON` and call `include(CTest)` in the consumer.
+
 Selecting an unavailable GPU backend fails configuration; GPU execution never
 falls back silently to the host. OpenMP GPU builds currently require the NVIDIA
 HPC SDK `nvfortran` compiler.
