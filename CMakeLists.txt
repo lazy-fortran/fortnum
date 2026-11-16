@@ -12,6 +12,20 @@ if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU"
 endif()
 
 option(FORTNUM_BUILD_TESTING "Build tests for fortnum" ${PROJECT_IS_TOP_LEVEL})
+# Consumers get fortnum's tests only on request: -DFORTNUM_BUILD_TESTING=ON plus
+# include(CTest) in the consumer.
+if(PROJECT_IS_TOP_LEVEL)
+    include(CTest)
+endif()
+if(FORTNUM_BUILD_TESTING AND NOT BUILD_TESTING)
+    message(STATUS "FORTNUM_BUILD_TESTING is ON, but BUILD_TESTING is OFF; "
+        "fortnum tests will not be built.")
+    set(FORTNUM_BUILD_TESTING OFF)
+endif()
+if(FORTNUM_BUILD_TESTING)
+    enable_testing()
+endif()
+
 option(FORTNUM_CHECK_GENERATED
     "Regenerate and byte-compare committed fortsym kernels" OFF)
 
@@ -106,8 +120,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 set(CMAKE_Fortran_MODULE_DIRECTORY ${PROJECT_BINARY_DIR}/include)
-
-enable_testing()
 
 if(FORTNUM_CHECK_GENERATED)
     find_program(FORTNUM_FO_EXECUTABLE fo REQUIRED)
