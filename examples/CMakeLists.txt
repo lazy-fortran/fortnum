@@ -3,7 +3,7 @@
 # Registered as ctests so they run under the normal test suite.
 #
 # Wire from the top-level CMakeLists.txt with:
-#   option(FORTNUM_BUILD_EXAMPLES "Build downstream examples" ${FORTNUM_IS_STANDALONE})
+#   option(FORTNUM_BUILD_EXAMPLES "Build downstream examples" ${PROJECT_IS_TOP_LEVEL})
 #   if(FORTNUM_BUILD_EXAMPLES)
 #       add_subdirectory(examples)
 #   endif()

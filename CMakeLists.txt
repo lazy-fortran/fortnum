@@ -11,13 +11,7 @@ if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU"
     add_compile_options($<$<COMPILE_LANGUAGE:Fortran>:-finline-matmul-limit=0>)
 endif()
 
-# Detect standalone vs subproject build so testing defaults sanely.
-set(FORTNUM_IS_STANDALONE OFF)
-if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
-    set(FORTNUM_IS_STANDALONE ON)
-endif()
-
-option(FORTNUM_BUILD_TESTING "Build tests for fortnum" ${FORTNUM_IS_STANDALONE})
+option(FORTNUM_BUILD_TESTING "Build tests for fortnum" ${PROJECT_IS_TOP_LEVEL})
 option(FORTNUM_CHECK_GENERATED
     "Regenerate and byte-compare committed fortsym kernels" OFF)
 
@@ -168,7 +162,7 @@ if(FORTNUM_BUILD_TESTING)
     add_subdirectory(test)
 endif()
 
-option(FORTNUM_BUILD_EXAMPLES "Build downstream API examples" ${FORTNUM_IS_STANDALONE})
+option(FORTNUM_BUILD_EXAMPLES "Build downstream API examples" ${PROJECT_IS_TOP_LEVEL})
 if(FORTNUM_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
