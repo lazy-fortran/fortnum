@@ -601,20 +601,20 @@ endforeach()
 
 # --- M5.4 module visibility audit ---
 add_test(NAME module_visibility_audit
-    COMMAND python3 ${CMAKE_SOURCE_DIR}/scripts/audit_modules.py
-        --src ${CMAKE_SOURCE_DIR}/src
-        --api ${CMAKE_SOURCE_DIR}/docs/api.md)
+    COMMAND python3 ${PROJECT_SOURCE_DIR}/scripts/audit_modules.py
+        --src ${PROJECT_SOURCE_DIR}/src
+        --api ${PROJECT_SOURCE_DIR}/docs/api.md)
 
 add_test(NAME nightly_triage_guards
-    COMMAND python3 ${CMAKE_SOURCE_DIR}/scripts/test_nightly_triage.py)
+    COMMAND python3 ${PROJECT_SOURCE_DIR}/scripts/test_nightly_triage.py)
 
 add_test(NAME enzyme_fixture_duplication_guard
-    COMMAND ${CMAKE_SOURCE_DIR}/test/ad/check_enzyme_fixture_guard.sh
-        ${CMAKE_SOURCE_DIR})
+    COMMAND ${PROJECT_SOURCE_DIR}/test/ad/check_enzyme_fixture_guard.sh
+        ${PROJECT_SOURCE_DIR})
 
 # --- C ABI smoke test ---
 add_executable(test_capi_smoke capi/smoke.c)
-target_include_directories(test_capi_smoke PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(test_capi_smoke PRIVATE ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(test_capi_smoke PRIVATE fortnum)
 add_test(NAME capi_smoke COMMAND test_capi_smoke)
 
@@ -624,7 +624,7 @@ add_subdirectory(ad)
 add_test(
     NAME benchmark_selection_cmake
     COMMAND ${CMAKE_COMMAND}
-        -DFORTNUM_SOURCE_DIR=${CMAKE_SOURCE_DIR}
+        -DFORTNUM_SOURCE_DIR=${PROJECT_SOURCE_DIR}
         -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/test_benchmark_selection.cmake)
 
 foreach(fixture verified_matvec sampled_norm)

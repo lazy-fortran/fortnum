@@ -11,13 +11,21 @@ if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU"
     add_compile_options($<$<COMPILE_LANGUAGE:Fortran>:-finline-matmul-limit=0>)
 endif()
 
-# Detect standalone vs subproject build so testing defaults sanely.
-set(FORTNUM_IS_STANDALONE OFF)
-if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
-    set(FORTNUM_IS_STANDALONE ON)
+option(FORTNUM_BUILD_TESTING "Build tests for fortnum" ${PROJECT_IS_TOP_LEVEL})
+# Consumers get fortnum's tests only on request: -DFORTNUM_BUILD_TESTING=ON plus
+# include(CTest) in the consumer.
+if(PROJECT_IS_TOP_LEVEL)
+    include(CTest)
+endif()
+if(FORTNUM_BUILD_TESTING AND NOT BUILD_TESTING)
+    message(STATUS "FORTNUM_BUILD_TESTING is ON, but BUILD_TESTING is OFF; "
+        "fortnum tests will not be built.")
+    set(FORTNUM_BUILD_TESTING OFF)
+endif()
+if(FORTNUM_BUILD_TESTING)
+    enable_testing()
 endif()
 
-option(FORTNUM_BUILD_TESTING "Build tests for fortnum" ${FORTNUM_IS_STANDALONE})
 option(FORTNUM_CHECK_GENERATED
     "Regenerate and byte-compare committed fortsym kernels" OFF)
 
@@ -113,8 +121,6 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 set(CMAKE_Fortran_MODULE_DIRECTORY ${PROJECT_BINARY_DIR}/include)
 
-enable_testing()
-
 if(FORTNUM_CHECK_GENERATED)
     find_program(FORTNUM_FO_EXECUTABLE fo REQUIRED)
     if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../fortsym/fpm.toml" AND
@@ -168,7 +174,7 @@ if(FORTNUM_BUILD_TESTING)
     add_subdirectory(test)
 endif()
 
-option(FORTNUM_BUILD_EXAMPLES "Build downstream API examples" ${FORTNUM_IS_STANDALONE})
+option(FORTNUM_BUILD_EXAMPLES "Build downstream API examples" ${PROJECT_IS_TOP_LEVEL})
 if(FORTNUM_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
