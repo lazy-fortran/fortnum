@@ -18,6 +18,8 @@ program test_fortnum_lapack_syev
     call generalized_real(40)
     call generalized_complex(30)
     call tridiagonal(50)
+    call graded_tridiagonal(40, .false.)
+    call graded_tridiagonal(40, .true.)
     call band(60, 3)
     print '(a)', 'symmetric and Hermitian eigensolvers match quad precision'
 
@@ -228,6 +230,69 @@ contains
             call require(maxval(abs(d - d0)) <= 1e-13_dp, 'dsterf and dstev values agree')
         end block
     end subroutine tridiagonal
+
+    ! Eigenvalues of a tridiagonal matrix graded over twelve orders of
+    ! magnitude are determined to high relative accuracy by its entries; the
+    ! reference is Sturm bisection in quad precision. reversed puts the large
+    ! entries at the bottom, which the solver must chase from that end.
+    subroutine graded_tridiagonal(n, reversed)
+        integer, intent(in) :: n
+        logical, intent(in) :: reversed
+        real(dp) :: d(n), e(n), d0(n), e0(n), z(n, n), work(max(1, 2*n - 2))
+        real(qp) :: exact(n)
+        integer :: info, i, k
+        do i = 1, n
+            k = i
+            if (reversed) k = n + 1 - i
+            d0(i) = 10.0_dp**(-12*real(k - 1, dp)/(n - 1))*(1 + 0.3_dp*sin(real(i, dp)))
+        end do
+        do i = 1, n - 1
+            e0(i) = 0.3_dp*sqrt(d0(i)*d0(i + 1))*cos(1.3_dp*i)
+        end do
+        e0(n) = 0
+        do k = 1, n
+            exact(k) = sturm_eigenvalue(n, real(d0, qp), real(e0, qp), k)
+        end do
+        d = d0
+        e = e0
+        call fortnum_dsterf(n, d, e, info)
+        call require(info == 0, 'graded dsterf info')
+        call require(maxval(abs((real(d, qp) - exact)/exact)) <= 8*n*eps, 'graded dsterf: relative accuracy')
+        d = d0
+        e = e0
+        call fortnum_dsteqr('I', n, d, e, z, n, work, info)
+        call require(info == 0, 'graded dsteqr info')
+        call require(maxval(abs((real(d, qp) - exact)/exact)) <= 8*n*eps, 'graded dsteqr: relative accuracy')
+    end subroutine graded_tridiagonal
+
+    ! k-th smallest eigenvalue of the tridiagonal (d, e) by bisection on the
+    ! Sturm count
+    real(qp) function sturm_eigenvalue(n, d, e, k) result(x)
+        integer, intent(in) :: n, k
+        real(qp), intent(in) :: d(n), e(n)
+        real(qp) :: lo, hi, q
+        integer :: it, i, cnt
+        lo = minval(d) - 2*maxval(abs(e))
+        hi = maxval(d) + 2*maxval(abs(e))
+        lo = min(lo, 0.0_qp)
+        do it = 1, 400
+            x = 0.5_qp*(lo + hi)
+            cnt = 0
+            q = d(1) - x
+            if (q < 0) cnt = cnt + 1
+            do i = 2, n
+                if (q == 0) q = tiny(1.0_qp)
+                q = d(i) - x - e(i - 1)**2/q
+                if (q < 0) cnt = cnt + 1
+            end do
+            if (cnt >= k) then
+                hi = x
+            else
+                lo = x
+            end if
+        end do
+        x = 0.5_qp*(lo + hi)
+    end function sturm_eigenvalue
 
     subroutine band(n, kd)
         integer, intent(in) :: n, kd

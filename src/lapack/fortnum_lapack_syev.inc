@@ -160,87 +160,183 @@
     end subroutine ORGTR
 
     !> Eigenvalues (ascending) and, when wantz, eigenvectors of the symmetric
-    !> tridiagonal matrix (d, e) by the implicit QL method (EISPACK TQL2):
-    !> z holds Q on entry and Q times the eigenvectors of T on exit. info = l
-    !> when the l-th eigenvalue fails to converge in 30 n iterations.
+    !> tridiagonal matrix (d, e) by implicit QL or QR with Wilkinson shifts,
+    !> as LAPACK's DSTEQR: z holds Q on entry and Q times the eigenvectors of
+    !> T on exit. A subdiagonal entry is neglected when e(m)^2 <= eps^2
+    !> |d(m) d(m+1)|, and each unreduced block is chased from its larger end,
+    !> so graded matrices keep their small eigenvalues to high relative
+    !> accuracy. info > 0 counts the subdiagonal entries left after 30 n
+    !> iterations.
     subroutine STEQR(wantz, n, d, e, z, ldz, info)
         logical, intent(in) :: wantz
         integer, intent(in) :: n, ldz
         real(dp), intent(inout) :: d(*), e(*)
         SCALAR, intent(inout) :: z(ldz, *)
         integer, intent(out) :: info
-        real(dp) :: ee(max(1, n)), f, tst1, tst2, g, p, r, dl1, el1, h, c, c2, c3, s, s2
-        integer :: l, m, i, iter, k, ii
+        real(dp) :: eps2, safmin, ssfmin, ssfmax, anorm, scl, tst, p, g, r, s, c, f, b, rt1, rt2
+        real(dp) :: cs(max(1, n)), sn(max(1, n))
+        integer :: l1, l, m, lsv, lend, lendsv, i, jtot, nmaxit, ii, k
         SCALAR :: zt(max(1, n))
         info = 0
         if (n <= 1) return
-        ee(1:n - 1) = e(1:n - 1)
-        ee(n) = 0
-        f = 0
-        tst1 = 0
-        do l = 1, n
-            iter = 0
-            h = abs(d(l)) + abs(ee(l))
-            tst1 = max(tst1, h)
-            do m = l, n
-                tst2 = tst1 + abs(ee(m))
-                if (tst2 == tst1) exit
+        eps2 = epsilon(1.0_dp)**2
+        safmin = tiny(1.0_dp)
+        ! each block is scaled into [ssfmin, ssfmax] so that the squares in the
+        ! deflation test neither underflow nor overflow
+        ssfmin = sqrt(safmin)/eps2
+        ssfmax = sqrt(1/safmin)/3
+        nmaxit = 30*n
+        jtot = 0
+        l1 = 1
+        blocks: do while (l1 <= n)
+            if (l1 > 1) e(l1 - 1) = 0
+            m = n
+            do i = l1, n - 1
+                tst = abs(e(i))
+                if (tst == 0) then
+                    m = i
+                    exit
+                end if
+                if (tst <= sqrt(abs(d(i)))*sqrt(abs(d(i + 1)))*epsilon(1.0_dp)) then
+                    e(i) = 0
+                    m = i
+                    exit
+                end if
             end do
-            if (m > n) m = n
-            if (m > l) then
-                do
-                    iter = iter + 1
-                    if (iter > 30*n) then
-                        info = l
-                        return
-                    end if
-                    g = d(l)
-                    p = (d(l + 1) - g)/(2*ee(l))
-                    r = hypot(p, 1.0_dp)
-                    d(l) = ee(l)/(p + sign(r, p))
-                    d(l + 1) = ee(l)*(p + sign(r, p))
-                    dl1 = d(l + 1)
-                    h = g - d(l)
-                    if (l + 2 <= n) d(l + 2:n) = d(l + 2:n) - h
-                    f = f + h
-                    p = d(m)
-                    c = 1
-                    c2 = c
-                    el1 = ee(l + 1)
-                    s = 0
-                    s2 = 0
-                    c3 = c
-                    do ii = 1, m - l
-                        i = m - ii
-                        c3 = c2
-                        c2 = c
-                        s2 = s
-                        g = c*ee(i)
-                        h = c*p
-                        r = hypot(p, ee(i))
-                        ee(i + 1) = s*r
-                        s = ee(i)/r
-                        c = p/r
-                        p = c*d(i) - s*g
-                        d(i + 1) = h + s*(c*g + s*d(i))
-                        if (wantz) then
-                            do k = 1, n
-                                zt(k) = z(k, i + 1)
-                                z(k, i + 1) = s*z(k, i) + c*zt(k)
-                                z(k, i) = c*z(k, i) - s*zt(k)
-                            end do
+            l = l1
+            lsv = l
+            lend = m
+            lendsv = lend
+            l1 = m + 1
+            if (lend == l) cycle blocks
+            anorm = max(maxval(abs(d(l:lend))), maxval(abs(e(l:lend - 1))))
+            if (anorm == 0) cycle blocks
+            scl = 1
+            if (anorm > ssfmax) scl = ssfmax/anorm
+            if (anorm < ssfmin) scl = ssfmin/anorm
+            if (scl /= 1) then
+                d(l:lend) = scl*d(l:lend)
+                e(l:lend - 1) = scl*e(l:lend - 1)
+            end if
+            ! chase from the end with the larger diagonal entry
+            if (abs(d(lend)) < abs(d(l))) then
+                lend = lsv
+                l = lendsv
+            end if
+            if (lend > l) then
+                ql: do
+                    m = lend
+                    do i = l, lend - 1
+                        if (abs(e(i))**2 <= (eps2*abs(d(i)))*abs(d(i + 1)) + safmin) then
+                            m = i
+                            exit
                         end if
                     end do
-                    p = -s*s2*c3*el1*ee(l)/dl1
-                    ee(l) = s*p
-                    d(l) = c*p
-                    tst2 = tst1 + abs(ee(l))
-                    if (tst2 <= tst1) exit
-                end do
+                    if (m < lend) e(m) = 0
+                    p = d(l)
+                    if (m == l) then
+                        d(l) = p
+                        l = l + 1
+                        if (l <= lend) cycle ql
+                        exit ql
+                    end if
+                    if (m == l + 1) then
+                        call sym2x2(d(l), e(l), d(l + 1), rt1, rt2, c, s)
+                        if (wantz) call rotate_back([c], [s], z(1:n, l:l + 1))
+                        d(l) = rt1
+                        d(l + 1) = rt2
+                        e(l) = 0
+                        l = l + 2
+                        if (l <= lend) cycle ql
+                        exit ql
+                    end if
+                    if (jtot == nmaxit) exit ql
+                    jtot = jtot + 1
+                    g = (d(l + 1) - p)/(2*e(l))
+                    r = hypot(g, 1.0_dp)
+                    g = d(m) - p + (e(l)/(g + sign(r, g)))
+                    s = 1
+                    c = 1
+                    p = 0
+                    do i = m - 1, l, -1
+                        f = s*e(i)
+                        b = c*e(i)
+                        call givens(g, f, c, s, r)
+                        if (i /= m - 1) e(i + 1) = r
+                        g = d(i + 1) - p
+                        r = (d(i) - g)*s + 2*c*b
+                        p = s*r
+                        d(i + 1) = g + p
+                        g = c*r - b
+                        cs(i) = c
+                        sn(i) = -s
+                    end do
+                    if (wantz) call rotate_back(cs(l:m - 1), sn(l:m - 1), z(1:n, l:m))
+                    d(l) = d(l) - p
+                    e(l) = g
+                end do ql
+            else
+                qr: do
+                    m = lend
+                    do i = l, lend + 1, -1
+                        if (abs(e(i - 1))**2 <= (eps2*abs(d(i)))*abs(d(i - 1)) + safmin) then
+                            m = i
+                            exit
+                        end if
+                    end do
+                    if (m > lend) e(m - 1) = 0
+                    p = d(l)
+                    if (m == l) then
+                        d(l) = p
+                        l = l - 1
+                        if (l >= lend) cycle qr
+                        exit qr
+                    end if
+                    if (m == l - 1) then
+                        call sym2x2(d(l - 1), e(l - 1), d(l), rt1, rt2, c, s)
+                        if (wantz) call rotate_forward([c], [s], z(1:n, l - 1:l))
+                        d(l - 1) = rt1
+                        d(l) = rt2
+                        e(l - 1) = 0
+                        l = l - 2
+                        if (l >= lend) cycle qr
+                        exit qr
+                    end if
+                    if (jtot == nmaxit) exit qr
+                    jtot = jtot + 1
+                    g = (d(l - 1) - p)/(2*e(l - 1))
+                    r = hypot(g, 1.0_dp)
+                    g = d(m) - p + (e(l - 1)/(g + sign(r, g)))
+                    s = 1
+                    c = 1
+                    p = 0
+                    do i = m, l - 1
+                        f = s*e(i)
+                        b = c*e(i)
+                        call givens(g, f, c, s, r)
+                        if (i /= m) e(i - 1) = r
+                        g = d(i) - p
+                        r = (d(i + 1) - g)*s + 2*c*b
+                        p = s*r
+                        d(i) = g + p
+                        g = c*r - b
+                        cs(i) = c
+                        sn(i) = s
+                    end do
+                    if (wantz) call rotate_forward(cs(m:l - 1), sn(m:l - 1), z(1:n, m:l))
+                    d(l) = d(l) - p
+                    e(l - 1) = g
+                end do qr
             end if
-            d(l) = d(l) + f
-            ee(l) = 0
-        end do
+            if (scl /= 1) then
+                d(lsv:lendsv) = d(lsv:lendsv)/scl
+                e(lsv:lendsv - 1) = e(lsv:lendsv - 1)/scl
+            end if
+            if (jtot >= nmaxit) then
+                info = count(e(1:n - 1) /= 0)
+                return
+            end if
+        end do blocks
         ! ascending order, vectors with them
         do ii = 2, n
             i = ii - 1
@@ -263,6 +359,33 @@
             end if
         end do
         e(1:n - 1) = 0
+    contains
+        ! a(:, j:j+1) times the plane rotation (c(j), s(j)), j descending
+        ! (LAPACK DLASR 'R', 'V', 'B')
+        subroutine rotate_back(c, s, a)
+            real(dp), intent(in) :: c(:), s(:)
+            SCALAR, intent(inout) :: a(:, :)
+            SCALAR :: t(size(a, 1))
+            integer :: j
+            do j = size(c), 1, -1
+                t = a(:, j + 1)
+                a(:, j + 1) = c(j)*t - s(j)*a(:, j)
+                a(:, j) = s(j)*t + c(j)*a(:, j)
+            end do
+        end subroutine rotate_back
+
+        ! the same with j ascending (DLASR 'R', 'V', 'F')
+        subroutine rotate_forward(c, s, a)
+            real(dp), intent(in) :: c(:), s(:)
+            SCALAR, intent(inout) :: a(:, :)
+            SCALAR :: t(size(a, 1))
+            integer :: j
+            do j = 1, size(c)
+                t = a(:, j + 1)
+                a(:, j + 1) = c(j)*t - s(j)*a(:, j)
+                a(:, j) = s(j)*t + c(j)*a(:, j)
+            end do
+        end subroutine rotate_forward
     end subroutine STEQR
 
     !> Eigenvalues w (ascending) and, jobz V, orthonormal eigenvectors in A

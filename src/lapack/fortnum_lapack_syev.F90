@@ -459,4 +459,90 @@ contains
         end if
     end subroutine fortnum_dsbevx
 
+
+    ! Plane rotation with c f + s g = r and c g - s f = 0 (LAPACK DLARTG)
+    pure subroutine givens(f, g, c, s, r)
+        real(dp), intent(in) :: f, g
+        real(dp), intent(out) :: c, s, r
+        if (g == 0) then
+            c = 1
+            s = 0
+            r = f
+        else if (f == 0) then
+            c = 0
+            s = 1
+            r = g
+        else
+            r = hypot(f, g)
+            c = f/r
+            s = g/r
+        end if
+    end subroutine givens
+
+    ! Eigenvalues rt1 (larger in magnitude) and rt2 of [a b; b c] and the
+    ! unit eigenvector (cs1, sn1) of rt1 (LAPACK DLAEV2)
+    pure subroutine sym2x2(a, b, c, rt1, rt2, cs1, sn1)
+        real(dp), intent(in) :: a, b, c
+        real(dp), intent(out) :: rt1, rt2, cs1, sn1
+        real(dp) :: sm, df, adf, tb, ab, acmx, acmn, rt, cs, acs, ct, tn
+        integer :: sgn1, sgn2
+        sm = a + c
+        df = a - c
+        adf = abs(df)
+        tb = b + b
+        ab = abs(tb)
+        if (abs(a) > abs(c)) then
+            acmx = a
+            acmn = c
+        else
+            acmx = c
+            acmn = a
+        end if
+        if (adf > ab) then
+            rt = adf*sqrt(1 + (ab/adf)**2)
+        else if (adf < ab) then
+            rt = ab*sqrt(1 + (adf/ab)**2)
+        else
+            rt = ab*sqrt(2.0_dp)
+        end if
+        if (sm < 0) then
+            rt1 = 0.5_dp*(sm - rt)
+            sgn1 = -1
+            rt2 = (acmx/rt1)*acmn - (b/rt1)*b
+        else if (sm > 0) then
+            rt1 = 0.5_dp*(sm + rt)
+            sgn1 = 1
+            rt2 = (acmx/rt1)*acmn - (b/rt1)*b
+        else
+            rt1 = 0.5_dp*rt
+            rt2 = -0.5_dp*rt
+            sgn1 = 1
+        end if
+        if (df >= 0) then
+            cs = df + rt
+            sgn2 = 1
+        else
+            cs = df - rt
+            sgn2 = -1
+        end if
+        acs = abs(cs)
+        if (acs > ab) then
+            ct = -tb/cs
+            sn1 = 1/sqrt(1 + ct*ct)
+            cs1 = ct*sn1
+        else if (ab == 0) then
+            cs1 = 1
+            sn1 = 0
+        else
+            tn = -cs/tb
+            cs1 = 1/sqrt(1 + tn*tn)
+            sn1 = tn*cs1
+        end if
+        if (sgn1 == sgn2) then
+            tn = cs1
+            cs1 = -sn1
+            sn1 = tn
+        end if
+    end subroutine sym2x2
+
 end module fortnum_lapack_syev
