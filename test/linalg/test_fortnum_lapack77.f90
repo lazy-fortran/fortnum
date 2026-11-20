@@ -6,7 +6,7 @@ program test_fortnum_lapack77
     use fortnum_blas, only: fortnum_dgemm, fortnum_zgemm
     use fortnum_blas12, only: fortnum_dasum, fortnum_zgemv
     use fortnum_lapack_lu, only: fortnum_dgesv, fortnum_zgbsv
-    use fortnum_lapack_chol, only: fortnum_dpotrf, fortnum_dpotrs
+    use fortnum_lapack_chol, only: fortnum_dpotrf, fortnum_dpotrs, fortnum_dposv, fortnum_zposv
     use fortnum_lapack_qr, only: fortnum_dgels
     use fortnum_lapack_syev, only: fortnum_dsyev
     use fortnum_lapack_geev, only: fortnum_dgeev, fortnum_zgeev
@@ -66,6 +66,20 @@ program test_fortnum_lapack77
             real(dp), intent(inout) :: b(ldb, *)
             integer, intent(out) :: info
         end subroutine dpotrs
+        subroutine dposv(uplo, n, nrhs, a, lda, b, ldb, info)
+            import :: dp
+            character, intent(in) :: uplo
+            integer, intent(in) :: n, nrhs, lda, ldb
+            real(dp), intent(inout) :: a(lda, *), b(ldb, *)
+            integer, intent(out) :: info
+        end subroutine dposv
+        subroutine zposv(uplo, n, nrhs, a, lda, b, ldb, info)
+            import :: dp
+            character, intent(in) :: uplo
+            integer, intent(in) :: n, nrhs, lda, ldb
+            complex(dp), intent(inout) :: a(lda, *), b(ldb, *)
+            integer, intent(out) :: info
+        end subroutine zposv
         subroutine dgels(trans, m, n, nrhs, a, lda, b, ldb, work, lwork, info)
             import :: dp
             character, intent(in) :: trans
@@ -179,6 +193,27 @@ program test_fortnum_lapack77
     call fortnum_dpotrs('U', n, 2, a2, n, v2, n, info2)
     call require(info1 == 0 .and. info2 == 0 .and. all(a1 == a2) .and. all(v1(:, 1:2) == v2(:, 1:2)), &
         'dpotrf and dpotrs')
+    a1 = matmul(transpose(a), a)
+    do i = 1, n
+        a1(i, i) = a1(i, i) + 1
+    end do
+    a2 = a1
+    v1(:, 1:2) = b1
+    v2(:, 1:2) = b1
+    call dposv('L', n, 2, a1, n, v1, n, info1)
+    call fortnum_dposv('L', n, 2, a2, n, v2, n, info2)
+    call require(info1 == 0 .and. info2 == 0 .and. all(a1 == a2) .and. all(v1(:, 1:2) == v2(:, 1:2)), &
+        'dposv')
+    z1 = matmul(conjg(transpose(z)), z)
+    do i = 1, n
+        z1(i, i) = z1(i, i) + 1
+    end do
+    z2 = z1
+    zb1(:, 1) = z(:, 2)
+    zb2 = zb1
+    call zposv('U', n, 1, z1, n, zb1, n, info1)
+    call fortnum_zposv('U', n, 1, z2, n, zb2, n, info2)
+    call require(info1 == 0 .and. info2 == 0 .and. all(z1 == z2) .and. all(zb1 == zb2), 'zposv')
 
     a1 = a
     a2 = a

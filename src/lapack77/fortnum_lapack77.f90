@@ -463,6 +463,26 @@ subroutine dpotrs(uplo, n, nrhs, a, lda, b, ldb, info)
     call fortnum_dpotrs(uplo, n, nrhs, a, lda, b, ldb, info)
 end subroutine dpotrs
 
+subroutine dposv(uplo, n, nrhs, a, lda, b, ldb, info)
+    use fortnum_kinds, only: dp
+    use fortnum_lapack_chol, only: fortnum_dposv
+    character, intent(in) :: uplo
+    integer, intent(in) :: n, nrhs, lda, ldb
+    real(dp), intent(inout) :: a(lda, *), b(ldb, *)
+    integer, intent(out) :: info
+    call fortnum_dposv(uplo, n, nrhs, a, lda, b, ldb, info)
+end subroutine dposv
+
+subroutine zposv(uplo, n, nrhs, a, lda, b, ldb, info)
+    use fortnum_kinds, only: dp
+    use fortnum_lapack_chol, only: fortnum_zposv
+    character, intent(in) :: uplo
+    integer, intent(in) :: n, nrhs, lda, ldb
+    complex(dp), intent(inout) :: a(lda, *), b(ldb, *)
+    integer, intent(out) :: info
+    call fortnum_zposv(uplo, n, nrhs, a, lda, b, ldb, info)
+end subroutine zposv
+
 subroutine dpstrf(uplo, n, a, lda, piv, rank, tol, work, info)
     use fortnum_kinds, only: dp
     use fortnum_lapack_chol, only: fortnum_dpstrf
