@@ -19,6 +19,16 @@ module fortnum_special_elliptic
     ! The split pieces A and B are public because singular quadrature of
     ! boundary-element kernels integrates the logarithm analytically.
     !
+    ! The n-th q-derivatives of A_K and B_K are ellip_k_log_a(n, q) and
+    ! ellip_k_log_b(n, q).  Below q = 1/2 the series are differentiated term
+    ! by term, so they keep full accuracy as q -> 0.  Above, A_K and B_K are
+    ! continued with the Legendre operator L y = q(1-q) y'' + (1-2q) y' - y/4:
+    ! L A_K = 0 and L B_K = (1-q) A_K' - A_K/2 (from L K(1-q) = 0), and the
+    ! j-th derivative of L y = f gives
+    !   q(1-q) y^(j+2) = f^(j) - (j+1)(1-2q) y^(j+1) + (j+1/2)^2 y^(j).
+    ! The E pieces follow without division from E = (1-m) K + 2m(1-m) dK/dm:
+    !   A_E = q A_K - 2q(1-q) A_K',  B_E = q B_K + (1-q) A_K - 2q(1-q) B_K'.
+    !
     ! Derivatives (DLMF 19.4.1):
     !   dK/dm = (E - (1-m) K) / (2 m (1-m)),  dE/dm = (E - K) / (2 m),
     ! evaluated without cancellation near m = 0 through R_D.
@@ -42,6 +52,15 @@ module fortnum_special_elliptic
     real(dp), parameter :: ln4 = 1.38629436111989061883446424291635313_dp
     integer, parameter :: max_series_terms = 80
     real(dp), parameter :: series_switch = 0.5_dp
+    integer, parameter :: max_derivative_terms = 400
+
+    interface ellip_k_log_a
+        module procedure ellip_k_log_a_value, ellip_k_log_a_order
+    end interface ellip_k_log_a
+
+    interface ellip_k_log_b
+        module procedure ellip_k_log_b_value, ellip_k_log_b_order
+    end interface ellip_k_log_b
 
 contains
 
@@ -102,7 +121,7 @@ contains
         end if
     end function ellip_e_from_complement
 
-    elemental function ellip_k_log_a(q) result(value)
+    elemental function ellip_k_log_a_value(q) result(value)
         !! A_K(q) in K(1-q) = -1/2 ln(q) A_K(q) + B_K(q); A_K = (2/pi) K(q).
         !! Defined for q in [0,1]; A_K(0) = 1.
         real(dp), intent(in) :: q
@@ -115,9 +134,9 @@ contains
         else
             value = 2.0_dp/pi*carlson_rf(0.0_dp, 1.0_dp - q, 1.0_dp)
         end if
-    end function ellip_k_log_a
+    end function ellip_k_log_a_value
 
-    elemental function ellip_k_log_b(q) result(value)
+    elemental function ellip_k_log_b_value(q) result(value)
         !! B_K(q) in K(1-q) = -1/2 ln(q) A_K(q) + B_K(q); B_K(0) = ln 4.
         real(dp), intent(in) :: q
         real(dp) :: value
@@ -128,9 +147,54 @@ contains
             value = k_series(q, .true.)
         else
             value = carlson_rf(0.0_dp, q, 1.0_dp) &
-                + 0.5_dp*log(q)*ellip_k_log_a(q)
+                + 0.5_dp*log(q)*ellip_k_log_a_value(q)
         end if
-    end function ellip_k_log_b
+    end function ellip_k_log_b_value
+
+    elemental function ellip_k_log_a_order(n, q) result(value)
+        !! n-th derivative of A_K at q in [0,1) for n >= 0.
+        integer, intent(in) :: n
+        real(dp), intent(in) :: q
+        real(dp) :: value
+        real(dp) :: a(0:max(n, 1))
+
+        if (.not. (q >= 0.0_dp .and. q < 1.0_dp) .or. n < 0) then
+            value = ieee_value(q, ieee_quiet_nan)
+        else if (q < series_switch) then
+            value = k_series_derivative(q, n, .false.)
+        else
+            call k_log_a_jet(q, n, a)
+            value = a(n)
+        end if
+    end function ellip_k_log_a_order
+
+    elemental function ellip_k_log_b_order(n, q) result(value)
+        !! n-th derivative of B_K at q in (0,1) for n >= 0; at q = 0 only by
+        !! the series, where every derivative is finite.
+        integer, intent(in) :: n
+        real(dp), intent(in) :: q
+        real(dp) :: value
+        real(dp) :: a(0:max(n, 1)), b(0:max(n, 1))
+        integer :: j
+
+        if (.not. (q >= 0.0_dp .and. q < 1.0_dp) .or. n < 0) then
+            value = ieee_value(q, ieee_quiet_nan)
+        else if (q < series_switch) then
+            value = k_series_derivative(q, n, .true.)
+        else
+            call k_log_a_jet(q, n, a)
+            b(0) = ellip_k_log_b_value(q)
+            ! B_K' = d/dq K(1-q) + A_K/(2q) + ln(q) A_K'/2.
+            b(1) = -ellip_k_derivative(1.0_dp - q) + a(0)/(2.0_dp*q) &
+                + 0.5_dp*log(q)*a(1)
+            do j = 0, n - 2
+                b(j + 2) = ((1.0_dp - q)*a(j + 1) - (j + 0.5_dp)*a(j) &
+                    - (j + 1)*(1.0_dp - 2.0_dp*q)*b(j + 1) &
+                    + (j + 0.5_dp)**2*b(j))/(q*(1.0_dp - q))
+            end do
+            value = b(n)
+        end if
+    end function ellip_k_log_b_order
 
     elemental function ellip_e_log_a(q) result(value)
         !! A_E(q) in E(1-q) = -1/2 ln(q) A_E(q) + B_E(q); A_E(q) ~ q/2.
@@ -253,6 +317,55 @@ contains
             if (abs(term) < 1.0e-18_dp*abs(value)) exit
         end do
     end function k_series
+
+    pure subroutine k_log_a_jet(q, n, a)
+        !! A_K and its derivatives up to max(n,1) for q in [1/2, 1).
+        real(dp), intent(in) :: q
+        integer, intent(in) :: n
+        real(dp), intent(out) :: a(0:)
+        integer :: j
+
+        a(0) = 2.0_dp/pi*carlson_rf(0.0_dp, 1.0_dp - q, 1.0_dp)
+        a(1) = 2.0_dp/pi*ellip_k_derivative(q)
+        do j = 0, n - 2
+            a(j + 2) = (-(j + 1)*(1.0_dp - 2.0_dp*q)*a(j + 1) &
+                + (j + 0.5_dp)**2*a(j))/(q*(1.0_dp - q))
+        end do
+    end subroutine k_log_a_jet
+
+    pure elemental function k_series_derivative(q, n, constant_part) &
+            result(value)
+        !! n-th derivative of k_series: sum_{m>=n} c_m (1 or d_m) m!/(m-n)!
+        !! q^(m-n), with c_m and d_m as in k_series.
+        real(dp), intent(in) :: q
+        integer, intent(in) :: n
+        logical, intent(in) :: constant_part
+        real(dp) :: value, c, d, falling, term
+        integer :: m, j
+
+        c = 1.0_dp
+        d = ln4
+        value = 0.0_dp
+        do m = 0, max_derivative_terms
+            if (m > 0) then
+                c = c*((real(m, dp) - 0.5_dp)/real(m, dp))**2
+                d = d - 1.0_dp/(real(m, dp)*real(2*m - 1, dp))
+            end if
+            if (m < n) cycle
+            falling = 1.0_dp
+            do j = 0, n - 1
+                falling = falling*real(m - j, dp)
+            end do
+            if (m == n) then
+                term = c*falling
+            else
+                term = c*falling*q**(m - n)
+            end if
+            if (constant_part) term = term*d
+            value = value + term
+            if (m > n + 2 .and. abs(term) < 1.0e-18_dp*abs(value)) exit
+        end do
+    end function k_series_derivative
 
     pure elemental function e_series(q, constant_part) result(value)
         !! DLMF 19.12.2 with e_n = (1/2)_n (3/2)_n / ((2)_n n!):

@@ -132,6 +132,7 @@ program test_fortnum_special_elliptic
     call test_asymptotics()
     call test_derivatives()
     call test_ad_products()
+    call test_log_piece_derivatives()
     call test_toroidal()
     call test_domain()
 
@@ -346,6 +347,84 @@ contains
         call check("dE closed form", ellip_e_derivative(m), &
             (ellip_e(m) - ellip_k(m))/(2.0_dp*m), 4.0e-15_dp)
     end subroutine test_derivatives
+
+    subroutine test_log_piece_derivatives()
+        ! n-th q-derivatives of A_K, B_K: order 0 equals the value functions,
+        ! order n matches eighth-order differences of order n-1, the q = 0
+        ! values are the series coefficients c_n n! and c_n d_n n!, the two
+        ! branches meet at q = 1/2, and the E pieces satisfy
+        ! A_E = q A_K - 2q(1-q) A_K', B_E = q B_K + (1-q) A_K - 2q(1-q) B_K'.
+        real(dp), parameter :: qd(6) = [0.05_dp, 0.3_dp, 0.49_dp, 0.51_dp, &
+            0.7_dp, 0.9_dp]
+        real(dp) :: q, h, fd, c, d, fact, lo, hi
+        integer :: i, n
+
+        do i = 1, nq - 1
+            q = qs(i)
+            call check("A_K order 0", ellip_k_log_a(0, q), ellip_k_log_a(q), &
+                4.0e-16_dp)
+            call check("B_K order 0", ellip_k_log_b(0, q), ellip_k_log_b(q), &
+                4.0e-16_dp)
+            call check("A_E from A_K", q*ellip_k_log_a(q) &
+                - 2.0_dp*q*(1.0_dp - q)*ellip_k_log_a(1, q), &
+                ellip_e_log_a(q), 4.0e-15_dp)
+            call check("B_E from B_K", q*ellip_k_log_b(q) &
+                + (1.0_dp - q)*ellip_k_log_a(q) &
+                - 2.0_dp*q*(1.0_dp - q)*ellip_k_log_b(1, q), &
+                ellip_e_log_b(q), 4.0e-15_dp)
+            ! d/dq K(1-q) = -A_K/(2q) - ln(q) A_K'/2 + B_K'.  The reference
+            ! dK/dm takes m = 1-q, which rounds below q = 1e-3.
+            if (q >= 1.0e-3_dp) call check("dK(1-q) from pieces", -ellip_k_log_a(q)/(2.0_dp*q) &
+                - 0.5_dp*log(q)*ellip_k_log_a(1, q) + ellip_k_log_b(1, q), &
+                -ellip_k_derivative(1.0_dp - q), 1.0e-13_dp)
+        end do
+        do n = 1, 4
+            do i = 1, size(qd)
+                q = qd(i)
+                h = 0.02_dp*min(q, 1.0_dp - q)
+                fd = fd8(ellip_k_log_a(n - 1, q - 4*h), &
+                    ellip_k_log_a(n - 1, q - 3*h), ellip_k_log_a(n - 1, q - 2*h), &
+                    ellip_k_log_a(n - 1, q - h), ellip_k_log_a(n - 1, q + h), &
+                    ellip_k_log_a(n - 1, q + 2*h), ellip_k_log_a(n - 1, q + 3*h), &
+                    ellip_k_log_a(n - 1, q + 4*h), h)
+                call check("A_K derivative fd", ellip_k_log_a(n, q), fd, 1.0e-9_dp)
+                fd = fd8(ellip_k_log_b(n - 1, q - 4*h), &
+                    ellip_k_log_b(n - 1, q - 3*h), ellip_k_log_b(n - 1, q - 2*h), &
+                    ellip_k_log_b(n - 1, q - h), ellip_k_log_b(n - 1, q + h), &
+                    ellip_k_log_b(n - 1, q + 2*h), ellip_k_log_b(n - 1, q + 3*h), &
+                    ellip_k_log_b(n - 1, q + 4*h), h)
+                call check("B_K derivative fd", ellip_k_log_b(n, q), fd, 1.0e-9_dp)
+            end do
+            lo = 0.5_dp - 1.0e-12_dp
+            hi = 0.5_dp
+            call check("A_K branches meet", ellip_k_log_a(n, lo), &
+                ellip_k_log_a(n, hi), 1.0e-10_dp)
+            call check("B_K branches meet", ellip_k_log_b(n, lo), &
+                ellip_k_log_b(n, hi), 1.0e-10_dp)
+        end do
+        c = 1.0_dp
+        d = log(4.0_dp)
+        fact = 1.0_dp
+        do n = 0, 6
+            if (n > 0) then
+                c = c*((n - 0.5_dp)/n)**2
+                d = d - 1.0_dp/(n*(2.0_dp*n - 1.0_dp))
+                fact = fact*n
+            end if
+            call check("A_K^(n)(0)", ellip_k_log_a(n, 0.0_dp), c*fact, 4.0e-16_dp)
+            call check("B_K^(n)(0)", ellip_k_log_b(n, 0.0_dp), c*d*fact, 1.0e-15_dp)
+        end do
+        call check_small("negative order is NaN", &
+            merge(0.0_dp, 1.0_dp, ieee_is_nan(ellip_k_log_a(-1, 0.3_dp))), 0.0_dp)
+    end subroutine test_log_piece_derivatives
+
+    pure function fd8(fm4, fm3, fm2, fm1, fp1, fp2, fp3, fp4, h) result(d)
+        real(dp), intent(in) :: fm4, fm3, fm2, fm1, fp1, fp2, fp3, fp4, h
+        real(dp) :: d
+
+        d = (4.0_dp/5.0_dp*(fp1 - fm1) - 1.0_dp/5.0_dp*(fp2 - fm2) &
+            + 4.0_dp/105.0_dp*(fp3 - fm3) - 1.0_dp/280.0_dp*(fp4 - fm4))/h
+    end function fd8
 
     subroutine test_ad_products()
         real(dp) :: jv(1), jtu(1)
