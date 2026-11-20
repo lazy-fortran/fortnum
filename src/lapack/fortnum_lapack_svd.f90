@@ -6,13 +6,15 @@ module fortnum_lapack_svd
     ! diagonalized by one-sided Jacobi rotations, which give singular values
     ! with high relative accuracy and orthogonal vectors without a
     ! bidiagonal stage. DGESDD and DGELSD return what their LAPACK
-    ! namesakes return, by the same method.
+    ! namesakes return, by the same method. ZGESVD is the complex
+    ! counterpart: each column pair is first given a real inner product by a
+    ! unit phase, then rotated as in the real case.
     use fortnum_kinds, only: dp
-    use fortnum_lapack_qr, only: fortnum_dgeqrf, fortnum_dormqr
+    use fortnum_lapack_qr, only: fortnum_dgeqrf, fortnum_dormqr, fortnum_zgeqrf, fortnum_zunmqr
     implicit none
     private
 
-    public :: fortnum_dgesvd, fortnum_dgesdd, fortnum_dgelss, fortnum_dgelsd
+    public :: fortnum_dgesvd, fortnum_dgesdd, fortnum_dgelss, fortnum_dgelsd, fortnum_zgesvd
 
     real(dp), parameter :: eps = epsilon(1.0_dp)
     !> Jacobi sweeps before giving up (convergence takes about 6 to 10).
@@ -315,6 +317,230 @@ contains
             ur(:, j) = x/nx
         end do
     end subroutine complete_basis
+
+    !> A = U diag(s) V^H for a complex m x n matrix, s descending, with the
+    !> jobs of fortnum_dgesvd. rwork (5 min(m, n)) is not used.
+    subroutine fortnum_zgesvd(jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, work, lwork, rwork, info)
+        character, intent(in) :: jobu, jobvt
+        integer, intent(in) :: m, n, lda, ldu, ldvt, lwork
+        complex(dp), intent(inout) :: a(lda, *)
+        real(dp), intent(out) :: s(*), rwork(*)
+        complex(dp), intent(out) :: u(ldu, *), vt(ldvt, *), work(*)
+        integer, intent(out) :: info
+        integer :: minmn, minwrk, ncu, nrv
+        logical :: wntua, wntus, wntuo, wntva, wntvs, wntvo
+        complex(dp), allocatable :: uf(:, :), vtf(:, :)
+        info = 0
+        minmn = min(m, n)
+        wntua = any(jobu == ['A', 'a'])
+        wntus = any(jobu == ['S', 's'])
+        wntuo = any(jobu == ['O', 'o'])
+        wntva = any(jobvt == ['A', 'a'])
+        wntvs = any(jobvt == ['S', 's'])
+        wntvo = any(jobvt == ['O', 'o'])
+        minwrk = max(1, 2*minmn + max(m, n))
+        if (.not. (wntua .or. wntus .or. wntuo .or. any(jobu == ['N', 'n']))) then
+            info = -1
+        else if (.not. (wntva .or. wntvs .or. wntvo .or. any(jobvt == ['N', 'n'])) .or. (wntvo .and. wntuo)) then
+            info = -2
+        else if (m < 0) then
+            info = -3
+        else if (n < 0) then
+            info = -4
+        else if (lda < max(1, m)) then
+            info = -6
+        else if (ldu < 1 .or. ((wntua .or. wntus) .and. ldu < m)) then
+            info = -9
+        else if (ldvt < 1 .or. (wntva .and. ldvt < n) .or. (wntvs .and. ldvt < minmn)) then
+            info = -11
+        else if (lwork < minwrk .and. lwork /= -1) then
+            info = -13
+        end if
+        if (info /= 0) return
+        work(1) = minwrk
+        if (lwork == -1 .or. minmn == 0) return
+        ncu = 0
+        if (wntua) ncu = m
+        if (wntus .or. wntuo) ncu = minmn
+        nrv = 0
+        if (wntva) nrv = n
+        if (wntvs .or. wntvo) nrv = minmn
+        allocate (uf(m, max(1, ncu)), vtf(max(1, nrv), n))
+        call zsvd_core(m, n, a, lda, s, ncu, uf, nrv, vtf, info)
+        if (wntua .or. wntus) u(1:m, 1:ncu) = uf(:, 1:ncu)
+        if (wntva .or. wntvs) vt(1:nrv, 1:n) = vtf(1:nrv, :)
+        if (wntuo) a(1:m, 1:minmn) = uf(:, 1:minmn)
+        if (wntvo) a(1:minmn, 1:n) = vtf(1:minmn, :)
+    end subroutine fortnum_zgesvd
+
+    ! A (destroyed) = U diag(s) V^H: the first ncu columns of U in uf and
+    ! the first nrv rows of V^H in vtf.
+    subroutine zsvd_core(m, n, a, lda, s, ncu, uf, nrv, vtf, info)
+        integer, intent(in) :: m, n, lda, ncu, nrv
+        complex(dp), intent(inout) :: a(lda, *)
+        real(dp), intent(out) :: s(*)
+        complex(dp), intent(out) :: uf(:, :), vtf(:, :)
+        integer, intent(out) :: info
+        complex(dp), allocatable :: ah(:, :), ut(:, :), vtt(:, :)
+        integer :: j
+        if (m >= n) then
+            call ztall_svd(m, n, a, lda, s, ncu, uf, nrv, vtf, info)
+        else
+            ! A^H = U' S V'^H, so U = V' and V^H = U'^H
+            allocate (ah(n, m), ut(n, max(1, nrv)), vtt(max(1, ncu), m))
+            do j = 1, m
+                ah(:, j) = conjg(a(j, 1:n))
+            end do
+            call ztall_svd(n, m, ah, n, s, nrv, ut, ncu, vtt, info)
+            if (ncu > 0) uf(:, 1:ncu) = conjg(transpose(vtt(1:ncu, :)))
+            if (nrv > 0) vtf(1:nrv, :) = conjg(transpose(ut(:, 1:nrv)))
+        end if
+    end subroutine zsvd_core
+
+    ! m >= n: A = Q R, R = Ur S V^H by Jacobi, U = Q [Ur 0; 0 I]
+    subroutine ztall_svd(m, n, a, lda, s, ncu, uf, nrv, vtf, info)
+        integer, intent(in) :: m, n, lda, ncu, nrv
+        complex(dp), intent(inout) :: a(lda, *)
+        real(dp), intent(out) :: s(*)
+        complex(dp), intent(out) :: uf(:, :), vtf(:, :)
+        integer, intent(out) :: info
+        complex(dp), allocatable :: tau(:), work(:), r(:, :), ur(:, :), v(:, :)
+        complex(dp) :: query(1)
+        integer :: lw, j, ierr
+        allocate (tau(n), r(n, n), ur(n, n), v(n, n))
+        call fortnum_zgeqrf(m, n, a, lda, tau, query, -1, ierr)
+        lw = max(int(real(query(1))), n, max(ncu, 1)*64)
+        allocate (work(lw))
+        call fortnum_zgeqrf(m, n, a, lda, tau, work, lw, ierr)
+        r = 0
+        do j = 1, n
+            r(1:j, j) = a(1:j, j)
+        end do
+        call zjacobi_svd(n, r, s, ur, v, info)
+        if (nrv > 0) vtf(1:nrv, :) = conjg(transpose(v(:, 1:nrv)))
+        if (ncu > 0) then
+            uf = 0
+            uf(1:n, 1:min(ncu, n)) = ur(:, 1:min(ncu, n))
+            do j = n + 1, ncu
+                uf(j, j) = 1
+            end do
+            call fortnum_zunmqr('L', 'N', m, ncu, n, a, lda, tau, uf, m, work, lw, ierr)
+        end if
+    end subroutine ztall_svd
+
+    ! One-sided Jacobi on the square complex r: r = ur diag(s) v^H.
+    ! Multiplying column q of r and v by the unit phase conj(gamma)/|gamma|
+    ! makes the pair's inner product real; the real rotation follows.
+    subroutine zjacobi_svd(n, r, s, ur, v, info)
+        integer, intent(in) :: n
+        complex(dp), intent(inout) :: r(n, n)
+        real(dp), intent(out) :: s(*)
+        complex(dp), intent(out) :: ur(n, n), v(n, n)
+        integer, intent(out) :: info
+        real(dp) :: scl, alpha, beta, g, zeta, t, c, sn, tol
+        real(dp) :: sl(n)
+        complex(dp) :: gamma, ph, wp(n)
+        integer :: p, q, sweep, j, order(n)
+        logical :: rotated
+        info = 0
+        v = 0
+        do j = 1, n
+            v(j, j) = 1
+        end do
+        scl = maxval(abs(r))
+        if (scl > 0) then
+            scl = 2.0_dp**exponent(scl)
+            r = r/scl
+        else
+            scl = 1
+        end if
+        tol = eps*sqrt(real(n, dp))
+        do sweep = 1, MAX_SWEEPS
+            rotated = .false.
+            do p = 1, n - 1
+                do q = p + 1, n
+                    alpha = real(dot_product(r(:, p), r(:, p)))
+                    beta = real(dot_product(r(:, q), r(:, q)))
+                    if (alpha == 0 .or. beta == 0) cycle
+                    gamma = dot_product(r(:, p), r(:, q))
+                    g = abs(gamma)
+                    if (g <= tol*sqrt(alpha)*sqrt(beta)) cycle
+                    rotated = .true.
+                    ph = conjg(gamma)/g
+                    r(:, q) = ph*r(:, q)
+                    v(:, q) = ph*v(:, q)
+                    zeta = (beta - alpha)/(2*g)
+                    t = sign(1.0_dp, zeta)/(abs(zeta) + sqrt(1 + zeta*zeta))
+                    c = 1/sqrt(1 + t*t)
+                    sn = c*t
+                    wp = r(:, p)
+                    r(:, p) = c*wp - sn*r(:, q)
+                    r(:, q) = sn*wp + c*r(:, q)
+                    wp = v(:, p)
+                    v(:, p) = c*wp - sn*v(:, q)
+                    v(:, q) = sn*wp + c*v(:, q)
+                end do
+            end do
+            if (.not. rotated) exit
+        end do
+        if (rotated) info = n
+        do j = 1, n
+            sl(j) = sqrt(real(dot_product(r(:, j), r(:, j))))
+        end do
+        do j = 1, n
+            order(j) = j
+        end do
+        do j = 2, n
+            p = order(j)
+            q = j - 1
+            do while (q >= 1)
+                if (sl(order(q)) >= sl(p)) exit
+                order(q + 1) = order(q)
+                q = q - 1
+            end do
+            order(q + 1) = p
+        end do
+        sl = sl(order)
+        s(1:n) = sl
+        r = r(:, order)
+        v = v(:, order)
+        do j = 1, n
+            if (s(j) > 0) then
+                ur(:, j) = r(:, j)/s(j)
+            else
+                ur(:, j) = 0
+            end if
+        end do
+        call zcomplete_basis(n, s, ur)
+        s(1:n) = s(1:n)*scl
+    end subroutine zjacobi_svd
+
+    subroutine zcomplete_basis(n, s, ur)
+        integer, intent(in) :: n
+        real(dp), intent(in) :: s(*)
+        complex(dp), intent(inout) :: ur(n, n)
+        complex(dp) :: x(n)
+        real(dp) :: nx
+        integer :: j, k, i, pass
+        k = 0
+        do j = 1, n
+            if (s(j) > 0) cycle
+            do
+                k = k + 1
+                x = 0
+                x(k) = 1
+                do pass = 1, 2
+                    do i = 1, n
+                        if (i == j) cycle
+                        if (s(i) > 0 .or. i < j) x = x - dot_product(ur(:, i), x)*ur(:, i)
+                    end do
+                end do
+                nx = sqrt(real(dot_product(x, x)))
+                if (nx > 0.5_dp) exit
+            end do
+            ur(:, j) = x/nx
+        end do
+    end subroutine zcomplete_basis
 
     !> Minimum-norm least squares X = A^+ B through the SVD: singular values
     !> below rcond times the largest count as zero (rcond < 0: machine

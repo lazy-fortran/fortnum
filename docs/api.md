@@ -607,7 +607,10 @@ column pivoting and RQ, then 2 x 2 Jacobi rotations) with its building blocks
 `fortnum_lapack_svd` provides the singular value decomposition `fortnum_dgesvd`
 and `fortnum_dgesdd` and the minimum-norm least squares drivers
 `fortnum_dgelss` and `fortnum_dgelsd`, all by Householder QR followed by
-one-sided Jacobi rotations on the triangular factor. The remaining LAPACK
+one-sided Jacobi rotations on the triangular factor, and the complex
+`fortnum_zgesvd` by the same method.
+`fortnum_lapack_gtsv` provides the tridiagonal solves `fortnum_dgtsv` and
+`fortnum_zgtsv`. The remaining LAPACK
 routines follow (issue 167).
 
 The library `fortnum_lapack77` provides these BLAS and LAPACK routines under

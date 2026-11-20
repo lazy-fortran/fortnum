@@ -630,3 +630,144 @@ subroutine dgelsd(m, n, nrhs, a, lda, b, ldb, s, rcond, rank, work, lwork, iwork
     integer, intent(out) :: rank, iwork(*), info
     call fortnum_dgelsd(m, n, nrhs, a, lda, b, ldb, s, rcond, rank, work, lwork, iwork, info)
 end subroutine dgelsd
+
+subroutine zpotrf(uplo, n, a, lda, info)
+    use fortnum_kinds, only: dp
+    use fortnum_lapack_chol, only: fortnum_zpotrf
+    character, intent(in) :: uplo
+    integer, intent(in) :: n, lda
+    complex(dp), intent(inout) :: a(lda, *)
+    integer, intent(out) :: info
+    call fortnum_zpotrf(uplo, n, a, lda, info)
+end subroutine zpotrf
+
+subroutine dpotri(uplo, n, a, lda, info)
+    use fortnum_kinds, only: dp
+    use fortnum_lapack_chol, only: fortnum_dpotri
+    character, intent(in) :: uplo
+    integer, intent(in) :: n, lda
+    real(dp), intent(inout) :: a(lda, *)
+    integer, intent(out) :: info
+    call fortnum_dpotri(uplo, n, a, lda, info)
+end subroutine dpotri
+
+subroutine dsytrf(uplo, n, a, lda, ipiv, work, lwork, info)
+    use fortnum_kinds, only: dp
+    use fortnum_lapack_ldlt, only: fortnum_dsytrf
+    character, intent(in) :: uplo
+    integer, intent(in) :: n, lda, lwork
+    real(dp), intent(inout) :: a(lda, *), work(*)
+    integer, intent(out) :: ipiv(*), info
+    call fortnum_dsytrf(uplo, n, a, lda, ipiv, work, lwork, info)
+end subroutine dsytrf
+
+subroutine dgtsv(n, nrhs, dl, d, du, b, ldb, info)
+    use fortnum_kinds, only: dp
+    use fortnum_lapack_gtsv, only: fortnum_dgtsv
+    integer, intent(in) :: n, nrhs, ldb
+    real(dp), intent(inout) :: dl(*), d(*), du(*), b(ldb, *)
+    integer, intent(out) :: info
+    call fortnum_dgtsv(n, nrhs, dl, d, du, b, ldb, info)
+end subroutine dgtsv
+
+subroutine zgtsv(n, nrhs, dl, d, du, b, ldb, info)
+    use fortnum_kinds, only: dp
+    use fortnum_lapack_gtsv, only: fortnum_zgtsv
+    integer, intent(in) :: n, nrhs, ldb
+    complex(dp), intent(inout) :: dl(*), d(*), du(*), b(ldb, *)
+    integer, intent(out) :: info
+    call fortnum_zgtsv(n, nrhs, dl, d, du, b, ldb, info)
+end subroutine zgtsv
+
+subroutine zgecon(norm, n, a, lda, anorm, rcond, work, rwork, info)
+    use fortnum_kinds, only: dp
+    use fortnum_lapack_refine, only: fortnum_zgecon
+    character, intent(in) :: norm
+    integer, intent(in) :: n, lda
+    complex(dp), intent(in) :: a(lda, *)
+    real(dp), intent(in) :: anorm
+    real(dp), intent(out) :: rcond
+    complex(dp), intent(inout) :: work(*)
+    real(dp), intent(inout) :: rwork(*)
+    integer, intent(out) :: info
+    call fortnum_zgecon(norm, n, a, lda, anorm, rcond, work, rwork, info)
+end subroutine zgecon
+
+subroutine zgeqrf(m, n, a, lda, tau, work, lwork, info)
+    use fortnum_kinds, only: dp
+    use fortnum_lapack_qr, only: fortnum_zgeqrf
+    integer, intent(in) :: m, n, lda, lwork
+    complex(dp), intent(inout) :: a(lda, *), work(*)
+    complex(dp), intent(out) :: tau(*)
+    integer, intent(out) :: info
+    call fortnum_zgeqrf(m, n, a, lda, tau, work, lwork, info)
+end subroutine zgeqrf
+
+subroutine zungqr(m, n, k, a, lda, tau, work, lwork, info)
+    use fortnum_kinds, only: dp
+    use fortnum_lapack_qr, only: fortnum_zungqr
+    integer, intent(in) :: m, n, k, lda, lwork
+    complex(dp), intent(inout) :: a(lda, *), work(*)
+    complex(dp), intent(in) :: tau(*)
+    integer, intent(out) :: info
+    call fortnum_zungqr(m, n, k, a, lda, tau, work, lwork, info)
+end subroutine zungqr
+
+subroutine dsygv(itype, jobz, uplo, n, a, lda, b, ldb, w, work, lwork, info)
+    use fortnum_kinds, only: dp
+    use fortnum_lapack_syev, only: fortnum_dsygv
+    integer, intent(in) :: itype, n, lda, ldb, lwork
+    character, intent(in) :: jobz, uplo
+    real(dp), intent(inout) :: a(lda, *), b(ldb, *), work(*)
+    real(dp), intent(out) :: w(*)
+    integer, intent(out) :: info
+    call fortnum_dsygv(itype, jobz, uplo, n, a, lda, b, ldb, w, work, lwork, info)
+end subroutine dsygv
+
+subroutine zheev(jobz, uplo, n, a, lda, w, work, lwork, rwork, info)
+    use fortnum_kinds, only: dp
+    use fortnum_lapack_syev, only: fortnum_zheev
+    character, intent(in) :: jobz, uplo
+    integer, intent(in) :: n, lda, lwork
+    complex(dp), intent(inout) :: a(lda, *), work(*)
+    real(dp), intent(out) :: w(*)
+    real(dp), intent(inout) :: rwork(*)
+    integer, intent(out) :: info
+    call fortnum_zheev(jobz, uplo, n, a, lda, w, work, lwork, rwork, info)
+end subroutine zheev
+
+subroutine zhegv(itype, jobz, uplo, n, a, lda, b, ldb, w, work, lwork, rwork, info)
+    use fortnum_kinds, only: dp
+    use fortnum_lapack_syev, only: fortnum_zhegv
+    integer, intent(in) :: itype, n, lda, ldb, lwork
+    character, intent(in) :: jobz, uplo
+    complex(dp), intent(inout) :: a(lda, *), b(ldb, *), work(*)
+    real(dp), intent(out) :: w(*)
+    real(dp), intent(inout) :: rwork(*)
+    integer, intent(out) :: info
+    call fortnum_zhegv(itype, jobz, uplo, n, a, lda, b, ldb, w, work, lwork, rwork, info)
+end subroutine zhegv
+
+subroutine zggev(jobvl, jobvr, n, a, lda, b, ldb, alpha, beta, vl, ldvl, vr, ldvr, work, lwork, rwork, info)
+    use fortnum_kinds, only: dp
+    use fortnum_lapack_ggev, only: fortnum_zggev
+    character, intent(in) :: jobvl, jobvr
+    integer, intent(in) :: n, lda, ldb, ldvl, ldvr, lwork
+    complex(dp), intent(inout) :: a(lda, *), b(ldb, *)
+    complex(dp), intent(out) :: alpha(*), beta(*), vl(ldvl, *), vr(ldvr, *), work(*)
+    real(dp), intent(out) :: rwork(*)
+    integer, intent(out) :: info
+    call fortnum_zggev(jobvl, jobvr, n, a, lda, b, ldb, alpha, beta, vl, ldvl, vr, ldvr, work, lwork, rwork, info)
+end subroutine zggev
+
+subroutine zgesvd(jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, work, lwork, rwork, info)
+    use fortnum_kinds, only: dp
+    use fortnum_lapack_svd, only: fortnum_zgesvd
+    character, intent(in) :: jobu, jobvt
+    integer, intent(in) :: m, n, lda, ldu, ldvt, lwork
+    complex(dp), intent(inout) :: a(lda, *)
+    real(dp), intent(out) :: s(*), rwork(*)
+    complex(dp), intent(out) :: u(ldu, *), vt(ldvt, *), work(*)
+    integer, intent(out) :: info
+    call fortnum_zgesvd(jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, work, lwork, rwork, info)
+end subroutine zgesvd

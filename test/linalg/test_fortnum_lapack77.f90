@@ -10,7 +10,8 @@ program test_fortnum_lapack77
     use fortnum_lapack_qr, only: fortnum_dgels
     use fortnum_lapack_syev, only: fortnum_dsyev
     use fortnum_lapack_geev, only: fortnum_dgeev, fortnum_zgeev
-    use fortnum_lapack_svd, only: fortnum_dgelss
+    use fortnum_lapack_svd, only: fortnum_dgelss, fortnum_zgesvd
+    use fortnum_lapack_gtsv, only: fortnum_zgtsv
     implicit none
     interface
         real(dp) function dasum(n, x, incx)
@@ -80,6 +81,21 @@ program test_fortnum_lapack77
             complex(dp), intent(inout) :: a(lda, *), b(ldb, *)
             integer, intent(out) :: info
         end subroutine zposv
+        subroutine zgtsv(n, nrhs, dl, d, du, b, ldb, info)
+            import :: dp
+            integer, intent(in) :: n, nrhs, ldb
+            complex(dp), intent(inout) :: dl(*), d(*), du(*), b(ldb, *)
+            integer, intent(out) :: info
+        end subroutine zgtsv
+        subroutine zgesvd(jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, work, lwork, rwork, info)
+            import :: dp
+            character, intent(in) :: jobu, jobvt
+            integer, intent(in) :: m, n, lda, ldu, ldvt, lwork
+            complex(dp), intent(inout) :: a(lda, *)
+            real(dp), intent(out) :: s(*), rwork(*)
+            complex(dp), intent(out) :: u(ldu, *), vt(ldvt, *), work(*)
+            integer, intent(out) :: info
+        end subroutine zgesvd
         subroutine dgels(trans, m, n, nrhs, a, lda, b, ldb, work, lwork, info)
             import :: dp
             character, intent(in) :: trans
@@ -214,6 +230,23 @@ program test_fortnum_lapack77
     call zposv('U', n, 1, z1, n, zb1, n, info1)
     call fortnum_zposv('U', n, 1, z2, n, zb2, n, info2)
     call require(info1 == 0 .and. info2 == 0 .and. all(z1 == z2) .and. all(zb1 == zb2), 'zposv')
+    zw1 = z(:, 1)
+    zw2 = zw1
+    zv1(:, 1) = z(:, 4)
+    zv2(:, 1) = zv1(:, 1)
+    zb1(:, 1) = z(:, 5)
+    zb2 = zb1
+    zu1(:, 1) = z(:, 6)
+    zu2(:, 1) = zu1(:, 1)
+    call zgtsv(n, 1, zv1(:n - 1, 1), zw1, zu1(:n - 1, 1), zb1, n, info1)
+    call fortnum_zgtsv(n, 1, zv2(:n - 1, 1), zw2, zu2(:n - 1, 1), zb2, n, info2)
+    call require(info1 == info2 .and. all(zb1 == zb2) .and. all(zw1 == zw2), 'zgtsv')
+    z1 = z
+    z2 = z
+    call zgesvd('A', 'A', n, n, z1, n, s1, zu1, n, zv1, n, zwork, size(zwork), rwork, info1)
+    call fortnum_zgesvd('A', 'A', n, n, z2, n, s2, zu2, n, zv2, n, zwork, size(zwork), rwork, info2)
+    call require(info1 == 0 .and. info1 == info2 .and. all(s1 == s2) .and. all(zu1 == zu2) .and. &
+        all(zv1 == zv2), 'zgesvd')
 
     a1 = a
     a2 = a
