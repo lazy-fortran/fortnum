@@ -47,7 +47,7 @@ module fortnum_roots_complex
     use, intrinsic :: iso_fortran_env, only: dp => real64
     use fortnum_status, only: fortnum_status_t, status_set, &
         FORTNUM_OK, FORTNUM_DOMAIN_ERROR, FORTNUM_CONVERGENCE_ERROR
-    use fortnum_integrate_gk, only: integrate_gk, gk_function_t
+    use fortnum_integrate_gk, only: integrate_gk, gk_function_t, gk15_table
     use fortnum_lapack_ggev, only: zggev => fortnum_zggev
     implicit none
     private
@@ -68,6 +68,26 @@ module fortnum_roots_complex
             class(*),    intent(in), optional :: ctx
         end subroutine complex_root_fn_t
     end interface
+
+    ! Contour options.  With none of contour_tol, contour_limit, fd_step, df
+    ! present the original per-moment Gauss-Kronrod path runs unchanged.
+    type :: contour_opts_t
+        logical  :: single_pass = .false.
+        real(dp) :: tol = 1.0e-10_dp
+        integer  :: limit = 200
+        real(dp) :: fd_step = 0.0_dp
+        procedure(complex_root_fn_t), pointer, nopass :: df => null()
+    end type contour_opts_t
+
+    ! Adaptive G7K15 panels on one edge z(t) = za + t dz, t in [0,1];
+    ! g(:,k) holds f'/f * dz at the 15 Kronrod nodes of panel k, so every
+    ! moment z^p is integrated from the same function evaluations.
+    type :: edge_panels_t
+        complex(dp) :: za = (0.0_dp, 0.0_dp), dz = (0.0_dp, 0.0_dp)
+        integer :: n = 0
+        real(dp), allocatable :: ta(:), tb(:)
+        complex(dp), allocatable :: g(:, :)
+    end type edge_panels_t
 
     type, extends(gk_function_t) :: edge_integrand_t
         procedure(complex_root_fn_t), pointer, nopass :: callback => null()
@@ -93,8 +113,26 @@ contains
     ! newtonz,newtonf  Newton stopping tolerances on |dz| and |f|.
     ! max_refine maximum Newton iterations per root; default 60.
     ! ctx        parameters forwarded to f.
+    !
+    ! Options for expensive or noisy f.  Passing any of them selects the
+    ! single-pass contour path: every moment s_p of an edge is integrated from
+    ! one set of adaptive G7K15 panels (one f'/f evaluation per node), and a
+    ! box is first integrated for its zero count s_0 alone; a zero-free box
+    ! stops there.
+    ! contour_tol   absolute error bound on each normalised moment
+    !               s_p / R^p, R = max(1, max |corner|); default 1e-10.  The
+    !               zero count needs it well below 0.25; root accuracy scales
+    !               with it.  Raise it to the noise level of f.
+    ! contour_limit maximum G7K15 panels per edge; default 200.  An edge
+    !               that has not reached contour_tol by then is an error.
+    ! fd_step       absolute central-difference step for f' (contour and
+    !               Newton); default 1e-6 max(|z|, 1).  Raise it above the
+    !               noise of f.
+    ! df            f' callback (same interface as f); replaces the finite
+    !               difference, two instead of three calls per node.
     subroutine complex_region_roots(f, ll, ur, roots, fvals, mult, nfound, &
-            status, m_max, newtonz, newtonf, max_refine, ctx)
+            status, m_max, newtonz, newtonf, max_refine, ctx, contour_tol, &
+            contour_limit, fd_step, df)
         procedure(complex_root_fn_t)            :: f
         complex(dp),             intent(in)     :: ll, ur
         complex(dp), allocatable, intent(out)   :: roots(:), fvals(:)
@@ -104,9 +142,13 @@ contains
         integer,     intent(in), optional       :: m_max, max_refine
         real(dp),    intent(in), optional       :: newtonz, newtonf
         class(*),    intent(in), optional       :: ctx
+        real(dp),    intent(in), optional       :: contour_tol, fd_step
+        integer,     intent(in), optional       :: contour_limit
+        procedure(complex_root_fn_t), optional  :: df
 
         integer  :: mm, mref
         real(dp) :: nz, nf
+        type(contour_opts_t) :: opts
 
         mm   = 5
         nz   = 1.0e-12_dp
@@ -116,6 +158,13 @@ contains
         if (present(newtonz))   nz   = newtonz
         if (present(newtonf))   nf   = newtonf
         if (present(max_refine)) mref = max_refine
+
+        opts%single_pass = present(contour_tol) .or. present(contour_limit) .or. &
+            present(fd_step) .or. present(df)
+        if (present(contour_tol))   opts%tol = contour_tol
+        if (present(contour_limit)) opts%limit = contour_limit
+        if (present(fd_step))       opts%fd_step = fd_step
+        if (present(df))            opts%df => df
 
         allocate(roots(0), fvals(0), mult(0))
         nfound = 0
@@ -131,21 +180,28 @@ contains
                 "complex_region_roots: m_max must be >= 1")
             return
         end if
+        if (opts%single_pass .and. (opts%tol <= 0.0_dp .or. opts%limit < 1 .or. &
+                opts%fd_step < 0.0_dp)) then
+            call status_set(status, FORTNUM_DOMAIN_ERROR, "complex_region_roots: "// &
+                "contour_tol must be > 0, contour_limit >= 1, fd_step >= 0")
+            return
+        end if
 
-        call region_recurse(f, ll, ur, mm, nz, nf, mref, ctx, &
+        call region_recurse(f, ll, ur, mm, nz, nf, mref, ctx, opts, &
             roots, fvals, mult, nfound, status, 0)
     end subroutine complex_region_roots
 
     ! Recursive ICON=3 region search.  Counts zeros in the box; if the count
     ! exceeds m_max, bisects along the longer side and recurses; otherwise
     ! recovers the zeros from the moment pencil and appends them.
-    recursive subroutine region_recurse(f, ll, ur, mm, nz, nf, mref, ctx, &
+    recursive subroutine region_recurse(f, ll, ur, mm, nz, nf, mref, ctx, opts, &
             roots, fvals, mult, nfound, status, depth)
         procedure(complex_root_fn_t)            :: f
         complex(dp),             intent(in)     :: ll, ur
         integer,                 intent(in)     :: mm, mref, depth
         real(dp),                intent(in)     :: nz, nf
         class(*),    intent(in), optional       :: ctx
+        type(contour_opts_t),    intent(in)     :: opts
         complex(dp), allocatable, intent(inout) :: roots(:), fvals(:)
         integer,     allocatable, intent(inout) :: mult(:)
         integer,                 intent(inout)  :: nfound
@@ -155,7 +211,11 @@ contains
         complex(dp) :: s(0:2*mm)
         integer     :: ntot
 
-        call moments(f, ll, ur, 2*mm + 1, ctx, s, ntot, status)
+        if (opts%single_pass) then
+            call moments_single_pass(f, ll, ur, 2*mm + 1, ctx, opts, s, ntot, status)
+        else
+            call moments(f, ll, ur, 2*mm + 1, ctx, s, ntot, status)
+        end if
         if (status%code /= FORTNUM_OK) return
         if (ntot == 0) return
 
@@ -166,12 +226,12 @@ contains
                     "more zeros than m_max in an irreducible cell")
                 return
             end if
-            call bisect_box(f, ll, ur, ntot, mm, nz, nf, mref, ctx, &
+            call bisect_box(f, ll, ur, ntot, mm, nz, nf, mref, ctx, opts, &
                 roots, fvals, mult, nfound, status, depth)
             return
         end if
 
-        call resolve_cell(f, ll, ur, s, ntot, mm, nz, nf, mref, ctx, &
+        call resolve_cell(f, ll, ur, s, ntot, mm, nz, nf, mref, ctx, opts, &
             roots, fvals, mult, nfound, status)
     end subroutine region_recurse
 
@@ -180,13 +240,14 @@ contains
     ! edge and corrupts both winding numbers), so a small set of cut fractions
     ! near the centre is tried until both halves report integer winding numbers
     ! summing to ntot.  ZEAL perturbs ICON=3 cuts the same way.
-    recursive subroutine bisect_box(f, ll, ur, ntot, mm, nz, nf, mref, ctx, &
+    recursive subroutine bisect_box(f, ll, ur, ntot, mm, nz, nf, mref, ctx, opts, &
             roots, fvals, mult, nfound, status, depth)
         procedure(complex_root_fn_t)            :: f
         complex(dp),             intent(in)     :: ll, ur
         integer,                 intent(in)     :: ntot, mm, mref, depth
         real(dp),                intent(in)     :: nz, nf
         class(*),    intent(in), optional       :: ctx
+        type(contour_opts_t),    intent(in)     :: opts
         complex(dp), allocatable, intent(inout) :: roots(:), fvals(:)
         integer,     allocatable, intent(inout) :: mult(:)
         integer,                 intent(inout)  :: nfound
@@ -210,17 +271,17 @@ contains
                 lo1 = ll;  hi1 = cmplx(real(ur), cut, dp)
                 lo2 = cmplx(real(ll), cut, dp);  hi2 = ur
             end if
-            call count_only(f, lo1, hi1, ctx, n1, status)
+            call count_only(f, lo1, hi1, ctx, opts, n1, status)
             if (status%code /= FORTNUM_OK) cycle
-            call count_only(f, lo2, hi2, ctx, n2, status)
+            call count_only(f, lo2, hi2, ctx, opts, n2, status)
             if (status%code /= FORTNUM_OK) cycle
             if (n1 + n2 /= ntot) cycle
             ! Both halves report integer winding numbers summing to ntot, so
             ! the cut is clean: recurse into each half and return.
-            call region_recurse(f, lo1, hi1, mm, nz, nf, mref, ctx, &
+            call region_recurse(f, lo1, hi1, mm, nz, nf, mref, ctx, opts, &
                 roots, fvals, mult, nfound, status, depth + 1)
             if (status%code /= FORTNUM_OK) return
-            call region_recurse(f, lo2, hi2, mm, nz, nf, mref, ctx, &
+            call region_recurse(f, lo2, hi2, mm, nz, nf, mref, ctx, opts, &
                 roots, fvals, mult, nfound, status, depth + 1)
             return
         end do
@@ -230,20 +291,25 @@ contains
 
     ! Winding number alone (s_0) for a candidate sub-box, used to validate a
     ! subdivision cut before committing to the recursion.
-    subroutine count_only(f, ll, ur, ctx, n, status)
+    subroutine count_only(f, ll, ur, ctx, opts, n, status)
         procedure(complex_root_fn_t)        :: f
         complex(dp),         intent(in)     :: ll, ur
         class(*),  intent(in), optional     :: ctx
+        type(contour_opts_t), intent(in)    :: opts
         integer,             intent(out)    :: n
         type(fortnum_status_t), intent(out) :: status
         complex(dp) :: s(0:0)
 
-        call moments(f, ll, ur, 1, ctx, s, n, status)
+        if (opts%single_pass) then
+            call moments_single_pass(f, ll, ur, 1, ctx, opts, s, n, status)
+        else
+            call moments(f, ll, ur, 1, ctx, s, n, status)
+        end if
     end subroutine count_only
 
     ! Recover the <= mm zeros of a cell from its moments s(0:ntot..) and
     ! append the polished distinct zeros to the accumulators.
-    subroutine resolve_cell(f, ll, ur, s, ntot, mm, nz, nf, mref, ctx, &
+    subroutine resolve_cell(f, ll, ur, s, ntot, mm, nz, nf, mref, ctx, opts, &
             roots, fvals, mult, nfound, status)
         procedure(complex_root_fn_t)            :: f
         complex(dp),             intent(in)     :: ll, ur
@@ -251,6 +317,7 @@ contains
         integer,                 intent(in)     :: ntot, mm, mref
         real(dp),                intent(in)     :: nz, nf
         class(*),    intent(in), optional       :: ctx
+        type(contour_opts_t),    intent(in)     :: opts
         complex(dp), allocatable, intent(inout) :: roots(:), fvals(:)
         integer,     allocatable, intent(inout) :: mult(:)
         integer,                 intent(inout)  :: nfound
@@ -259,6 +326,12 @@ contains
         complex(dp) :: zk(mm), fk
         integer     :: mk(mm), ndist, k
 
+        if (opts%single_pass) then
+            call resolve_cell_clustered(f, ll, ur, s, ntot, mm, nz, nf, mref, ctx, &
+                opts, roots, fvals, mult, nfound, status)
+            return
+        end if
+
         call distinct_zeros(s, ntot, mm, zk, ndist, status)
         if (status%code /= FORTNUM_OK) return
 
@@ -266,11 +339,101 @@ contains
         if (status%code /= FORTNUM_OK) return
 
         do k = 1, ndist
-            call newton_polish(f, zk(k), ll, ur, nz, nf, mref, mk(k), ctx, fk, status)
+            call newton_polish(f, zk(k), ll, ur, nz, nf, mref, mk(k), ctx, opts, fk, &
+                status)
             if (status%code /= FORTNUM_OK) return
             call append_root(roots, fvals, mult, nfound, zk(k), fk, mk(k))
         end do
     end subroutine resolve_cell
+
+    ! Cell resolution on the options path, where the moments are known only
+    ! to contour_tol.  Moment noise can raise the numerical Hankel rank above
+    ! the number of distinct zeros: a multiple zero then splits into nearby
+    ! estimates, and surplus estimates carry near-zero weight.  The
+    ! confluent-Vandermonde weights are therefore kept unrounded.  Every
+    ! estimate is polished; one with |weight| < 1/2 whose polish fails is
+    ! dropped as spurious.  Polished zeros closer than the resolution radius
+    ! max(100 newtonz, sqrt(contour_tol) |ur - ll|) are merged, their weights
+    ! summed and rounded to one multiplicity, and the multiplicities must add
+    ! up to the winding number of the cell.
+    subroutine resolve_cell_clustered(f, ll, ur, s, ntot, mm, nz, nf, mref, ctx, &
+            opts, roots, fvals, mult, nfound, status)
+        procedure(complex_root_fn_t)            :: f
+        complex(dp),             intent(in)     :: ll, ur
+        complex(dp),             intent(in)     :: s(0:)
+        integer,                 intent(in)     :: ntot, mm, mref
+        real(dp),                intent(in)     :: nz, nf
+        class(*),    intent(in), optional       :: ctx
+        type(contour_opts_t),    intent(in)     :: opts
+        complex(dp), allocatable, intent(inout) :: roots(:), fvals(:)
+        integer,     allocatable, intent(inout) :: mult(:)
+        integer,                 intent(inout)  :: nfound
+        type(fortnum_status_t),  intent(inout)  :: status
+
+        complex(dp) :: zk(mm), fz(mm), w(mm), vmat(mm, mm), rhs(mm)
+        complex(dp) :: zc(mm), fc(mm)
+        logical     :: polished(mm), merged(mm)
+        integer     :: mc(mm), ndist, nclust, k, j, best, i
+        real(dp)    :: radius, wsum
+        type(fortnum_status_t) :: pst
+
+        call distinct_zeros(s, ntot, mm, zk, ndist, status)
+        if (status%code /= FORTNUM_OK) return
+        if (ndist == 0) return
+
+        do i = 1, ndist
+            do k = 1, ndist
+                vmat(i, k) = zk(k)**(i - 1)
+            end do
+            rhs(i) = s(i - 1)
+        end do
+        call solve_lin(vmat(1:ndist, 1:ndist), rhs(1:ndist), ndist, w(1:ndist), status)
+        if (status%code /= FORTNUM_OK) return
+
+        polished = .false.
+        do k = 1, ndist
+            call newton_polish(f, zk(k), ll, ur, nz, nf, mref, &
+                max(1, nint(real(w(k)))), ctx, opts, fz(k), pst)
+            if (pst%code == FORTNUM_OK) then
+                polished(k) = .true.
+            else if (abs(w(k)) >= 0.5_dp) then
+                status = pst
+                return
+            end if
+        end do
+
+        radius = max(100.0_dp*nz, sqrt(opts%tol)*abs(ur - ll))
+        merged = .false.
+        nclust = 0
+        do k = 1, ndist
+            if (.not. polished(k) .or. merged(k)) cycle
+            merged(k) = .true.
+            wsum = real(w(k))
+            best = k
+            do j = k + 1, ndist
+                if (.not. polished(j) .or. merged(j)) cycle
+                if (abs(zk(j) - zk(k)) > radius) cycle
+                merged(j) = .true.
+                wsum = wsum + real(w(j))
+                if (abs(fz(j)) < abs(fz(best))) best = j
+            end do
+            if (nint(wsum) < 1) cycle
+            nclust = nclust + 1
+            zc(nclust) = zk(best)
+            fc(nclust) = fz(best)
+            mc(nclust) = nint(wsum)
+        end do
+
+        if (sum(mc(1:nclust)) /= ntot) then
+            call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
+                "complex_region_roots: polished zeros do not account for the "// &
+                "winding number of the cell; tighten contour_tol")
+            return
+        end if
+        do k = 1, nclust
+            call append_root(roots, fvals, mult, nfound, zc(k), fc(k), mc(k))
+        end do
+    end subroutine resolve_cell_clustered
 
     ! Ordinary moments s_p = (1/2 pi i) oint_C z^p f'/f dz for p = 0..np-1.
     ! ntot returns s_0 rounded to the nearest integer (total zero count).
@@ -313,6 +476,268 @@ contains
             ntot = max(ntot, 0)
         end if
     end subroutine moments
+
+    ! Moments s_p, p = 0..np-1, on the options path.  Each edge keeps one
+    ! set of adaptive G7K15 panels whose node values f'/f dz serve every
+    ! moment.  The panels are first refined for s_0 alone; a box with no zeros
+    ! (or a count-only call, np = 1) stops there, otherwise the same panels
+    ! are refined further until every normalised moment meets contour_tol.
+    subroutine moments_single_pass(f, ll, ur, np, ctx, opts, s, ntot, status)
+        procedure(complex_root_fn_t)        :: f
+        complex(dp),         intent(in)     :: ll, ur
+        integer,             intent(in)     :: np
+        class(*),  intent(in), optional     :: ctx
+        type(contour_opts_t), intent(in)    :: opts
+        complex(dp),         intent(out)    :: s(0:)
+        integer,             intent(out)    :: ntot
+        type(fortnum_status_t), intent(out) :: status
+
+        type(edge_panels_t) :: edges(4)
+        complex(dp) :: corner(4), total(0:np - 1)
+        real(dp)    :: xs(15), wk(15), wg(15), rscale, edge_tol, re_n
+        integer     :: e
+
+        call status_set(status, FORTNUM_OK, "")
+        s(0:np - 1) = (0.0_dp, 0.0_dp)
+        ntot = 0
+        corner(1) = ll
+        corner(2) = cmplx(real(ur), aimag(ll), dp)
+        corner(3) = ur
+        corner(4) = cmplx(real(ll), aimag(ur), dp)
+        rscale = max(1.0_dp, maxval(abs(corner)))
+        edge_tol = 0.25_dp*opts%tol
+        call gk15_full(xs, wk, wg)
+
+        do e = 1, 4
+            call edge_init(f, ctx, opts, xs, corner(e), corner(mod(e, 4) + 1), &
+                edges(e))
+            call edge_refine(f, ctx, opts, xs, wk, wg, 1, rscale, edge_tol, &
+                edges(e), status)
+            if (status%code /= FORTNUM_OK) return
+        end do
+        total(0:0) = (0.0_dp, 0.0_dp)
+        do e = 1, 4
+            total(0:0) = total(0:0) + edge_moments(edges(e), xs, wk, 1)
+        end do
+        s(0) = total(0)/cmplx(0.0_dp, two_pi, dp)
+
+        re_n = real(s(0))
+        ntot = nint(re_n)
+        if (ntot < 0 .or. abs(re_n - real(ntot, dp)) > 0.25_dp) then
+            call status_set(status, FORTNUM_CONVERGENCE_ERROR, &
+                "complex_region_roots: winding number not near an integer; "// &
+                "f may have a zero or pole on the contour")
+            ntot = max(ntot, 0)
+            return
+        end if
+        if (ntot == 0 .or. np == 1) return
+
+        total = (0.0_dp, 0.0_dp)
+        do e = 1, 4
+            call edge_refine(f, ctx, opts, xs, wk, wg, np, rscale, edge_tol, &
+                edges(e), status)
+            if (status%code /= FORTNUM_OK) return
+            total = total + edge_moments(edges(e), xs, wk, np)
+        end do
+        s(0:np - 1) = total/cmplx(0.0_dp, two_pi, dp)
+    end subroutine moments_single_pass
+
+    ! Symmetric G7K15 rule on [-1, 1]: nodes, Kronrod weights, and Gauss
+    ! weights (zero at the Kronrod-only nodes).
+    subroutine gk15_full(xs, wk, wg)
+        real(dp), intent(out) :: xs(15), wk(15), wg(15)
+        real(dp) :: xgk(8), wgk(8), wgau(4)
+        integer  :: i
+
+        call gk15_table(xgk, wgk, wgau)
+        wg = 0.0_dp
+        do i = 1, 7
+            xs(i) = -xgk(i)
+            xs(16 - i) = xgk(i)
+            wk(i) = wgk(i)
+            wk(16 - i) = wgk(i)
+        end do
+        xs(8) = 0.0_dp
+        wk(8) = wgk(8)
+        do i = 1, 3
+            wg(2*i) = wgau(i)
+            wg(16 - 2*i) = wgau(i)
+        end do
+        wg(8) = wgau(4)
+    end subroutine gk15_full
+
+    subroutine edge_init(f, ctx, opts, xs, za, zb, edge)
+        procedure(complex_root_fn_t)        :: f
+        class(*),  intent(in), optional     :: ctx
+        type(contour_opts_t), intent(in)    :: opts
+        real(dp),            intent(in)     :: xs(15)
+        complex(dp),         intent(in)     :: za, zb
+        type(edge_panels_t), intent(inout)  :: edge
+
+        edge%za = za
+        edge%dz = zb - za
+        allocate(edge%ta(opts%limit), edge%tb(opts%limit), &
+            edge%g(15, opts%limit))
+        edge%n = 1
+        edge%ta(1) = 0.0_dp
+        edge%tb(1) = 1.0_dp
+        call panel_eval(f, ctx, opts, xs, edge, 1)
+    end subroutine edge_init
+
+    ! Bisect the panel with the largest error until the summed error of the
+    ! first np normalised moments meets tol, or fail at contour_limit panels.
+    subroutine edge_refine(f, ctx, opts, xs, wk, wg, np, rscale, tol, edge, status)
+        procedure(complex_root_fn_t)        :: f
+        class(*),  intent(in), optional     :: ctx
+        type(contour_opts_t), intent(in)    :: opts
+        real(dp),            intent(in)     :: xs(15), wk(15), wg(15), rscale, tol
+        integer,             intent(in)     :: np
+        type(edge_panels_t), intent(inout)  :: edge
+        type(fortnum_status_t), intent(inout) :: status
+
+        real(dp) :: err(opts%limit), tmid
+        integer  :: k
+        character(len=160) :: msg
+
+        do k = 1, edge%n
+            err(k) = panel_error(edge, k, xs, wk, wg, np, rscale)
+        end do
+        do
+            if (sum(err(1:edge%n)) <= tol) return
+            if (edge%n >= opts%limit) then
+                write (msg, "(a,es9.2,a,es9.2)") "complex_region_roots: contour "// &
+                    "integral error ", sum(err(1:edge%n)), " above contour_tol/4 ", tol
+                call status_set(status, FORTNUM_CONVERGENCE_ERROR, trim(msg))
+                return
+            end if
+            k = maxloc(err(1:edge%n), 1)
+            tmid = 0.5_dp*(edge%ta(k) + edge%tb(k))
+            edge%n = edge%n + 1
+            edge%ta(edge%n) = tmid
+            edge%tb(edge%n) = edge%tb(k)
+            edge%tb(k) = tmid
+            call panel_eval(f, ctx, opts, xs, edge, k)
+            call panel_eval(f, ctx, opts, xs, edge, edge%n)
+            err(k) = panel_error(edge, k, xs, wk, wg, np, rscale)
+            err(edge%n) = panel_error(edge, edge%n, xs, wk, wg, np, rscale)
+        end do
+    end subroutine edge_refine
+
+    subroutine panel_eval(f, ctx, opts, xs, edge, k)
+        procedure(complex_root_fn_t)        :: f
+        class(*),  intent(in), optional     :: ctx
+        type(contour_opts_t), intent(in)    :: opts
+        real(dp),            intent(in)     :: xs(15)
+        type(edge_panels_t), intent(inout)  :: edge
+        integer,             intent(in)     :: k
+
+        real(dp) :: mid, half
+        integer  :: j
+
+        mid = 0.5_dp*(edge%ta(k) + edge%tb(k))
+        half = 0.5_dp*(edge%tb(k) - edge%ta(k))
+        do j = 1, 15
+            edge%g(j, k) = log_deriv_opts(f, edge%za + (mid + half*xs(j))*edge%dz, &
+                ctx, opts)*edge%dz
+        end do
+    end subroutine panel_eval
+
+    ! Kronrod and Gauss estimates of the first np moments over panel k.
+    subroutine panel_moments(edge, k, xs, wk, wg, np, kr, ga)
+        type(edge_panels_t), intent(in) :: edge
+        integer,             intent(in) :: k, np
+        real(dp),            intent(in) :: xs(15), wk(15), wg(15)
+        complex(dp),         intent(out) :: kr(0:np - 1), ga(0:np - 1)
+
+        real(dp)    :: mid, half
+        complex(dp) :: z, zp
+        integer     :: j, p
+
+        mid = 0.5_dp*(edge%ta(k) + edge%tb(k))
+        half = 0.5_dp*(edge%tb(k) - edge%ta(k))
+        kr = (0.0_dp, 0.0_dp)
+        ga = (0.0_dp, 0.0_dp)
+        do j = 1, 15
+            z = edge%za + (mid + half*xs(j))*edge%dz
+            zp = (1.0_dp, 0.0_dp)
+            do p = 0, np - 1
+                kr(p) = kr(p) + wk(j)*zp*edge%g(j, k)
+                ga(p) = ga(p) + wg(j)*zp*edge%g(j, k)
+                zp = zp*z
+            end do
+        end do
+        kr = half*kr
+        ga = half*ga
+    end subroutine panel_moments
+
+    ! Error of panel k: max over p < np of |Kronrod - Gauss| / (2 pi R^p).
+    function panel_error(edge, k, xs, wk, wg, np, rscale) result(err)
+        type(edge_panels_t), intent(in) :: edge
+        integer,             intent(in) :: k, np
+        real(dp),            intent(in) :: xs(15), wk(15), wg(15), rscale
+        real(dp) :: err
+        complex(dp) :: kr(0:np - 1), ga(0:np - 1)
+        integer :: p
+
+        call panel_moments(edge, k, xs, wk, wg, np, kr, ga)
+        err = 0.0_dp
+        do p = 0, np - 1
+            err = max(err, abs(kr(p) - ga(p))/(two_pi*rscale**p))
+        end do
+    end function panel_error
+
+    ! Kronrod sums of the first np moments over all panels of an edge.
+    function edge_moments(edge, xs, wk, np) result(total)
+        type(edge_panels_t), intent(in) :: edge
+        real(dp),            intent(in) :: xs(15), wk(15)
+        integer,             intent(in) :: np
+        complex(dp) :: total(0:np - 1), kr(0:np - 1), ga(0:np - 1)
+        real(dp) :: wg_unused(15)
+        integer :: k
+
+        wg_unused = 0.0_dp
+        total = (0.0_dp, 0.0_dp)
+        do k = 1, edge%n
+            call panel_moments(edge, k, xs, wk, wg_unused, np, kr, ga)
+            total = total + kr
+        end do
+    end function edge_moments
+
+    ! f'(z) on the options path: the df callback, or a central difference
+    ! with step fd_step (default 1e-6 max(|z|, 1)).
+    function derivative(f, z, ctx, opts) result(fpr)
+        procedure(complex_root_fn_t)    :: f
+        complex(dp), intent(in)         :: z
+        class(*),  intent(in), optional :: ctx
+        type(contour_opts_t), intent(in) :: opts
+        complex(dp) :: fpr, fp, fm
+        real(dp)    :: h
+
+        if (associated(opts%df)) then
+            call opts%df(z, fpr, ctx)
+            return
+        end if
+        h = opts%fd_step
+        if (h <= 0.0_dp) h = 1.0e-6_dp*max(abs(z), 1.0_dp)
+        call f(z + cmplx(h, 0.0_dp, dp), fp, ctx)
+        call f(z - cmplx(h, 0.0_dp, dp), fm, ctx)
+        fpr = (fp - fm)/cmplx(2.0_dp*h, 0.0_dp, dp)
+    end function derivative
+
+    function log_deriv_opts(f, z, ctx, opts) result(lfp)
+        procedure(complex_root_fn_t)    :: f
+        complex(dp), intent(in)         :: z
+        class(*),  intent(in), optional :: ctx
+        type(contour_opts_t), intent(in) :: opts
+        complex(dp) :: lfp, fz
+
+        call f(z, fz, ctx)
+        if (fz == (0.0_dp, 0.0_dp)) then
+            lfp = (0.0_dp, 0.0_dp)
+        else
+            lfp = derivative(f, z, ctx, opts)/fz
+        end if
+    end function log_deriv_opts
 
     ! Integral of z^p f'(z)/f(z) along the straight edge za -> zb.
     ! Parametrise z(t) = za + t (zb - za), t in [0,1]; the integrand carries
@@ -485,7 +910,7 @@ contains
     ! restores quadratic convergence at a multiplicity-m zero, where the
     ! plain Newton step is only linearly convergent. The damping shrinks the
     ! step when a full step would leave the box.
-    subroutine newton_polish(f, z, ll, ur, nz, nf, mref, m, ctx, fz, status)
+    subroutine newton_polish(f, z, ll, ur, nz, nf, mref, m, ctx, opts, fz, status)
         procedure(complex_root_fn_t)        :: f
         complex(dp),         intent(inout)  :: z
         complex(dp),         intent(in)     :: ll, ur
@@ -493,6 +918,7 @@ contains
         integer,             intent(in)     :: mref
         integer,             intent(in)     :: m
         class(*),  intent(in), optional     :: ctx
+        type(contour_opts_t), intent(in)    :: opts
         complex(dp),         intent(out)    :: fz
         type(fortnum_status_t), intent(out) :: status
 
@@ -512,10 +938,14 @@ contains
                 z = zc
                 return
             end if
-            h = 1.0e-7_dp * max(abs(zc), 1.0_dp)
-            call f(zc + cmplx(h, 0.0_dp, dp), fp, ctx)
-            call f(zc - cmplx(h, 0.0_dp, dp), fm, ctx)
-            fpr = (fp - fm) / cmplx(2.0_dp*h, 0.0_dp, dp)
+            if (opts%single_pass) then
+                fpr = derivative(f, zc, ctx, opts)
+            else
+                h = 1.0e-7_dp * max(abs(zc), 1.0_dp)
+                call f(zc + cmplx(h, 0.0_dp, dp), fp, ctx)
+                call f(zc - cmplx(h, 0.0_dp, dp), fm, ctx)
+                fpr = (fp - fm) / cmplx(2.0_dp*h, 0.0_dp, dp)
+            end if
             if (fpr == (0.0_dp, 0.0_dp)) then
                 z = zc
                 call status_set(status, FORTNUM_DOMAIN_ERROR, &

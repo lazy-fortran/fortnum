@@ -500,6 +500,12 @@ They differentiate the residual equation at the converged root.
 
 `fortnum_multiroot_rc` is a fixed-capacity reverse-communication solver.
 `fortnum_roots_complex` finds zeros inside a complex rectangle.
+`complex_region_roots` takes optional `contour_tol`, `contour_limit`, `fd_step`
+and `df` for expensive or noisy functions: any of them selects one adaptive
+G7K15 pass per edge that integrates all moments from the same evaluations,
+counts zeros before computing the higher moments, and merges zero estimates
+that the moment accuracy cannot separate. Without them the original path runs
+unchanged.
 
 `fortnum_homotopy` finds all isolated solutions of square polynomial systems
 with coefficients as homotopy parameters: `poly_system_t` with

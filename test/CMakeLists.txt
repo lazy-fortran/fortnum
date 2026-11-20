@@ -398,6 +398,9 @@ add_test(NAME fortnum_roots_multiplicity COMMAND test_fortnum_roots_multiplicity
 add_executable(test_fortnum_region_roots_converge roots/test_fortnum_region_roots_converge.f90)
 target_link_libraries(test_fortnum_region_roots_converge PRIVATE fortnum)
 add_test(NAME fortnum_region_roots_converge COMMAND test_fortnum_region_roots_converge)
+add_executable(test_fortnum_region_roots_noisy roots/test_fortnum_region_roots_noisy.f90)
+target_link_libraries(test_fortnum_region_roots_noisy PRIVATE fortnum)
+add_test(NAME fortnum_region_roots_noisy COMMAND test_fortnum_region_roots_noisy)
 
 # Generated residual/JVP/VJP/Jacobian kernels must equal the hand-written
 # analytic derivatives of the symbolic residual (the synthesis equivalence

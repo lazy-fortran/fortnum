@@ -27,6 +27,8 @@ module fortnum_integrate_gk
     ! rule or recursing through integrate_gk's own adaptation (ADR integrate.md
     ! section 1).
     public :: integrate_gk, gk_integrand_t, gk_apply
+    ! G7K15 tables for callers that run their own vector-valued panels.
+    public :: gk15_table
 
     abstract interface
         function gk_integrand_t(x) result(fx)
@@ -297,6 +299,15 @@ contains
         result = sum(ws(1:min(last, limit), 3))
         abserr = sum(ws(1:min(last, limit), 4))
     end subroutine qag_bisect
+
+    ! G7K15 nodes (positive half, outermost first, centre last) and their
+    ! Kronrod and Gauss weights; Gauss nodes are xgk(2), xgk(4), xgk(6), xgk(8).
+    pure subroutine gk15_table(xgk, wgk, wg)
+        real(dp), intent(out) :: xgk(8), wgk(8), wg(4)
+        xgk = xgk15
+        wgk = wgk15
+        wg  = wg15
+    end subroutine gk15_table
 
     subroutine gk_apply_object(f, key, a, b, result, abserr, resabs, resasc)
         class(gk_function_t), intent(in) :: f
