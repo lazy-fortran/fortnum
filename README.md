@@ -4,7 +4,7 @@
 
 A Fortran 2018 numerical library: special functions, quadrature and adaptive
 integration, FFTs, ODEs, root finding, interpolation and splines, linear algebra,
-random numbers and sampling. It is written to replace GSL-, QUADPACK- and
+and random numbers. It is written to replace GSL-, QUADPACK- and
 FFTW-style dependencies in Fortran research codes, and provides derivative
 products (JVPs, VJPs, gradients) for many of its kernels.
 
@@ -22,8 +22,9 @@ Status: research code under active development; interfaces may change.
 - Roots and multidimensional roots, all solutions of polynomial systems by
   homotopy continuation, B-splines, Krylov solvers and matrix-free
   eigenproblems, Toeplitz and tensor-product operators.
-- Random numbers with explicit state, NUTS sampling, Gaussian-process
-  multi-fidelity prediction.
+- Random numbers with explicit state. Sampling and Gaussian processes are in
+  [fortinfer](https://github.com/lazy-fortran/fortinfer) and
+  [fortgp](https://github.com/lazy-fortran/fortgp).
 - Verified computing: interval and ball arithmetic and rigorous enclosures.
 - No mutable global numerical state and no external numerical library: BLAS
   and LAPACK are fortnum's own. A C interface is declared in

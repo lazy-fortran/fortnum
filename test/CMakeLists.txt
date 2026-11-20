@@ -514,14 +514,6 @@ add_executable(test_fortnum_rng rng/test_fortnum_rng.f90)
 target_link_libraries(test_fortnum_rng PRIVATE fortnum)
 add_test(NAME fortnum_rng COMMAND test_fortnum_rng)
 
-# --- sampling: NUTS and PSIS ---
-add_executable(test_fortnum_nuts sampling/test_fortnum_nuts.f90)
-target_link_libraries(test_fortnum_nuts PRIVATE fortnum)
-add_test(NAME fortnum_nuts COMMAND test_fortnum_nuts)
-add_executable(test_fortnum_psis sampling/test_fortnum_psis.f90)
-target_link_libraries(test_fortnum_psis PRIVATE fortnum)
-add_test(NAME fortnum_psis COMMAND test_fortnum_psis)
-
 # --- M4 adaptive integration (QAG/QAGS) ---
 add_executable(test_fortnum_integrate quadrature/test_fortnum_integrate.f90)
 target_link_libraries(test_fortnum_integrate PRIVATE fortnum)
@@ -713,13 +705,7 @@ target_link_libraries(test_fortnum_special_dnestrovskii PRIVATE fortnum)
 add_test(NAME fortnum_special_dnestrovskii COMMAND test_fortnum_special_dnestrovskii
     ${CMAKE_CURRENT_SOURCE_DIR}/oracle/data/dnestrovskii.dat)
 
-add_executable(test_multifidelity interp/test_multifidelity.f90)
-target_link_libraries(test_multifidelity PRIVATE fortnum)
-add_test(NAME multifidelity COMMAND test_multifidelity)
 
-add_executable(test_gaussian_constraints interp/test_gaussian_constraints.f90)
-target_link_libraries(test_gaussian_constraints PRIVATE fortnum)
-add_test(NAME gaussian_constraints COMMAND test_gaussian_constraints)
 
 add_executable(test_minimize test_minimize.f90)
 target_link_libraries(test_minimize PRIVATE fortnum)

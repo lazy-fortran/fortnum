@@ -14,7 +14,6 @@ measured evidence.
 | [Coulomb functions](coulomb.md) | Bounded real S-wave F/G, normalization and oracle |
 | [Eigenproblems](eigen.md) | Matrix-free Krylov-Schur, Lanczos, spectral maps and conditional bounds |
 | [Homotopy continuation](homotopy.md) | All solutions of polynomial systems by monodromy and equilibrated path tracking |
-| [Multi-fidelity prediction](multifidelity.md) | Fixed-hyperparameter autoregressive Gaussian processes and derivative products |
 | [API guide](api.md) | Public module families and common call patterns |
 | [libneo migration](migration_libneo.md) | Primal API mapping |
 | [libneo derivative migration](migration_libneo_ad.md) | Derivative-product mapping |

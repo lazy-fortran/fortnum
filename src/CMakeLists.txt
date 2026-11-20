@@ -67,12 +67,6 @@ target_sources(fortnum PRIVATE
     generated/fortnum_dtile_wasm_8x4_sc.c
     generated/fortnum_dtile_wasm_8x4_ba.c
     generated/fortnum_dtile_wasm_8x4_bc.c
-    generated/fortnum_mf_distance.f90
-    generated/fortnum_mf_covariance.f90
-    generated/fortnum_mf_autoregressive.f90
-    interp/fortnum_ar1.f90
-    interp/fortnum_multifidelity.f90
-    interp/fortnum_gaussian_constraints.f90
     ad/fortnum_active_vector.f90
     ad/fortnum_ad_interfaces.f90
     ad/fortnum_derivative_registry.f90
@@ -276,8 +270,6 @@ target_sources(fortnum PRIVATE
     quadrature/fortnum_levin.f90
     quadrature/fortnum_quadrature.f90
     rng/fortnum_rng.f90
-    sampling/fortnum_nuts.f90
-    sampling/fortnum_psis.f90
     roots/fortnum_fixed_point.f90
     roots/fortnum_homotopy.f90
     roots/fortnum_multiroot.f90
