@@ -340,27 +340,30 @@ contains
         real(dp), intent(in) :: q
         integer, intent(in) :: n
         logical, intent(in) :: constant_part
-        real(dp) :: value, c, d, falling, term
+        real(dp) :: value, c, d, falling, term, power
         integer :: m, j
 
+        ! falling = m!/(m-n)! and power = q^(m-n) are updated per term.
         c = 1.0_dp
         d = ln4
         value = 0.0_dp
+        falling = 1.0_dp
+        power = 1.0_dp
         do m = 0, max_derivative_terms
             if (m > 0) then
                 c = c*((real(m, dp) - 0.5_dp)/real(m, dp))**2
                 d = d - 1.0_dp/(real(m, dp)*real(2*m - 1, dp))
             end if
             if (m < n) cycle
-            falling = 1.0_dp
-            do j = 0, n - 1
-                falling = falling*real(m - j, dp)
-            end do
             if (m == n) then
-                term = c*falling
+                do j = 0, n - 1
+                    falling = falling*real(m - j, dp)
+                end do
             else
-                term = c*falling*q**(m - n)
+                falling = falling*real(m, dp)/real(m - n, dp)
+                power = power*q
             end if
+            term = c*falling*power
             if (constant_part) term = term*d
             value = value + term
             if (m > n + 2 .and. abs(term) < 1.0e-18_dp*abs(value)) exit
