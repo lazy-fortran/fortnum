@@ -281,7 +281,8 @@
         SCALAR, intent(in) :: tau(*)
         integer, intent(out) :: info
         SCALAR, allocatable :: q(:, :), v(:, :)
-        integer :: j, iinfo
+        SCALAR :: t(QR_NB, QR_NB)
+        integer :: i, ib, j
         info = 0
         if (m < 0) then
             info = -1
@@ -303,7 +304,14 @@
         do j = 1, n
             q(j, j) = ONE
         end do
-        call ORMQR('L', 'N', m, n, k, v, m, tau, q, m, work, -1, iinfo)
-        call ORMQR('L', 'N', m, n, k, v, m, tau, q, m, work, max(1, n), iinfo)
+        ! Q = H1 ... Hk applied to the identity from the last block on, as
+        ! reference LAPACK dorgqr: columns before block i are still unit
+        ! vectors with zeros in rows i..m, so block i acts on q(i:m, i:n)
+        ! only (4/3 n^3 instead of 4 n^3 for a square Q)
+        do i = ((k - 1)/QR_NB)*QR_NB + 1, 1, -QR_NB
+            ib = min(QR_NB, k - i + 1)
+            call LARFT(m - i + 1, ib, v(i, i), m, tau(i), t, QR_NB)
+            call LARFB('L', 'N', m - i + 1, n - i + 1, ib, v(i, i), m, t, QR_NB, q(i, i), m)
+        end do
         a(1:m, 1:n) = q
     end subroutine ORGQR

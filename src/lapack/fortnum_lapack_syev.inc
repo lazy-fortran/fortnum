@@ -116,8 +116,8 @@
         SCALAR, intent(in) :: tau(*)
         integer, intent(out) :: info
         logical :: upper
-        SCALAR, allocatable :: q(:, :), v(:), w(:)
-        integer :: i, j, c
+        SCALAR, allocatable :: q(:, :), v(:, :), w(:)
+        integer :: i, j, c, iinfo
         info = 0
         upper = uplo == 'U' .or. uplo == 'u'
         if (.not. (upper .or. uplo == 'L' .or. uplo == 'l')) then
@@ -132,30 +132,36 @@
         if (info /= 0) return
         work(1) = max(1, 32*(n - 1))
         if (lwork == -1 .or. n == 0) return
-        allocate (q(n, n), v(n), w(n))
+        ! As reference LAPACK dorgtr: the reflectors of the lower case are
+        ! those of a QR factorization of order n - 1 (unit in row i + 1), so
+        ! Q(2:n, 2:n) comes from the blocked ORGQR. The upper case
+        ! (Q = H(n-1) ... H(1), unit in row i, entries above) is the same
+        ! with rows and columns reversed: J Q J = H'(1) ... H'(n-1) with
+        ! H'(j) = J H(n-j) J.
+        allocate (q(n, n))
         q = ZERO
-        do j = 1, n
-            q(j, j) = ONE
-        end do
-        ! Q = H(1) ... H(n-1) (lower) or H(n-1) ... H(1) (upper): Q := Q H(i)
-        do j = 1, n - 1
-            if (upper) then
-                i = n - j
-                v = ZERO
-                v(1:i - 1) = a(1:i - 1, i + 1)
-                v(i) = ONE
-            else
-                i = j
-                v = ZERO
-                v(i + 1) = ONE
-                v(i + 2:n) = a(i + 2:n, i)
-            end if
-            if (tau(i) == ZERO) cycle
-            w = matmul(q, v)
-            do concurrent(c = 1:n)
-                q(:, c) = q(:, c) - tau(i)*w*CONJ(v(c))
+        q(1, 1) = ONE
+        if (n > 1) then
+            allocate (v(n - 1, n - 1), w(n - 1))
+            v = ZERO
+            do j = 1, n - 1
+                if (upper) then
+                    i = n - j
+                    ! row r of the reversed order n - 1 problem is row n - r of a
+                    do c = 1, i - 1
+                        v(n - c, j) = a(c, i + 1)
+                    end do
+                else
+                    i = j
+                    v(j + 1:n - 1, j) = a(j + 2:n, j)
+                end if
+                w(j) = tau(i)
             end do
-        end do
+            call ORGQR(n - 1, n - 1, n - 1, v, n - 1, w, work, -1, iinfo)
+            call ORGQR(n - 1, n - 1, n - 1, v, n - 1, w, work, lwork, iinfo)
+            q(2:n, 2:n) = v
+        end if
+        if (upper) q = q(n:1:-1, n:1:-1)
         a(1:n, 1:n) = q
     end subroutine ORGTR
 

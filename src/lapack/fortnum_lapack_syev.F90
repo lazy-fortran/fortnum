@@ -8,7 +8,7 @@ module fortnum_lapack_syev
     use fortnum_kinds, only: dp
     use fortnum_blas3, only: fortnum_dtrsm, fortnum_ztrsm, fortnum_dtrmm, fortnum_ztrmm
     use fortnum_lapack_chol, only: fortnum_dpotrf, fortnum_zpotrf
-    use fortnum_lapack_qr, only: fortnum_dlarfg, fortnum_zlarfg
+    use fortnum_lapack_qr, only: fortnum_dlarfg, fortnum_zlarfg, fortnum_dorgqr, fortnum_zungqr
     implicit none
     private
 
@@ -29,6 +29,7 @@ contains
 #define POTRF fortnum_dpotrf
 #define SYTRD fortnum_dsytrd
 #define ORGTR fortnum_dorgtr
+#define ORGQR fortnum_dorgqr
 #define STEQR dsteqr_ql
 #define SYEV_CORE dsyev_core
 #define SYGST fortnum_dsygst
@@ -45,6 +46,7 @@ contains
 #undef POTRF
 #undef SYTRD
 #undef ORGTR
+#undef ORGQR
 #undef STEQR
 #undef SYEV_CORE
 #undef SYGST
@@ -60,6 +62,7 @@ contains
 #define POTRF fortnum_zpotrf
 #define SYTRD fortnum_zhetrd
 #define ORGTR fortnum_zungtr
+#define ORGQR fortnum_zungqr
 #define STEQR zsteqr_ql
 #define SYEV_CORE zheev_core
 #define SYGST fortnum_zhegst
