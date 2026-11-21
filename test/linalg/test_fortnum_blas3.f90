@@ -27,6 +27,16 @@ program test_fortnum_blas3
             end do
         end do
     end do
+    ! real triangles of order 300: two diagonal blocks of the packed solve,
+    ! the update of the rows below them and partial register tiles
+    do iu = 1, 2
+        do id = 1, 2
+            do it = 1, 2
+                call check_real('L', uplos(iu), rtrans(it), diags(id), 300, 7)
+                call check_real('R', uplos(iu), rtrans(it), diags(id), 7, 300)
+            end do
+        end do
+    end do
     do iu = 1, 2
         do it = 1, 2
             call check_rank_k(uplos(iu), rtrans(it), 150, 37)

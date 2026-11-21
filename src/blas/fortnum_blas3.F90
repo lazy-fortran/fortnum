@@ -6,7 +6,7 @@ module fortnum_blas3
     use, intrinsic :: iso_c_binding, only: c_loc, c_f_pointer
     use fortnum_kinds, only: dp
     use fortnum_blas, only: thread_count, fortnum_dgemm, fortnum_dgemm_triangle, fortnum_zgemm, fortnum_dgemm_ws, fortnum_zgemm_ws, &
-        fortnum_dgemm_lwork, fortnum_zgemm_lwork
+        fortnum_dgemm_lwork, fortnum_zgemm_lwork, fortnum_dtrsm_packed, fortnum_dtrsm_packed_lwork
     implicit none
     private
 
@@ -39,7 +39,11 @@ contains
 #define CONJ(x) (x)
 #define ONE 1.0_dp
 #define ZERO 0.0_dp
+#define TRSM_PACKED fortnum_dtrsm_packed
+#define TRSM_PACKED_LWORK fortnum_dtrsm_packed_lwork
 #include "fortnum_blas3_tri.inc"
+#undef TRSM_PACKED
+#undef TRSM_PACKED_LWORK
 #undef SCALAR
 #undef SCALAR_WORDS
 #undef GEMM

@@ -58,6 +58,13 @@
         else
             lwork = GEMM_LWORK(m, n, n, threads)
         end if
+#ifdef TRSM_PACKED
+        if (side == 'L' .or. side == 'l') then
+            lwork = max(lwork, TRSM_PACKED_LWORK(m, n))
+        else
+            lwork = max(lwork, TRSM_PACKED_LWORK(n, m))
+        end if
+#endif
     end function TRSM_LWORK
 
     !> TRSM with caller-provided workspace work(lwork), lwork at least
@@ -87,6 +94,11 @@
                 b(1:m, j) = alpha*b(1:m, j)
             end do
         end if
+#ifdef TRSM_PACKED
+        ! real data: packed panels on the GEMM register tile, no recursion
+        call TRSM_PACKED(left, upper, notrans, unit, m, n, a, lda, b, ldb, work, lwork)
+        return
+#endif
         if (left) then
             call solve(1, m)
         else

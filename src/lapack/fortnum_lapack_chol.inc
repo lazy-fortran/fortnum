@@ -31,9 +31,12 @@
                     a(j, i) = (a(j, i) - sum(CONJ(a(1:j - 1, j))*a(1:j - 1, i)))/ajj
                 end do
             else
-                do i = j + 1, n
-                    a(i, j) = (a(i, j) - sum(a(i, 1:j - 1)*CONJ(a(j, 1:j - 1))))/ajj
+                ! below the diagonal by columns 1..j-1 (contiguous), not by
+                ! dot products along the rows of a
+                do i = 1, j - 1
+                    a(j + 1:n, j) = a(j + 1:n, j) - a(j + 1:n, i)*CONJ(a(j, i))
                 end do
+                a(j + 1:n, j) = a(j + 1:n, j)/ajj
             end if
         end do
     end subroutine POTF2

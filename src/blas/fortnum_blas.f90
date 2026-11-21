@@ -17,6 +17,7 @@ module fortnum_blas
     public :: fortnum_dgemm, fortnum_zgemm, fortnum_blas_tile
     public :: fortnum_dgemm_ws, fortnum_zgemm_ws, fortnum_dgemm_lwork, fortnum_zgemm_lwork
     public :: fortnum_dgemm_triangle, thread_count
+    public :: fortnum_dtrsm_packed, fortnum_dtrsm_packed_lwork
 
     abstract interface
         subroutine tile_kernel(k, a, b, acc) bind(c)
@@ -607,6 +608,308 @@ contains
         end subroutine update_complex
 
     end subroutine fortnum_zgemm_ws
+
+    !> Workspace in real(dp) elements of fortnum_dtrsm_packed for the
+    !> triangle of order mt and nt right-hand sides (columns of B for side L,
+    !> rows for side R).
+    integer function fortnum_dtrsm_packed_lwork(mt, nt) result(lwork)
+        integer, intent(in) :: mt, nt
+        integer :: kb, np
+        call select_tile()
+        kb = trsm_block(mt)
+        np = kb/tile_mr
+        lwork = tile_nr*kb*((min(nt, nc_size(tile_nr)) + tile_nr - 1)/tile_nr) &
+            + tile_mr*tile_mr*np*(np + 1)/2 + tile_mr*kb*(mc_size(tile_mr)/tile_mr)
+    end function fortnum_dtrsm_packed_lwork
+
+    ! Rows of the diagonal blocks: whole tiles, at most TRSM_KC, and no more
+    ! than the triangle needs.
+    pure integer function trsm_block(mt) result(kb)
+        integer, intent(in) :: mt
+        integer, parameter :: TRSM_KC = 256
+        kb = tile_mr*((min(mt, TRSM_KC) + tile_mr - 1)/tile_mr)
+    end function trsm_block
+
+    !> B := inv(op(A)) B (left) or B inv(op(A)) (right) for real A
+    !> triangular, on packed panels and the GEMM register tile; alpha is
+    !> applied by the caller. All eight cases are the forward solve L X = B'
+    !> of a lower triangle L, read from A with reversed indices (op(A) upper
+    !> on the left, lower on the right) and swapped ones (A^T on the left,
+    !> A on the right), with B' = B (left) or B^T (right).
+    !>
+    !> Design after BLIS (BSD-3-Clause, github.com/flame/blis):
+    !> frame/3/trsm/bli_trsm_ll_ker_var2.c and the gemmtrsm micro-kernel,
+    !> with the diagonal blocks packed with inverted diagonal; Goto and van
+    !> de Geijn, ACM TOMS 35(1) 4 (2008), section 7. For each block of KB
+    !> rows, B's rows are packed once into NR-wide panels; each MR-row
+    !> micro-panel is updated by the tile kernel against the rows solved
+    !> before it in the packed panel, solved in registers-sized tiles and
+    !> written back to the panel and to B; the rows below are then updated
+    !> from the same packed panel, so the solution is never packed twice.
+    subroutine fortnum_dtrsm_packed(left, upper, notrans, unit, m, n, a, lda, b, ldb, work, lwork)
+        logical, intent(in) :: left, upper, notrans, unit
+        integer, intent(in) :: m, n, lda, ldb, lwork
+        real(dp), intent(in) :: a(lda, *)
+        real(dp), intent(inout) :: b(ldb, *)
+        real(dp), intent(inout), target :: work(lwork)
+        real(dp), pointer, contiguous :: bp(:), ad(:), ar(:)
+        real(dp) :: acc(MAX_TILE)
+        integer :: mt, nt, kb, ncb, jc, ncc, pc, kcc, npb, npd, ic, mcc, npr, nb_, na, nth, &
+            jr, ir, q
+        logical :: fwd, swap
+
+        call select_tile()
+        mt = merge(m, n, left)
+        nt = merge(n, m, left)
+        if (lwork < fortnum_dtrsm_packed_lwork(mt, nt)) call argument_error('fortnum_dtrsm_ws', 13)
+        fwd = left .neqv. (upper .eqv. notrans)
+        swap = left .neqv. notrans
+        kb = trsm_block(mt)
+        ncb = nc_size(tile_nr)
+        nb_ = tile_nr*kb*((min(nt, ncb) + tile_nr - 1)/tile_nr)
+        npd = kb/tile_mr
+        na = tile_mr*tile_mr*npd*(npd + 1)/2
+        bp => work(1:nb_)
+        ad => work(nb_ + 1:nb_ + na)
+        ar => work(nb_ + na + 1:)
+
+        do jc = 1, nt, ncb
+            ncc = min(ncb, nt - jc + 1)
+            npb = (ncc + tile_nr - 1)/tile_nr
+            do pc = 1, mt, kb
+                kcc = min(kb, mt - pc + 1)
+                npd = (kcc + tile_mr - 1)/tile_mr
+                nth = thread_count(real(ncc, dp)*kcc*kcc)
+                !$omp parallel num_threads(nth) if(nth > 1) private(jr, ir, q, acc)
+                !$omp do schedule(static)
+                do jr = 1, npb
+                    call pack_rhs(jc + (jr - 1)*tile_nr, min(tile_nr, ncc - (jr - 1)*tile_nr), pc, kcc, &
+                        bp((jr - 1)*tile_nr*kcc + 1:jr*tile_nr*kcc))
+                end do
+                !$omp end do nowait
+                !$omp do schedule(static)
+                do ir = 1, npd
+                    q = tile_mr*tile_mr*(ir - 1)*ir/2
+                    call pack_diag(pc, (ir - 1)*tile_mr, min(tile_mr, kcc - (ir - 1)*tile_mr), &
+                        ad(q + 1:q + tile_mr*tile_mr*ir))
+                end do
+                !$omp end do
+                !$omp do schedule(static)
+                do jr = 1, npb
+                    call solve_panel(jc + (jr - 1)*tile_nr, min(tile_nr, ncc - (jr - 1)*tile_nr), pc, kcc, &
+                        npd, bp((jr - 1)*tile_nr*kcc + 1:jr*tile_nr*kcc), acc)
+                end do
+                !$omp end do
+                !$omp end parallel
+                ! the rows below, from the packed solution
+                do ic = pc + kcc, mt, mc_size(tile_mr)
+                    mcc = min(mc_size(tile_mr), mt - ic + 1)
+                    npr = (mcc + tile_mr - 1)/tile_mr
+                    nth = thread_count(2.0_dp*ncc*kcc*real(mcc, dp))
+                    !$omp parallel num_threads(nth) if(nth > 1) private(jr, ir, acc)
+                    !$omp do schedule(static)
+                    do ir = 1, npr
+                        call pack_lower(ic + (ir - 1)*tile_mr, min(tile_mr, mcc - (ir - 1)*tile_mr), pc, kcc, &
+                            ar((ir - 1)*tile_mr*kcc + 1:ir*tile_mr*kcc))
+                    end do
+                    !$omp end do
+                    !$omp do collapse(2) schedule(static)
+                    do jr = 1, npb
+                        do ir = 1, npr
+                            call update_tile(ic + (ir - 1)*tile_mr, min(tile_mr, mcc - (ir - 1)*tile_mr), &
+                                jc + (jr - 1)*tile_nr, min(tile_nr, ncc - (jr - 1)*tile_nr), kcc, &
+                                ar((ir - 1)*tile_mr*kcc + 1:ir*tile_mr*kcc), &
+                                bp((jr - 1)*tile_nr*kcc + 1:jr*tile_nr*kcc), acc)
+                        end do
+                    end do
+                    !$omp end do
+                    !$omp end parallel
+                end do
+            end do
+        end do
+
+    contains
+
+        ! row of A (left) or column (right) holding canonical row i
+        pure integer function phys(i)
+            integer, intent(in) :: i
+            phys = merge(i, mt + 1 - i, fwd)
+        end function phys
+
+        pure real(dp) function lval(i, j)
+            integer, intent(in) :: i, j
+            if (swap) then
+                lval = a(phys(j), phys(i))
+            else
+                lval = a(phys(i), phys(j))
+            end if
+        end function lval
+
+        ! canonical rows pc..pc+kc-1 of B', columns j0..j0+cols-1, as bp(nr, kc)
+        subroutine pack_rhs(j0, cols, pc, kc, p)
+            integer, intent(in) :: j0, cols, pc, kc
+            real(dp), intent(out) :: p(tile_nr, kc)
+            integer :: r, jj
+            if (cols < tile_nr) p(cols + 1:, :) = 0
+            do r = 1, kc
+                if (left) then
+                    do jj = 1, cols
+                        p(jj, r) = b(phys(pc + r - 1), j0 + jj - 1)
+                    end do
+                else
+                    p(1:cols, r) = b(j0:j0 + cols - 1, phys(pc + r - 1))
+                end if
+            end do
+        end subroutine pack_rhs
+
+        ! micro-panel at offset r0 of the diagonal block at pc: L(rows, pc..)
+        ! left of the diagonal as ap(mr, r0), then the mr x mr triangle with
+        ! the inverted diagonal (identity padding)
+        subroutine pack_diag(pc, r0, rows, p)
+            integer, intent(in) :: pc, r0, rows
+            real(dp), intent(out) :: p(tile_mr, r0 + tile_mr)
+            integer :: ii, c
+            if (rows < tile_mr) p(rows + 1:, 1:r0) = 0
+            p(:, r0 + 1:) = 0
+            if (fwd .and. .not. swap) then
+                do c = 1, r0 + rows
+                    p(max(1, c - r0):rows, c) = a(pc + r0 + max(1, c - r0) - 1:pc + r0 + rows - 1, pc + c - 1)
+                end do
+            else if (fwd) then
+                do ii = 1, rows
+                    p(ii, 1:r0 + ii) = a(pc:pc + r0 + ii - 1, pc + r0 + ii - 1)
+                end do
+            else
+                do c = 1, r0 + rows
+                    do ii = max(1, c - r0), rows
+                        p(ii, c) = lval(pc + r0 + ii - 1, pc + c - 1)
+                    end do
+                end do
+            end if
+            do ii = 1, tile_mr
+                if (ii > rows .or. unit) then
+                    p(ii, r0 + ii) = 1
+                else
+                    p(ii, r0 + ii) = 1/p(ii, r0 + ii)
+                end if
+            end do
+        end subroutine pack_diag
+
+        ! -L(rows i0.., columns pc..pc+kc-1) as ap(mr, kc)
+        subroutine pack_lower(i0, rows, pc, kc, p)
+            integer, intent(in) :: i0, rows, pc, kc
+            real(dp), intent(out) :: p(tile_mr, kc)
+            integer :: ii, c
+            if (rows < tile_mr) p(rows + 1:, :) = 0
+            if (fwd .and. .not. swap) then
+                do c = 1, kc
+                    p(1:rows, c) = -a(i0:i0 + rows - 1, pc + c - 1)
+                end do
+            else
+                do c = 1, kc
+                    do ii = 1, rows
+                        p(ii, c) = -lval(i0 + ii - 1, pc + c - 1)
+                    end do
+                end do
+            end if
+        end subroutine pack_lower
+
+        ! the diagonal block against one NR-wide panel, micro-panel by micro-panel
+        subroutine solve_panel(j0, cols, pc, kc, np, p, acc)
+            integer, intent(in) :: j0, cols, pc, kc, np
+            real(dp), intent(inout) :: p(tile_nr, kc)
+            real(dp), intent(inout) :: acc(MAX_TILE)
+            integer :: ir, r0, rows, q
+            do ir = 1, np
+                r0 = (ir - 1)*tile_mr
+                rows = min(tile_mr, kc - r0)
+                q = tile_mr*tile_mr*(ir - 1)*ir/2
+                if (r0 > 0) then
+                    call tile(int(r0, c_int64_t), ad(q + 1:), p, acc)
+                else
+                    acc(1:tile_mr*tile_nr) = 0
+                end if
+                call solve_tile(rows, ad(q + tile_mr*r0 + 1:q + tile_mr*(r0 + tile_mr)), acc, p(:, r0 + 1:r0 + rows))
+                call scatter(pc + r0, rows, j0, cols, p(:, r0 + 1:r0 + rows))
+            end do
+        end subroutine solve_panel
+
+        ! x := inv(T) (x - acc^T) on an mr x mr lower triangle T with
+        ! inverted diagonal; x(nr, rows) holds the rows of the panel
+        subroutine solve_tile(rows, t, acc, x)
+            integer, intent(in) :: rows
+            real(dp), intent(in) :: t(tile_mr, tile_mr), acc(tile_mr, tile_nr)
+            real(dp), intent(inout) :: x(tile_nr, rows)
+            integer, parameter :: W = 8
+            real(dp) :: v(W), y(W, MAX_TILE/W)
+            integer :: ii, kk
+            if (tile_nr > W) then
+                do ii = 1, rows
+                    x(:, ii) = x(:, ii) - acc(ii, :)
+                    do kk = 1, ii - 1
+                        x(:, ii) = x(:, ii) - t(ii, kk)*x(:, kk)
+                    end do
+                    x(:, ii) = x(:, ii)*t(ii, ii)
+                end do
+                return
+            end if
+            ! rows padded to a fixed width W, so each step is whole vectors
+            y(tile_nr + 1:, 1:rows) = 0
+            do ii = 1, rows
+                y(1:tile_nr, ii) = x(:, ii) - acc(ii, :)
+            end do
+            do ii = 1, rows
+                v = y(:, ii)
+                do kk = 1, ii - 1
+                    v = v - t(ii, kk)*y(:, kk)
+                end do
+                y(:, ii) = v*t(ii, ii)
+                x(:, ii) = y(1:tile_nr, ii)
+            end do
+        end subroutine solve_tile
+
+        subroutine scatter(i0, rows, j0, cols, x)
+            integer, intent(in) :: i0, rows, j0, cols
+            real(dp), intent(in) :: x(tile_nr, rows)
+            integer :: ii, jj
+            do ii = 1, rows
+                if (left) then
+                    do jj = 1, cols
+                        b(phys(i0 + ii - 1), j0 + jj - 1) = x(jj, ii)
+                    end do
+                else
+                    b(j0:j0 + cols - 1, phys(i0 + ii - 1)) = x(1:cols, ii)
+                end if
+            end do
+        end subroutine scatter
+
+        subroutine update_tile(i0, rows, j0, cols, kc, ap, p, acc)
+            integer, intent(in) :: i0, rows, j0, cols, kc
+            real(dp), intent(in) :: ap(*), p(*)
+            real(dp), intent(inout) :: acc(MAX_TILE)
+            integer :: ii, jj
+            if (left .and. fwd .and. rows == tile_mr .and. cols == tile_nr) then
+                call tile_c(int(kc, c_int64_t), ap, p, b(i0, j0), int(ldb, c_int64_t))
+                return
+            end if
+            call tile(int(kc, c_int64_t), ap, p, acc)
+            if (left) then
+                do jj = 1, cols
+                    do ii = 1, rows
+                        b(phys(i0 + ii - 1), j0 + jj - 1) = b(phys(i0 + ii - 1), j0 + jj - 1) &
+                            + acc((jj - 1)*tile_mr + ii)
+                    end do
+                end do
+            else
+                ! B^T: the tile's columns run along B's columns
+                do ii = 1, rows
+                    b(j0:j0 + cols - 1, phys(i0 + ii - 1)) = b(j0:j0 + cols - 1, phys(i0 + ii - 1)) &
+                        + acc(ii:ii + (cols - 1)*tile_mr:tile_mr)
+                end do
+            end if
+        end subroutine update_tile
+
+    end subroutine fortnum_dtrsm_packed
 
     ! A panel: rows i0 .. i0+rows-1 of alpha op(A), depth pc .. pc+kc-1, stored
     ! tile_mr per step of depth and zero-padded to the tile height.
