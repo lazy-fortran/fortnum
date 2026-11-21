@@ -22,6 +22,7 @@ program test_fortnum_blas12
         do iy = 1, 4
             call matrix_vector(7, 5, incs(ix), incs(iy))
             call matrix_vector(1, 9, incs(ix), incs(iy))
+            call matrix_vector(13, 11, incs(ix), incs(iy))
         end do
     end do
     print '(a)', 'level-1 and level-2 BLAS match quad precision'

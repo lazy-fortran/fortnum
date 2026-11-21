@@ -445,10 +445,9 @@
             end do
         end if
         allocate (e(n), tau(n), work(1))
-        call SYTRD(uplo, n, a, lda, w, e, tau, work, 1, iinfo)
+        call SYTRD_DRIVER(uplo, n, a, lda, w, e, tau, work, 1, iinfo)
         if (wantz) then
-            call ORGTR(uplo, n, a, lda, tau, work, max(1, n - 1), iinfo)
-            call STEQR_V(n, w, e, a, lda, info)
+            call TRIDIAG_VECTORS(uplo, n, a, lda, tau, w, e, info)
         else
             call STEQR(.false., n, w, e, q, 1, info)
         end if

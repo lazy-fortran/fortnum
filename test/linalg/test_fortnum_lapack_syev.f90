@@ -13,6 +13,8 @@ program test_fortnum_lapack_syev
     call real_case(80, 'L', 1.0_dp)
     call real_case(80, 'U', 1.0e-290_dp)
     call real_case(40, 'L', 1.0e290_dp)
+    call real_case(300, 'L', 1.0_dp)
+    call real_case(301, 'U', 1.0_dp)
     call complex_case(60, 'L')
     call complex_case(60, 'U')
     call generalized_real(40)

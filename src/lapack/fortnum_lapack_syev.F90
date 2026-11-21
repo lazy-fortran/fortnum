@@ -6,10 +6,12 @@ module fortnum_lapack_syev
     ! DSYGV, ZHEGV, DSBEVD, DSBEVX. The band drivers expand the band and use
     ! the dense path; a band reduction is planned (issue 167).
     use fortnum_kinds, only: dp
-    use fortnum_blas, only: fortnum_dgemm
+    use fortnum_blas, only: fortnum_dgemm, fortnum_dgemm_triangle
+    use fortnum_blas12, only: fortnum_dgemv
     use fortnum_blas3, only: fortnum_dtrsm, fortnum_ztrsm, fortnum_dtrmm, fortnum_ztrmm
     use fortnum_lapack_chol, only: fortnum_dpotrf, fortnum_zpotrf
-    use fortnum_lapack_qr, only: fortnum_dlarfg, fortnum_zlarfg, fortnum_dorgqr, fortnum_zungqr
+    use fortnum_lapack_qr, only: fortnum_dlarfg, fortnum_zlarfg, fortnum_dorgqr, fortnum_zungqr, &
+        fortnum_dormqr
     implicit none
     private
 
@@ -21,6 +23,9 @@ module fortnum_lapack_syev
     ! Largest tridiagonal block solved by QL iteration inside divide and
     ! conquer (LAPACK's SMLSIZ).
     integer, parameter :: STEDC_LEAF = 25
+    ! Panel width of the blocked reduction and the order below which it is
+    ! unblocked (LAPACK's NB and NX).
+    integer, parameter :: SYTRD_BLOCK = 32, SYTRD_CROSSOVER = 32
 
 contains
 
@@ -33,11 +38,12 @@ contains
 #define TRSM fortnum_dtrsm
 #define TRMM fortnum_dtrmm
 #define POTRF fortnum_dpotrf
-#define SYTRD fortnum_dsytrd
+#define SYTRD dsytrd_unblocked
+#define SYTRD_DRIVER fortnum_dsytrd
 #define ORGTR fortnum_dorgtr
 #define ORGQR fortnum_dorgqr
 #define STEQR dsteqr_ql
-#define STEQR_V(n, d, e, z, ldz, info) dsteqr_dc(n, d, e, z, ldz, info)
+#define TRIDIAG_VECTORS dsyev_vectors
 #define SYEV_CORE dsyev_core
 #define SYGST fortnum_dsygst
 #define SYGV_CORE dsygv_core
@@ -52,10 +58,11 @@ contains
 #undef TRMM
 #undef POTRF
 #undef SYTRD
+#undef SYTRD_DRIVER
 #undef ORGTR
 #undef ORGQR
 #undef STEQR
-#undef STEQR_V
+#undef TRIDIAG_VECTORS
 #undef SYEV_CORE
 #undef SYGST
 #undef SYGV_CORE
@@ -69,10 +76,11 @@ contains
 #define TRMM fortnum_ztrmm
 #define POTRF fortnum_zpotrf
 #define SYTRD fortnum_zhetrd
+#define SYTRD_DRIVER fortnum_zhetrd
 #define ORGTR fortnum_zungtr
 #define ORGQR fortnum_zungqr
 #define STEQR zsteqr_ql
-#define STEQR_V(n, d, e, z, ldz, info) zsteqr_ql(.true., n, d, e, z, ldz, info)
+#define TRIDIAG_VECTORS zheev_vectors
 #define SYEV_CORE zheev_core
 #define SYGST fortnum_zhegst
 #define SYGV_CORE zhegv_core
@@ -557,23 +565,312 @@ contains
         end if
     end subroutine sym2x2
 
-    !> z := z times the eigenvectors of the tridiagonal matrix (d, e), d
-    !> its ascending eigenvalues: divide and conquer above STEDC_LEAF rows.
-    subroutine dsteqr_dc(n, d, e, z, ldz, info)
-        integer, intent(in) :: n, ldz
-        real(dp), intent(inout) :: d(*), e(*), z(ldz, *)
+    !> DSYTRD blocked as LAPACK: panels of SYTRD_BLOCK columns reduced by
+    !> latrd, each followed by the rank-2k update of the trailing matrix as
+    !> two triangular GEMMs; the last SYTRD_CROSSOVER columns unblocked.
+    subroutine fortnum_dsytrd(uplo, n, a, lda, d, e, tau, work, lwork, info)
+        character, intent(in) :: uplo
+        integer, intent(in) :: n, lda, lwork
+        real(dp), intent(inout) :: a(lda, *), work(*)
+        real(dp), intent(out) :: d(*), e(*), tau(*)
         integer, intent(out) :: info
-        real(dp), allocatable :: v(:, :), zt(:, :)
-        if (n <= STEDC_LEAF) then
-            call dsteqr_ql(.true., n, d, e, z, ldz, info)
+        real(dp), allocatable :: w(:, :)
+        integer :: i, j, kk, m, nb
+        logical :: upper
+        info = 0
+        upper = uplo == 'U' .or. uplo == 'u'
+        if (.not. (upper .or. uplo == 'L' .or. uplo == 'l')) then
+            info = -1
+        else if (n < 0) then
+            info = -2
+        else if (lda < max(1, n)) then
+            info = -4
+        else if (lwork < 1 .and. lwork /= -1) then
+            info = -9
+        end if
+        if (info /= 0) return
+        work(1) = max(1, 32*n)
+        if (lwork == -1 .or. n == 0) return
+        nb = SYTRD_BLOCK
+        if (n <= SYTRD_CROSSOVER) then
+            call dsytrd_unblocked(uplo, n, a, lda, d, e, tau, work, lwork, info)
             return
         end if
-        allocate (v(n, n))
-        call stedc_vectors(n, d, e, v, n, info)
+        allocate (w(n, nb))
+        if (upper) then
+            kk = n - ((n - SYTRD_CROSSOVER + nb - 1)/nb)*nb
+            do i = n - nb + 1, kk + 1, -nb
+                call latrd_upper(i + nb - 1, nb, a, lda, e, tau, w, n)
+                call fortnum_dgemm_triangle('U', 'N', 'T', i - 1, nb, -1.0_dp, a(1, i), lda, &
+                    w, n, 1.0_dp, a, lda)
+                call fortnum_dgemm_triangle('U', 'N', 'T', i - 1, nb, -1.0_dp, w, n, &
+                    a(1, i), lda, 1.0_dp, a, lda)
+                do j = i, i + nb - 1
+                    a(j - 1, j) = e(j - 1)
+                    d(j) = a(j, j)
+                end do
+            end do
+            call dsytrd_unblocked(uplo, kk, a, lda, d, e, tau, work, lwork, info)
+        else
+            i = 1
+            do while (i <= n - SYTRD_CROSSOVER)
+                m = n - i + 1
+                call latrd_lower(m, nb, a(i, i), lda, e(i), tau(i), w, n)
+                call fortnum_dgemm_triangle('L', 'N', 'T', m - nb, nb, -1.0_dp, a(i + nb, i), &
+                    lda, w(nb + 1, 1), n, 1.0_dp, a(i + nb, i + nb), lda)
+                call fortnum_dgemm_triangle('L', 'N', 'T', m - nb, nb, -1.0_dp, w(nb + 1, 1), &
+                    n, a(i + nb, i), lda, 1.0_dp, a(i + nb, i + nb), lda)
+                do j = i, i + nb - 1
+                    a(j + 1, j) = e(j)
+                    d(j) = a(j, j)
+                end do
+                i = i + nb
+            end do
+            call dsytrd_unblocked(uplo, n - i + 1, a(i, i), lda, d(i), e(i), tau(i), work, &
+                lwork, info)
+        end if
+    end subroutine fortnum_dsytrd
+
+    !> DLATRD, lower: reduces the first nb columns of the m x m matrix a and
+    !> returns w with A22 - V W^T - W V^T the trailing matrix that remains.
+    subroutine latrd_lower(m, nb, a, lda, e, tau, w, ldw)
+        integer, intent(in) :: m, nb, lda, ldw
+        real(dp), intent(inout) :: a(lda, *), w(ldw, *)
+        real(dp), intent(out) :: e(*), tau(*)
+        real(dp) :: alpha, t(nb)
+        integer :: i, k
+        do i = 1, nb
+            k = m - i
+            if (i > 1) then
+                call fortnum_dgemv('N', k + 1, i - 1, -1.0_dp, a(i, 1), lda, w(i, 1), ldw, &
+                    1.0_dp, a(i, i), 1)
+                call fortnum_dgemv('N', k + 1, i - 1, -1.0_dp, w(i, 1), ldw, a(i, 1), lda, &
+                    1.0_dp, a(i, i), 1)
+            end if
+            if (k < 1) cycle
+            call fortnum_dlarfg(k, a(i + 1, i), a(min(i + 2, m), i), 1, tau(i))
+            e(i) = a(i + 1, i)
+            a(i + 1, i) = 1
+            call symv_lower(k, a(i + 1, i + 1), lda, a(i + 1, i), w(i + 1, i))
+            if (i > 1) then
+                call fortnum_dgemv('T', k, i - 1, 1.0_dp, w(i + 1, 1), ldw, a(i + 1, i), 1, &
+                    0.0_dp, t, 1)
+                call fortnum_dgemv('N', k, i - 1, -1.0_dp, a(i + 1, 1), lda, t, 1, 1.0_dp, &
+                    w(i + 1, i), 1)
+                call fortnum_dgemv('T', k, i - 1, 1.0_dp, a(i + 1, 1), lda, a(i + 1, i), 1, &
+                    0.0_dp, t, 1)
+                call fortnum_dgemv('N', k, i - 1, -1.0_dp, w(i + 1, 1), ldw, t, 1, 1.0_dp, &
+                    w(i + 1, i), 1)
+            end if
+            w(i + 1:m, i) = tau(i)*w(i + 1:m, i)
+            alpha = -0.5_dp*tau(i)*dot_product(w(i + 1:m, i), a(i + 1:m, i))
+            w(i + 1:m, i) = w(i + 1:m, i) + alpha*a(i + 1:m, i)
+        end do
+    end subroutine latrd_lower
+
+    !> DLATRD, upper: reduces the last nb columns of the leading n x n
+    !> matrix; e, tau and the rows of w are indexed as in a.
+    subroutine latrd_upper(n, nb, a, lda, e, tau, w, ldw)
+        integer, intent(in) :: n, nb, lda, ldw
+        real(dp), intent(inout) :: a(lda, *), w(ldw, *)
+        real(dp), intent(inout) :: e(*), tau(*)
+        real(dp) :: alpha, t(nb), row(nb)
+        integer :: i, iw, k
+        do i = n, n - nb + 1, -1
+            iw = i - n + nb
+            k = n - i
+            if (k > 0) then
+                row(1:k) = a(i, i + 1:n)
+                call fortnum_dgemv('N', i, k, -1.0_dp, a(1, i + 1), lda, w(i, iw + 1), ldw, &
+                    1.0_dp, a(1, i), 1)
+                call fortnum_dgemv('N', i, k, -1.0_dp, w(1, iw + 1), ldw, row, 1, 1.0_dp, &
+                    a(1, i), 1)
+            end if
+            if (i == 1) cycle
+            call fortnum_dlarfg(i - 1, a(i - 1, i), a(1, i), 1, tau(i - 1))
+            e(i - 1) = a(i - 1, i)
+            a(i - 1, i) = 1
+            call symv_upper(i - 1, a, lda, a(1, i), w(1, iw))
+            if (k > 0) then
+                call fortnum_dgemv('T', i - 1, k, 1.0_dp, w(1, iw + 1), ldw, a(1, i), 1, &
+                    0.0_dp, t, 1)
+                call fortnum_dgemv('N', i - 1, k, -1.0_dp, a(1, i + 1), lda, t, 1, 1.0_dp, &
+                    w(1, iw), 1)
+                call fortnum_dgemv('T', i - 1, k, 1.0_dp, a(1, i + 1), lda, a(1, i), 1, &
+                    0.0_dp, t, 1)
+                call fortnum_dgemv('N', i - 1, k, -1.0_dp, w(1, iw + 1), ldw, t, 1, 1.0_dp, &
+                    w(1, iw), 1)
+            end if
+            w(1:i - 1, iw) = tau(i - 1)*w(1:i - 1, iw)
+            alpha = -0.5_dp*tau(i - 1)*dot_product(w(1:i - 1, iw), a(1:i - 1, i))
+            w(1:i - 1, iw) = w(1:i - 1, iw) + alpha*a(1:i - 1, i)
+        end do
+    end subroutine latrd_upper
+
+    !> y := A x for symmetric A stored in the lower triangle, four columns
+    !> at a time: each strip of a is read once for the axpy into y and the
+    !> four dot products, kept in four lanes each so that they vectorize.
+    subroutine symv_lower(n, a, lda, x, y)
+        integer, intent(in) :: n, lda
+        real(dp), intent(in) :: a(lda, *), x(*)
+        real(dp), intent(out) :: y(*)
+        real(dp) :: xj(0:3), s(4, 0:3), xi(4)
+        integer :: i, j, l, m4
+        y(1:n) = 0
+        j = 1
+        do while (j + 3 <= n)
+            xj = x(j:j + 3)
+            do l = 0, 3
+                y(j + l) = y(j + l) + a(j + l, j + l)*xj(l)
+                do i = j + l + 1, j + 3
+                    y(i) = y(i) + a(i, j + l)*xj(l)
+                    y(j + l) = y(j + l) + a(i, j + l)*x(i)
+                end do
+            end do
+            s = 0
+            m4 = j + 3 + ((n - j - 3)/4)*4
+            do i = j + 4, m4, 4
+                xi = x(i:i + 3)
+                y(i:i + 3) = y(i:i + 3) + a(i:i + 3, j)*xj(0) + a(i:i + 3, j + 1)*xj(1) &
+                    + a(i:i + 3, j + 2)*xj(2) + a(i:i + 3, j + 3)*xj(3)
+                do l = 0, 3
+                    s(:, l) = s(:, l) + a(i:i + 3, j + l)*xi
+                end do
+            end do
+            do i = m4 + 1, n
+                y(i) = y(i) + a(i, j)*xj(0) + a(i, j + 1)*xj(1) + a(i, j + 2)*xj(2) &
+                    + a(i, j + 3)*xj(3)
+                s(1, :) = s(1, :) + a(i, j:j + 3)*x(i)
+            end do
+            y(j:j + 3) = y(j:j + 3) + sum(s, 1)
+            j = j + 4
+        end do
+        do while (j <= n)
+            s(1, 0) = 0
+            do i = j + 1, n
+                y(i) = y(i) + a(i, j)*x(j)
+                s(1, 0) = s(1, 0) + a(i, j)*x(i)
+            end do
+            y(j) = y(j) + a(j, j)*x(j) + s(1, 0)
+            j = j + 1
+        end do
+    end subroutine symv_lower
+
+    !> y := A x for symmetric A stored in the upper triangle, four columns
+    !> at a time as symv_lower.
+    subroutine symv_upper(n, a, lda, x, y)
+        integer, intent(in) :: n, lda
+        real(dp), intent(in) :: a(lda, *), x(*)
+        real(dp), intent(out) :: y(*)
+        real(dp) :: xj(0:3), s(4, 0:3), xi(4)
+        integer :: i, j, l, m4
+        y(1:n) = 0
+        j = 1
+        do while (j + 3 <= n)
+            xj = x(j:j + 3)
+            s = 0
+            m4 = ((j - 1)/4)*4
+            do i = 1, m4, 4
+                xi = x(i:i + 3)
+                y(i:i + 3) = y(i:i + 3) + a(i:i + 3, j)*xj(0) + a(i:i + 3, j + 1)*xj(1) &
+                    + a(i:i + 3, j + 2)*xj(2) + a(i:i + 3, j + 3)*xj(3)
+                do l = 0, 3
+                    s(:, l) = s(:, l) + a(i:i + 3, j + l)*xi
+                end do
+            end do
+            do i = m4 + 1, j - 1
+                y(i) = y(i) + a(i, j)*xj(0) + a(i, j + 1)*xj(1) + a(i, j + 2)*xj(2) &
+                    + a(i, j + 3)*xj(3)
+                s(1, :) = s(1, :) + a(i, j:j + 3)*x(i)
+            end do
+            y(j:j + 3) = y(j:j + 3) + sum(s, 1)
+            do l = 0, 3
+                do i = j, j + l - 1
+                    y(i) = y(i) + a(i, j + l)*xj(l)
+                    y(j + l) = y(j + l) + a(i, j + l)*x(i)
+                end do
+                y(j + l) = y(j + l) + a(j + l, j + l)*xj(l)
+            end do
+            j = j + 4
+        end do
+        do while (j <= n)
+            s(1, 0) = 0
+            do i = 1, j - 1
+                y(i) = y(i) + a(i, j)*x(j)
+                s(1, 0) = s(1, 0) + a(i, j)*x(i)
+            end do
+            y(j) = y(j) + a(j, j)*x(j) + s(1, 0)
+            j = j + 1
+        end do
+    end subroutine symv_upper
+
+    !> Eigenvalues w (ascending) and eigenvectors in a of the symmetric
+    !> matrix that SYTRD reduced to (w, e) with reflectors in a and tau:
+    !> above STEDC_LEAF rows divide and conquer, its vectors multiplied by Q
+    !> as reflectors (LAPACK's DORMTR), else QL iteration on the explicit Q.
+    subroutine dsyev_vectors(uplo, n, a, lda, tau, w, e, info)
+        character, intent(in) :: uplo
+        integer, intent(in) :: n, lda
+        real(dp), intent(inout) :: a(lda, *), w(*), e(*)
+        real(dp), intent(in) :: tau(*)
+        integer, intent(out) :: info
+        real(dp), allocatable :: z(:, :), v(:, :), t(:), work(:)
+        real(dp) :: query(1)
+        integer :: i, j, c, iinfo
+        logical :: upper
+        upper = uplo == 'U' .or. uplo == 'u'
+        if (n <= STEDC_LEAF) then
+            allocate (work(max(1, n - 1)))
+            call fortnum_dorgtr(uplo, n, a, lda, tau, work, size(work), iinfo)
+            call dsteqr_ql(.true., n, w, e, a, lda, info)
+            return
+        end if
+        allocate (z(n, n))
+        call stedc_vectors(n, w, e, z, n, info)
         if (info /= 0) return
-        zt = z(1:n, 1:n)
-        call fortnum_dgemm('N', 'N', n, n, n, 1.0_dp, zt, n, v, n, 0.0_dp, z, ldz)
-    end subroutine dsteqr_dc
+        ! The reflectors as those of a QR factorization of order n - 1 (as
+        ! in ORGTR; rows and columns reversed for the upper case), applied to
+        ! rows 2..n of z, or of z with its rows reversed.
+        allocate (v(n - 1, n - 1), t(n - 1))
+        v = 0
+        do j = 1, n - 1
+            if (upper) then
+                i = n - j
+                do c = 1, i - 1
+                    v(n - c, j) = a(c, i + 1)
+                end do
+            else
+                i = j
+                v(j + 1:n - 1, j) = a(j + 2:n, j)
+            end if
+            v(j, j) = 1
+            t(j) = tau(i)
+        end do
+        if (upper) z = z(n:1:-1, :)
+        call fortnum_dormqr('L', 'N', n - 1, n, n - 1, v, n - 1, t, z(2, 1), n, query, -1, iinfo)
+        allocate (work(max(n, int(query(1)))))
+        call fortnum_dormqr('L', 'N', n - 1, n, n - 1, v, n - 1, t, z(2, 1), n, work, size(work), &
+            iinfo)
+        if (upper) then
+            a(1:n, 1:n) = z(n:1:-1, :)
+        else
+            a(1:n, 1:n) = z
+        end if
+    end subroutine dsyev_vectors
+
+    !> ZHEEV's eigenvectors: QL iteration on the explicit Q.
+    subroutine zheev_vectors(uplo, n, a, lda, tau, w, e, info)
+        character, intent(in) :: uplo
+        integer, intent(in) :: n, lda
+        complex(dp), intent(inout) :: a(lda, *)
+        real(dp), intent(inout) :: w(*), e(*)
+        complex(dp), intent(in) :: tau(*)
+        integer, intent(out) :: info
+        complex(dp) :: work(max(1, n - 1))
+        integer :: iinfo
+        call fortnum_zungtr(uplo, n, a, lda, tau, work, size(work), iinfo)
+        call zsteqr_ql(.true., n, w, e, a, lda, info)
+    end subroutine zheev_vectors
 
 #include "fortnum_lapack_stedc.inc"
 end module fortnum_lapack_syev

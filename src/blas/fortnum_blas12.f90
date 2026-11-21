@@ -341,31 +341,81 @@ contains
             end do
         end if
         if (alpha == 0) return
-        if (notrans) then
+        if (notrans .and. incy == 1) then
+            call gemv_n_unit(m, n, alpha, a, lda, x, incx, y)
+        else if (notrans) then
             do j = 1, n
                 t = alpha*x(at(j, lenx, incx))
-                if (incy == 1) then
-                    y(1:m) = y(1:m) + t*a(1:m, j)
-                else
-                    do i = 1, m
-                        y(at(i, m, incy)) = y(at(i, m, incy)) + t*a(i, j)
-                    end do
-                end if
+                do i = 1, m
+                    y(at(i, m, incy)) = y(at(i, m, incy)) + t*a(i, j)
+                end do
             end do
+        else if (incx == 1) then
+            call gemv_t_unit(m, n, alpha, a, lda, x, y, incy)
         else
             do j = 1, n
-                if (incx == 1) then
-                    t = dot_product(a(1:m, j), x(1:m))
-                else
-                    t = 0
-                    do i = 1, m
-                        t = t + a(i, j)*x(at(i, m, incx))
-                    end do
-                end if
+                t = 0
+                do i = 1, m
+                    t = t + a(i, j)*x(at(i, m, incx))
+                end do
                 y(at(j, n, incy)) = y(at(j, n, incy)) + alpha*t
             end do
         end if
     end subroutine fortnum_dgemv
+
+    !> y(1:m) += alpha A x, four columns per pass over y.
+    subroutine gemv_n_unit(m, n, alpha, a, lda, x, incx, y)
+        integer, intent(in) :: m, n, lda, incx
+        real(dp), intent(in) :: alpha, a(lda, *), x(*)
+        real(dp), intent(inout) :: y(*)
+        real(dp) :: t(0:3)
+        integer :: j, l
+        j = 1
+        do while (j + 3 <= n)
+            do l = 0, 3
+                t(l) = alpha*x(at(j + l, n, incx))
+            end do
+            y(1:m) = y(1:m) + t(0)*a(1:m, j) + t(1)*a(1:m, j + 1) + t(2)*a(1:m, j + 2) &
+                + t(3)*a(1:m, j + 3)
+            j = j + 4
+        end do
+        do while (j <= n)
+            t(0) = alpha*x(at(j, n, incx))
+            y(1:m) = y(1:m) + t(0)*a(1:m, j)
+            j = j + 1
+        end do
+    end subroutine gemv_n_unit
+
+    !> y += alpha A^T x for unit-stride x: four columns at a time, each dot
+    !> product in four lanes so that it vectorizes.
+    subroutine gemv_t_unit(m, n, alpha, a, lda, x, y, incy)
+        integer, intent(in) :: m, n, lda, incy
+        real(dp), intent(in) :: alpha, a(lda, *), x(*)
+        real(dp), intent(inout) :: y(*)
+        real(dp) :: s(4, 0:3), xi(4)
+        integer :: i, j, l, m4, jj
+        m4 = (m/4)*4
+        j = 1
+        do while (j <= n)
+            jj = min(3, n - j)
+            s = 0
+            do i = 1, m4, 4
+                xi = x(i:i + 3)
+                do l = 0, jj
+                    s(:, l) = s(:, l) + a(i:i + 3, j + l)*xi
+                end do
+            end do
+            do i = m4 + 1, m
+                do l = 0, jj
+                    s(1, l) = s(1, l) + a(i, j + l)*x(i)
+                end do
+            end do
+            do l = 0, jj
+                y(at(j + l, n, incy)) = y(at(j + l, n, incy)) + alpha*sum(s(:, l))
+            end do
+            j = j + 4
+        end do
+    end subroutine gemv_t_unit
 
     !> y := alpha op(A) x + beta y, op(A) = A, A^T or A^H; reference ZGEMV.
     subroutine fortnum_zgemv(trans, m, n, alpha, a, lda, x, incx, beta, y, incy)
