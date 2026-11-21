@@ -7,7 +7,7 @@ module fortnum_bspline
     ! interpolatory at the boundary. The number of basis functions (coefficients)
     ! is ncoef = nbreak + k - 2.
     !
-    ! Reference algorithm (clean-room, from published sources):
+    ! Reference algorithm (from published sources):
     !   Cox-de Boor recursion for the basis B_{i,k}(x) and the all-orders
     !   derivative table; de Boor, "A Practical Guide to Splines" (2001),
     !   chapter X; Piegl & Tiller, "The NURBS Book", algorithms A2.2/A2.3

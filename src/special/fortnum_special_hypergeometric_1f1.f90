@@ -1,6 +1,6 @@
 module fortnum_special_hypergeometric_1f1
     ! Confluent hypergeometric function 1F1(a;b;z) (Kummer's function M),
-    ! complex a, b, z.  Clean-room implementation from DLMF chapter 13.
+    ! complex a, b, z.  Implemented from DLMF chapter 13.
     !
     ! Definition (DLMF 13.2.2):
     !   M(a,b,z) = sum_{k>=0} (a)_k / (b)_k * z^k / k!

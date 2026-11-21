@@ -11,7 +11,7 @@ module fortnum_ode_ddeabm
     ! INFO(4)=1, RWORK(1)=tstop); output is delivered at tout (INFO(3)=0) by
     ! interpolating the Adams polynomial back onto the requested point.
     !
-    ! Provenance: clean-room implementation of the published Shampine-Gordon
+    ! Provenance: the published Shampine-Gordon
     !   variable-order Adams PECE algorithm.
     !   L. F. Shampine and M. K. Gordon, "Computer Solution of Ordinary
     !   Differential Equations: The Initial Value Problem", W. H. Freeman,

@@ -1,5 +1,5 @@
 program test_fortnum_ode_ddeabm
-    ! Behavioural tests for the clean-room variable-order Adams PECE integrator
+    ! Behavioural tests for the variable-order Adams PECE integrator
     ! (fortnum_ode_ddeabm), SLATEC DDEABM equivalent.
     !   - exponential decay y' = -y over a long interval to < tol
     !   - a small linear 2x2 system against its analytic solution

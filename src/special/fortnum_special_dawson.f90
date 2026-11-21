@@ -12,7 +12,7 @@ module fortnum_special_dawson
     !                    Computers in Physics 3, 85; DLMF 7.10).
     !   |x| >= 10   Asymptotic expansion (DLMF 7.12.2).
     !
-    ! Numerics are verbatim from the libneo math-kit clean-room port
+    ! Numerics are verbatim from the libneo math-kit port
     ! (src/math/dawson.f90, git branch math-kit) with literal style
     ! conformance: 0.0d0 -> _dp.
 

@@ -21,7 +21,7 @@ module fortnum_interp
     !     xi >= p(nmax)  =>  i = nmax      (clamp high)
     !   p(nmin:nmax) must be strictly increasing; no check is performed.
     !   The algorithm is a binary bisection identical in behavior to the libneo
-    !   binsrc routine (clean-room reimplementation).
+    !   binsrc routine.
     !
     ! Complexity: O(log2(nmax - nmin)) comparisons.
 

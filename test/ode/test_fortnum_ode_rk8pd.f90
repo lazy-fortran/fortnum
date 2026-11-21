@@ -1,5 +1,5 @@
 program test_fortnum_ode_rk8pd
-    ! Behavioural tests for the clean-room RK8(7)13M integrator
+    ! Behavioural tests for the RK8(7)13M integrator
     ! (fortnum_ode_rk8pd).
     !   - scalar decay y' = -y reaches exp(-t) to near machine precision under
     !     the adaptive error-per-step control

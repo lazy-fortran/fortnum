@@ -12,7 +12,7 @@ module fortnum_ode_vode
     ! interpolant (DVINDY) by the Illinois algorithm, at the accuracy DVODE
     ! delivers.
     !
-    ! Provenance: clean-room implementation of the published algorithm.
+    ! Provenance: the published algorithm.
     !   P. N. Brown, G. D. Byrne, A. C. Hindmarsh, "VODE: A Variable-
     !   Coefficient ODE Solver", SIAM J. Sci. Stat. Comput. 10 (1989)
     !   1038-1051; and the standard Nordsieck variable-step Adams theory

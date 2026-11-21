@@ -235,7 +235,7 @@ contains
     ! weights are mu0 * v_{1,j}^2 where v_{1,j} is the first component of the
     ! j-th unit eigenvector and mu0 = Gamma(alpha+1) is the zeroth moment
     ! (DLMF Table 18.3.1, DLMF 3.5.31-32).  The tridiagonal eigenproblem is
-    ! solved clean-room by implicit-shift QL (EISPACK imtql2 style) so fortnum
+    ! solved by implicit-shift QL (EISPACK imtql2 style) so fortnum
     ! stays LAPACK-free, matching the gauss_legendre Newton path.
     pure subroutine gauss_gen_laguerre(n, alpha, x, w)
         integer,  intent(in)  :: n

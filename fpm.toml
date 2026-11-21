@@ -1,6 +1,6 @@
 name = "fortnum"
 version = "0.2.0"
-description = "Primal-first, derivative-ready clean-room Fortran numerical library"
+description = "Primal-first, derivative-ready Fortran numerical library"
 author = "Christopher Albert"
 maintainer = "albert@tugraz.at"
 license = "MIT"

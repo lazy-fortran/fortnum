@@ -1,6 +1,6 @@
 module fortnum_special_complex_bessel
     ! Complex-argument Bessel functions for integer order: J_n(z), I_n(z),
-    ! K_n(z).  Clean-room from DLMF chapter 10; replaces the AMOS zbesj/zbesi/
+    ! K_n(z).  From DLMF chapter 10; replaces the AMOS zbesj/zbesi/
     ! zbesk that KiLCA (KAMEL) bundles.
     !
     ! Methods (DLMF 10):

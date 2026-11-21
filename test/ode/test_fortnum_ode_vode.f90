@@ -1,5 +1,5 @@
 program test_fortnum_ode_vode
-    ! Behavioural tests for the clean-room nonstiff Adams integrator
+    ! Behavioural tests for the nonstiff Adams integrator
     ! (fortnum_ode_vode), DVODE MF=10 equivalent.
     !   - exponential decay y' = -y over a long interval to < rtol
     !   - harmonic-oscillator energy conservation over many periods

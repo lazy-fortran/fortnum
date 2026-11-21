@@ -1,5 +1,5 @@
 module fortnum_roots_complex
-    ! Clean-room complex analytic-zero finder over an axis-aligned rectangle.
+    ! Complex analytic-zero finder over an axis-aligned rectangle.
     !
     ! Replaces the ZEAL ICON=3 region search used by KIM wkb_dispersion
     ! (WKB_dispersion_solver='ZEAL').  Given an analytic f and a rectangle

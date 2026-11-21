@@ -9,7 +9,7 @@ module fortnum_levin
     ! sums and returns the Levin-u accelerated limit together with an error
     ! estimate.
     !
-    ! Algorithm (clean-room from the published papers):
+    ! Algorithm (from the published papers):
     !   D. Levin, Int. J. Comput. Math. B3 (1973) 371-388.
     !   E. J. Weniger, Comput. Phys. Rep. 10 (1989) 189-371, eqs 7.2-8, 7.3-9.
     !   Fessler, Ford, Smith, ACM TOMS 9 (1983) 346-354.

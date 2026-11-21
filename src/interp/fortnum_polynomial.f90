@@ -26,7 +26,7 @@ module fortnum_polynomial
     ! Algorithm: the direct Lagrange formula without barycentric precomputation
     ! is used because n is assumed small (typically 2--8). The derivative weights
     ! follow the product-rule expansion of the Lagrange basis, matching the
-    ! algorithm in libneo plag_coeff.f90 in behavior (clean-room reimplementation).
+    ! algorithm in libneo plag_coeff.f90 in behavior.
     !
     ! Nodes xp(1:n) must be distinct; behavior is undefined if any two coincide.
 
