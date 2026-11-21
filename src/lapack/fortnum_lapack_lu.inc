@@ -201,8 +201,7 @@
         integer, intent(in) :: n, lda, k1, k2, incx
         SCALAR, intent(inout) :: a(lda, *)
         integer, intent(in) :: ipiv(*)
-        integer :: k, p, j, j0, j1, first, last, step, ip, ip0, nth
-        SCALAR :: t
+        integer :: j0, j1, first, last, step, ip0, nth
         if (incx == 0 .or. n <= 0) return
         ! as reference LAPACK: positions k1.. of ipiv, walked backwards for incx < 0
         if (incx > 0) then
@@ -222,23 +221,36 @@
         ! independent, so they go to threads
         nth = thread_count(real(n, dp)*abs(k2 - k1 + 1))
         nth = min(nth, (n + LASWP_NB - 1)/LASWP_NB)
-        !$omp parallel do num_threads(nth) if(nth > 1) schedule(static) private(j1, ip, k, p, j, t)
+        ! one thread without the parallel region, whose entry alone costs
+        ! more than a small swap
+        if (nth <= 1) then
+            call swap_columns(1, n)
+            return
+        end if
+        !$omp parallel do num_threads(nth) schedule(static) private(j1)
         do j0 = 1, n, LASWP_NB
             j1 = min(n, j0 + LASWP_NB - 1)
-            do j = j0, j1
-                ip = ip0
-                do k = first, last, step
-                    p = ipiv(ip)
-                    if (p /= k) then
-                        t = a(k, j)
-                        a(k, j) = a(p, j)
-                        a(p, j) = t
-                    end if
-                    ip = ip + incx
-                end do
-            end do
+            call swap_columns(j0, j1)
         end do
         !$omp end parallel do
+    contains
+        subroutine swap_columns(c0, c1)
+            integer, intent(in) :: c0, c1
+            integer :: jj, kk, pp, ii
+            SCALAR :: tt
+            do jj = c0, c1
+                ii = ip0
+                do kk = first, last, step
+                    pp = ipiv(ii)
+                    if (pp /= kk) then
+                        tt = a(kk, jj)
+                        a(kk, jj) = a(pp, jj)
+                        a(pp, jj) = tt
+                    end if
+                    ii = ii + incx
+                end do
+            end do
+        end subroutine swap_columns
     end subroutine LASWP
 
     !> Solve op(A) X = B with the factors of GETRF; trans N, T or C.

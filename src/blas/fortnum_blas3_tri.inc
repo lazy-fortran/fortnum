@@ -12,9 +12,30 @@
         SCALAR, intent(in) :: a(lda, *)
         SCALAR, intent(inout) :: b(ldb, *)
         real(dp), allocatable :: work(:)
-        integer :: lwork, nth, nfree, chunk, c0, cn
-        logical :: left
+        integer :: lwork, nth, nfree, chunk, c0, cn, j
+        logical :: left, upper, notrans, conj, unit
+        character :: tr
         left = side == 'L' .or. side == 'l'
+        ! small problems: substitution in place, without packing, workspace
+        ! or threads, whose set-up would cost more than the solve
+        if (real(merge(m, n, left), dp)**2*merge(n, m, left) <= TRSM_SMALL_WORK) then
+            call tri_flags('TRSM', side, uplo, transa, diag, m, n, lda, ldb, left, upper, &
+                notrans, conj, unit, tr)
+            if (m == 0 .or. n == 0) return
+            if (alpha == ZERO) then
+                do j = 1, n
+                    b(1:m, j) = ZERO
+                end do
+                return
+            end if
+            if (alpha /= ONE) then
+                do j = 1, n
+                    b(1:m, j) = alpha*b(1:m, j)
+                end do
+            end if
+            call small_solve()
+            return
+        end if
         ! the columns (left) or rows (right) of B are independent: on threads,
         ! each solves its own chunk with serial GEMMs, without the barriers of
         ! threaded GEMMs on thin blocks
@@ -44,6 +65,101 @@
         if (m > 0 .and. n > 0) lwork = TRSM_LWORK(side, m, n)
         allocate (work(lwork))
         call TRSM_WS(side, uplo, transa, diag, m, n, alpha, a, lda, b, ldb, work, lwork)
+
+    contains
+
+        ! The column-oriented substitutions of reference BLAS xTRSM, alpha
+        ! already applied.
+        subroutine small_solve()
+            integer :: i, k
+            SCALAR :: t, akk
+            if (left .and. notrans) then
+                do j = 1, n
+                    if (upper) then
+                        do k = m, 1, -1
+                            if (b(k, j) == ZERO) cycle
+                            if (.not. unit) b(k, j) = b(k, j)/a(k, k)
+                            b(1:k - 1, j) = b(1:k - 1, j) - b(k, j)*a(1:k - 1, k)
+                        end do
+                    else
+                        do k = 1, m
+                            if (b(k, j) == ZERO) cycle
+                            if (.not. unit) b(k, j) = b(k, j)/a(k, k)
+                            b(k + 1:m, j) = b(k + 1:m, j) - b(k, j)*a(k + 1:m, k)
+                        end do
+                    end if
+                end do
+            else if (left) then
+                do j = 1, n
+                    if (upper) then
+                        do i = 1, m
+                            t = b(i, j)
+                            do k = 1, i - 1
+                                t = t - op(a(k, i))*b(k, j)
+                            end do
+                            if (.not. unit) t = t/op(a(i, i))
+                            b(i, j) = t
+                        end do
+                    else
+                        do i = m, 1, -1
+                            t = b(i, j)
+                            do k = i + 1, m
+                                t = t - op(a(k, i))*b(k, j)
+                            end do
+                            if (.not. unit) t = t/op(a(i, i))
+                            b(i, j) = t
+                        end do
+                    end if
+                end do
+            else if (notrans) then
+                if (upper) then
+                    do j = 1, n
+                        do k = 1, j - 1
+                            if (a(k, j) /= ZERO) b(1:m, j) = b(1:m, j) - a(k, j)*b(1:m, k)
+                        end do
+                        if (.not. unit) b(1:m, j) = b(1:m, j)/a(j, j)
+                    end do
+                else
+                    do j = n, 1, -1
+                        do k = j + 1, n
+                            if (a(k, j) /= ZERO) b(1:m, j) = b(1:m, j) - a(k, j)*b(1:m, k)
+                        end do
+                        if (.not. unit) b(1:m, j) = b(1:m, j)/a(j, j)
+                    end do
+                end if
+            else
+                if (upper) then
+                    do k = n, 1, -1
+                        if (.not. unit) then
+                            akk = op(a(k, k))
+                            b(1:m, k) = b(1:m, k)/akk
+                        end if
+                        do j = 1, k - 1
+                            if (a(j, k) /= ZERO) b(1:m, j) = b(1:m, j) - op(a(j, k))*b(1:m, k)
+                        end do
+                    end do
+                else
+                    do k = 1, n
+                        if (.not. unit) then
+                            akk = op(a(k, k))
+                            b(1:m, k) = b(1:m, k)/akk
+                        end if
+                        do j = k + 1, n
+                            if (a(j, k) /= ZERO) b(1:m, j) = b(1:m, j) - op(a(j, k))*b(1:m, k)
+                        end do
+                    end do
+                end if
+            end if
+        end subroutine small_solve
+
+        elemental SCALAR function op(x)
+            SCALAR, intent(in) :: x
+            if (conj) then
+                op = CONJ(x)
+            else
+                op = x
+            end if
+        end function op
     end subroutine TRSM
 
     !> Workspace in real(dp) elements that the workspace variant of TRSM

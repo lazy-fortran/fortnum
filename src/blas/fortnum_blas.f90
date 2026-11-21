@@ -69,6 +69,9 @@ module fortnum_blas
     !> Largest tile (rows times columns) any emitted kernel uses.
     integer, parameter :: MAX_TILE = 512
     !> Products with at most this many columns read A unpacked.
+    ! fortnum_dgemm multiplies directly up to this many multiply-adds: the
+    ! blocked kernel's workspace, packing and threads cost more there.
+    real(dp), parameter :: GEMM_SMALL_WORK = 8.0e3_dp
     integer, parameter :: THIN_N = 96
     !> Work per thread below which fewer threads are used (tens of microseconds).
     real(dp), parameter :: THREAD_FLOPS = 2.0e6_dp
@@ -142,12 +145,66 @@ contains
         real(dp), intent(inout) :: c(ldc, *)
         real(dp), allocatable :: work(:)
         integer :: lwork
+        if (real(m, dp)*n*k <= GEMM_SMALL_WORK) then
+            call dgemm_small(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc)
+            return
+        end if
         lwork = 0
         if (m > 0 .and. n > 0 .and. k > 0) &
             lwork = fortnum_dgemm_lwork(m, n, k, thread_count(2.0_dp*m*real(n, dp)*k))
         allocate (work(lwork))
         call fortnum_dgemm_ws(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc, work, lwork)
     end subroutine fortnum_dgemm
+
+    !> fortnum_dgemm for small products: the loops of reference DGEMM, with
+    !> neither workspace nor packing nor threads.
+    subroutine dgemm_small(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc)
+        character, intent(in) :: transa, transb
+        integer, intent(in) :: m, n, k, lda, ldb, ldc
+        real(dp), intent(in) :: alpha, beta
+        real(dp), intent(in) :: a(lda, *), b(ldb, *)
+        real(dp), intent(inout) :: c(ldc, *)
+        logical :: ta, tb
+        integer :: i, j, l
+        real(dp) :: t
+        ta = transposed(transa, 'fortnum_dgemm', 1, .false.)
+        tb = transposed(transb, 'fortnum_dgemm', 2, .false.)
+        call check_sizes('fortnum_dgemm', ta, tb, m, n, k, lda, ldb, ldc)
+        if (m == 0 .or. n == 0) return
+        if ((alpha == 0 .or. k == 0) .and. beta == 1) return
+        do j = 1, n
+            if (beta == 0) then
+                c(1:m, j) = 0
+            else if (beta /= 1) then
+                c(1:m, j) = beta*c(1:m, j)
+            end if
+            if (alpha == 0) cycle
+            if (.not. ta) then
+                do l = 1, k
+                    if (tb) then
+                        t = alpha*b(j, l)
+                    else
+                        t = alpha*b(l, j)
+                    end if
+                    c(1:m, j) = c(1:m, j) + t*a(1:m, l)
+                end do
+            else
+                do i = 1, m
+                    t = 0
+                    if (tb) then
+                        do l = 1, k
+                            t = t + a(l, i)*b(j, l)
+                        end do
+                    else
+                        do l = 1, k
+                            t = t + a(l, i)*b(l, j)
+                        end do
+                    end if
+                    c(i, j) = c(i, j) + alpha*t
+                end do
+            end if
+        end do
+    end subroutine dgemm_small
 
     !> C := alpha op(A) op(B) + beta C on the triangle uplo ('L' or 'U') of the
     !> square C (m = n) only; the other triangle is not touched. The core of
