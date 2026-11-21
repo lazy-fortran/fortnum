@@ -214,7 +214,7 @@ contains
         real(dp), intent(inout) :: r(n, n)
         real(dp), intent(out) :: s(*), ur(n, n), v(n, n)
         integer, intent(out) :: info
-        real(dp) :: scl, alpha, beta, gamma, zeta, t, c, sn, tol
+        real(dp) :: scl, alpha, beta, gamma, zeta, t, c, sn, tol, small
         real(dp) :: wp(n), sl(n)
         integer :: p, q, sweep, j, order(n)
         logical :: rotated
@@ -235,11 +235,18 @@ contains
         tol = eps*sqrt(real(n, dp))
         do sweep = 1, MAX_SWEEPS
             rotated = .false.
+            ! a column below rounding of the largest is numerically zero: the
+            ! cosine of its pairs is rounding noise and never falls below tol
+            small = 0
+            do j = 1, n
+                small = max(small, dot_product(r(:, j), r(:, j)))
+            end do
+            small = (n*eps)**2*small
             do p = 1, n - 1
                 do q = p + 1, n
                     alpha = dot_product(r(:, p), r(:, p))
                     beta = dot_product(r(:, q), r(:, q))
-                    if (alpha == 0 .or. beta == 0) cycle
+                    if (alpha <= small .or. beta <= small) cycle
                     gamma = dot_product(r(:, p), r(:, q))
                     if (abs(gamma) <= tol*sqrt(alpha)*sqrt(beta)) cycle
                     rotated = .true.
@@ -260,6 +267,8 @@ contains
         if (rotated) info = n
         do j = 1, n
             sl(j) = norm2(r(:, j))
+            ! never rotated against the others, so not orthogonal to them
+            if (sl(j)**2 <= small) sl(j) = 0
         end do
         ! descending order
         do j = 1, n

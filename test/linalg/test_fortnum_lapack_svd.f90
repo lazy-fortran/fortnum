@@ -20,6 +20,9 @@ program test_fortnum_lapack_svd
     call known_values(20, 30)
     call rank_deficient(30, 20, 3)
     call zero_matrix(6, 4)
+    do k = 1, 3
+        call cyclic_differences(3, 4*2**(k - 1))
+    end do
     call least_squares_full_rank(50, 12)
     call least_squares_wide(12, 50)
     call least_squares_rank_deficient(40, 25, 6)
@@ -200,6 +203,40 @@ contains
         call require(s(r) > 1.0e-3_dp*s(1), 'rank deficient: leading values kept')
         call check_factors(a, s, u(:, 1:min(m, n)), vt(1:min(m, n), :), 'rank deficient')
     end subroutine rank_deficient
+
+    ! Periodic first differences of several interleaved cycles: exact zero
+    ! singular values (one per cycle) and pairwise repeated ones, exactly
+    ! representable entries apart from the scales
+    subroutine cyclic_differences(cycles, planes)
+        integer, intent(in) :: cycles, planes
+        real(dp) :: a(cycles*planes, cycles*planes), b(cycles*planes, cycles*planes)
+        real(dp) :: s(cycles*planes), u(cycles*planes, cycles*planes), vt(cycles*planes, cycles*planes)
+        real(dp), allocatable :: work(:)
+        real(dp) :: q(1), c
+        integer :: n, i, info, iwork(8*cycles*planes)
+        n = cycles*planes
+        a = 0
+        do i = 1, n
+            c = 3.5_dp + 0.15_dp*mod(i - 1, cycles)
+            a(i, i) = -c
+            a(i, mod(i - 1 + cycles, n) + 1) = c
+        end do
+        b = a
+        call fortnum_dgesvd('S', 'A', n, n, b, n, s, u, n, vt, n, q, -1, info)
+        allocate (work(int(q(1))))
+        call fortnum_dgesvd('S', 'A', n, n, b, n, s, u, n, vt, n, work, size(work), info)
+        call require(info == 0, 'dgesvd cyclic info')
+        call check_factors(a, s, u, vt, 'dgesvd cyclic')
+        call require(count(s <= 8*n*eps*s(1)) == cycles, 'dgesvd cyclic nullity')
+        deallocate (work)
+        b = a
+        call fortnum_dgesdd('A', n, n, b, n, s, u, n, vt, n, q, -1, iwork, info)
+        allocate (work(int(q(1))))
+        call fortnum_dgesdd('A', n, n, b, n, s, u, n, vt, n, work, size(work), iwork, info)
+        call require(info == 0, 'dgesdd cyclic info')
+        call check_factors(a, s, u, vt, 'dgesdd cyclic')
+        call require(count(s <= 8*n*eps*s(1)) == cycles, 'dgesdd cyclic nullity')
+    end subroutine cyclic_differences
 
     subroutine zero_matrix(m, n)
         integer, intent(in) :: m, n
