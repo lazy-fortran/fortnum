@@ -639,8 +639,8 @@ contains
     !>
     !> Design after BLIS (BSD-3-Clause, github.com/flame/blis):
     !> frame/3/trsm/bli_trsm_ll_ker_var2.c and the gemmtrsm micro-kernel,
-    !> with the diagonal blocks packed with inverted diagonal; Goto and van
-    !> de Geijn, ACM TOMS 35(1) 4 (2008), section 7. For each block of KB
+    !> with the diagonal blocks packed with inverted diagonal (invdiag in
+    !> frame/1m/packm/bli_packm_struc_cxk.c). For each block of KB
     !> rows, B's rows are packed once into NR-wide panels; each MR-row
     !> micro-panel is updated by the tile kernel against the rows solved
     !> before it in the packed panel, solved in registers-sized tiles and
