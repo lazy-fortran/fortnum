@@ -13,6 +13,25 @@
         real(dp) :: ajj
         call check_uplo_n(uplo, n, lda, 4, upper, info)
         if (info /= 0) return
+        if (.not. upper) then
+            ! right-looking: each column scaled, then subtracted from the
+            ! trailing columns, all accesses down contiguous columns
+            do j = 1, n
+                ajj = real(a(j, j), dp)
+                if (ajj <= 0 .or. ajj /= ajj) then
+                    a(j, j) = ajj
+                    info = j
+                    return
+                end if
+                ajj = sqrt(ajj)
+                a(j, j) = ajj
+                a(j + 1:n, j) = a(j + 1:n, j)/ajj
+                do i = j + 1, n
+                    a(i:n, i) = a(i:n, i) - a(i:n, j)*CONJ(a(i, j))
+                end do
+            end do
+            return
+        end if
         do j = 1, n
             if (upper) then
                 ajj = real(a(j, j), dp) - real(sum(CONJ(a(1:j - 1, j))*a(1:j - 1, j)), dp)
@@ -61,7 +80,8 @@
         integer, intent(in) :: n, lda
         SCALAR, intent(inout) :: a(lda, *)
         integer, intent(out) :: info
-        integer :: n1, n2, iinfo
+        integer :: n1, n2, iinfo, i, j, i0, j0
+        SCALAR, allocatable :: y(:, :)
         info = 0
         if (n == 0) return
         if (n <= 32) then
@@ -80,7 +100,30 @@
             call TRSM('L', 'U', TRANS_C, 'N', n1, n2, ONE, a, lda, a(1, n1 + 1), lda)
             call RANKK('U', TRANS_C, n2, n1, -1.0_dp, a(1, n1 + 1), lda, 1.0_dp, a(n1 + 1, n1 + 1), lda)
         else
-            call TRSM('R', 'L', TRANS_C, 'N', n2, n1, ONE, a, lda, a(n1 + 1, 1), lda)
+            ! A21 := A21 inv(L11)^H as L11 Y = A21^H on a copy, the left
+            ! forward solve, which runs on the packed solve tiles directly
+            allocate (y(n1, n2))
+            ! transposed in 16 x 16 blocks, which stay in L1
+            do j0 = 1, n1, 16
+                do i0 = 1, n2, 16
+                    do j = j0, min(n1, j0 + 15)
+                        do i = i0, min(n2, i0 + 15)
+                            y(j, i) = CONJ(a(n1 + i, j))
+                        end do
+                    end do
+                end do
+            end do
+            call TRSM('L', 'L', 'N', 'N', n1, n2, ONE, a, lda, y, n1)
+            do i0 = 1, n2, 16
+                do j0 = 1, n1, 16
+                    do i = i0, min(n2, i0 + 15)
+                        do j = j0, min(n1, j0 + 15)
+                            a(n1 + i, j) = CONJ(y(j, i))
+                        end do
+                    end do
+                end do
+            end do
+            deallocate (y)
             call RANKK('L', 'N', n2, n1, -1.0_dp, a(n1 + 1, 1), lda, 1.0_dp, a(n1 + 1, n1 + 1), lda)
         end if
         call POTRF2(uplo, n2, a(n1 + 1, n1 + 1), lda, iinfo)

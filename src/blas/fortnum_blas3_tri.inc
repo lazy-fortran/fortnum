@@ -18,7 +18,9 @@
         left = side == 'L' .or. side == 'l'
         ! small problems: substitution in place, without packing, workspace
         ! or threads, whose set-up would cost more than the solve
-        if (real(merge(m, n, left), dp)**2*merge(n, m, left) <= TRSM_SMALL_WORK) then
+        if (real(merge(m, n, left), dp)**2*merge(n, m, left) <= TRSM_SMALL_WORK .and. &
+            (merge(n, m, left) <= TRSM_SMALL_RHS .or. &
+            real(merge(m, n, left), dp)**2*merge(n, m, left) <= TRSM_TINY_WORK)) then
             call tri_flags('TRSM', side, uplo, transa, diag, m, n, lda, ldb, left, upper, &
                 notrans, conj, unit, tr)
             if (m == 0 .or. n == 0) return
@@ -93,19 +95,13 @@
                 do j = 1, n
                     if (upper) then
                         do i = 1, m
-                            t = b(i, j)
-                            do k = 1, i - 1
-                                t = t - op(a(k, i))*b(k, j)
-                            end do
+                            t = b(i, j) - dot(a(1:i - 1, i), b(1:i - 1, j))
                             if (.not. unit) t = t/op(a(i, i))
                             b(i, j) = t
                         end do
                     else
                         do i = m, 1, -1
-                            t = b(i, j)
-                            do k = i + 1, m
-                                t = t - op(a(k, i))*b(k, j)
-                            end do
+                            t = b(i, j) - dot(a(i + 1:m, i), b(i + 1:m, j))
                             if (.not. unit) t = t/op(a(i, i))
                             b(i, j) = t
                         end do
@@ -151,6 +147,28 @@
                 end if
             end if
         end subroutine small_solve
+
+        ! sum op(x(k)) y(k) in four lanes, so that it vectorizes
+        SCALAR function dot(x, y)
+            SCALAR, intent(in) :: x(:), y(:)
+            SCALAR :: lane(4)
+            integer :: k, n4
+            lane = ZERO
+            n4 = (size(x)/4)*4
+            if (conj) then
+                do k = 1, n4, 4
+                    lane = lane + CONJ(x(k:k + 3))*y(k:k + 3)
+                end do
+            else
+                do k = 1, n4, 4
+                    lane = lane + x(k:k + 3)*y(k:k + 3)
+                end do
+            end if
+            dot = sum(lane)
+            do k = n4 + 1, size(x)
+                dot = dot + op(x(k))*y(k)
+            end do
+        end function dot
 
         elemental SCALAR function op(x)
             SCALAR, intent(in) :: x

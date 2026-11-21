@@ -7,7 +7,7 @@
 # Usage: gen_blas_tiles.sh FORTGEN_TILE [OUTPUT_DIR]
 # FORTGEN_TILE is the fortgen-tile program of fortgen at FORTGEN_REVISION.
 set -euo pipefail
-FORTGEN_REVISION=41c3df43441a187d37a34fb1135d24abf851d571
+FORTGEN_REVISION=4b4adb510a038d3db0015f61f9a9bf743a583e92
 tile=$1
 out=${2:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../src/generated" && pwd)}
 emit() {
@@ -42,6 +42,9 @@ emit fortnum_dtile_neon_8x6_bc aarch64_neon 8 6 update_c,b_strided
 emit fortnum_dtile_avx2_8x6_ba x86_64_avx2_fma 8 6 b_strided
 emit fortnum_dtile_avx512_24x8_ba x86_64_avx512 24 8 b_strided
 emit fortnum_dtile_neon_8x6_ba aarch64_neon 8 6 b_strided
+# the kernel of the packed TRSM: C - A B^T solved by a lower triangle with
+# inverted diagonal in the registers, stored to C and transposed to the panel
+emit fortnum_dtrsm_avx2_8x6 x86_64_avx2_fma 8 6 trsm
 # the matrix coprocessor of Apple M1 to M3 (it cannot read B unpacked)
 emit fortnum_dtile_amx_32x16 aarch64_amx 32 16 "" 2
 emit fortnum_dtile_amx_32x16_c aarch64_amx 32 16 update_c 2

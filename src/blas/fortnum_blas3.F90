@@ -19,10 +19,12 @@ module fortnum_blas3
     integer, parameter :: TRI_NB = 64
     !> Rows or columns TRSM solves by substitution; it halves larger triangles.
     integer, parameter :: TRSM_LEAF = 16
-    ! TRSM substitutes in place up to this work (order^2 times the other
-    ! dimension): the blocked solver's packing, workspace and threads cost
-    ! more there.
-    real(dp), parameter :: TRSM_SMALL_WORK = 2.0e5_dp
+    ! TRSM substitutes in place, without the blocked solver's packing,
+    ! workspace and threads, up to TRSM_SMALL_WORK (order^2 times the other
+    ! dimension) for at most TRSM_SMALL_RHS right-hand sides, and up to
+    ! TRSM_TINY_WORK for any number; the packed kernels win above.
+    real(dp), parameter :: TRSM_SMALL_WORK = 2.0e5_dp, TRSM_TINY_WORK = 4096.0_dp
+    integer, parameter :: TRSM_SMALL_RHS = 2
     !> Rows or columns of B per thread chunk in the TRSM substitution.
     integer, parameter :: SUBST_CHUNK = 256
     !> Fewest rows or columns of B per thread when TRSM splits B over threads.

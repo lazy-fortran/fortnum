@@ -52,7 +52,22 @@ module fortnum_blas
         end subroutine tile_bstrided_kernel
     end interface
 
+    abstract interface
+        subroutine tile_trsm_kernel(k, a, b, c, ldc, t, pb) bind(c)
+            import :: c_int64_t, c_double
+            integer(c_int64_t), value :: k, ldc
+            real(c_double), intent(in) :: a(*), b(*), t(*)
+            real(c_double), intent(inout) :: c(*)
+            real(c_double), intent(out) :: pb(*)
+        end subroutine tile_trsm_kernel
+    end interface
+
     interface
+        function fortnum_blas_dtrsm_tile(isa) bind(c, name='fortnum_blas_dtrsm_tile') result(kernel)
+            import :: c_funptr, c_int32_t
+            integer(c_int32_t), value :: isa
+            type(c_funptr) :: kernel
+        end function fortnum_blas_dtrsm_tile
         function fortnum_blas_dtile(mr, nr, isa, update, strided_update, strided_acc, &
                 bstrided_update, bstrided_acc) bind(c, name='fortnum_blas_dtile') result(kernel)
             import :: c_funptr, c_int32_t
@@ -88,6 +103,8 @@ module fortnum_blas
     procedure(tile_strided_kernel), pointer, save :: tile_sc => null(), tile_sa => null()
     !> The tile reading B unpacked: added to C, and to a tile buffer.
     procedure(tile_bstrided_kernel), pointer, save :: tile_bc => null(), tile_ba => null()
+    !> The TRSM tile of the GEMM tile, if there is one.
+    procedure(tile_trsm_kernel), pointer, save :: tile_trsm => null()
 
 contains
 
@@ -122,6 +139,8 @@ contains
             tile_mr = mr
             tile_nr = nr
             tile_isa = isa
+            kernel = fortnum_blas_dtrsm_tile(isa)
+            if (c_associated(kernel)) call c_f_procpointer(kernel, tile_trsm)
             if (isa == 4) then
                 ! AMX streams its panels from L2; one pass over C for k up to
                 ! 2048 (2000^3 on one M3 core: 373 instead of 348 GFLOP/s)
@@ -808,15 +827,22 @@ contains
             real(dp), intent(out) :: p(tile_nr, kc)
             integer :: r, jj
             if (cols < tile_nr) p(cols + 1:, :) = 0
-            do r = 1, kc
-                if (left) then
-                    do jj = 1, cols
-                        p(jj, r) = b(phys(pc + r - 1), j0 + jj - 1)
-                    end do
-                else
+            if (left) then
+                ! down the columns of B, which are contiguous
+                do jj = 1, cols
+                    if (fwd) then
+                        p(jj, 1:kc) = b(pc:pc + kc - 1, j0 + jj - 1)
+                    else
+                        do r = 1, kc
+                            p(jj, r) = b(mt + 2 - pc - r, j0 + jj - 1)
+                        end do
+                    end if
+                end do
+            else
+                do r = 1, kc
                     p(1:cols, r) = b(j0:j0 + cols - 1, phys(pc + r - 1))
-                end if
-            end do
+                end do
+            end if
         end subroutine pack_rhs
 
         ! micro-panel at offset r0 of the diagonal block at pc: L(rows, pc..)
@@ -876,11 +902,28 @@ contains
             integer, intent(in) :: j0, cols, pc, kc, np
             real(dp), intent(inout) :: p(tile_nr, kc)
             real(dp), intent(inout) :: acc(MAX_TILE)
-            integer :: ir, r0, rows, q
+            integer :: ir, r0, rows, q, ii, jj
             do ir = 1, np
                 r0 = (ir - 1)*tile_mr
                 rows = min(tile_mr, kc - r0)
                 q = tile_mr*tile_mr*(ir - 1)*ir/2
+                if (associated(tile_trsm) .and. rows == tile_mr .and. cols == tile_nr) then
+                    ! the generated kernel: product, substitution and both stores
+                    if (left .and. fwd) then
+                        call tile_trsm(int(r0, c_int64_t), ad(q + 1:), p, b(pc + r0, j0), &
+                            int(ldb, c_int64_t), ad(q + tile_mr*r0 + 1:), p(:, r0 + 1:))
+                    else
+                        do jj = 1, tile_nr
+                            do ii = 1, tile_mr
+                                acc(ii + tile_mr*(jj - 1)) = p(jj, r0 + ii)
+                            end do
+                        end do
+                        call tile_trsm(int(r0, c_int64_t), ad(q + 1:), p, acc, int(tile_mr, c_int64_t), &
+                            ad(q + tile_mr*r0 + 1:), p(:, r0 + 1:))
+                        call scatter(pc + r0, rows, j0, cols, p(:, r0 + 1:r0 + rows))
+                    end if
+                    cycle
+                end if
                 if (r0 > 0) then
                     call tile(int(r0, c_int64_t), ad(q + 1:), p, acc)
                 else

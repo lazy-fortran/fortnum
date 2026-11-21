@@ -17,6 +17,8 @@ tile_t fortnum_dtile_avx2_8x6, fortnum_dtile_avx512_24x8;
 tile_c_t fortnum_dtile_avx2_8x6_c, fortnum_dtile_avx512_24x8_c;
 tile_s_t fortnum_dtile_avx2_8x6_sc, fortnum_dtile_avx512_24x8_sc, fortnum_dtile_avx2_8x6_sa, fortnum_dtile_avx512_24x8_sa;
 tile_b_t fortnum_dtile_avx2_8x6_bc, fortnum_dtile_avx512_24x8_bc, fortnum_dtile_avx2_8x6_ba, fortnum_dtile_avx512_24x8_ba;
+void fortnum_dtrsm_avx2_8x6(int64_t k, const double *a, const double *b, double *c, int64_t ldc,
+                            const double *t, double *pb);
 #elif defined(__aarch64__) && !defined(_WIN32)
 tile_t fortnum_dtile_neon_8x6;
 tile_c_t fortnum_dtile_neon_8x6_c;
@@ -125,5 +127,15 @@ tile_t *fortnum_blas_dtile(int32_t *mr, int32_t *nr, int32_t *isa, tile_c_t **up
 #else
     (void)force;
 #endif
+    return NULL;
+}
+
+/* The TRSM tile matching the GEMM tile of isa (fortnum_blas_dtile), or NULL
+   where there is none: the solve then runs in Fortran. */
+void *fortnum_blas_dtrsm_tile(int32_t isa) {
+#if defined(__x86_64__) && !defined(_WIN32)
+    if (isa == 1) return (void *)fortnum_dtrsm_avx2_8x6;
+#endif
+    (void)isa;
     return NULL;
 }
