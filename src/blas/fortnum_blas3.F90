@@ -5,8 +5,9 @@ module fortnum_blas3
     ! fortnum_zherk). Arguments and semantics are those of reference BLAS.
     use, intrinsic :: iso_c_binding, only: c_loc, c_f_pointer
     use fortnum_kinds, only: dp
-    use fortnum_blas, only: thread_count, fortnum_dgemm, fortnum_dgemm_triangle, fortnum_zgemm, fortnum_dgemm_ws, fortnum_zgemm_ws, &
-        fortnum_dgemm_lwork, fortnum_zgemm_lwork, fortnum_dtrsm_packed, fortnum_dtrsm_packed_lwork
+    use fortnum_blas, only: thread_count, fortnum_dgemm, fortnum_dgemm_triangle, fortnum_zgemm, &
+        fortnum_dgemm_ws, fortnum_zgemm_ws, fortnum_dgemm_lwork, fortnum_zgemm_lwork, &
+        fortnum_dtrsm_packed, fortnum_dtrsm_packed_lwork
     implicit none
     private
 
