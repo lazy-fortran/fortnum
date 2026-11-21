@@ -5,7 +5,7 @@ module fortnum_lapack_lu
     ! versions DGBTRF/ZGBTRF, DGBTRS/ZGBTRS, DGBSV/ZGBSV, with the arguments
     ! and info codes of reference LAPACK (prefix fortnum_).
     use fortnum_kinds, only: dp
-    use fortnum_blas, only: fortnum_dgemm, fortnum_zgemm
+    use fortnum_blas, only: fortnum_dgemm, fortnum_zgemm, thread_count
     use fortnum_blas3, only: fortnum_dtrsm, fortnum_ztrsm
     implicit none
     private
@@ -19,6 +19,9 @@ module fortnum_lapack_lu
     !> calls too small to pay (order 200 on one core, against OpenBLAS on Zen 3
     !> and Accelerate on M3: 0.35 and 0.11 at 1 column, 0.74 and 0.32 at 16)
     integer, parameter :: GETRF_LEAF = 16
+    !> Columns LASWP interchanges together, so that they stay in cache while
+    !> every interchange is applied (reference LAPACK dlaswp uses 32).
+    integer, parameter :: LASWP_NB = 32
 
 
 contains

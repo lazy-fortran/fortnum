@@ -111,7 +111,7 @@
         integer, intent(in) :: n, lda, k1, k2, incx
         SCALAR, intent(inout) :: a(lda, *)
         integer, intent(in) :: ipiv(*)
-        integer :: k, p, j, first, last, step, ip
+        integer :: k, p, j, j0, j1, first, last, step, ip, ip0, nth
         SCALAR :: t
         if (incx == 0 .or. n <= 0) return
         ! as reference LAPACK: positions k1.. of ipiv, walked backwards for incx < 0
@@ -119,24 +119,35 @@
             first = k1
             last = k2
             step = 1
-            ip = k1
+            ip0 = k1
         else
             first = k2
             last = k1
             step = -1
-            ip = k1 + (k1 - k2)*incx
+            ip0 = k1 + (k1 - k2)*incx
         end if
-        do k = first, last, step
-            p = ipiv(ip)
-            if (p /= k) then
-                do j = 1, n
-                    t = a(k, j)
-                    a(k, j) = a(p, j)
-                    a(p, j) = t
-                end do
-            end if
-            ip = ip + incx
+        ! all interchanges on LASWP_NB columns at a time (one interchange
+        ! over all columns touches a page per column); blocks are
+        ! independent, so they go to threads
+        nth = thread_count(real(n, dp)*abs(k2 - k1 + 1))
+        nth = min(nth, (n + LASWP_NB - 1)/LASWP_NB)
+        !$omp parallel do num_threads(nth) if(nth > 1) schedule(static) private(j1, ip, k, p, j, t)
+        do j0 = 1, n, LASWP_NB
+            j1 = min(n, j0 + LASWP_NB - 1)
+            ip = ip0
+            do k = first, last, step
+                p = ipiv(ip)
+                if (p /= k) then
+                    do j = j0, j1
+                        t = a(k, j)
+                        a(k, j) = a(p, j)
+                        a(p, j) = t
+                    end do
+                end if
+                ip = ip + incx
+            end do
         end do
+        !$omp end parallel do
     end subroutine LASWP
 
     !> Solve op(A) X = B with the factors of GETRF; trans N, T or C.

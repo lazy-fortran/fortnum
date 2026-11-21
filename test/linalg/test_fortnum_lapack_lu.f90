@@ -17,6 +17,9 @@ program test_fortnum_lapack_lu
     call band_real(40, 3, 2)
     call band_real(9, 0, 4)
     call band_complex(37, 2, 3)
+    call interchanges(50, 70, 1)
+    call interchanges(50, 70, -1)
+    call interchanges(1500, 1400, 1)
     print '(a)', 'LU family matches quad precision'
 
 contains
@@ -29,6 +32,37 @@ contains
             error stop 1
         end if
     end subroutine require
+
+    ! DLASWP against the interchanges applied one by one to row labels
+    subroutine interchanges(m, n, incx)
+        integer, intent(in) :: m, n, incx
+        real(dp), allocatable :: a(:, :), a0(:, :)
+        integer, allocatable :: ipiv(:), rows(:)
+        integer :: k, k1, k2, t
+        allocate (a(m + 2, n), ipiv(m), rows(m))
+        call fill(a, 0.53_dp)
+        a0 = a
+        k1 = 3
+        k2 = m - 4
+        do k = 1, m
+            ipiv(k) = k + mod(7*k*k + 3, m - k + 1)
+        end do
+        do k = 1, m
+            rows(k) = k
+        end do
+        if (incx > 0) then
+            do k = k1, k2
+                t = rows(k); rows(k) = rows(ipiv(k)); rows(ipiv(k)) = t
+            end do
+        else
+            ! reverse order: ipiv(k) for k = k2 down to k1
+            do k = k2, k1, -1
+                t = rows(k); rows(k) = rows(ipiv(k)); rows(ipiv(k)) = t
+            end do
+        end if
+        call fortnum_dlaswp(n, a, m + 2, k1, k2, ipiv, incx)
+        call require(all(a(1:m, :) == a0(rows, :)) .and. all(a(m + 1:, :) == a0(m + 1:, :)), 'dlaswp')
+    end subroutine interchanges
 
     subroutine fill(x, seed)
         real(dp), intent(out) :: x(:, :)
