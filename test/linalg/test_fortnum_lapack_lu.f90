@@ -3,6 +3,7 @@ program test_fortnum_lapack_lu
     ! reconstructions; singular and illegal inputs report LAPACK info codes.
     use fortnum_kinds, only: dp
     use fortnum_lapack_lu
+    !$ use omp_lib, only: omp_set_num_threads
     implicit none
     integer, parameter :: qp = selected_real_kind(33, 4931)
     real(qp), parameter :: eps = real(epsilon(1.0_dp), qp)
@@ -13,6 +14,11 @@ program test_fortnum_lapack_lu
     call dense_complex(130)
     call rectangular(90, 40)
     call rectangular(40, 90)
+    ! the threaded panel LU with lookahead: several panels, partial last one
+    !$ call omp_set_num_threads(4)
+    call rectangular(330, 290)
+    call rectangular(290, 330)
+    call dense_complex(170)
     call singular()
     call band_real(40, 3, 2)
     call band_real(9, 0, 4)
@@ -165,9 +171,12 @@ contains
     ! P L U reproduces A for tall and wide matrices
     subroutine rectangular(m, n)
         integer, intent(in) :: m, n
-        real(dp) :: a(m, n), f(m, n)
-        real(qp) :: l(m, min(m, n)), u(min(m, n), n), plu(m, n), t
-        integer :: ipiv(min(m, n)), info, i, j
+        real(dp), allocatable :: a(:, :), f(:, :)
+        real(qp), allocatable :: l(:, :), u(:, :), plu(:, :)
+        real(qp) :: t
+        integer, allocatable :: ipiv(:)
+        integer :: info, i, j
+        allocate (a(m, n), f(m, n), l(m, min(m, n)), u(min(m, n), n), plu(m, n), ipiv(min(m, n)))
         call fill(a, 0.53_dp)
         f = a
         call fortnum_dgetrf(m, n, f, m, ipiv, info)

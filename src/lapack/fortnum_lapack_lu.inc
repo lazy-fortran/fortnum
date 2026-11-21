@@ -9,6 +9,7 @@
         SCALAR, intent(inout) :: a(lda, *)
         integer, intent(out) :: ipiv(*)
         integer, intent(out) :: info
+        integer :: nth
         info = 0
         if (m < 0) then
             info = -1
@@ -18,8 +19,97 @@
             info = -4
         end if
         if (info /= 0 .or. m == 0 .or. n == 0) return
-        call GETRF2(m, n, a, lda, ipiv, info)
+        nth = thread_count(real(m, dp)*n*min(m, n))
+        if (nth > 1 .and. min(m, n) > 2*GETRF_NB) then
+            call GETRF_THREADED(m, n, a, lda, ipiv, info, nth)
+        else
+            call GETRF2(m, n, a, lda, ipiv, info)
+        end if
     end subroutine GETRF
+
+    !> Right-looking LU in panels of GETRF_NB columns for several threads.
+    !> Each panel is factored by GETRF2; every thread then applies the
+    !> panel's interchanges, TRSM and GEMM to the column blocks it owns
+    !> (fixed, round robin), so that the columns stay in the owner's cache
+    !> instead of moving between cores as separate threaded LASWP, TRSM and
+    !> GEMM calls make them. The owner of the next panel updates and factors
+    !> it while the other threads update the rest (lookahead). Design after
+    !> OpenBLAS (github.com/OpenMathLib/OpenBLAS, lapack/getrf/
+    !> getrf_parallel.c, BSD-style licence of UT Austin): LASWP_PLUS on each
+    !> thread's columns in inner_advanced_thread, and the main thread
+    !> factoring the next panel by GETRF_SINGLE while the workers update.
+    subroutine GETRF_THREADED(m, n, a, lda, ipiv, info, nth)
+        integer, intent(in) :: m, n, lda, nth
+        SCALAR, intent(inout) :: a(lda, *)
+        integer, intent(out) :: ipiv(*)
+        integer, intent(out) :: info
+        integer :: k, kb, k2, kb2, mn, iinfo, nblk, b, bnext, me
+        mn = min(m, n)
+        nblk = (n + GETRF_NB - 1)/GETRF_NB
+        info = 0
+        kb = min(GETRF_NB, mn)
+        call factor_panel(1, kb, info)
+        do k = 1, mn, GETRF_NB
+            kb = min(GETRF_NB, mn - k + 1)
+            ! lookahead: the owner of the next panel updates and factors it
+            ! first, while the other threads update the rest
+            k2 = k + kb
+            kb2 = min(GETRF_NB, mn - k2 + 1)
+            bnext = (k2 - 1)/GETRF_NB + 1
+            !$omp parallel num_threads(nth) private(b, me, iinfo)
+            me = 0
+            !$ me = omp_get_thread_num()
+            if (kb2 > 0 .and. mod(bnext - 1, nth) == me) then
+                call update(bnext, k, kb)
+                call factor_panel(k2, kb2, iinfo)
+                if (iinfo > 0) then
+                    !$omp critical (fortnum_getrf_info)
+                    if (info == 0) info = iinfo
+                    !$omp end critical (fortnum_getrf_info)
+                end if
+            end if
+            do b = 1, nblk
+                if (mod(b - 1, nth) /= me .or. (kb2 > 0 .and. b == bnext)) cycle
+                call update(b, k, kb)
+            end do
+            !$omp end parallel
+        end do
+
+    contains
+
+        ! GETRF2 on columns k..k+kb-1, rows k..m, pivots made absolute
+        subroutine factor_panel(k, kb, iinfo)
+            integer, intent(in) :: k, kb
+            integer, intent(out) :: iinfo
+            integer :: i
+            call GETRF2(m - k + 1, kb, a(k, k), lda, ipiv(k), iinfo)
+            if (iinfo > 0) iinfo = iinfo + k - 1
+            do i = k, k + kb - 1
+                ipiv(i) = ipiv(i) + k - 1
+            end do
+        end subroutine factor_panel
+
+        ! column block b after panel k: interchanges, and for its columns
+        ! right of the panel (a block may hold the last, narrower panel of a
+        ! wide matrix and columns after it) TRSM and GEMM
+        subroutine update(b, k, kb)
+            integer, intent(in) :: b, k, kb
+            integer :: j0, j1, c0
+            j0 = (b - 1)*GETRF_NB + 1
+            j1 = min(n, j0 + GETRF_NB - 1)
+            if (j1 < k) then
+                call LASWP(j1 - j0 + 1, a(1, j0), lda, k, k + kb - 1, ipiv, 1)
+                return
+            end if
+            c0 = max(j0, k + kb)
+            if (c0 > j1) return
+            call LASWP(j1 - c0 + 1, a(1, c0), lda, k, k + kb - 1, ipiv, 1)
+            call TRSM('L', 'L', 'N', 'U', kb, j1 - c0 + 1, ONE, a(k, k), lda, a(k, c0), lda)
+            if (k + kb <= m) call GEMM('N', 'N', m - k - kb + 1, j1 - c0 + 1, kb, -ONE, a(k + kb, k), lda, &
+                a(k, c0), lda, ONE, a(k + kb, c0), lda)
+        end subroutine update
+
+    end subroutine GETRF_THREADED
 
     !> Recursive LU with partial pivoting (xGETRF2): the left half of the
     !> columns recursively, then LASWP, TRSM and one GEMM update the right
@@ -126,25 +216,26 @@
             step = -1
             ip0 = k1 + (k1 - k2)*incx
         end if
-        ! all interchanges on LASWP_NB columns at a time (one interchange
-        ! over all columns touches a page per column); blocks are
+        ! all interchanges down one column before the next, so that the
+        ! column stays in L1 (interchanging a row across 32 columns touches
+        ! 32 cache lines per interchange); blocks of LASWP_NB columns are
         ! independent, so they go to threads
         nth = thread_count(real(n, dp)*abs(k2 - k1 + 1))
         nth = min(nth, (n + LASWP_NB - 1)/LASWP_NB)
         !$omp parallel do num_threads(nth) if(nth > 1) schedule(static) private(j1, ip, k, p, j, t)
         do j0 = 1, n, LASWP_NB
             j1 = min(n, j0 + LASWP_NB - 1)
-            ip = ip0
-            do k = first, last, step
-                p = ipiv(ip)
-                if (p /= k) then
-                    do j = j0, j1
+            do j = j0, j1
+                ip = ip0
+                do k = first, last, step
+                    p = ipiv(ip)
+                    if (p /= k) then
                         t = a(k, j)
                         a(k, j) = a(p, j)
                         a(p, j) = t
-                    end do
-                end if
-                ip = ip + incx
+                    end if
+                    ip = ip + incx
+                end do
             end do
         end do
         !$omp end parallel do

@@ -7,6 +7,7 @@ module fortnum_lapack_lu
     use fortnum_kinds, only: dp
     use fortnum_blas, only: fortnum_dgemm, fortnum_zgemm, thread_count
     use fortnum_blas3, only: fortnum_dtrsm, fortnum_ztrsm
+    !$ use omp_lib, only: omp_get_thread_num
     implicit none
     private
 
@@ -19,9 +20,10 @@ module fortnum_lapack_lu
     !> calls too small to pay (order 200 on one core, against OpenBLAS on Zen 3
     !> and Accelerate on M3: 0.35 and 0.11 at 1 column, 0.74 and 0.32 at 16)
     integer, parameter :: GETRF_LEAF = 16
-    !> Columns LASWP interchanges together, so that they stay in cache while
-    !> every interchange is applied (reference LAPACK dlaswp uses 32).
+    !> Columns of one thread's share in LASWP.
     integer, parameter :: LASWP_NB = 32
+    !> Panel width and column block of the threaded GETRF.
+    integer, parameter :: GETRF_NB = 64
 
 
 contains
@@ -36,6 +38,7 @@ contains
 #define GETRF fortnum_dgetrf
 #define GETF2 fortnum_dgetf2
 #define GETRF2 fortnum_dgetrf2
+#define GETRF_THREADED getrf_threaded_real
 #define LASWP fortnum_dlaswp
 #define GETRS fortnum_dgetrs
 #define GESV fortnum_dgesv
@@ -54,6 +57,7 @@ contains
 #undef GETRF
 #undef GETF2
 #undef GETRF2
+#undef GETRF_THREADED
 #undef LASWP
 #undef GETRS
 #undef GESV
@@ -71,6 +75,7 @@ contains
 #define GETRF fortnum_zgetrf
 #define GETF2 fortnum_zgetf2
 #define GETRF2 fortnum_zgetrf2
+#define GETRF_THREADED getrf_threaded_complex
 #define LASWP fortnum_zlaswp
 #define GETRS fortnum_zgetrs
 #define GESV fortnum_zgesv
