@@ -16,6 +16,7 @@ module fortnum_blas
 
     public :: fortnum_dgemm, fortnum_zgemm, fortnum_blas_tile
     public :: fortnum_dgemm_ws, fortnum_zgemm_ws, fortnum_dgemm_lwork, fortnum_zgemm_lwork
+    public :: fortnum_dgemm_triangle, thread_count
 
     abstract interface
         subroutine tile_kernel(k, a, b, acc) bind(c)
@@ -147,6 +148,25 @@ contains
         call fortnum_dgemm_ws(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc, work, lwork)
     end subroutine fortnum_dgemm
 
+    !> C := alpha op(A) op(B) + beta C on the triangle uplo ('L' or 'U') of the
+    !> square C (m = n) only; the other triangle is not touched. The core of
+    !> the SYRK family: tiles outside the triangle are skipped, so the cost is
+    !> about half a GEMM at GEMM speed and threading.
+    subroutine fortnum_dgemm_triangle(uplo, transa, transb, n, k, alpha, a, lda, b, ldb, beta, c, ldc)
+        character, intent(in) :: uplo, transa, transb
+        integer, intent(in) :: n, k, lda, ldb, ldc
+        real(dp), intent(in) :: alpha, beta
+        real(dp), intent(in) :: a(lda, *), b(ldb, *)
+        real(dp), intent(inout) :: c(ldc, *)
+        real(dp), allocatable :: work(:)
+        integer :: lwork
+        lwork = 0
+        if (n > 0 .and. k > 0) lwork = fortnum_dgemm_lwork(n, n, k, thread_count(1.0_dp*n*real(n, dp)*k))
+        allocate (work(lwork))
+        call fortnum_dgemm_ws(transa, transb, n, n, k, alpha, a, lda, b, ldb, beta, c, ldc, work, lwork, &
+            triangle=uplo)
+    end subroutine fortnum_dgemm_triangle
+
     !> Workspace in real(dp) elements that fortnum_dgemm_ws needs for an
     !> m x n x k product on up to `threads` OpenMP threads (default: as many
     !> as a call outside a parallel region may use). Nondecreasing in each
@@ -167,17 +187,19 @@ contains
 
     !> fortnum_dgemm with caller-provided packing buffers: work(lwork), lwork
     !> at least fortnum_dgemm_lwork(m, n, k); no memory is allocated. With
-    !> less workspace than the threads need, fewer threads are used.
+    !> less workspace than the threads need, fewer threads are used. With
+    !> triangle = 'L' or 'U' (m = n) only that triangle of C is formed.
     subroutine fortnum_dgemm_ws(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc, &
-            work, lwork)
+            work, lwork, triangle)
         character, intent(in) :: transa, transb
+        character, intent(in), optional :: triangle
         integer, intent(in) :: m, n, k, lda, ldb, ldc, lwork
         real(dp), intent(in) :: alpha, beta
         real(dp), intent(in) :: a(lda, *), b(ldb, *)
         real(dp), intent(inout) :: c(ldc, *)
         real(dp), intent(inout), target :: work(lwork)
         logical :: ta, tb
-        integer :: jc, pc, nc, kc, mstep, nstep, npb, jr, ir, j
+        integer :: jc, pc, nc, kc, mstep, nstep, npb, jr, ir, j, tri, ilo, ihi
         integer :: nthreads, mcb, mt, i0, i1, me, chunk, nchunk, ct, epoch, bsize, asize, boff
         real(dp) :: tp(4), w0, w1
         real(dp), allocatable :: prof(:, :)
@@ -186,25 +208,42 @@ contains
         ta = transposed(transa, 'fortnum_dgemm', 1, .false.)
         tb = transposed(transb, 'fortnum_dgemm', 2, .false.)
         call check_sizes('fortnum_dgemm', ta, tb, m, n, k, lda, ldb, ldc)
+        ! tri: 0 full C, 1 lower triangle (i >= j), 2 upper triangle (i <= j)
+        tri = 0
+        if (present(triangle)) then
+            select case (triangle)
+            case ('L', 'l')
+                tri = 1
+            case ('U', 'u')
+                tri = 2
+            case default
+                call argument_error('fortnum_dgemm_ws', 16)
+            end select
+            if (m /= n) call argument_error('fortnum_dgemm_ws', 3)
+        end if
         if (m == 0 .or. n == 0) return
         if ((alpha == 0 .or. k == 0) .and. beta == 1) return
         do j = 1, n
+            ilo = 1
+            ihi = m
+            if (tri == 1) ilo = j
+            if (tri == 2) ihi = j
             if (beta == 0) then
-                c(1:m, j) = 0
+                c(ilo:ihi, j) = 0
             else if (beta /= 1) then
-                c(1:m, j) = beta*c(1:m, j)
+                c(ilo:ihi, j) = beta*c(ilo:ihi, j)
             end if
         end do
         if (alpha == 0 .or. k == 0) return
 
         call select_tile()
         ! thin products: A is read unpacked, only B is packed
-        if (.not. ta .and. n <= THIN_N .and. m >= tile_mr) then
+        if (tri == 0 .and. .not. ta .and. n <= THIN_N .and. m >= tile_mr) then
             call thin_gemm()
             return
         end if
         ! products with few rows: B is read unpacked, only A is packed
-        if (.not. tb .and. m <= THIN_N .and. n >= tile_nr .and. associated(tile_bc)) then
+        if (tri == 0 .and. .not. tb .and. m <= THIN_N .and. n >= tile_nr .and. associated(tile_bc)) then
             call wide_gemm()
             return
         end if
@@ -397,20 +436,29 @@ contains
             integer, intent(in) :: ir, jr, jc, nc, kc
             real(dp), intent(in) :: apanel(*), bpanel(*)
             real(dp) :: acc(MAX_TILE)
-            integer :: i0, j0, mrr, nrr, jj
+            integer :: i0, j0, mrr, nrr, jj, lo, hi
+            logical :: cross
             i0 = 1 + (ir - 1)*mstep
             j0 = jc + (jr - 1)*nstep
             mrr = min(mstep, m - i0 + 1)
             nrr = min(nstep, nc - (jr - 1)*nstep)
-            if (mrr == mstep .and. nrr == nstep) then
+            if (tri == 1 .and. i0 + mrr - 1 < j0) return
+            if (tri == 2 .and. i0 > j0 + nrr - 1) return
+            cross = (tri == 1 .and. i0 < j0 + nrr - 1) .or. (tri == 2 .and. i0 + mrr - 1 > j0)
+            if (mrr == mstep .and. nrr == nstep .and. .not. cross) then
                 call tile_c(int(kc, c_int64_t), apanel, bpanel, c(i0, j0), &
                     int(ldc, c_int64_t))
                 return
             end if
             call tile(int(kc, c_int64_t), apanel, bpanel, acc)
             do jj = 1, nrr
-                c(i0:i0 + mrr - 1, j0 + jj - 1) = c(i0:i0 + mrr - 1, j0 + jj - 1) + &
-                    acc((jj - 1)*tile_mr + 1:(jj - 1)*tile_mr + mrr)
+                lo = 1
+                hi = mrr
+                if (tri == 1) lo = max(1, j0 + jj - i0)
+                if (tri == 2) hi = min(mrr, j0 + jj - i0)
+                if (lo > hi) cycle
+                c(i0 + lo - 1:i0 + hi - 1, j0 + jj - 1) = c(i0 + lo - 1:i0 + hi - 1, j0 + jj - 1) + &
+                    acc((jj - 1)*tile_mr + lo:(jj - 1)*tile_mr + hi)
             end do
         end subroutine update_real
 

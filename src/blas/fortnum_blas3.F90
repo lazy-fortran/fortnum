@@ -5,7 +5,7 @@ module fortnum_blas3
     ! fortnum_zherk). Arguments and semantics are those of reference BLAS.
     use, intrinsic :: iso_c_binding, only: c_loc, c_f_pointer
     use fortnum_kinds, only: dp
-    use fortnum_blas, only: fortnum_dgemm, fortnum_zgemm, fortnum_dgemm_ws, fortnum_zgemm_ws, &
+    use fortnum_blas, only: thread_count, fortnum_dgemm, fortnum_dgemm_triangle, fortnum_zgemm, fortnum_dgemm_ws, fortnum_zgemm_ws, &
         fortnum_dgemm_lwork, fortnum_zgemm_lwork
     implicit none
     private
@@ -18,6 +18,10 @@ module fortnum_blas3
     integer, parameter :: TRI_NB = 64
     !> Rows or columns TRSM solves by substitution; it halves larger triangles.
     integer, parameter :: TRSM_LEAF = 16
+    !> Rows or columns of B per thread chunk in the TRSM substitution.
+    integer, parameter :: SUBST_CHUNK = 256
+    !> Fewest rows or columns of B per thread when TRSM splits B over threads.
+    integer, parameter :: TRSM_CHUNK = 32
     !> Order below which the rank-k updates compute diagonal blocks in full.
     integer, parameter :: SYRK_LEAF = 32
 
@@ -149,61 +153,13 @@ contains
         if (ldc < max(1, n)) call argument_error(name, merge(12, 10, two))
         if (n == 0) return
         if ((alpha == 0 .or. k == 0) .and. beta == 1) return
-        call tri(1, n)
-
-    contains
-
-        ! the triangle of order nb at (r0, r0): halves recursively, one GEMM for
-        ! the block between them; only blocks of order <= SYRK_LEAF are
-        ! computed in full (waste about SYRK_LEAF / n of the flops)
-        recursive subroutine tri(r0, nb)
-            integer, intent(in) :: r0, nb
-            integer :: n1, i, j
-            real(dp) :: t(SYRK_LEAF, SYRK_LEAF)
-            if (nb <= SYRK_LEAF) then
-                t(1:nb, 1:nb) = 0
-                if (alpha /= 0 .and. k > 0) then
-                    call dprod(notrans, k, a, lda, r0, b, ldb, r0, nb, nb, alpha, 0.0_dp, t, SYRK_LEAF)
-                    if (two) call dprod(notrans, k, b, ldb, r0, a, lda, r0, nb, nb, alpha, 1.0_dp, t, SYRK_LEAF)
-                end if
-                do j = 1, nb
-                    do i = merge(1, j, upper), merge(j, nb, upper)
-                        if (beta == 0) then
-                            c(r0 + i - 1, r0 + j - 1) = t(i, j)
-                        else
-                            c(r0 + i - 1, r0 + j - 1) = beta*c(r0 + i - 1, r0 + j - 1) + t(i, j)
-                        end if
-                    end do
-                end do
-                return
-            end if
-            n1 = nb/2
-            call tri(r0, n1)
-            if (upper) then
-                call rect(r0, n1, r0 + n1, nb - n1)
-            else
-                call rect(r0 + n1, nb - n1, r0, n1)
-            end if
-            call tri(r0 + n1, nb - n1)
-        end subroutine tri
-
-        subroutine rect(r0, nr, c0, nc)
-            integer, intent(in) :: r0, nr, c0, nc
-            integer :: jj
-            if (alpha == 0 .or. k == 0) then
-                do jj = c0, c0 + nc - 1
-                    if (beta == 0) then
-                        c(r0:r0 + nr - 1, jj) = 0
-                    else
-                        c(r0:r0 + nr - 1, jj) = beta*c(r0:r0 + nr - 1, jj)
-                    end if
-                end do
-                return
-            end if
-            call dprod(notrans, k, a, lda, r0, b, ldb, c0, nr, nc, alpha, beta, c(r0, c0), ldc)
-            if (two) call dprod(notrans, k, b, ldb, r0, a, lda, c0, nr, nc, alpha, 1.0_dp, c(r0, c0), ldc)
-        end subroutine rect
-
+        if (notrans) then
+            call fortnum_dgemm_triangle(uplo, 'N', 'T', n, k, alpha, a, lda, b, ldb, beta, c, ldc)
+            if (two) call fortnum_dgemm_triangle(uplo, 'N', 'T', n, k, alpha, b, ldb, a, lda, 1.0_dp, c, ldc)
+        else
+            call fortnum_dgemm_triangle(uplo, 'T', 'N', n, k, alpha, a, lda, b, ldb, beta, c, ldc)
+            if (two) call fortnum_dgemm_triangle(uplo, 'T', 'N', n, k, alpha, b, ldb, a, lda, 1.0_dp, c, ldc)
+        end if
     end subroutine fortnum_dsyr2k_impl
 
     !> C := alpha op(A) op(A)^H + beta C on the uplo triangle, alpha and beta
@@ -291,20 +247,6 @@ contains
         end subroutine rect
 
     end subroutine fortnum_zherk
-
-    ! c := alpha op(x)(rx:rx+rows-1, :) op(y)(ry:ry+cols-1, :)^T + beta c with
-    ! op(x) = x (rows of x) or x^T (columns of x), depth k.
-    subroutine dprod(notrans, k, x, ldx, rx, y, ldy, ry, rows, cols, alpha, beta, c, ldc)
-        logical, intent(in) :: notrans
-        integer, intent(in) :: k, ldx, rx, ldy, ry, rows, cols, ldc
-        real(dp), intent(in) :: x(ldx, *), y(ldy, *), alpha, beta
-        real(dp), intent(inout) :: c(ldc, *)
-        if (notrans) then
-            call fortnum_dgemm('N', 'T', rows, cols, k, alpha, x(rx, 1), ldx, y(ry, 1), ldy, beta, c, ldc)
-        else
-            call fortnum_dgemm('T', 'N', rows, cols, k, alpha, x(1, rx), ldx, y(1, ry), ldy, beta, c, ldc)
-        end if
-    end subroutine dprod
 
     ! c := alpha op(x)(rx.., :) op(x)(ry.., :)^H + beta c, op(x) = x or x^H.
     subroutine zprod(notrans, k, x, ldx, rx, ry, rows, cols, alpha, beta, c, ldc)

@@ -12,7 +12,34 @@
         SCALAR, intent(in) :: a(lda, *)
         SCALAR, intent(inout) :: b(ldb, *)
         real(dp), allocatable :: work(:)
-        integer :: lwork
+        integer :: lwork, nth, nfree, chunk, c0, cn
+        logical :: left
+        left = side == 'L' .or. side == 'l'
+        ! the columns (left) or rows (right) of B are independent: on threads,
+        ! each solves its own chunk with serial GEMMs, without the barriers of
+        ! threaded GEMMs on thin blocks
+        nfree = merge(n, m, left)
+        nth = thread_count(real(SCALAR_WORDS, dp)*nfree*real(merge(m, n, left), dp)**2)
+        nth = min(nth, nfree/TRSM_CHUNK)
+        if (nth > 1) then
+            chunk = (nfree + nth - 1)/nth
+            !$omp parallel do num_threads(nth) schedule(static) private(c0, cn, lwork, work)
+            do c0 = 1, nfree, chunk
+                cn = min(chunk, nfree - c0 + 1)
+                if (left) then
+                    lwork = TRSM_LWORK(side, m, cn, 1)
+                    allocate (work(lwork))
+                    call TRSM_WS(side, uplo, transa, diag, m, cn, alpha, a, lda, b(1, c0), ldb, work, lwork)
+                else
+                    lwork = TRSM_LWORK(side, cn, n, 1)
+                    allocate (work(lwork))
+                    call TRSM_WS(side, uplo, transa, diag, cn, n, alpha, a, lda, b(c0, 1), ldb, work, lwork)
+                end if
+                deallocate (work)
+            end do
+            !$omp end parallel do
+            return
+        end if
         lwork = 0
         if (m > 0 .and. n > 0) lwork = TRSM_LWORK(side, m, n)
         allocate (work(lwork))
@@ -141,7 +168,7 @@
             integer, intent(in) :: i0, ni
             SCALAR :: t(TRSM_LEAF, TRSM_LEAF)
             SCALAR, pointer, contiguous :: w(:, :)
-            integer :: r, c
+            integer :: r, c, r0, r1, nth
             do c = 1, ni
                 do r = 1, ni
                     if (notrans) then
@@ -153,42 +180,58 @@
                     end if
                 end do
             end do
+            ! the rows (right) or columns (left) of B are independent: chunks of
+            ! them go to threads. Vector updates run at about a tenth of the
+            ! GEMM rate that thread_count assumes, hence the weight.
+            nth = thread_count(10*real(SCALAR_WORDS, dp)*merge(n, m, left)*real(ni, dp)*ni)
             if (left) then
                 ! the rows of B transposed into w, so that each step is a
                 ! vector operation along the columns of B
                 if (lwork < SCALAR_WORDS*n*ni) call argument_error('TRSM', 13)
                 call c_f_pointer(c_loc(work), w, [n, ni])
                 w = transpose(b(i0:i0 + ni - 1, 1:n))
-                if (upper .neqv. notrans) then
-                    do c = 1, ni
-                        if (.not. unit) w(:, c) = w(:, c)/t(c, c)
-                        do r = c + 1, ni
-                            w(:, r) = w(:, r) - w(:, c)*t(r, c)
+                !$omp parallel do num_threads(nth) if(nth > 1) schedule(static) private(r0, r1, c, r)
+                do r0 = 1, n, SUBST_CHUNK
+                    r1 = min(n, r0 + SUBST_CHUNK - 1)
+                    if (upper .neqv. notrans) then
+                        do c = 1, ni
+                            if (.not. unit) w(r0:r1, c) = w(r0:r1, c)/t(c, c)
+                            do r = c + 1, ni
+                                w(r0:r1, r) = w(r0:r1, r) - w(r0:r1, c)*t(r, c)
+                            end do
                         end do
-                    end do
-                else
-                    do c = ni, 1, -1
-                        if (.not. unit) w(:, c) = w(:, c)/t(c, c)
-                        do r = 1, c - 1
-                            w(:, r) = w(:, r) - w(:, c)*t(r, c)
+                    else
+                        do c = ni, 1, -1
+                            if (.not. unit) w(r0:r1, c) = w(r0:r1, c)/t(c, c)
+                            do r = 1, c - 1
+                                w(r0:r1, r) = w(r0:r1, r) - w(r0:r1, c)*t(r, c)
+                            end do
                         end do
-                    end do
-                end if
+                    end if
+                end do
+                !$omp end parallel do
                 b(i0:i0 + ni - 1, 1:n) = transpose(w)
-            else if (upper .eqv. notrans) then
-                do c = 1, ni
-                    if (.not. unit) b(1:m, i0 + c - 1) = b(1:m, i0 + c - 1)/t(c, c)
-                    do r = c + 1, ni
-                        b(1:m, i0 + r - 1) = b(1:m, i0 + r - 1) - b(1:m, i0 + c - 1)*t(c, r)
-                    end do
-                end do
             else
-                do c = ni, 1, -1
-                    if (.not. unit) b(1:m, i0 + c - 1) = b(1:m, i0 + c - 1)/t(c, c)
-                    do r = 1, c - 1
-                        b(1:m, i0 + r - 1) = b(1:m, i0 + r - 1) - b(1:m, i0 + c - 1)*t(c, r)
-                    end do
+                !$omp parallel do num_threads(nth) if(nth > 1) schedule(static) private(r0, r1, c, r)
+                do r0 = 1, m, SUBST_CHUNK
+                    r1 = min(m, r0 + SUBST_CHUNK - 1)
+                    if (upper .eqv. notrans) then
+                        do c = 1, ni
+                            if (.not. unit) b(r0:r1, i0 + c - 1) = b(r0:r1, i0 + c - 1)/t(c, c)
+                            do r = c + 1, ni
+                                b(r0:r1, i0 + r - 1) = b(r0:r1, i0 + r - 1) - b(r0:r1, i0 + c - 1)*t(c, r)
+                            end do
+                        end do
+                    else
+                        do c = ni, 1, -1
+                            if (.not. unit) b(r0:r1, i0 + c - 1) = b(r0:r1, i0 + c - 1)/t(c, c)
+                            do r = 1, c - 1
+                                b(r0:r1, i0 + r - 1) = b(r0:r1, i0 + r - 1) - b(r0:r1, i0 + c - 1)*t(c, r)
+                            end do
+                        end do
+                    end if
                 end do
+                !$omp end parallel do
             end if
         end subroutine substitute
 

@@ -782,6 +782,11 @@ target_link_libraries(test_fortnum_blas12 PRIVATE fortnum)
 add_test(NAME fortnum_blas12 COMMAND test_fortnum_blas12)
 fortnum_require_real128(test_fortnum_blas12:fortnum_blas12)
 
+add_executable(test_fortnum_blas3_threaded linalg/test_fortnum_blas3_threaded.f90)
+target_link_libraries(test_fortnum_blas3_threaded PRIVATE fortnum)
+add_test(NAME fortnum_blas3_threaded COMMAND test_fortnum_blas3_threaded)
+set_tests_properties(fortnum_blas3_threaded PROPERTIES ENVIRONMENT OMP_NUM_THREADS=4)
+
 add_executable(test_fortnum_blas3 linalg/test_fortnum_blas3.f90)
 target_link_libraries(test_fortnum_blas3 PRIVATE fortnum)
 add_test(NAME fortnum_blas3 COMMAND test_fortnum_blas3)
