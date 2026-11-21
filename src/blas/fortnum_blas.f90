@@ -86,7 +86,9 @@ module fortnum_blas
     !> Products with at most this many columns read A unpacked.
     ! fortnum_dgemm multiplies directly up to this many multiply-adds: the
     ! blocked kernel's workspace, packing and threads cost more there.
-    real(dp), parameter :: GEMM_SMALL_WORK = 8.0e3_dp
+    real(dp), parameter :: GEMM_SMALL_WORK = 512.0_dp
+    !> fortnum_dgemm keeps workspaces up to this many words on the stack.
+    integer, parameter :: GEMM_STACK_WORDS = 16384
     integer, parameter :: THIN_N = 96
     !> Work per thread below which fewer threads are used (tens of microseconds).
     real(dp), parameter :: THREAD_FLOPS = 2.0e6_dp
@@ -171,8 +173,19 @@ contains
         lwork = 0
         if (m > 0 .and. n > 0 .and. k > 0) &
             lwork = fortnum_dgemm_lwork(m, n, k, thread_count(2.0_dp*m*real(n, dp)*k))
+        if (lwork <= GEMM_STACK_WORDS) then
+            call with_stack()
+            return
+        end if
         allocate (work(lwork))
         call fortnum_dgemm_ws(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc, work, lwork)
+    contains
+        ! small workspaces on the stack, without a heap allocation per call
+        subroutine with_stack()
+            real(dp) :: stack(GEMM_STACK_WORDS)
+            call fortnum_dgemm_ws(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc, &
+                stack, GEMM_STACK_WORDS)
+        end subroutine with_stack
     end subroutine fortnum_dgemm
 
     !> fortnum_dgemm for small products: the loops of reference DGEMM, with
@@ -413,29 +426,21 @@ contains
                 kcc = min(kc_depth, k - pcc + 1)
                 do jrr = 1, npbt
                     call pack_b_real(tb, b, ldb, pcc, kcc, 1 + (jrr - 1)*tile_nr, &
-                        min(tile_nr, n - (jrr - 1)*tile_nr), bt((jrr - 1)*tile_nr*kcc + 1:))
+                        min(tile_nr, n - (jrr - 1)*tile_nr), bt((jrr - 1)*tile_nr*kcc + 1:), alpha)
                 end do
-                if (alpha /= 1) bt(1:tile_nr*kcc*npbt) = alpha*bt(1:tile_nr*kcc*npbt)
-                !$omp parallel do num_threads(nth) if(nth > 1) schedule(static) private(i0, jrr, j0, nrr, jj, acc)
-                do irr = 1, mfull/tile_mr
-                    i0 = 1 + (irr - 1)*tile_mr
-                    do jrr = 1, npbt
-                        j0 = 1 + (jrr - 1)*tile_nr
-                        nrr = min(tile_nr, n - j0 + 1)
-                        if (nrr == tile_nr) then
-                            call tile_sc(int(kcc, c_int64_t), a(i0, pcc), int(lda, c_int64_t), &
-                                bt((jrr - 1)*tile_nr*kcc + 1:), c(i0, j0), int(ldc, c_int64_t))
-                        else
-                            call tile_sa(int(kcc, c_int64_t), a(i0, pcc), int(lda, c_int64_t), &
-                                bt((jrr - 1)*tile_nr*kcc + 1:), acc, int(tile_mr, c_int64_t))
-                            do jj = 1, nrr
-                                c(i0:i0 + tile_mr - 1, j0 + jj - 1) = c(i0:i0 + tile_mr - 1, j0 + jj - 1) + &
-                                    acc((jj - 1)*tile_mr + 1:jj*tile_mr)
-                            end do
-                        end if
+                ! one thread without the parallel region, whose entry alone costs
+                ! as much as a small product
+                if (nth > 1) then
+                    !$omp parallel do num_threads(nth) schedule(static)
+                    do irr = 1, mfull/tile_mr
+                        call thin_rows(irr, pcc, kcc, bt)
                     end do
-                end do
-                !$omp end parallel do
+                    !$omp end parallel do
+                else
+                    do irr = 1, mfull/tile_mr
+                        call thin_rows(irr, pcc, kcc, bt)
+                    end do
+                end if
                 if (mfull < m) then
                     ! the last rows through a packed panel (alpha is already in B)
                     call pack_a_real(.false., a, lda, 1.0_dp, mfull + 1, m - mfull, pcc, kcc, ap1)
@@ -472,27 +477,17 @@ contains
                     call pack_a_real(ta, a, lda, alpha, 1 + (irr - 1)*tile_mr, &
                         min(tile_mr, m - (irr - 1)*tile_mr), pcc, kcc, at((irr - 1)*tile_mr*kcc + 1:))
                 end do
-                !$omp parallel do num_threads(nth) if(nth > 1) schedule(static) private(j0, irr, i0, mrr, ii, jj, acc)
-                do jrr = 1, nfull/tile_nr
-                    j0 = 1 + (jrr - 1)*tile_nr
-                    do irr = 1, npat
-                        i0 = 1 + (irr - 1)*tile_mr
-                        mrr = min(tile_mr, m - i0 + 1)
-                        if (mrr == tile_mr) then
-                            call tile_bc(int(kcc, c_int64_t), at((irr - 1)*tile_mr*kcc + 1:), b(pcc, j0), &
-                                int(ldb, c_int64_t), c(i0, j0), int(ldc, c_int64_t))
-                        else
-                            call tile_ba(int(kcc, c_int64_t), at((irr - 1)*tile_mr*kcc + 1:), b(pcc, j0), &
-                                int(ldb, c_int64_t), acc, int(tile_mr, c_int64_t))
-                            do jj = 1, tile_nr
-                                do ii = 1, mrr
-                                    c(i0 + ii - 1, j0 + jj - 1) = c(i0 + ii - 1, j0 + jj - 1) + acc((jj - 1)*tile_mr + ii)
-                                end do
-                            end do
-                        end if
+                if (nth > 1) then
+                    !$omp parallel do num_threads(nth) schedule(static)
+                    do jrr = 1, nfull/tile_nr
+                        call wide_cols(jrr, pcc, kcc, at)
                     end do
-                end do
-                !$omp end parallel do
+                    !$omp end parallel do
+                else
+                    do jrr = 1, nfull/tile_nr
+                        call wide_cols(jrr, pcc, kcc, at)
+                    end do
+                end if
                 if (nfull < n) then
                     ! the last columns through a packed panel (alpha is already in A)
                     call pack_b_real(.false., b, ldb, pcc, kcc, nfull + 1, n - nfull, bp1)
@@ -508,6 +503,55 @@ contains
                 end if
             end do
         end subroutine wide_gemm
+
+        subroutine thin_rows(irr, pcc, kcc, bt)
+            integer, intent(in) :: irr, pcc, kcc
+            real(dp), intent(in) :: bt(*)
+            real(dp) :: acc(MAX_TILE)
+            integer :: i0, jrr, j0, nrr, jj, npbt
+            npbt = (n + tile_nr - 1)/tile_nr
+            i0 = 1 + (irr - 1)*tile_mr
+            do jrr = 1, npbt
+                j0 = 1 + (jrr - 1)*tile_nr
+                nrr = min(tile_nr, n - j0 + 1)
+                if (nrr == tile_nr) then
+                    call tile_sc(int(kcc, c_int64_t), a(i0, pcc), int(lda, c_int64_t), &
+                        bt((jrr - 1)*tile_nr*kcc + 1), c(i0, j0), int(ldc, c_int64_t))
+                else
+                    call tile_sa(int(kcc, c_int64_t), a(i0, pcc), int(lda, c_int64_t), &
+                        bt((jrr - 1)*tile_nr*kcc + 1), acc, int(tile_mr, c_int64_t))
+                    do jj = 1, nrr
+                        c(i0:i0 + tile_mr - 1, j0 + jj - 1) = c(i0:i0 + tile_mr - 1, j0 + jj - 1) + &
+                            acc((jj - 1)*tile_mr + 1:jj*tile_mr)
+                    end do
+                end if
+            end do
+        end subroutine thin_rows
+
+        subroutine wide_cols(jrr, pcc, kcc, at)
+            integer, intent(in) :: jrr, pcc, kcc
+            real(dp), intent(in) :: at(*)
+            real(dp) :: acc(MAX_TILE)
+            integer :: j0, irr, i0, mrr, ii, jj, npat
+            npat = (m + tile_mr - 1)/tile_mr
+            j0 = 1 + (jrr - 1)*tile_nr
+            do irr = 1, npat
+                i0 = 1 + (irr - 1)*tile_mr
+                mrr = min(tile_mr, m - i0 + 1)
+                if (mrr == tile_mr) then
+                    call tile_bc(int(kcc, c_int64_t), at((irr - 1)*tile_mr*kcc + 1), b(pcc, j0), &
+                        int(ldb, c_int64_t), c(i0, j0), int(ldc, c_int64_t))
+                else
+                    call tile_ba(int(kcc, c_int64_t), at((irr - 1)*tile_mr*kcc + 1), b(pcc, j0), &
+                        int(ldb, c_int64_t), acc, int(tile_mr, c_int64_t))
+                    do jj = 1, tile_nr
+                        do ii = 1, mrr
+                            c(i0 + ii - 1, j0 + jj - 1) = c(i0 + ii - 1, j0 + jj - 1) + acc((jj - 1)*tile_mr + ii)
+                        end do
+                    end do
+                end if
+            end do
+        end subroutine wide_cols
 
         subroutine update_real(ir, jr, jc, nc, kc, apanel, bpanel)
             integer, intent(in) :: ir, jr, jc, nc, kc
@@ -1035,12 +1079,20 @@ contains
 
     ! B panel: columns j0 .. j0+cols-1 of op(B), depth pc .. pc+kc-1, stored
     ! tile_nr per step of depth and zero-padded to the tile width.
-    subroutine pack_b_real(tb, b, ldb, pc, kc, j0, cols, bp)
+    subroutine pack_b_real(tb, b, ldb, pc, kc, j0, cols, bp, alpha)
         logical, intent(in) :: tb
         integer, intent(in) :: ldb, pc, kc, j0, cols
         real(dp), intent(in) :: b(ldb, *)
         real(dp), intent(out) :: bp(tile_nr, kc)
+        !> scales the panel while packing it
+        real(dp), intent(in), optional :: alpha
         integer :: j, p
+        if (present(alpha)) then
+            if (alpha /= 1) then
+                call pack_b_scaled(alpha)
+                return
+            end if
+        end if
         if (cols < tile_nr) bp(cols + 1:, :) = 0
         if (.not. tb) then
             ! a transpose in 2 x 2 blocks, which compilers turn into paired
@@ -1064,6 +1116,23 @@ contains
                 bp(1:cols, p) = b(j0:j0 + cols - 1, pc + p - 1)
             end do
         end if
+    contains
+        subroutine pack_b_scaled(f)
+            real(dp), intent(in) :: f
+            integer :: jj, pp
+            if (cols < tile_nr) bp(cols + 1:, :) = 0
+            if (.not. tb) then
+                do jj = 1, cols
+                    do pp = 1, kc
+                        bp(jj, pp) = f*b(pc + pp - 1, j0 + jj - 1)
+                    end do
+                end do
+            else
+                do pp = 1, kc
+                    bp(1:cols, pp) = f*b(j0:j0 + cols - 1, pc + pp - 1)
+                end do
+            end if
+        end subroutine pack_b_scaled
     end subroutine pack_b_real
 
     ! Complex A panel of height half = tile_mr/2: real parts in rows 1..half,
