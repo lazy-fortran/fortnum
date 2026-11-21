@@ -1,2 +1,2 @@
 /* Where the linker cannot wrap malloc, allocations are not counted. */
-int fortnum_test_allocations(void) { return -1; }
+__attribute__((weak)) int fortnum_test_allocations(void) { return -1; }

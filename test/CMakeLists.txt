@@ -763,6 +763,10 @@ target_link_libraries(test_fortnum_lapack_refine PRIVATE fortnum)
 add_test(NAME fortnum_lapack_refine COMMAND test_fortnum_lapack_refine)
 fortnum_require_real128(test_fortnum_lapack_refine:fortnum_lapack_refine)
 
+add_executable(test_fortnum_lapack_band_chol linalg/test_fortnum_lapack_band_chol.f90)
+target_link_libraries(test_fortnum_lapack_band_chol PRIVATE fortnum)
+add_test(NAME fortnum_lapack_band_chol COMMAND test_fortnum_lapack_band_chol)
+
 add_executable(test_fortnum_lapack_chol linalg/test_fortnum_lapack_chol.f90)
 target_link_libraries(test_fortnum_lapack_chol PRIVATE fortnum)
 add_test(NAME fortnum_lapack_chol COMMAND test_fortnum_lapack_chol)
@@ -785,18 +789,18 @@ fortnum_require_real128(test_fortnum_blas3:fortnum_blas3)
 
 # the allocator is counted where GNU ld or lld can wrap malloc
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
-    add_executable(test_fortnum_blas_workspace linalg/test_fortnum_blas_workspace.f90
+    add_executable(test_fortnum_blas_workspace_slow linalg/test_fortnum_blas_workspace_slow.f90
         linalg/count_allocations.c)
-    target_link_options(test_fortnum_blas_workspace PRIVATE
+    target_link_options(test_fortnum_blas_workspace_slow PRIVATE
         "LINKER:--wrap=malloc" "LINKER:--wrap=calloc" "LINKER:--wrap=realloc")
 else()
-    add_executable(test_fortnum_blas_workspace linalg/test_fortnum_blas_workspace.f90
+    add_executable(test_fortnum_blas_workspace_slow linalg/test_fortnum_blas_workspace_slow.f90
         linalg/count_allocations_none.c)
 endif()
-target_link_libraries(test_fortnum_blas_workspace PRIVATE fortnum)
-add_test(NAME fortnum_blas_workspace COMMAND test_fortnum_blas_workspace)
-set_tests_properties(fortnum_blas_workspace PROPERTIES ENVIRONMENT OMP_NUM_THREADS=4)
-fortnum_require_real128(test_fortnum_blas_workspace:fortnum_blas_workspace)
+target_link_libraries(test_fortnum_blas_workspace_slow PRIVATE fortnum)
+add_test(NAME fortnum_blas_workspace_slow COMMAND test_fortnum_blas_workspace_slow)
+set_tests_properties(fortnum_blas_workspace_slow PROPERTIES ENVIRONMENT OMP_NUM_THREADS=4)
+fortnum_require_real128(test_fortnum_blas_workspace_slow:fortnum_blas_workspace_slow)
 
 add_executable(test_fortnum_blas linalg/test_fortnum_blas.f90)
 target_link_libraries(test_fortnum_blas PRIVATE fortnum)

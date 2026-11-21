@@ -574,7 +574,9 @@ and complex, with reference LAPACK arguments and info codes:
 `posv`, `potri`, `trtri`, `trtrs` for real and complex, the condition estimate
 `fortnum_dpocon`, the pivoted Cholesky `fortnum_dpstrf`, and the 1-norm
 estimators `norm1_inverse_estimate` and `znorm1_inverse_estimate` (reverse
-communication, as LAPACK xLACN2). `fortnum_lapack_ldlt` provides the
+communication, as LAPACK xLACN2). `fortnum_lapack_band_chol` provides the band
+Cholesky `fortnum_dpbtrf`, `fortnum_dpbtrs` and `fortnum_dpbsv` in LAPACK band
+storage. `fortnum_lapack_ldlt` provides the
 Bunch-Kaufman factorization `fortnum_dsytf2`, the panel `fortnum_dlasyf`,
 `fortnum_dsytrf` and `fortnum_dsytrs` with the pivot encoding of LAPACK;
 `fortnum_lapack_refine` the norms `dlange`/`zlange`, the condition estimates

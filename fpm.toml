@@ -30,6 +30,7 @@ source-form = "free"
 test_oracle_selftest = ["test/oracle/data/gamma.csv"]
 test_fortnum_special_bessel_oracle = ["test/oracle/data/bessel.csv"]
 test_fortnum_special_dawson_oracle = ["test/oracle/data/dawson.csv"]
+test_fortnum_special_dnestrovskii = ["test/oracle/data/dnestrovskii.dat"]
 test_fortnum_special_complex_bessel_oracle = ["test/oracle/data/complex_bessel.csv"]
 test_fortnum_complex_bessel_halfplane = ["test/oracle/data/complex_bessel_halfplane.csv"]
 test_fortnum_special_erf_cbind_oracle = [

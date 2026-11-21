@@ -28,6 +28,7 @@ target_sources(fortnum PRIVATE
     blas/fortnum_blas3.F90
     lapack/fortnum_lapack_lu.F90
     lapack/fortnum_lapack_chol.F90
+    lapack/fortnum_lapack_band_chol.f90
     lapack/fortnum_lapack_ldlt.f90
     lapack/fortnum_lapack_refine.f90
     lapack/fortnum_lapack_qr.F90

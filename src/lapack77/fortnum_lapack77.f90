@@ -384,6 +384,37 @@ subroutine zgetrs(trans, n, nrhs, a, lda, ipiv, b, ldb, info)
     call fortnum_zgetrs(trans, n, nrhs, a, lda, ipiv, b, ldb, info)
 end subroutine zgetrs
 
+subroutine dpbsv(uplo, n, kd, nrhs, ab, ldab, b, ldb, info)
+    use fortnum_kinds, only: dp
+    use fortnum_lapack_band_chol, only: fortnum_dpbsv
+    character, intent(in) :: uplo
+    integer, intent(in) :: n, kd, nrhs, ldab, ldb
+    real(dp), intent(inout) :: ab(ldab, *), b(ldb, *)
+    integer, intent(out) :: info
+    call fortnum_dpbsv(uplo, n, kd, nrhs, ab, ldab, b, ldb, info)
+end subroutine dpbsv
+
+subroutine dpbtrf(uplo, n, kd, ab, ldab, info)
+    use fortnum_kinds, only: dp
+    use fortnum_lapack_band_chol, only: fortnum_dpbtrf
+    character, intent(in) :: uplo
+    integer, intent(in) :: n, kd, ldab
+    real(dp), intent(inout) :: ab(ldab, *)
+    integer, intent(out) :: info
+    call fortnum_dpbtrf(uplo, n, kd, ab, ldab, info)
+end subroutine dpbtrf
+
+subroutine dpbtrs(uplo, n, kd, nrhs, ab, ldab, b, ldb, info)
+    use fortnum_kinds, only: dp
+    use fortnum_lapack_band_chol, only: fortnum_dpbtrs
+    character, intent(in) :: uplo
+    integer, intent(in) :: n, kd, nrhs, ldab, ldb
+    real(dp), intent(in) :: ab(ldab, *)
+    real(dp), intent(inout) :: b(ldb, *)
+    integer, intent(out) :: info
+    call fortnum_dpbtrs(uplo, n, kd, nrhs, ab, ldab, b, ldb, info)
+end subroutine dpbtrs
+
 subroutine dgbsv(n, kl, ku, nrhs, ab, ldab, ipiv, b, ldb, info)
     use fortnum_kinds, only: dp
     use fortnum_lapack_lu, only: fortnum_dgbsv

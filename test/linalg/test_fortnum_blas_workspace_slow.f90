@@ -1,4 +1,4 @@
-program test_fortnum_blas_workspace
+program test_fortnum_blas_workspace_slow
     ! GEMM and TRSM with caller-provided workspace: results against quad
     ! precision with exactly the queried workspace and with the workspace of
     ! one thread, workspace sizes nondecreasing in every dimension, and no
@@ -321,4 +321,4 @@ contains
         end do
     end subroutine check_monotone
 
-end program test_fortnum_blas_workspace
+end program test_fortnum_blas_workspace_slow
