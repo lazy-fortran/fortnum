@@ -570,6 +570,28 @@ subroutine dsyev(jobz, uplo, n, a, lda, w, work, lwork, info)
     call fortnum_dsyev(jobz, uplo, n, a, lda, w, work, lwork, info)
 end subroutine dsyev
 
+subroutine dsyevd(jobz, uplo, n, a, lda, w, work, lwork, iwork, liwork, info)
+    use fortnum_kinds, only: dp
+    use fortnum_lapack_syev, only: fortnum_dsyevd
+    character, intent(in) :: jobz, uplo
+    integer, intent(in) :: n, lda, lwork, liwork
+    real(dp), intent(inout) :: a(lda, *)
+    real(dp), intent(out) :: w(*), work(*)
+    integer, intent(out) :: iwork(*), info
+    call fortnum_dsyevd(jobz, uplo, n, a, lda, w, work, lwork, iwork, liwork, info)
+end subroutine dsyevd
+
+subroutine dstedc(compz, n, d, e, z, ldz, work, lwork, iwork, liwork, info)
+    use fortnum_kinds, only: dp
+    use fortnum_lapack_syev, only: fortnum_dstedc
+    character, intent(in) :: compz
+    integer, intent(in) :: n, ldz, lwork, liwork
+    real(dp), intent(inout) :: d(*), e(*), z(ldz, *)
+    real(dp), intent(out) :: work(*)
+    integer, intent(out) :: iwork(*), info
+    call fortnum_dstedc(compz, n, d, e, z, ldz, work, lwork, iwork, liwork, info)
+end subroutine dstedc
+
 subroutine dsbevd(jobz, uplo, n, kd, ab, ldab, w, z, ldz, work, lwork, iwork, liwork, info)
     use fortnum_kinds, only: dp
     use fortnum_lapack_syev, only: fortnum_dsbevd

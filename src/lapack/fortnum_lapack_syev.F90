@@ -2,10 +2,11 @@ module fortnum_lapack_syev
     ! Symmetric and Hermitian eigenproblems on fortnum's BLAS, with reference
     ! LAPACK arguments and info codes (prefix fortnum_): the reductions
     ! DSYTRD/ZHETRD, DORGTR/ZUNGTR, DSYGST/ZHEGST, the tridiagonal solvers
-    ! DSTEQR/ZSTEQR, DSTERF, DSTEV, and the drivers DSYEV, ZHEEV, DSYEVD,
+    ! DSTEQR/ZSTEQR, DSTERF, DSTEDC, DSTEV, and the drivers DSYEV, ZHEEV, DSYEVD,
     ! DSYGV, ZHEGV, DSBEVD, DSBEVX. The band drivers expand the band and use
     ! the dense path; a band reduction is planned (issue 167).
     use fortnum_kinds, only: dp
+    use fortnum_blas, only: fortnum_dgemm
     use fortnum_blas3, only: fortnum_dtrsm, fortnum_ztrsm, fortnum_dtrmm, fortnum_ztrmm
     use fortnum_lapack_chol, only: fortnum_dpotrf, fortnum_zpotrf
     use fortnum_lapack_qr, only: fortnum_dlarfg, fortnum_zlarfg, fortnum_dorgqr, fortnum_zungqr
@@ -13,8 +14,13 @@ module fortnum_lapack_syev
     private
 
     public :: fortnum_dsytrd, fortnum_dorgtr, fortnum_dsygst, fortnum_dsteqr, fortnum_dsterf
+    public :: fortnum_dstedc
     public :: fortnum_dsyev, fortnum_dsyevd, fortnum_dsygv, fortnum_dstev, fortnum_dsbevd, fortnum_dsbevx
     public :: fortnum_zhetrd, fortnum_zungtr, fortnum_zhegst, fortnum_zsteqr, fortnum_zheev, fortnum_zhegv
+
+    ! Largest tridiagonal block solved by QL iteration inside divide and
+    ! conquer (LAPACK's SMLSIZ).
+    integer, parameter :: STEDC_LEAF = 25
 
 contains
 
@@ -31,6 +37,7 @@ contains
 #define ORGTR fortnum_dorgtr
 #define ORGQR fortnum_dorgqr
 #define STEQR dsteqr_ql
+#define STEQR_V(n, d, e, z, ldz, info) dsteqr_dc(n, d, e, z, ldz, info)
 #define SYEV_CORE dsyev_core
 #define SYGST fortnum_dsygst
 #define SYGV_CORE dsygv_core
@@ -48,6 +55,7 @@ contains
 #undef ORGTR
 #undef ORGQR
 #undef STEQR
+#undef STEQR_V
 #undef SYEV_CORE
 #undef SYGST
 #undef SYGV_CORE
@@ -64,6 +72,7 @@ contains
 #define ORGTR fortnum_zungtr
 #define ORGQR fortnum_zungqr
 #define STEQR zsteqr_ql
+#define STEQR_V(n, d, e, z, ldz, info) zsteqr_ql(.true., n, d, e, z, ldz, info)
 #define SYEV_CORE zheev_core
 #define SYGST fortnum_zhegst
 #define SYGV_CORE zhegv_core
@@ -196,8 +205,8 @@ contains
         call dsyev_core(jobz, uplo, n, a, lda, w, info)
     end subroutine fortnum_dsyev
 
-    !> DSYEVD: the results of DSYEV with LAPACK's divide-and-conquer
-    !> workspace contract.
+    !> DSYEVD: DSYEV's results with LAPACK's divide-and-conquer workspace
+    !> contract; both drivers use divide and conquer for the vectors.
     subroutine fortnum_dsyevd(jobz, uplo, n, a, lda, w, work, lwork, iwork, liwork, info)
         character, intent(in) :: jobz, uplo
         integer, intent(in) :: n, lda, lwork, liwork
@@ -548,4 +557,23 @@ contains
         end if
     end subroutine sym2x2
 
+    !> z := z times the eigenvectors of the tridiagonal matrix (d, e), d
+    !> its ascending eigenvalues: divide and conquer above STEDC_LEAF rows.
+    subroutine dsteqr_dc(n, d, e, z, ldz, info)
+        integer, intent(in) :: n, ldz
+        real(dp), intent(inout) :: d(*), e(*), z(ldz, *)
+        integer, intent(out) :: info
+        real(dp), allocatable :: v(:, :), zt(:, :)
+        if (n <= STEDC_LEAF) then
+            call dsteqr_ql(.true., n, d, e, z, ldz, info)
+            return
+        end if
+        allocate (v(n, n))
+        call stedc_vectors(n, d, e, v, n, info)
+        if (info /= 0) return
+        zt = z(1:n, 1:n)
+        call fortnum_dgemm('N', 'N', n, n, n, 1.0_dp, zt, n, v, n, 0.0_dp, z, ldz)
+    end subroutine dsteqr_dc
+
+#include "fortnum_lapack_stedc.inc"
 end module fortnum_lapack_syev

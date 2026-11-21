@@ -448,7 +448,7 @@
         call SYTRD(uplo, n, a, lda, w, e, tau, work, 1, iinfo)
         if (wantz) then
             call ORGTR(uplo, n, a, lda, tau, work, max(1, n - 1), iinfo)
-            call STEQR(.true., n, w, e, a, lda, info)
+            call STEQR_V(n, w, e, a, lda, info)
         else
             call STEQR(.false., n, w, e, q, 1, info)
         end if

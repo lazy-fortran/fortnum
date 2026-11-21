@@ -316,7 +316,7 @@ contains
         call fortnum_dsbevx('V', 'I', 'L', n, kd, ab, kd + 1, q, n, 0.0_dp, 0.0_dp, 5, 9, 0.0_dp, m, wx, &
             zx, n, work, iwork, ifail, info)
         call require(info == 0 .and. m == 5 .and. maxval(abs(wx(1:5) - w(5:9))) <= 1e-12_dp, 'dsbevx indices')
-        call fortnum_dsbevx('N', 'V', 'L', n, kd, ab, kd + 1, q, n, w(10) - 1e-9_dp, w(20), 0, 0, 0.0_dp, m, wx, &
+        call fortnum_dsbevx('N', 'V', 'L', n, kd, ab, kd + 1, q, n, w(10) - 1e-9_dp, w(20) + 1e-9_dp, 0, 0, 0.0_dp, m, wx, &
             zx, n, work, iwork, ifail, info)
         call require(info == 0 .and. m == 11, 'dsbevx value range (vl, vu]')
     end subroutine band

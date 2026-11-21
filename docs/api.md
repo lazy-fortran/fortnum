@@ -587,8 +587,10 @@ equilibration `dgeequ`/`dlaqge` and the expert driver `dgesvx`.
 pivoted `fortnum_dgeqp3` and the least squares driver `fortnum_dgels`.
 `fortnum_lapack_syev` provides the symmetric and Hermitian eigensolvers:
 `dsytrd`/`zhetrd`, `dorgtr`/`zungtr`, `dsygst`/`zhegst`, the tridiagonal
-`dsteqr`/`zsteqr`, `dsterf`, `dstev`, and the drivers `dsyev`, `zheev`,
-`dsyevd`, `dsygv`, `zhegv`, `dsbevd`, `dsbevx`. `fortnum_lapack_geev`
+`dsteqr`/`zsteqr`, `dsterf`, the divide-and-conquer `dstedc`, `dstev`, and
+the drivers `dsyev`, `zheev`, `dsyevd`, `dsygv`, `zhegv`, `dsbevd`, `dsbevx`.
+`dsyev` and `dsyevd` compute eigenvectors by divide and conquer above 25 rows.
+`fortnum_lapack_geev`
 provides the nonsymmetric eigensolvers: balancing `gebal`/`gebak`, the
 Hessenberg reduction `gehrd` with `dorghr`/`zunghr`, the Hessenberg QR
 algorithm `hseqr` (Francis double shifts for real matrices, single shifts for
