@@ -8,7 +8,7 @@ module fortnum_lapack_ldlt
     ! interchanging k+1 (k-1) and p. Interchanges touch only the part not yet
     ! factored, so the stored L is that of LAPACK's xSYTF2.
     use fortnum_kinds, only: dp
-    use fortnum_blas, only: fortnum_dgemm
+    use fortnum_blas, only: fortnum_dgemm, fortnum_dgemm_triangle
     use fortnum_blas12, only: fortnum_dgemv
     implicit none
     private
@@ -161,18 +161,11 @@ contains
             end if
             k = k + kstep
         end do
-        ! A22 := A22 - L21 W21^T, the diagonal blocks column by column
-        if (k > 1) then
-            do j = k, n, nb
-                jb = min(nb, n - j + 1)
-                do jj = j, j + jb - 1
-                    call fortnum_dgemv('N', j + jb - jj, k - 1, -1.0_dp, a(jj, 1), lda, w(jj, 1), ldw, &
-                        1.0_dp, a(jj, jj), 1)
-                end do
-                if (j + jb <= n) call fortnum_dgemm('N', 'T', n - j - jb + 1, jb, k - 1, -1.0_dp, a(j + jb, 1), lda, &
-                    w(j, 1), ldw, 1.0_dp, a(j + jb, j), lda)
-            end do
-        end if
+        ! A22 := A22 - L21 W21^T on the lower triangle, as one triangle-masked
+        ! GEMM (wide and threaded) instead of nb-column blocks with GEMVs on
+        ! their diagonal blocks
+        if (k > 1 .and. k <= n) call fortnum_dgemm_triangle('L', 'N', 'T', n - k + 1, k - 1, -1.0_dp, &
+            a(k, 1), lda, w(k, 1), ldw, 1.0_dp, a(k, k), lda)
         ! standard form: undo the interchanges in the columns before each pivot
         j = k - 1
         do while (j >= 1)
@@ -274,18 +267,11 @@ contains
             end if
             k = k - kstep
         end do
-        ! A11 := A11 - U12 W12^T, the diagonal blocks column by column
-        if (k < n) then
+        ! A11 := A11 - U12 W12^T on the upper triangle, as one triangle-masked GEMM
+        if (k < n .and. k >= 1) then
             kw = nb + k - n
-            do j = ((k - 1)/nb)*nb + 1, 1, -nb
-                jb = min(nb, k - j + 1)
-                do jj = j, j + jb - 1
-                    call fortnum_dgemv('N', jj - j + 1, n - k, -1.0_dp, a(j, k + 1), lda, w(jj, kw + 1), ldw, &
-                        1.0_dp, a(j, jj), 1)
-                end do
-                if (j > 1) call fortnum_dgemm('N', 'T', j - 1, jb, n - k, -1.0_dp, a(1, k + 1), lda, &
-                    w(j, kw + 1), ldw, 1.0_dp, a(1, j), lda)
-            end do
+            call fortnum_dgemm_triangle('U', 'N', 'T', k, n - k, -1.0_dp, a(1, k + 1), lda, &
+                w(1, kw + 1), ldw, 1.0_dp, a, lda)
         end if
         ! standard form: undo the interchanges in the columns after each pivot
         j = k + 1
