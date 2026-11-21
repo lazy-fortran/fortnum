@@ -305,25 +305,33 @@ contains
         integer, intent(in) :: n
         real(dp), intent(in) :: s(*)
         real(dp), intent(inout) :: ur(n, n)
-        real(dp) :: x(n), nx
+        real(dp) :: x(n), w(n), nx
+        logical :: basis(n)
         integer :: j, k, i, pass
-        k = 0
+        ! w(k): squared norm of e_k after projecting out the basis so far. It
+        ! sums to the number of missing columns, so its largest entry is at
+        ! least 1/n: the unit vector with the largest w is always usable (a
+        ! fixed threshold on e_1, e_2, ... in turn can run out of candidates
+        ! when the rank is high)
+        basis = s(1:n) > 0
+        w = 1
+        do i = 1, n
+            if (basis(i)) w = w - ur(:, i)**2
+        end do
         do j = 1, n
-            if (s(j) > 0) cycle
-            do
-                k = k + 1
-                x = 0
-                x(k) = 1
-                do pass = 1, 2
-                    do i = 1, n
-                        if (i == j) cycle
-                        if (s(i) > 0 .or. i < j) x = x - dot_product(ur(:, i), x)*ur(:, i)
-                    end do
+            if (basis(j)) cycle
+            k = maxloc(w, 1)
+            x = 0
+            x(k) = 1
+            do pass = 1, 2
+                do i = 1, n
+                    if (basis(i)) x = x - dot_product(ur(:, i), x)*ur(:, i)
                 end do
-                nx = norm2(x)
-                if (nx > 0.5_dp) exit
             end do
+            nx = norm2(x)
             ur(:, j) = x/nx
+            basis(j) = .true.
+            w = w - ur(:, j)**2
         end do
     end subroutine complete_basis
 
@@ -529,25 +537,33 @@ contains
         real(dp), intent(in) :: s(*)
         complex(dp), intent(inout) :: ur(n, n)
         complex(dp) :: x(n)
-        real(dp) :: nx
+        real(dp) :: w(n), nx
+        logical :: basis(n)
         integer :: j, k, i, pass
-        k = 0
+        ! w(k): squared norm of e_k after projecting out the basis so far. It
+        ! sums to the number of missing columns, so its largest entry is at
+        ! least 1/n: the unit vector with the largest w is always usable (a
+        ! fixed threshold on e_1, e_2, ... in turn can run out of candidates
+        ! when the rank is high)
+        basis = s(1:n) > 0
+        w = 1
+        do i = 1, n
+            if (basis(i)) w = w - abs(ur(:, i))**2
+        end do
         do j = 1, n
-            if (s(j) > 0) cycle
-            do
-                k = k + 1
-                x = 0
-                x(k) = 1
-                do pass = 1, 2
-                    do i = 1, n
-                        if (i == j) cycle
-                        if (s(i) > 0 .or. i < j) x = x - dot_product(ur(:, i), x)*ur(:, i)
-                    end do
+            if (basis(j)) cycle
+            k = maxloc(w, 1)
+            x = 0
+            x(k) = 1
+            do pass = 1, 2
+                do i = 1, n
+                    if (basis(i)) x = x - dot_product(ur(:, i), x)*ur(:, i)
                 end do
-                nx = sqrt(real(dot_product(x, x)))
-                if (nx > 0.5_dp) exit
             end do
+            nx = sqrt(real(dot_product(x, x)))
             ur(:, j) = x/nx
+            basis(j) = .true.
+            w = w - abs(ur(:, j))**2
         end do
     end subroutine zcomplete_basis
 

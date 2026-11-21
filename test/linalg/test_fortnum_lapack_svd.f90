@@ -27,6 +27,8 @@ program test_fortnum_lapack_svd
     call least_squares_wide(12, 50)
     call least_squares_rank_deficient(40, 25, 6)
     call least_squares_rank_deficient(25, 40, 6)
+    ! few null-space columns, each poorly aligned with every unit vector
+    call least_squares_ring_sources(584, 96)
     call argument_errors()
     print '(a)', 'SVD and least squares match quad precision'
 
@@ -318,6 +320,35 @@ contains
         call require(info == 0 .and. rank == r, 'dgelsd numerical rank')
         call require(maxval(abs(bd(1:n, :) - x)) <= 1.0e6_dp*eps*maxval(abs(x)), 'dgelsd pseudo-inverse solution')
     end subroutine least_squares_rank_deficient
+
+    ! log|x - y| from 96 sources on the unit circle to m points of a disc of
+    ! radius 0.55, the sources in ring order like MILCA's coil-flux fit:
+    ! every run of neighbouring columns is numerically dependent, so QR
+    ! leaves the null space of R^T spread over all unit vectors (about 11
+    ! zero singular values at rank 82). The truncated solution has
+    ! A^T (A x - b) only from the dropped values, below rcond s(1) |b|.
+    subroutine least_squares_ring_sources(m, n)
+        integer, intent(in) :: m, n
+        real(dp), parameter :: pi = acos(-1.0_dp), rcond = 1.0e-13_dp
+        real(dp) :: a(m, n), aw(m, n), b(m, 1), b0(m), s(n), work(20*(m + n)), rho, phi
+        real(qp) :: g(n)
+        integer :: i, j, rank, info
+        do i = 1, m
+            rho = 0.55_dp*sqrt((i - 0.5_dp)/m)
+            phi = 2.399963_dp*i
+            do j = 1, n
+                a(i, j) = log(hypot(rho*cos(phi) - cos(2*pi*(j - 1)/n), rho*sin(phi) - sin(2*pi*(j - 1)/n)))
+            end do
+            b0(i) = rho*cos(phi) + rho**2*sin(2*phi)
+        end do
+        aw = a
+        b(:, 1) = b0
+        call fortnum_dgelss(m, n, 1, aw, m, b, m, s, rcond, rank, work, size(work), info)
+        call require(info == 0 .and. rank < n .and. count(s == 0) > 0, 'dgelss ring sources: rank deficient')
+        call require(orth_error(transpose(aw(1:n, 1:n))) <= 20*m*eps, 'dgelss ring sources: V orthogonal')
+        g = matmul(transpose(real(a, qp)), matmul(real(a, qp), real(b(1:n, 1), qp)) - real(b0, qp))
+        call require(sqrt(sum(g**2)) <= 10*rcond*s(1)*norm2(b0), 'dgelss ring sources: normal equations')
+    end subroutine least_squares_ring_sources
 
     ! Gaussian elimination with partial pivoting in quad precision
     function solve_qp(a, b) result(x)
