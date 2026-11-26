@@ -1,295 +1,134 @@
+# Tests run in the merge queue and at night, not on every push to a pull
+# request. The merge queue builds one pull request per commit on top of the
+# ones before it, so HEAD^ is the state it lands on and `fo test --since HEAD^`
+# runs the cases it affects. The nightly run tests everything, slow cases
+# included, and is skipped when main has not moved since the last green
+# nightly run of less than a week ago. Everything runs in the gcc:16 image
+# (GNU Fortran 16 on Debian), with the Debian packages that
+# .github/ci/apt-packages lists, one per line.
 name: ci
-
 on:
-  merge_group:
-    types: [checks_requested]
-  push:
-    branches:
-      - main
   pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - labeled
+  merge_group:
+  schedule:
+    - cron: '17 1 * * *'
   workflow_dispatch:
-
 permissions:
   contents: read
-
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || format('{0}-{1}', github.ref, github.run_id) }}
+  group: ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
-  generated:
-    name: generated sources are current
-    runs-on: ${{ github.event.pull_request.head.repo.fork && fromJSON('["self-hosted","itp-ubuntu24"]') || fromJSON('["self-hosted","itp-build"]') }}
+  check:
+    # Required by the main ruleset; skipped (and so passing) on pull requests.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    container: gcc:16
+    timeout-minutes: 360
+    permissions:
+      contents: read
+      actions: read
+    env:
+      FPM_VERSION: 0.13.0
+      GIT_TERMINAL_PROMPT: 0
+      MPLBACKEND: Agg
+      DEBIAN_FRONTEND: noninteractive
+    defaults:
+      run:
+        shell: bash
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Run native checks in the build container
-        if: ${{ !github.event.pull_request.head.repo.fork }}
-        env:
-          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
-          SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
-        run: |-
-          ci/run.sh ci-generated
-      - name: Install system dependencies
+      - name: Base packages
         run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            cmake \
-            g++ \
-            gfortran \
-            libflint-dev \
-            libgmp-dev \
-            libmpfr-dev \
-            ninja-build
-
-        if: ${{ github.event.pull_request.head.repo.fork }}
-      - name: Install pinned SymEngine
-        run: scripts/ci/install_symengine.sh
-
-        if: ${{ github.event.pull_request.head.repo.fork }}
-      - name: Install fpm and fo
-        run: |
-          set -euo pipefail
-          sudo curl -L -o /usr/local/bin/fpm \
-            https://github.com/fortran-lang/fpm/releases/download/v0.13.0/fpm-0.13.0-linux-x86_64-gcc-12
-          sudo chmod +x /usr/local/bin/fpm
-          git clone --depth 1 https://github.com/lazy-fortran/fo.git /tmp/fo
-          (
-            cd /tmp/fo
-            fpm install --profile release --prefix "$HOME/.local"
-          )
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
-        if: ${{ github.event.pull_request.head.repo.fork }}
-      - name: Checkout locked fortsym revision
-        run: |
-          set -euo pipefail
-          git clone https://github.com/lazy-fortran/fortsym.git \
-            ../fortsym
-          tools/codegen/checkout_fortsym.sh ../fortsym
-
-        if: ${{ github.event.pull_request.head.repo.fork }}
-      - name: Register and run CTest drift check
-        run: |
-          set -euo pipefail
-          export PATH="$HOME/.local/bin:$PATH"
-          # A drift failure should arrive with evidence. The generators log
-          # which stages each kernel takes and why, which is what distinguishes
-          # a real change from an environment-dependent classification.
-          export FORTNUM_CODEGEN_VERBOSE=1
-          cmake -S . -B build-generated -G Ninja \
-            -DFORTNUM_BUILD_TESTING=OFF \
-            -DFORTNUM_BUILD_EXAMPLES=OFF \
-            -DFORTNUM_CHECK_GENERATED=ON
-          ctest --test-dir build-generated --output-on-failure \
-            -R generated_sources_current
-
-  # Primal (non-derivative) build and test with gfortran. Required.
-        if: ${{ github.event.pull_request.head.repo.fork }}
-    if: >-
-      github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci'))
-  gfortran:
-    name: gfortran ubuntu-latest
-    runs-on: ${{ github.event.pull_request.head.repo.fork && fromJSON('["self-hosted","itp-ubuntu24"]') || (github.event_name == 'schedule' || contains(github.event.pull_request.labels.*.name, 'full-ci')) && fromJSON('["self-hosted","itp-slurm"]') || fromJSON('["self-hosted","itp-build"]') }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Run native checks in the build container
-        if: ${{ !github.event.pull_request.head.repo.fork && !(github.event_name == 'schedule' || contains(github.event.pull_request.labels.*.name, 'full-ci')) }}
-        run: |-
-          ci/run.sh ci-gfortran
-        env:
-          SCI_MATRIX_OS: ubuntu-latest
-      - name: Bundle exact sources for Slurm
-        if: ${{ !github.event.pull_request.head.repo.fork && (github.event_name == 'schedule' || contains(github.event.pull_request.labels.*.name, 'full-ci')) }}
-        env:
-          SCI_TIER: ci-gfortran
-          SCI_MATRIX_OS: ubuntu-latest
-        run: |-
-          TMPDIR="$RUNNER_TEMP" ci/bundle.sh "$RUNNER_TEMP/ci.tar.zst"
-      - name: Run native checks on sCluster
-        if: ${{ !github.event.pull_request.head.repo.fork && (github.event_name == 'schedule' || contains(github.event.pull_request.labels.*.name, 'full-ci')) }}
-        run: |-
-          sci-dispatch native "$RUNNER_TEMP/ci.tar.zst"
-      - name: Install system dependencies
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            cmake \
-            gfortran \
-            ninja-build
-
-        if: ${{ github.event.pull_request.head.repo.fork }}
-      - name: Configure
-        run: |
-          cmake -S . -B build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DFORTNUM_BUILD_TESTING=ON
-
-        if: ${{ github.event.pull_request.head.repo.fork }}
-      - name: Build
-        run: cmake --build build -j "${SCI_CPUS:-8}"
-
-        if: ${{ github.event.pull_request.head.repo.fork }}
-      - name: Test
-        run: ctest --test-dir build --output-on-failure
-
-  # Reference "oracle" table generation against an independent implementation
-  # (NumPy/SciPy). Non-required: stays green until the generator from #4 lands,
-  # then runs it once to refresh the checked-in reference tables.
-        if: ${{ github.event.pull_request.head.repo.fork }}
-    if: >-
-      github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci'))
-  oracle:
-    name: oracle reference tables
-    runs-on: ${{ github.event.pull_request.head.repo.fork && fromJSON('["self-hosted","itp-ubuntu24"]') || fromJSON('["self-hosted","itp-build"]') }}
-    continue-on-error: true
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Run native checks in the build container
-        if: ${{ !github.event.pull_request.head.repo.fork }}
-        env:
-          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
-          SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
-        run: |-
-          ci/run.sh ci-oracle
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-        if: ${{ github.event.pull_request.head.repo.fork }}
-      - name: Install Python dependencies
-        run: |
-          set -euo pipefail
-          python -m pip install --upgrade pip
-          python -m pip install numpy scipy
-
-        if: ${{ github.event.pull_request.head.repo.fork }}
-      - name: Generate oracle tables
-        run: |
-          set -euo pipefail
-          # The generator is introduced by #4. Until then, skip cleanly so this
-          # job is informational only. Search the conventional locations.
-          gen=""
-          for cand in \
-            tools/oracle/generate.py \
-            tools/generate_oracle.py \
-            test/oracle/generate.py \
-            scripts/generate_oracle.py; do
-            if [ -f "$cand" ]; then
-              gen="$cand"
-              break
-            fi
+          apt-get update -qq
+          apt-get install -y -qq --no-install-recommends cmake ninja-build curl ca-certificates ccache jq python3 > /dev/null
+          # The image installs GCC under /usr/local; tests that run with a
+          # minimal PATH expect a distribution's /usr/bin.
+          for t in gcc g++ gfortran cpp gcc-ar gcc-nm gcc-ranlib gcov; do
+            ln -sf "/usr/local/bin/$t" "/usr/bin/$t"
           done
-          if [ -z "$gen" ]; then
-            echo "No oracle generator found yet (issue #4); skipping."
-            exit 0
-          fi
-          echo "Running oracle generator: $gen"
-          python "$gen"
-
-  # Benchmark regression gate. Builds the standalone benchmark, runs it in
-  # JSON mode, and compares against benchmark/baseline.json. A primal
-  # regression beyond the factor fails the job. Derivative-overhead checks
-  # are informational (non-blocking) until runner timing noise is
-  # characterized; see benchmark/README.md and gate.py --gate-derivative.
-  # GitHub-hosted runners are noisy, so the factor is generous (4x): the gate
-  # catches order-of-magnitude regressions, not micro-noise.
-        if: ${{ github.event.pull_request.head.repo.fork }}
-    if: >-
-      github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci'))
-  benchmark:
-    name: benchmark regression gate
-    runs-on: ${{ github.event.pull_request.head.repo.fork && fromJSON('["self-hosted","itp-ubuntu24"]') || fromJSON('["self-hosted","itp-build"]') }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Run native checks in the build container
-        if: ${{ !github.event.pull_request.head.repo.fork }}
+      - name: Skip a nightly run of an unchanged main
+        id: stale
+        if: github.event_name == 'schedule'
         env:
-          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
-          SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
-        run: |-
-          ci/run.sh ci-benchmark
-      - name: Install system dependencies
+          GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            cmake \
-            gfortran \
-            ninja-build
-
-        if: ${{ github.event.pull_request.head.repo.fork }}
-      - name: Set up Python
-        uses: actions/setup-python@v5
+          last=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?event=schedule&status=success&per_page=1" |
+            jq -r '.workflow_runs[0] | "\(.head_sha) \(.created_at)"' 2>/dev/null || true)
+          sha=${last%% *} when=${last#* }
+          if [ "$sha" = "$GITHUB_SHA" ] && [ -n "$when" ] &&
+            [ "$(date -d "$when" +%s)" -gt "$(date -d '7 days ago' +%s)" ]; then
+            echo "main at $GITHUB_SHA passed the nightly run of $when; nothing to do."
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.stale.outputs.skip != '1'
         with:
-          python-version: '3.12'
-
-        if: ${{ github.event.pull_request.head.repo.fork }}
-      - name: Configure benchmark
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Repository packages
+        if: steps.stale.outputs.skip != '1' && hashFiles('.github/ci/apt-packages') != ''
+        run: grep -v '^#' .github/ci/apt-packages | xargs apt-get install -y -qq --no-install-recommends > /dev/null
+      - name: Places
+        if: steps.stale.outputs.skip != '1'
         run: |
-          cmake -S benchmark -B build-bench -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release
-
-        if: ${{ github.event.pull_request.head.repo.fork }}
-      - name: Build benchmark
-        run: cmake --build build-bench -j "${SCI_CPUS:-8}"
-
-        if: ${{ github.event.pull_request.head.repo.fork }}
-      - name: Run benchmark
-        run: ./build-bench/bin/bench_main --json | tee bench-run.json
-
-        if: ${{ github.event.pull_request.head.repo.fork }}
-      - name: Gate against baseline
-        run: |
-          python3 benchmark/gate.py \
-            --baseline benchmark/baseline.json \
-            --run bench-run.json \
-            --factor 4.0
-
-        if: ${{ github.event.pull_request.head.repo.fork }}
-      - name: Re-select Dawson candidates on hosted hardware
-        run: |
-          set -euo pipefail
-          lscpu > new-target-host.txt
-          python3 benchmark/collect_dawson_family.py \
-            --executable build-bench/bin/bench_dawson_generated_family \
-            --output new-target-dawson-family.json
-
-        if: ${{ github.event.pull_request.head.repo.fork }}
-      - name: Upload hosted-hardware selection
-        uses: actions/upload-artifact@v4
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          fo=$(git ls-remote https://github.com/lazy-fortran/fo.git refs/heads/main | cut -f1)
+          test -n "$fo"
+          echo "FO_COMMIT=$fo" >> "$GITHUB_ENV"
+          echo "FO_TOOLS=$RUNNER_TOOL_CACHE/fo-$fo" >> "$GITHUB_ENV"
+          echo "FO_CACHE_DIR=$RUNNER_TEMP/fo-cache" >> "$GITHUB_ENV"
+          echo "CCACHE_DIR=$RUNNER_TEMP/ccache" >> "$GITHUB_ENV"
+      - name: fo cache
+        if: steps.stale.outputs.skip != '1'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          name: hosted-dawson-selection-${{ github.sha }}
+          path: ${{ env.FO_TOOLS }}
+          key: fo-gcc16-${{ env.FO_COMMIT }}-fpm-${{ env.FPM_VERSION }}
+      - name: Build cache
+        if: steps.stale.outputs.skip != '1'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
           path: |
-            new-target-dawson-family.json
-            new-target-host.txt
-          retention-days: 30
-
-    if: >-
-      github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci'))
+            ${{ env.FO_CACHE_DIR }}
+            ${{ env.CCACHE_DIR }}
+            build/dependencies
+          key: build-${{ env.FO_COMMIT }}-${{ hashFiles('fpm.toml', 'CMakeLists.txt') }}-${{ github.sha }}
+          restore-keys: |
+            build-${{ env.FO_COMMIT }}-${{ hashFiles('fpm.toml', 'CMakeLists.txt') }}-
+            build-${{ env.FO_COMMIT }}-
+      - name: fo
+        if: steps.stale.outputs.skip != '1'
+        run: |
+          # fo at main, built once per commit with fpm's release binary of the
+          # pinned checksum.
+          if [ ! -x "$FO_TOOLS/bin/fo" ]; then
+            mkdir -p "$FO_TOOLS/bin"
+            curl -fsSL -o "$FO_TOOLS/bin/fpm" \
+              "https://github.com/fortran-lang/fpm/releases/download/v$FPM_VERSION/fpm-$FPM_VERSION-linux-x86_64-gcc-12"
+            echo "2e50a8649ac4136b9cf6b63c5d1b01adf26c02eedc18f32e16261c0ce655d46d  $FO_TOOLS/bin/fpm" | sha256sum -c -
+            chmod +x "$FO_TOOLS/bin/fpm"
+            git init --quiet "$RUNNER_TEMP/fo-src"
+            git -C "$RUNNER_TEMP/fo-src" fetch --quiet --depth 1 https://github.com/lazy-fortran/fo.git "$FO_COMMIT"
+            git -C "$RUNNER_TEMP/fo-src" checkout --quiet FETCH_HEAD
+            (cd "$RUNNER_TEMP/fo-src" && "$FO_TOOLS/bin/fpm" install --profile release --prefix "$FO_TOOLS")
+          fi
+          echo "$FO_TOOLS/bin" >> "$GITHUB_PATH"
+      - name: Check
+        if: steps.stale.outputs.skip != '1'
+        run: |
+          # Tests of permission errors need a user that file modes bind, so
+          # they do not run as the container's root.
+          useradd -u 1001 -m ci 2> /dev/null || true
+          chown -R ci "$GITHUB_WORKSPACE" "$RUNNER_TEMP"
+          git config --system --add safe.directory "$GITHUB_WORKSPACE"
+          exec setpriv --reuid=ci --regid=ci --init-groups env HOME=/home/ci sh -euc '
+            if [ "$GITHUB_EVENT_NAME" = merge_group ]; then
+              [ -f .github/ci/check ] && exec ./.github/ci/check
+              fo build
+              exec fo test --since HEAD^
+            fi
+            [ -f .github/ci/nightly ] && exec ./.github/ci/nightly
+            [ -f .github/ci/verify ] && exec ./.github/ci/verify
+            fo build
+            FO_TEST_RERUN=1 exec fo test --all'
