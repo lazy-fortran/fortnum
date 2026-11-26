@@ -22,6 +22,9 @@ program test_fortnum_lapack_ggev
     call triangular_pencil(9, .false.)
     call triangular_pencil(9, .true.)
     call zero_column(12)
+    call skew_definite(2, 0.3_dp)
+    call skew_definite(6, 0.9_dp)
+    call skew_definite(10, 1.7_dp)
     call argument_errors()
     print '(a)', 'generalized eigenproblem matches quad precision'
 
@@ -245,6 +248,32 @@ contains
         call require(count(abs(beta) <= 1.0e-13_dp*abs(alpha)) == 1, &
             'zggev zero column: one infinite eigenvalue')
     end subroutine zero_column
+
+    ! real skew-symmetric A and symmetric positive definite B: B^-1 A has a
+    ! purely imaginary spectrum, which a real Wilkinson shift cannot reach
+    subroutine skew_definite(n, seed)
+        integer, intent(in) :: n
+        real(dp), intent(in) :: seed
+        complex(dp) :: a(n, n), b(n, n), aw(n, n), bw(n, n), alpha(n), beta(n), vl(n, n), vr(n, n)
+        complex(dp) :: work(2*n)
+        real(dp) :: g(n, n), rwork(8*n)
+        integer :: info, i
+        g = real(cgeneral(n, seed), dp)
+        a = g - transpose(g)
+        g = aimag(cgeneral(n, seed + 0.77_dp))
+        b = matmul(g, transpose(g))
+        do i = 1, n
+            b(i, i) = b(i, i) + n
+        end do
+        aw = a
+        bw = b
+        call fortnum_zggev('V', 'V', n, aw, n, bw, n, alpha, beta, vl, n, vr, n, work, &
+            size(work), rwork, info)
+        call require(info == 0, 'zggev skew-definite: info')
+        call check_pairs(n, a, b, alpha, beta, vl, vr, 50*n*eps, 'zggev skew-definite')
+        call require(all(abs(real(alpha, dp)) <= 1.0e-10_dp*abs(alpha) + 50*n*eps*abs(beta)), &
+            'zggev skew-definite: imaginary eigenvalues')
+    end subroutine skew_definite
 
     subroutine argument_errors()
         complex(dp) :: a(2, 2), b(2, 2), alpha(2), beta(2), v(2, 2), work(4)

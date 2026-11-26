@@ -383,7 +383,7 @@ contains
                 u12 = (bscale*t(ilast - 1, ilast))/(bscale*t(ilast, ilast))
                 ad11 = (ascale*h(ilast - 1, ilast - 1))/(bscale*t(ilast - 1, ilast - 1))
                 ad21 = (ascale*h(ilast, ilast - 1))/(bscale*t(ilast - 1, ilast - 1))
-                ad12 = (ascale*h(ilast - 1, ilast))/(bscale*t(ilast - 1, ilast - 1))
+                ad12 = (ascale*h(ilast - 1, ilast))/(bscale*t(ilast, ilast))
                 ad22 = (ascale*h(ilast, ilast))/(bscale*t(ilast, ilast))
                 abi22 = ad22 - u12*ad21
                 abi12 = ad12 - u12*ad11
